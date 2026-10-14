@@ -388,7 +388,7 @@ fill(0,1,0,9,'W');fill(31,1,31,9,'W');G[11][0]=G[12][0]=G[11][31]=G[12][31]='W';
 G[10][3]=G[10][12]=G[10][24]='.';G[13][3]=G[13][17]='.';G[13][10]='t';G[13][25]='c';
 G[10][2]='H';G[10][11]='M';G[10][23]='R';G[13][2]='X';G[13][9]='J';G[13][16]='Y';G[13][24]='Q';
 fill(0,14,0,16,'S');
-fill(0,23,31,31,'v');fill(0,24,13,29,'F');fill(1,25,12,29,'r');G[25][1]=G[25][2]='S';
+fill(0,23,31,31,'v');fill(0,24,13,29,'F');fill(1,25,12,29,'r');G[25][1]=G[25][2]='Z';
 const WALKABLE='.tcr', OPEN='.tcrpv', OUTDOOR='crpv';
 const cellAt=(x,y)=>(x<0||y<0||x>=MW||y>=MH)?'v':G[y][x];
 
@@ -408,7 +408,8 @@ function buildTextures(){
   T('locker',64,192,g=>{wallBase(g);g.fillStyle=gray(.28);g.fillRect(1,20,62,172);for(const y of[20,62,104,146]){g.fillStyle=gray(.12);g.fillRect(4,y+3,56,38);let x=6;while(x<56){const w=3+rnd()*6;g.fillStyle=gray(.3+rnd()*.6);const h=18+rnd()*18;g.fillRect(x,y+41-h,w,h);x+=w+1;}}g.fillStyle=gray(.5);g.fillRect(4,60,56,2);g.fillRect(4,102,56,2);g.fillRect(4,144,56,2);});
   T('tile',64,192,g=>tileBase(g,72));
   T('stall',64,192,g=>{tileBase(g,72);g.fillStyle=gray(.56);g.fillRect(2,46,60,132);g.strokeStyle=gray(.25);g.lineWidth=2;g.strokeRect(2,46,60,132);g.fillStyle=gray(.4);g.fillRect(31,46,2,132);g.fillStyle=gray(.08);g.fillRect(0,178,64,14);});
-  T('stairs',64,192,g=>{wallBase(g);g.fillStyle=gray(.3);g.beginPath();g.moveTo(0,192);for(let i=0;i<8;i++){g.lineTo(i*8,186-i*14);g.lineTo(i*8+8,186-i*14);}g.lineTo(64,192);g.closePath();g.fill();g.strokeStyle=gray(.7);g.lineWidth=1;for(let i=0;i<8;i++){g.beginPath();g.moveTo(i*8,186-i*14);g.lineTo(i*8+8,186-i*14);g.stroke();}g.strokeStyle=gray(.12);g.lineWidth=3;g.beginPath();g.moveTo(0,150);g.lineTo(64,42);g.stroke();plate(g,'階段',8);});
+  T('stairs',64,192,g=>{wallBase(g);g.fillStyle=gray(.3);g.beginPath();g.moveTo(0,192);for(let i=0;i<8;i++){g.lineTo(i*8,186-i*14);g.lineTo(i*8+8,186-i*14);}g.lineTo(64,192);g.closePath();g.fill();g.strokeStyle=gray(.7);g.lineWidth=1;for(let i=0;i<8;i++){g.beginPath();g.moveTo(i*8,186-i*14);g.lineTo(i*8+8,186-i*14);g.stroke();}g.strokeStyle=gray(.12);g.lineWidth=3;g.beginPath();g.moveTo(0,150);g.lineTo(64,42);g.stroke();plate(g,'↑屋上',70);});
+  T('stairsDown',64,192,g=>{g.fillStyle=gray(.5);g.fillRect(0,0,64,192);speckle(g,64,192,.2,200);g.fillStyle=gray(.08);g.fillRect(8,40,48,152);g.strokeStyle=gray(.75);g.lineWidth=2;g.strokeRect(8,40,48,152);plate(g,'↓階段',70);});
   T('concrete',64,192,g=>{g.fillStyle=gray(.48);g.fillRect(0,0,64,192);speckle(g,64,192,.3,700);g.fillStyle=gray(.36);for(let y=32;y<192;y+=32)g.fillRect(0,y,64,1);g.fillStyle=gray(.25);for(let i=0;i<4;i++)g.fillRect(10+rnd()*44,10+rnd()*170,2,2);g.fillStyle='rgba(0,0,0,.18)';g.fillRect(0,150,64,42);});
   T('fence',64,192,g=>{g.fillStyle=gray(.07);g.fillRect(0,0,64,192);g.strokeStyle=gray(.5);g.lineWidth=1;for(let i=-160;i<64;i+=10){g.beginPath();g.moveTo(i,150);g.lineTo(i+130,20);g.stroke();g.beginPath();g.moveTo(i+130,150);g.lineTo(i,20);g.stroke();}g.fillStyle=gray(.6);g.fillRect(0,16,64,4);g.fillRect(0,0,3,150);g.fillStyle=gray(.42);g.fillRect(0,150,64,42);speckle(g,64,192,.2,120);});
   const signs={H:'写真部',M:'音楽室',R:'理科室',X:'西階段',J:'女子便所',Y:'用務員室',Q:'プール'};
@@ -424,7 +425,7 @@ function wallTex(ch,prev){
   switch(ch){
     case '#':return prev==='t'?TX.tile:(prev==='c'?TX.concrete:(prev==='r'?TX.fence:TX.wall));
     case 'W':return TX.window;case 'B':return TX.board;case 'K':return TX.shelf;case 'L':return TX.locker;
-    case 'P':return TX.stall;case 'F':return TX.fence;case 'S':return TX.stairs;
+    case 'P':return TX.stall;case 'F':return TX.fence;case 'S':return TX.stairs;case 'Z':return TX.stairsDown;
     default:return TX['sign'+ch]||TX.wall;
   }
 }
@@ -552,7 +553,7 @@ function render(){
     if(!hit){ZB[x]=1e9;WT[x]=WB[x]=HALF;continue;}
     const perp=side===0?sdx-ddx:sdy-ddy;
     let u=side===0?py+perp*rdy:px+perp*rdx;u-=Math.floor(u);
-    if(side===0&&rdx>0)u=1-u;if(side===1&&rdy<0)u=1-u;
+    if(side===0&&rdx<0)u=1-u;if(side===1&&rdy>0)u=1-u;
     const tex=wallTex(ch,prev),sc=PROJ/perp,top=HALF+(EYE-WALLH)*sc,bot=HALF+EYE*sc;
     ZB[x]=perp;WT[x]=top;WB[x]=bot;
     const tx=Math.min(tex.w-1,(u*tex.w)|0),d=perp*SEC[x],shade=side===1?.82:1;
@@ -631,7 +632,7 @@ function canStand(x,y,ox,oy){
   for(const o of SOLIDS){const d2=(x-o.x)**2+(y-o.y)**2;if(d2<o.r*o.r&&d2<(ox-o.x)**2+(oy-o.y)**2)return false;}
   return true;
 }
-let stepAcc=0;
+let stepAcc=0,tpLock=false,stairHint=false;
 function update(dt){
   TIME+=dt;
   if(paused)return;
@@ -644,8 +645,10 @@ function update(dt){
     const ox=px,oy=py;
     if(canStand(px+dx,py,ox,oy))px+=dx;
     if(canStand(px,py+dy,ox,oy))py+=dy;
+    if(MODE==='present'&&f>0&&!tpLock){const c=cellAt(Math.floor(px+Math.cos(pa)*.4),Math.floor(py+Math.sin(pa)*.4));if(c==='S')INTER[2].use();else if(c==='Z')INTER[3].use();}
     stepAcc+=Math.hypot(px-ox,py-oy);if(stepAcc>.85){stepAcc=0;sfx('step');}
   }
+  if(MODE==='present'&&!stairHint&&px<6&&py>13.6&&py<22){stairHint=true;toast('西の壁に、屋上へ続く階段がある。壁に向かって進めば上れる。');}
   updatePrompt();
 }
 
@@ -653,8 +656,8 @@ function update(dt){
 const INTER=[
   {x:3.0,y:4.0,r:1.8,label:'古いカメラ',when:()=>!S.hasCamera,use:pickupCamera},
   {x:17.5,y:20.7,r:1.8,label:'用務員日誌',use:readLog},
-  {x:.9,y:15.0,r:1.7,label:'階段を上る（屋上へ）',use:()=>teleport(3.6,26.6,0,'屋上に出た。冷たい風が吹いている。')},
-  {x:1.6,y:25.9,r:1.7,label:'階段を下りる',use:()=>teleport(2.6,17.6,-Math.PI/2,'西階段に戻った。')},
+  {x:.9,y:15.0,r:2.6,label:'階段を上る（屋上へ）',use:()=>teleport(3.6,26.6,0,'屋上に出た。冷たい風が吹いている。')},
+  {x:1.9,y:25.9,r:2.4,label:'階段を下りる',use:()=>teleport(2.6,17.6,-Math.PI/2,'西階段に戻った。')},
   ...TRACES.map(t=>({x:t.x,y:t.y,r:1.7,label:t.label,use:()=>useTrace(t)})),
 ];
 let target=null;
@@ -673,7 +676,7 @@ function updatePrompt(){
   el.firstChild.textContent='▶ '+txt;el.hidden=false;
 }
 function action(){if(paused||!started)return;if(!target)return;if(target.fig)inspect(target.pid);else target.use();}
-function teleport(x,y,a,msg){flashInk(()=>{px=x;py=y;pa=a;toast(msg);save();});}
+function teleport(x,y,a,msg){if(tpLock)return;tpLock=true;flashInk(()=>{px=x;py=y;pa=a;toast(msg);save();setTimeout(()=>tpLock=false,400);});}
 function useTrace(t){
   if(!S.hasCamera){showMsg('黒い染み',`<p>${t.look}</p><p>……何かで記録できればいいのに。写真部の部室に、何かあった気がする。</p>`);return;}
   sfx('shutter');flashPaper();
