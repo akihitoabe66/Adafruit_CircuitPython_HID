@@ -194,7 +194,7 @@ const D2R=Math.PI/180, TAU=Math.PI*2;
 const W=384,H=216,HALF=H/2;
 const FOV=66*D2R, PLANE=Math.tan(FOV/2), PROJ=(W/2)/PLANE;
 const WALLH=3.0, EYE=1.5;
-const KEY='nanatsume-v1';
+const KEY='nanatsume-v2';
 
 /* ---------- palettes (two-colour monitors) ---------- */
 const PALS=[
@@ -394,9 +394,21 @@ fill(1,0,5,0,'L');fill(9,0,14,0,'B');fill(18,0,30,0,'K');
 fill(0,1,0,9,'W');fill(31,1,31,9,'W');G[11][0]=G[12][0]=G[11][31]=G[12][31]='W';
 G[10][3]=G[10][12]=G[10][24]='.';G[13][3]=G[13][17]='.';G[13][10]='t';G[13][25]='c';
 G[10][2]='H';G[10][11]='M';G[10][23]='R';G[13][2]='X';G[13][9]='J';G[13][16]='Y';G[13][24]='Q';
-fill(0,14,0,16,'S');
-fill(0,23,31,31,'v');fill(0,24,13,29,'F');fill(1,25,12,29,'r');G[25][1]=G[25][2]='Z';
-const WALKABLE='.tcr', OPEN='.tcrpv', OUTDOOR='crpv';
+fill(0,23,31,31,'v');fill(0,25,13,30,'F');fill(1,26,12,30,'r');
+for(let y=22;y<=25;y++){G[y][0]='#';G[y][3]='#';}
+for(let y=14;y<=25;y++){G[y][1]=G[y][2]='s';}
+const WALKABLE='.tcrs', OPEN='.tcrpvs', OUTDOOR='crpv';
+const STEP=.36,ROOFH=STEP*13;
+const FH=[],CHT=[],WTOP=[],WBOT=[];
+for(let y=0;y<MH;y++){FH.push(new Float32Array(MW));CHT.push(new Float32Array(MW));WTOP.push(new Float32Array(MW));WBOT.push(new Float32Array(MW));
+  for(let x=0;x<MW;x++){const c=G[y][x];
+    FH[y][x]=c==='s'?(y-13)*STEP:c==='r'?ROOFH:c==='v'?-12:c==='p'?-.22:0;
+    CHT[y][x]=OUTDOOR.indexOf(c)>=0?1e9:((x>=1&&x<=5&&y>=14&&y<=21)||c==='s')?7.8:WALLH;}}
+for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){if('.tcrpvs'.indexOf(G[y][x])>=0)continue;let top=0,bot=1e9,any=false;
+  for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=MW||Y>=MH||'.tcrpvs'.indexOf(G[Y][X])<0)continue;any=true;const f=FH[Y][X],c=CHT[Y][X];top=Math.max(top,c<1e8?c:f+(G[Y][X]==='r'?1.7:2.6));bot=Math.min(bot,f);}
+  WTOP[y][x]=any?top:WALLH;WBOT[y][x]=any?bot:0;}
+const fhAt=(x,y)=>(x<0||y<0||x>=MW||y>=MH)?-12:FH[y][x];
+const chAt=(x,y)=>(x<0||y<0||x>=MW||y>=MH)?1e9:CHT[y][x];
 const cellAt=(x,y)=>(x<0||y<0||x>=MW||y>=MH)?'v':G[y][x];
 
 /* ---------- textures ---------- */
@@ -426,13 +438,15 @@ function buildTextures(){
   T('ftile',64,64,g=>{g.fillStyle=gray(.7);g.fillRect(0,0,64,64);g.fillStyle=gray(.5);for(let i=0;i<64;i+=16){g.fillRect(i,0,1,64);g.fillRect(0,i,64,1);}speckle(g,64,64,.15,80);});
   T('fconc',64,64,g=>{g.fillStyle=gray(.44);g.fillRect(0,0,64,64);speckle(g,64,64,.3,300);g.fillStyle=gray(.34);g.fillRect(0,0,64,1);g.fillRect(0,0,1,64);});
   T('froof',64,64,g=>{g.fillStyle=gray(.5);g.fillRect(0,0,64,64);speckle(g,64,64,.35,300);g.fillStyle=gray(.38);g.fillRect(0,31,64,2);g.fillRect(31,0,2,64);});
+  T('tread',64,64,g=>{g.fillStyle=gray(.5);g.fillRect(0,0,64,64);speckle(g,64,64,.2,120);g.fillStyle=gray(.3);for(let x=0;x<64;x+=16)g.fillRect(x,0,1,64);g.fillStyle=gray(.85);g.fillRect(0,0,64,4);g.fillRect(0,60,64,4);});
+  T('riser',64,64,g=>{g.fillStyle=gray(.3);g.fillRect(0,0,64,64);speckle(g,64,64,.2,100);g.fillStyle=gray(.82);g.fillRect(0,0,64,9);g.fillStyle=gray(.12);g.fillRect(0,9,64,3);g.fillStyle=gray(.2);g.fillRect(0,0,1,64);});
   T('ceil',64,64,g=>{g.fillStyle=gray(.5);g.fillRect(0,0,64,64);g.fillStyle=gray(.38);for(let i=0;i<64;i+=16){g.fillRect(i,0,1,64);g.fillRect(0,i,64,1);}g.fillStyle=gray(.82);g.fillRect(28,6,8,52);g.fillStyle=gray(.3);g.strokeRect(28,6,8,52);});
 }
 function wallTex(ch,prev){
   switch(ch){
     case '#':return prev==='t'?TX.tile:(prev==='c'?TX.concrete:(prev==='r'?TX.fence:TX.wall));
     case 'W':return TX.window;case 'B':return TX.board;case 'K':return TX.shelf;case 'L':return TX.locker;
-    case 'P':return TX.stall;case 'F':return TX.fence;case 'S':return TX.stairs;case 'Z':return TX.stairsDown;
+    case 'P':return TX.stall;case 'F':return TX.fence;
     default:return TX['sign'+ch]||TX.wall;
   }
 }
@@ -487,9 +501,9 @@ const MEMS={
     figs:[{p:'sumiko',pose:'lie',x:26.6,y:2.5,z:.72},{p:'kuroda',pose:'carry',x:25.3,y:3.0},{p:'kashiwagi',pose:'carry',mirror:true,x:27.9,y:3.0},{p:'toru',pose:'camera',x:24.5,y:10.9}],
     props:[{k:'flash',x:24.5,y:10.55,z:1.15,emit:true}],
     lines:[N('（重いものを引きずる音。）','drag'),{s:'中年の男の声',t:'……なんてことをしてくれたんだ、黒田。'},{s:'若い男の声',t:'先生だって同罪ですよ。答案のことが知れたら、先生もおしまいだ。'},{s:'中年の男の声',t:'…………人体模型の収納棚だ。朝までに、どうにかする。'},N('（カシャッ。シャッターの音。）','shutter'),{s:'若い男の声',t:'誰だ！'},{s:'少年の声',t:'ひっ……！'}]},
-  stairs:{name:'西階段',time:'昭和54年11月2日　午後9時55分',start:[4.3,20.6,-1.95],amb:.26,lights:[[2.5,14.6,1.5]],sky:'night',
-    figs:[{p:'kuroda',pose:'push',x:1.7,y:15.6},{p:'toru',pose:'fall',x:3.0,y:16.9,z:.25},{p:'harumi',pose:'cover',x:4.4,y:15.0}],
-    props:[{k:'flycam',x:2.3,y:17.7,z:1.55}],
+  stairs:{name:'西階段',time:'昭和54年11月2日　午後9時55分',start:[4.5,18.6,-2.22],amb:.26,lights:[[2.5,15.5,1.6],[1.6,19.5,1.0]],sky:'night',
+    figs:[{p:'kuroda',pose:'push',x:1.6,y:17.5},{p:'toru',pose:'fall',x:2.3,y:15.6,z:.35},{p:'harumi',pose:'cover',x:1.5,y:20.5}],
+    props:[{k:'flycam',x:3.0,y:15.0,z:1.1}],
     lines:[N('（階段を駆け下りる足音。）','steps'),{s:'若い男の声',t:'早瀬！ そのフィルムをよこせ！'},{s:'少年の声',t:'いやです！ これは……証拠です！'},{s:'少女の声',t:'やめて、会長！'},{s:'若い男の声',t:'よこせと言ってるんだ！'},N('（突き飛ばす音。何かが階段を転がり落ちていく。）','fall'),{s:'少女の声',t:'…………早瀬くん？'}]},
   toilet:{name:'女子便所',time:'昭和54年11月2日　午後10時30分',start:[9.6,16.0,.8],amb:.24,lights:[[8.5,14.8,1.7],[12.5,18.0,.8]],sky:'night',
     figs:[{p:'iwasaki',pose:'light',x:8.2,y:14.7},{p:'kayo',pose:'knock',x:12.5,y:18.4},{p:'harumi',pose:'crouch',x:12.5,y:20.7}],
@@ -497,18 +511,18 @@ const MEMS={
   pool:{name:'プール',time:'昭和54年11月2日　午後11時15分',start:[22.0,14.6,.5],amb:.28,lights:[[26,17.5,.7]],sky:'night',
     figs:[{p:'kuroda',pose:'drown',x:26.0,y:17.8,z:-.28},{p:'kayo',pose:'holdcam',x:26.2,y:15.3}],
     lines:[N('（風の音。水面を打つ音。）','wind'),{s:'落ち着いた少女の声',t:'そのカメラ、どうするつもり。'},{s:'若い男の声',t:'沈める。フィルムごとな。……お前も、見なかったことにしろ。'},{s:'落ち着いた少女の声',t:'白石さんも、早瀬くんも。あなたがやったのね。'},{s:'若い男の声',t:'仕方なかったんだ！ どけ、加代！'},{s:'落ち着いた少女の声',t:'カメラは渡さない。'},N('（揉み合う音。大きな水しぶき。）','splash'),{s:'若い男の声',t:'がっ……か、加代……つめた……手を……'},{s:'落ち着いた少女の声',t:'……………………'},N('（水音が、やがて止む。）','bubbles')]},
-  roof:{name:'屋上',time:'昭和54年11月3日　午前5時40分',start:[3.8,26.6,.8],amb:.42,lights:[],sky:'dawn',
-    figs:[{p:'kashiwagi',pose:'ledge',x:7.8,y:29.75},{p:'iwasaki',pose:'reach',x:5.2,y:29.1}],
+  roof:{name:'屋上',time:'昭和54年11月3日　午前5時40分',start:[3.8,27.6,.8],amb:.42,lights:[],sky:'dawn',
+    figs:[{p:'kashiwagi',pose:'ledge',x:7.8,y:30.75},{p:'iwasaki',pose:'reach',x:5.2,y:30.1}],
     lines:[N('（夜明け前の風。金網がきしむ音。）','wind'),{s:'年老いた男の声',t:'先生！ 柏木先生、早まっちゃいかん！'},{s:'中年の男の声',t:'岩崎さん……私が答案など流さなければ、三人とも死なずに済んだ。'},{s:'年老いた男の声',t:'警察へ行きましょう。まだ、やり直せる。'},{s:'中年の男の声',t:'教え子を三人も死なせた教師に、明日はありませんよ。'},N('（風の音だけが残る。）','wind')]},
 };
 const MEM_ORDER=['music','science','stairs','toilet','pool','roof'];
 const TRACES=[
   {mem:'music',x:9.6,y:2.9,label:'ピアノの鍵盤の黒い染み',look:'ピアノの鍵盤に、黒い染みがこびりついている。'},
   {mem:'science',x:26.6,y:2.7,label:'人体模型の前の引きずった跡',look:'人体模型の前の床に、何かを引きずった跡が黒く残っている。'},
-  {mem:'stairs',x:2.8,y:16.8,label:'十三段目の下の染み',look:'階段の下に黒ずんだ染み。数えてみると、ちょうど十三段目の真下だ。'},
+  {mem:'stairs',x:3.4,y:14.6,label:'階段の下の染み',look:'階段の下に黒ずんだ染み。見上げると、十二段のはずの階段が、十三段あるように見える。'},
   {mem:'toilet',x:12.5,y:20.4,label:'三番目の個室の刻み文字',look:'三番目の個室。扉の内側に、爪で「たすけて」と刻まれている。'},
   {mem:'pool',x:26.0,y:15.2,label:'乾かない濡れた足跡',look:'プールサイドに、いつまでも乾かない濡れた足跡がある。'},
-  {mem:'roof',x:7.0,y:29.3,label:'屋上の縁の靴跡',look:'屋上の縁のコンクリートに、靴の跡がひとつだけ残っている。'},
+  {mem:'roof',x:7.0,y:30.3,label:'屋上の縁の靴跡',look:'屋上の縁のコンクリートに、靴の跡がひとつだけ残っている。'},
 ];
 
 /* ---------- state ---------- */
@@ -520,7 +534,7 @@ function loadSave(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');re
 
 /* ---------- renderer ---------- */
 const cv=$('#view'),cx=cv.getContext('2d'),IMG=cx.createImageData(W,H),OUT32=new Uint32Array(IMG.data.buffer);
-const EDGE=new Uint8Array(W*H),LUM=new Float32Array(W*H),ZB=new Float32Array(W),WT=new Float32Array(W),WB=new Float32Array(W);
+const SURF=new Int32Array(W*H),DEPTH=new Float32Array(W*H),LUM=new Float32Array(W*H),ZB=new Float32Array(W),WT=new Float32Array(W),WB=new Float32Array(W);
 const COLCAM=new Float32Array(W),COLANG=new Float32Array(W),SEC=new Float32Array(W),CONE=new Float32Array(W*H),VIG=new Float32Array(W*H);
 for(let x=0;x<W;x++){COLCAM[x]=2*(x+.5)/W-1;COLANG[x]=Math.atan(COLCAM[x]*PLANE);SEC[x]=Math.sqrt(1+COLCAM[x]*COLCAM[x]*PLANE*PLANE);}
 for(let y=0;y<H;y++)for(let x=0;x<W;x++){const dx=(x-W/2)/(W/2),dy=(y-HALF)/HALF,i=y*W+x;VIG[i]=1-.42*Math.pow(Math.min(1,(dx*dx+dy*dy)/2),1.5);
@@ -542,79 +556,78 @@ function lightPix(wx,wy,d,i,outdoor){
 }
 function render(){
   const dirX=Math.cos(pa),dirY=Math.sin(pa),plX=-dirY*PLANE,plY=dirX*PLANE;
-  const cx0=Math.floor(px),cy0=Math.floor(py),mem=MODE==='memory';
-  const startCh=cellAt(cx0,cy0);
-  // walls
+  const cx0=Math.floor(px),cy0=Math.floor(py),mem=MODE==='memory',eyeZ=EYE+eyeH,T0=mem?0:TIME;
+  const floorPix=(i,x,y,cc,h,rdx,rdy)=>{
+    const dist=(eyeZ-h)*PROJ/(y+.5-HALF),fx=px+rdx*dist,fy=py+rdy*dist,ix=Math.floor(fx),iy=Math.floor(fy),d=dist*SEC[x];
+    DEPTH[i]=dist;SURF[i]=4096+iy*MW+ix;
+    if(cc==='v'){LUM[i]=mem?.06*MEM.amb*8:(hash(Math.floor(fx*2),Math.floor(fy*2))>.96?.9:.015);SURF[i]=0;return;}
+    let alb;
+    if(cc==='p'){const w=Math.sin(fx*4.2+T0*1.6+Math.sin(fy*2.7+T0*.9))*Math.sin(fy*5.1-T0*1.2);alb=.13+.07*w;if(w>.82)alb=.55;}
+    else{const t=cc==='t'?TX.ftile:cc==='c'?TX.fconc:cc==='r'?TX.froof:cc==='s'?TX.tread:TX.wood;alb=t.l[(((fy-iy)*64)|0)*64+(((fx-ix)*64)|0)];}
+    if(!mem){for(let k=0;k<TR_ACTIVE.length;k++){const tr=TR_ACTIVE[k],dx=fx-tr.x,dy=fy-tr.y,r2=dx*dx+dy*dy;if(r2<.3){const a=Math.atan2(dy,dx),rr=.36+.12*Math.sin(a*5+tr.x)+.05*Math.sin(a*13);if(r2<rr*rr)alb*=.08+.25*hash(Math.floor(fx*24),Math.floor(fy*24));}}}
+    LUM[i]=alb*lightPix(fx,fy,d,i,OUTDOOR.indexOf(cc)>=0);
+  };
   for(let x=0;x<W;x++){
     const cam=COLCAM[x],rdx=dirX+plX*cam,rdy=dirY+plY*cam;
     let mx=cx0,my=cy0;const ddx=Math.abs(1/rdx),ddy=Math.abs(1/rdy);
     let sx,sy,sdx,sdy;
     if(rdx<0){sx=-1;sdx=(px-mx)*ddx;}else{sx=1;sdx=(mx+1-px)*ddx;}
     if(rdy<0){sy=-1;sdy=(py-my)*ddy;}else{sy=1;sdy=(my+1-py)*ddy;}
-    let side=0,hit=false,prev=startCh,ch='';
-    for(let n=0;n<90;n++){
-      if(sdx<sdy){sdx+=ddx;mx+=sx;side=0;}else{sdy+=ddy;my+=sy;side=1;}
-      if(mx<0||my<0||mx>=MW||my>=MH)break;
-      const c=G[my][mx];if(OPEN.indexOf(c)<0){hit=true;ch=c;break;}prev=c;
-    }
-    if(!hit){ZB[x]=1e9;WT[x]=WB[x]=HALF;continue;}
-    const perp=side===0?sdx-ddx:sdy-ddy;
-    let u=side===0?py+perp*rdy:px+perp*rdx;u-=Math.floor(u);
-    if(side===0&&rdx<0)u=1-u;if(side===1&&rdy>0)u=1-u;
-    const tex=wallTex(ch,prev),sc=PROJ/perp,top=HALF+(EYE-WALLH)*sc,bot=HALF+EYE*sc;
-    ZB[x]=perp;WT[x]=top;WB[x]=bot;
-    const tx=Math.min(tex.w-1,(u*tex.w)|0),d=perp*SEC[x],shade=side===1?.82:1;
-    const hx=px+perp*rdx,hy=py+perp*rdy,outdoor=OUTDOOR.indexOf(prev)>=0;
-    const colL=mem?lightPix(hx,hy,d,0,outdoor):0;
-    const y0=Math.max(0,Math.ceil(top)),y1=Math.min(H,Math.ceil(bot)),span=bot-top;
-    for(let y=y0;y<y1;y++){
-      const ty=Math.min(tex.h-1,(((y+.5-top)/span)*tex.h)|0),i=y*W+x;
-      LUM[i]=tex.l[ty*tex.w+tx]*shade*(mem?colL:lightPix(0,0,d,i,outdoor));
-    }
-  }
-  // floor & ceiling
-  const lx0=dirX-plX,ly0=dirY-plY,lx1=dirX+plX,ly1=dirY+plY,T0=mem?0:TIME;
-  for(let y=0;y<H;y++){
-    const isF=y>=HALF,p=isF?(y+.5-HALF):(HALF-y-.5);
-    const rd=(isF?EYE:WALLH-EYE)*PROJ/p;
-    const stx=rd*(lx1-lx0)/W,sty=rd*(ly1-ly0)/W;
-    let fx=px+rd*lx0+stx*.5,fy=py+rd*ly0+sty*.5;
-    for(let x=0;x<W;x++,fx+=stx,fy+=sty){
-      if(isF?y<WB[x]:y>=WT[x])continue;
-      const i=y*W+x,ix=Math.floor(fx),iy=Math.floor(fy),c=cellAt(ix,iy),d=rd*SEC[x];
-      if(!isF){
-        if(rd>=ZB[x]||OUTDOOR.indexOf(c)>=0){LUM[i]=skyAt(x,y);continue;}
-        const t=TX.ceil,u=((fx*.5-Math.floor(fx*.5))*64)|0,v=((fy*.5-Math.floor(fy*.5))*64)|0;
-        LUM[i]=t.l[v*64+u]*lightPix(fx,fy,d,i,false);continue;
+    let cT=0,cB=H,cc=cellAt(mx,my),cfh=fhAt(mx,my),cch=chAt(mx,my);
+    for(let n=0;n<96&&cT<cB;n++){
+      let d,side;
+      if(sdx<sdy){d=sdx;sdx+=ddx;mx+=sx;side=0;}else{d=sdy;sdy+=ddy;my+=sy;side=1;}
+      const sc=PROJ/d,yAt=z=>HALF+(eyeZ-z)*sc;
+      // floor of the current cell
+      if(eyeZ>cfh){const ys=Math.max(cT,Math.ceil(yAt(cfh)));for(let y=ys;y<cB;y++)floorPix(y*W+x,x,y,cc,cfh,rdx,rdy);cB=Math.max(cT,Math.min(cB,ys));}
+      // ceiling of the current cell
+      if(cch<1e8&&eyeZ<cch){const ye=Math.min(cB,Math.ceil(yAt(cch)));for(let y=cT;y<ye;y++){const i=y*W+x,dist=(cch-eyeZ)*PROJ/(HALF-y-.5),fx=px+rdx*dist,fy=py+rdy*dist,t=TX.ceil;
+          LUM[i]=t.l[(((fy*.5-Math.floor(fy*.5))*64)|0)*64+(((fx*.5-Math.floor(fx*.5))*64)|0)]*lightPix(fx,fy,dist*SEC[x],i,false);DEPTH[i]=dist;SURF[i]=8192+Math.floor(fy)*MW+Math.floor(fx);}
+        cT=Math.max(cT,ye);}
+      if(cT>=cB||mx<0||my<0||mx>=MW||my>=MH)break;
+      const nc=G[my][mx],hx=px+rdx*d,hy=py+rdy*d,dl=d*SEC[x],outdoor=OUTDOOR.indexOf(cc)>=0,cid=my*MW+mx;
+      let u=side===0?hy:hx;u-=Math.floor(u);if(side===0&&rdx<0)u=1-u;if(side===1&&rdy>0)u=1-u;
+      const shade=side===1?.82:1,colL=mem?lightPix(hx,hy,dl,0,outdoor):0;
+      const face=(z0,z1,tex,vfn,type)=>{const ya=Math.max(cT,Math.ceil(yAt(z1))),yb=Math.min(cB,Math.ceil(yAt(z0))),tx=Math.min(tex.w-1,(u*tex.w)|0);
+        for(let y=ya;y<yb;y++){const i=y*W+x,z=eyeZ-(y+.5-HALF)/sc,ty=Math.max(0,Math.min(tex.h-1,(vfn(z)*tex.h)|0));LUM[i]=tex.l[ty*tex.w+tx]*shade*(mem?colL:lightPix(0,0,dl,i,outdoor));DEPTH[i]=d;SURF[i]=type*4096+cid;}
+        return [ya,yb];};
+      const wallV=z=>{let t=z-cfh;if(t>3)t=1.6+((t-3)%1.4);return (3-t)/3;};
+      if(OPEN.indexOf(nc)<0){const r=face(WBOT[my][mx],WTOP[my][mx],wallTex(nc,cc),wallV,3);for(let y=cT;y<r[0];y++){const i=y*W+x;LUM[i]=y<HALF?skyAt(x,y):.015;DEPTH[i]=1e9;SURF[i]=0;}cT=Math.max(cT,r[1]);break;}
+      const nfh=fhAt(mx,my),nch=chAt(mx,my);
+      if(nfh>cfh){face(cfh,nfh,TX.riser,z=>(nfh-z)/(nfh-cfh),5);cB=Math.max(cT,Math.min(cB,Math.ceil(yAt(nfh))));}
+      if(nch<cch){
+        if(cch<1e8){face(nch,cch,TX.wall,wallV,3);}
+        else{const r=face(nch,nch+.7,TX.concrete,z=>.2+(nch+.7-z)*.3,3);for(let y=cT;y<r[0];y++){const i=y*W+x;LUM[i]=skyAt(x,y);DEPTH[i]=1e9;SURF[i]=0;}}
+        cT=Math.min(cB,Math.max(cT,Math.ceil(yAt(nch))));
       }
-      let alb;
-      if(c==='p'){const w=Math.sin(fx*4.2+T0*1.6+Math.sin(fy*2.7+T0*.9))*Math.sin(fy*5.1-T0*1.2);alb=.13+.07*w;if(w>.82)alb=.55;}
-      else if(c==='v'){alb=mem?.06:(hash(Math.floor(fx*2),Math.floor(fy*2))>.96?.9:.015);LUM[i]=alb*(mem?MEM.amb*1.4:1);continue;}
-      else{const t=c==='t'?TX.ftile:c==='c'?TX.fconc:c==='r'?TX.froof:TX.wood;const u=((fx-ix)*64)|0,v=((fy-iy)*64)|0;alb=t.l[v*64+u];}
-      if(!mem){for(let k=0;k<TR_ACTIVE.length;k++){const tr=TR_ACTIVE[k],dx=fx-tr.x,dy=fy-tr.y,r2=dx*dx+dy*dy;if(r2<.3){const a=Math.atan2(dy,dx),rr=.36+.12*Math.sin(a*5+tr.x)+.05*Math.sin(a*13);if(r2<rr*rr)alb*=.08+.25*hash(Math.floor(fx*24),Math.floor(fy*24));}}}
-      LUM[i]=alb*lightPix(fx,fy,d,i,OUTDOOR.indexOf(c)>=0);
+      cc=nc;cfh=nfh;cch=nch;
     }
+    for(let y=cT;y<cB;y++){const i=y*W+x;LUM[i]=y<HALF?skyAt(x,y):.015;DEPTH[i]=1e9;SURF[i]=0;}
   }
   // sprites
   const list=[];
   for(const s of SPR){const dx=s.x-px,dy=s.y-py,dep=dx*dirX+dy*dirY;if(dep<.12)continue;list.push([s,dep,dx*(-dirY)+dy*dirX]);}
   list.sort((a,b)=>b[1]-a[1]);
+  let sid=0;
   for(const [s,dep,lat] of list){
-    const img=s.img,sc=PROJ/dep,scx=W/2*(1+(lat/dep)/PLANE);
-    const sw=img.w/100*sc,x0=scx-sw/2,top=HALF+(EYE-(s.z+img.h/100))*sc,bot=HALF+(EYE-s.z)*sc,sh=bot-top;
+    sid++;const img=s.img,sc=PROJ/dep,scx=W/2*(1+(lat/dep)/PLANE),zb=s.z+fhAt(Math.floor(s.x),Math.floor(s.y));
+    const sw=img.w/100*sc,x0=scx-sw/2,top=HALF+(eyeZ-(zb+img.h/100))*sc,bot=HALF+(eyeZ-zb)*sc,sh=bot-top;
     const xa=Math.max(0,Math.ceil(x0)),xb=Math.min(W,Math.ceil(x0+sw)),ya=Math.max(0,Math.ceil(top)),yb=Math.min(H,Math.ceil(bot));
     const d=Math.hypot(s.x-px,s.y-py),cl=mem?lightPix(s.x,s.y,d,0,false):0;
     for(let x=xa;x<xb;x++){
-      if(dep>=ZB[x])continue;const tx=Math.min(img.w-1,(((x+.5-x0)/sw)*img.w)|0);
-      for(let y=ya;y<yb;y++){const ty=Math.min(img.h-1,(((y+.5-top)/sh)*img.h)|0),j=ty*img.w+tx;if(!img.a[j])continue;const i=y*W+x;
-        LUM[i]=s.emit?img.l[j]*1.2:img.l[j]*(mem?cl:lightPix(0,0,d,i,false));}
+      const tx=Math.min(img.w-1,(((x+.5-x0)/sw)*img.w)|0);
+      for(let y=ya;y<yb;y++){const i=y*W+x;if(dep>=DEPTH[i])continue;const ty=Math.min(img.h-1,(((y+.5-top)/sh)*img.h)|0),j=ty*img.w+tx;if(!img.a[j])continue;
+        LUM[i]=s.emit?img.l[j]*1.2:img.l[j]*(mem?cl:lightPix(0,0,d,i,false));DEPTH[i]=dep;SURF[i]=7*4096+sid;}
     }
   }
-  // dither
-  for(let x=1;x<W-1;x++){const a=ZB[x],l=ZB[x-1];if(a<1e8&&(l>1e8||Math.abs(a-l)/Math.min(a,l)>.12)){const y0=Math.max(0,Math.ceil(Math.max(WT[x],WT[x-1]))),y1=Math.min(H,Math.ceil(Math.min(WB[x],WB[x-1])));for(let y=y0;y<y1;y++)EDGE[y*W+x]=1;}
-    if(a<1e8){const t=Math.ceil(WT[x]),b=Math.ceil(WB[x])-1;if(t>=0&&t<H)EDGE[t*W+x]=1;if(b>=0&&b<H)EDGE[b*W+x]=1;}}
+  // outlines where surfaces meet, then dither
   const CK=mem?.15:.04,CM=mem?1.7:1.35;
-  for(let y=0;y<H;y++){const by=(y&7)*8;for(let x=0;x<W;x++){const i=y*W+x;let v=(LUM[i]*VIG[i]-CK)*CM;if(EDGE[i]){EDGE[i]=0;v=v>.3?0:v;}OUT32[i]=v>BAYER[by+(x&7)]?PAP32:INK32;}}
+  for(let y=0;y<H;y++){const by=(y&7)*8;for(let x=0;x<W;x++){const i=y*W+x;let v=(LUM[i]*VIG[i]-CK)*CM;
+    const s=SURF[i];let e=false;
+    if(x>0){const s2=SURF[i-1];if(s2!==s){const a=DEPTH[i],b=DEPTH[i-1];e=(s>>12)!==(s2>>12)||Math.max(a,b)>Math.min(a,b)*1.08;}}
+    if(!e&&y>0){const s2=SURF[i-W];if(s2!==s){const a=DEPTH[i],b=DEPTH[i-W];e=(s>>12)!==(s2>>12)||Math.max(a,b)>Math.min(a,b)*1.08;}}
+    if(e&&v>.3)v=0;
+    OUT32[i]=v>BAYER[by+(x&7)]?PAP32:INK32;}}
   cx.putImageData(IMG,0,0);
 }
 
@@ -635,27 +648,29 @@ function rebuildScene(){
 const keys={},vk={};
 function solidCell(x,y){return WALKABLE.indexOf(cellAt(Math.floor(x),Math.floor(y)))<0;}
 function canStand(x,y,ox,oy){
-  const r=.22;if(solidCell(x-r,y-r)||solidCell(x+r,y-r)||solidCell(x-r,y+r)||solidCell(x+r,y+r))return false;
+  const r=.22,h0=fhAt(Math.floor(ox),Math.floor(oy));
+  for(const [cx_,cy_] of [[x-r,y-r],[x+r,y-r],[x-r,y+r],[x+r,y+r]]){if(solidCell(cx_,cy_))return false;if(fhAt(Math.floor(cx_),Math.floor(cy_))>h0+.55)return false;}
   for(const o of SOLIDS){const d2=(x-o.x)**2+(y-o.y)**2;if(d2<o.r*o.r&&d2<(ox-o.x)**2+(oy-o.y)**2)return false;}
   return true;
 }
-let stepAcc=0,tpLock=false,stairHint=false;
+let stepAcc=0,tpLock=false,stairHint=false,roofHint=false,eyeH=0;
 function update(dt){
   TIME+=dt;
-  if(paused)return;
+  if(paused){eyeH=fhAt(Math.floor(px),Math.floor(py));return;}
   const f=(keys.KeyW||keys.ArrowUp||vk.f?1:0)-(keys.KeyS||keys.ArrowDown||vk.b?1:0);
   const s=(keys.KeyD||vk.sr?1:0)-(keys.KeyA||vk.sl?1:0);
   const t=(keys.ArrowRight||vk.tr?1:0)-(keys.ArrowLeft||vk.tl?1:0);
   pa+=t*2.1*dt;
+  eyeH+=(fhAt(Math.floor(px),Math.floor(py))-eyeH)*Math.min(1,dt*12);
   if(f||s){
     const sp=2.4*dt*(f&&s?.72:1),dx=(Math.cos(pa)*f-Math.sin(pa)*s)*sp,dy=(Math.sin(pa)*f+Math.cos(pa)*s)*sp;
     const ox=px,oy=py;
     if(canStand(px+dx,py,ox,oy))px+=dx;
     if(canStand(px,py+dy,ox,oy))py+=dy;
-    if(MODE==='present'&&f>0&&!tpLock){const c=cellAt(Math.floor(px+Math.cos(pa)*.4),Math.floor(py+Math.sin(pa)*.4));if(c==='S')INTER[2].use();else if(c==='Z')INTER[3].use();}
     stepAcc+=Math.hypot(px-ox,py-oy);if(stepAcc>.85){stepAcc=0;sfx('step');}
   }
-  if(MODE==='present'&&!stairHint&&px<6&&py>13.6&&py<22){stairHint=true;toast('西の壁に、屋上へ続く階段がある。壁に向かって進めば上れる。');}
+  if(MODE==='present'&&!roofHint&&py>25.6){roofHint=true;toast('屋上に出た。冷たい風が吹いている。');}
+  if(MODE==='present'&&!stairHint&&px<6&&py>13.6&&py<22){stairHint=true;toast('奥へのびる階段。上りきれば、屋上に出られるはずだ。');}
   updatePrompt();
 }
 
@@ -663,8 +678,6 @@ function update(dt){
 const INTER=[
   {x:3.0,y:4.0,r:1.8,label:'古いカメラ',when:()=>!S.hasCamera,use:pickupCamera},
   {x:17.5,y:20.7,r:1.8,label:'用務員日誌',use:readLog},
-  {x:.9,y:15.0,r:2.6,label:'階段を上る（屋上へ）',use:()=>teleport(3.6,26.6,0,'屋上に出た。冷たい風が吹いている。')},
-  {x:1.9,y:25.9,r:2.4,label:'階段を下りる',use:()=>teleport(2.6,17.6,-Math.PI/2,'西階段に戻った。')},
   ...TRACES.map(t=>({x:t.x,y:t.y,r:1.7,label:t.label,use:()=>useTrace(t)})),
 ];
 let target=null;
@@ -691,7 +704,7 @@ function useTrace(t){
   setTimeout(()=>openDialog(MEMS[t.mem].lines,()=>enterMemory(t.mem)),450);
 }
 function enterMemory(id){
-  MODE='memory';MEMID=id;MEM=MEMS[id];const st=MEM.start;px=st[0];py=st[1];pa=st[2];
+  MODE='memory';MEMID=id;MEM=MEMS[id];const st=MEM.start;px=st[0];py=st[1];pa=st[2];eyeH=fhAt(Math.floor(px),Math.floor(py));
   S.visited[id]=true;save();rebuildScene();
   const b=$('#banner');b.innerHTML=`<b>${MEM.name}</b>${MEM.time}`;b.hidden=false;
   $('#bBack').hidden=false;droneOn(.05);sfx('sting');flashInk();
@@ -699,7 +712,7 @@ function enterMemory(id){
 }
 function exitMemory(){
   if(MODE!=='memory')return;
-  flashInk(()=>{MODE='present';MEM=null;MEMID=null;if(saved){px=saved.x;py=saved.y;pa=saved.a;}saved=null;rebuildScene();$('#banner').hidden=true;$('#bBack').hidden=true;droneOff();save();
+  flashInk(()=>{MODE='present';MEM=null;MEMID=null;if(saved){px=saved.x;py=saved.y;pa=saved.a;}eyeH=fhAt(Math.floor(px),Math.floor(py));saved=null;rebuildScene();$('#banner').hidden=true;$('#bBack').hidden=true;droneOff();save();
     const v=MEM_ORDER.filter(m=>S.visited[m]).length;
     if(v===6&&!S.allHint){S.allHint=true;toast('六つの記憶をすべて見た。手帳で七人の運命を確かめよう。');}});
 }
