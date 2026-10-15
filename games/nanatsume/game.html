@@ -290,7 +290,7 @@ function drawHead(g,pid,back){
   if(pid==='kuroda'||pid==='kashiwagi'){g.strokeStyle=gray(.03);g.lineWidth=1.2;g.strokeRect(-6.6,-2.6,5.2,4.2);g.strokeRect(1.4,-2.6,5.2,4.2);g.beginPath();g.moveTo(-1.4,-1);g.lineTo(1.4,-1);g.stroke();}
 }
 const POSES={
-  stand:{a:[-8,-4],b:[8,4],l:[-4,-2],r:[4,2]},
+  stand:{a:[-5,-2],b:[5,2],l:[-2,-1],r:[2,1]},
   push:{a:[78,86],b:[95,94],l:[-14,-4],r:[14,6],lean:12},
   camera:{a:[-40,160],b:[40,-160],l:[-4,-2],r:[4,2],prop:'camera'},
   cover:{a:[-42,166],b:[42,-166],l:[-7,-2],r:[6,4],lean:-4},
@@ -307,8 +307,8 @@ const POSES={
 function skeleton(ps){
   const lean=ps.lean||0,u=vec(180-lean,1),pr=[-u[1],u[0]];
   const hip=[0,0],neck=addv(hip,u,50),head=addv(neck,u,15);
-  const shL=addv(addv(neck,pr,-16),u,-5),shR=addv(addv(neck,pr,16),u,-5);
-  const hpL=addv(hip,pr,-8),hpR=addv(hip,pr,8);
+  const shL=addv(addv(neck,pr,-19),u,-5),shR=addv(addv(neck,pr,19),u,-5);
+  const hpL=addv(hip,pr,-10),hpR=addv(hip,pr,10);
   const knL=addv(hpL,vec(ps.l[0],41)),ftL=addv(knL,vec(ps.l[1],41));
   const knR=addv(hpR,vec(ps.r[0],41)),ftR=addv(knR,vec(ps.r[1],41));
   const elL=addv(shL,vec(ps.a[0],28)),hdL=addv(elL,vec(ps.a[1],26));
@@ -319,7 +319,7 @@ const OUTFIT={gaku:{top:.1,leg:.13,sl:.1},sailor:{top:.2,leg:.82,sl:.2},coat:{to
 function drawCamera(g,x,y,s=1){g.save();g.translate(x,y);g.scale(s,s);g.fillStyle=gray(.08);g.fillRect(-13,-8,26,15);g.fillRect(-9,-11,8,4);g.strokeStyle=gray(.5);g.lineWidth=1;g.strokeRect(-13,-8,26,15);ell(g,0,0,5.5,5.5,.55,true);ell(g,0,0,3,3,.06,false);ell(g,-1,-1,1,1,.95,false);g.fillStyle=gray(.8);g.fillRect(6,-6,4,2);g.restore();}
 function drawBody(g,pid,ps){
   const P=PEOPLE[pid],k=skeleton(ps),C=OUTFIT[P.outfit],o=P.outfit;
-  const skirt=o==='sailor'||o==='blazer',lw=skirt?8:12;
+  const skirt=o==='sailor'||o==='blazer',lw=skirt?10:15;
   seg(g,k.hpL,k.knL,lw,C.leg);seg(g,k.knL,k.ftL,lw,C.leg);
   seg(g,k.hpR,k.knR,lw,C.leg);seg(g,k.knR,k.ftR,lw,C.leg);
   ell(g,k.ftL[0]-2,k.ftL[1]+1,6.5,3.6,.06,true);ell(g,k.ftR[0]+2,k.ftR[1]+1,6.5,3.6,.06,true);
@@ -327,23 +327,35 @@ function drawBody(g,pid,ps){
     g.strokeStyle=gray(.34);g.lineWidth=1;for(let i=-2;i<=2;i++){const a=addv(k.hip,k.pr,i*4),b=addv(addv(k.hip,k.pr,i*6),k.u,-33);g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke();}}
   if(o==='coat')poly(g,[k.shL,k.shR,addv(addv(k.hip,k.pr,14),k.u,-42),addv(addv(k.hip,k.pr,-14),k.u,-42)],.88);
   poly(g,[k.shL,k.shR,addv(k.hpR,k.pr,2),addv(k.hpL,k.pr,-2)],C.top);
-  seg(g,k.neck,addv(k.neck,k.u,7),6,.72);
+  seg(g,k.neck,addv(k.neck,k.u,7),9,.72);
   if(o==='gaku'){g.fillStyle=gray(.85);for(let i=1;i<=4;i++){const p=addv(k.neck,k.u,-i*10);g.fillRect(p[0]-1,p[1]-1,2.4,2.4);}const a=addv(k.neck,k.pr,-5),b=addv(k.neck,k.pr,5);g.strokeStyle=gray(.92);g.lineWidth=1.4;g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke();}
   if(o==='sailor'){const vb=addv(k.neck,k.u,-17);g.strokeStyle=gray(.94);g.lineWidth=2.6;g.beginPath();g.moveTo(...addv(k.shL,k.u,1));g.lineTo(vb[0],vb[1]);g.lineTo(...addv(k.shR,k.u,1));g.stroke();poly(g,[addv(vb,k.pr,-4),addv(vb,k.pr,4),addv(vb,k.u,-8)],.92,1);}
   if(o==='coat'){g.strokeStyle=gray(.45);g.lineWidth=1.2;const a=addv(k.neck,k.u,-2),b=addv(addv(k.hip,k.u,-40),k.pr,0);g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.moveTo(...addv(k.shL,k.pr,6));g.lineTo(...addv(k.neck,k.u,-18));g.lineTo(...addv(k.shR,k.pr,-6));g.stroke();g.fillStyle=gray(.15);const t=addv(k.neck,k.u,-4);g.fillRect(t[0]-1.5,t[1],3,12);}
   if(o==='work'){g.fillStyle=gray(.3);const p=addv(addv(k.neck,k.u,-14),k.pr,-8);g.fillRect(p[0]-3,p[1],7,6);}
   if(o==='blazer'||o==='suit'){const vb=addv(k.neck,k.u,-16);poly(g,[addv(k.neck,k.pr,-6),addv(k.neck,k.pr,6),vb],.92,1);if(o==='blazer')poly(g,[addv(addv(k.neck,k.u,-3),k.pr,-5),addv(addv(k.neck,k.u,-3),k.pr,5),addv(k.neck,k.u,-9)],.35,1);else seg(g,addv(k.neck,k.u,-2),addv(k.neck,k.u,-15),2,.12);}
   if(o==='jersey'){g.strokeStyle=gray(.9);g.lineWidth=1.6;g.beginPath();g.moveTo(...addv(k.neck,k.u,-2));g.lineTo(...addv(k.hip,k.u,2));g.stroke();poly(g,[addv(k.neck,k.pr,-6),addv(k.neck,k.pr,6),addv(k.neck,k.u,-7)],.92,1);}
-  seg(g,k.shL,k.elL,9,C.sl);seg(g,k.elL,k.hdL,8,C.sl);
-  seg(g,k.shR,k.elR,9,C.sl);seg(g,k.elR,k.hdR,8,C.sl);
+  seg(g,k.shL,k.elL,12,C.sl);seg(g,k.elL,k.hdL,10,C.sl);
+  seg(g,k.shR,k.elR,12,C.sl);seg(g,k.elR,k.hdR,10,C.sl);
   if(o==='jersey'){g.lineCap='round';g.strokeStyle=gray(.9);g.lineWidth=1.4;for(const [a,b,c] of [[k.shL,k.elL,k.hdL],[k.shR,k.elR,k.hdR]]){g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.lineTo(c[0],c[1]);g.stroke();}}
   ell(g,k.hdL[0],k.hdL[1],4,4,.74,true);ell(g,k.hdR[0],k.hdR[1],4,4,.74,true);
-  g.save();g.translate(k.head[0],k.head[1]);g.rotate(k.lean*D2R*.6);drawHead(g,pid,!!ps.back);g.restore();
+  g.save();g.translate(k.head[0],k.head[1]);g.rotate(k.lean*D2R*.6);g.scale(1.18,1.18);drawHead(g,pid,!!ps.back);g.restore();
   if(ps.prop==='camera')drawCamera(g,k.head[0],k.head[1]+5,1);
   if(ps.prop==='chestcam')drawCamera(g,k.hdR[0]+2,k.hdR[1]-2,.8);
   if(ps.prop==='flashlight'){g.fillStyle=gray(.75);g.fillRect(k.hdR[0]-1,k.hdR[1]-3.5,14,7);g.fillStyle=gray(.98);g.fillRect(k.hdR[0]+12,k.hdR[1]-4.5,3,9);}
 }
 const PCACHE={},PCV={};
+// People in the 3D world are solid black silhouettes: soften the drawn figure, then threshold it to one shape.
+function silhouette(src){
+  const w=src.width,h=src.height,c=mk(w,h),g=c.getContext('2d');
+  g.filter='blur(2.4px)';g.drawImage(src,0,0);g.filter='none';
+  const d=g.getImageData(0,0,w,h),a=d.data,on=new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++)on[i]=a[i*4+3]>70?1:0;
+  // a one-pixel pale rim, used only when the figure is a ghost
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x,o=i*4;if(!on[i]){a[o+3]=0;continue;}
+    const rim=x<2||y<2||x>w-3||y>h-3||!on[i-1]||!on[i+1]||!on[i-w]||!on[i+w]||!on[i-2]||!on[i+2]||!on[i-2*w];
+    a[o]=a[o+1]=a[o+2]=rim?255:0;a[o+3]=255;}
+  g.putImageData(d,0,0);return c;
+}
 function personImg(pid,pose,mirror){
   const key=pid+'|'+pose+'|'+(mirror?1:0);if(PCACHE[key])return PCACHE[key];
   const s=PEOPLE[pid].h/1.62;let c,g;
@@ -365,7 +377,7 @@ function personImg(pid,pose,mirror){
     else{c=mk(170,200);g=c.getContext('2d');if(mirror){g.translate(170,0);g.scale(-1,1);}g.translate(85,198);}
     g.scale(s,s);g.translate(0,-gy);drawBody(g,pid,ps);
   }
-  PCV[key]=c;return PCACHE[key]=lumOf(c);
+  c=silhouette(c);PCV[key]=c;return PCACHE[key]=lumOf(c);
 }
 function drawBust(g,pid,x,y,sc){
   const P=PEOPLE[pid],C=OUTFIT[P.outfit];
@@ -645,7 +657,7 @@ function render(){
       const tx=Math.min(img.w-1,(((x+.5-x0)/sw)*img.w)|0);
       for(let y=ya;y<yb;y++){const i=y*W+x;if(dep>=DEPTH[i])continue;const ty=Math.min(img.h-1,(((y+.5-top)/sh)*img.h)|0),j=ty*img.w+tx;if(!img.a[j])continue;
         if(s.ghost&&hash(x+gph,y*.37+gph)<.32)continue;
-        LUM[i]=s.ghost?(.2+img.l[j]*.75)*(.75+.5*lightPix(0,0,d,i,false)):s.emit?img.l[j]*1.2:img.l[j]*(mem?cl:lightPix(0,0,d,i,false));DEPTH[i]=dep;SURF[i]=7*4096+sid;}
+        LUM[i]=s.person?(s.ghost?img.l[j]*(.7+.3*hash(y,gph)):0):s.emit?img.l[j]*1.2:img.l[j]*(mem?cl:lightPix(0,0,d,i,false));DEPTH[i]=dep;SURF[i]=7*4096+sid;}
     }
   }
   // outlines where surfaces meet, then dither
@@ -663,7 +675,7 @@ function render(){
 function rebuildScene(){
   SPR=[];SOLIDS=[];
   for(const p of PROPS){if(p.when&&!p.when())continue;let x=p.x,y=p.y;if(p.k==='model')[x,y]=MODEL_POS[S.modelIdx||0];SPR.push({x,y,z:p.z||0,img:PIMG[p.k]});if(p.r)SOLIDS.push({x,y,r:p.r});}
-  for(const c of CAST){if(c.when&&!c.when())continue;SPR.push({x:c.x,y:c.y,z:c.z||0,img:personImg(c.p,c.pose,c.mirror),ghost:!!c.ghost});if(!c.ghost)SOLIDS.push({x:c.x,y:c.y,r:.28});}
+  for(const c of CAST){if(c.when&&!c.when())continue;SPR.push({x:c.x,y:c.y,z:c.z||0,img:personImg(c.p,c.pose,c.mirror),ghost:!!c.ghost,person:true});if(!c.ghost)SOLIDS.push({x:c.x,y:c.y,r:.28});}
   TR_ACTIVE=TRACES;
 }
 
