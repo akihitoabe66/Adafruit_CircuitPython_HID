@@ -9,7 +9,7 @@ set in a Japanese school ghost story à la *Twilight Syndrome*.
 ## How to play
 
 A night in 1999. You sneak into the old school building to cover its seven ghost stories for the
-school paper. Walk the halls with a flashlight, talk to the old caretaker and to the ghosts left
+school paper. Walk the halls with a flashlight, talk to the teacher on night duty and to the ghosts left
 behind by a night in 1979, collect items (a key ring, developer fluid, a sheet of music, purifying
 salt, the roof key) and solve small puzzles such as a dial lock and developing a roll of film.
 Clear all six rumors and climb the stairs to the roof for the ending; your last choice decides
