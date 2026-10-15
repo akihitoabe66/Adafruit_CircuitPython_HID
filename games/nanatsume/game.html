@@ -38,7 +38,7 @@ button,select{font-family:var(--font)}
 #flash{position:absolute;inset:0;background:var(--paper);opacity:0;pointer-events:none;transition:opacity .5s}
 #flash.ink{background:var(--ink)}
 #controls{width:min(100%, calc((100dvh - var(--reserve)) * 16 / 9));display:flex;justify-content:space-between;align-items:center;gap:12px}
-.pad{display:grid;grid-template-columns:repeat(3,48px);grid-auto-rows:44px;gap:6px}
+.pad{display:grid;grid-template-columns:repeat(3,48px);grid-auto-rows:40px;gap:6px}
 .acts{display:flex;flex-direction:column;gap:6px;min-width:0}
 .keys{font-size:12px;opacity:.85;line-height:1.6;min-width:0}
 @media (hover:hover) and (pointer:fine){.pad{display:none}}
@@ -133,8 +133,11 @@ button,select{font-family:var(--font)}
       <button class="btn" data-k="sl" aria-label="左へ">◁</button>
       <button class="btn" data-k="b" aria-label="後ろへ">▼</button>
       <button class="btn" data-k="sr" aria-label="右へ">▷</button>
+      <button class="btn" data-k="lu" aria-label="上を見る">⤒</button>
+      <button class="btn" data-k="lc" aria-label="正面を見る">◎</button>
+      <button class="btn" data-k="ld" aria-label="下を見る">⤓</button>
     </div>
-    <div class="keys">W / S ・ ↑ / ↓ ─ 前後　A / D ─ 横歩き　← / → ・ ドラッグ ─ 向き<br>E ・ Space ─ 調べる / 話す　N ─ 手帳　1〜9 ─ 選択肢</div>
+    <div class="keys">W / S ・ ↑ / ↓ ─ 前後　A / D ─ 横歩き　← / → ─ 向き　R / F ─ 上 / 下を見る　ドラッグ ─ 見回す<br>E ・ Space ─ 調べる / 話す　N ─ 手帳　1〜9 ─ 選択肢</div>
     <div class="acts">
       <button class="btn" id="bAct">調べる・話す</button>
       <button class="btn" id="bNote">手帳</button>
@@ -557,6 +560,7 @@ for(let y=0;y<H;y++)for(let x=0;x<W;x++){const dx=(x-W/2)/(W/2),dy=(y-HALF)/HALF
   let c=1-((dx/1.0)**2+((y-HALF-4)/(H*.8))**2);c=Math.max(0,Math.min(1,c));CONE[i]=c*c*(3-2*c);}
 const MOONA=-2.3;
 function skyAt(x,y){
+  y+=Math.round(PIT);
   const ang=pa+COLANG[x];
   if(MODE==='memory'&&MEM.sky==='dawn'){const t=y/HALF;return .16+.5*t*t+(hash(Math.floor(((ang%TAU)+TAU)%TAU*60),y>>2)>.97?.04:0);}
   const base=(MODE==='memory'?.07:.03)+.07*(y/HALF)*(y/HALF);
@@ -565,16 +569,17 @@ function skyAt(x,y){
   if(hash(Math.floor(((ang%TAU)+TAU)%TAU*170),y)>.992)return .85;
   return base;
 }
-let SPR=[],SOLIDS=[],TR_ACTIVE=[];
+let SPR=[],SOLIDS=[],TR_ACTIVE=[],PIT=14;
 function lightPix(wx,wy,d,i,outdoor){
   if(MODE==='present')return Math.min(1.08,(outdoor?.09:.02)+1.7*CONE[i]/(1+d*d*.05));
   let L=MEM.amb*1.6+.08;for(const l of MEM.lights){const dx=wx-l[0],dy=wy-l[1];L+=l[2]*1.4/(1+(dx*dx+dy*dy)*.25);}return L/(1+d*.02);
 }
 function render(){
+  const HZ=HALF-Math.round(PIT);
   const dirX=Math.cos(pa),dirY=Math.sin(pa),plX=-dirY*PLANE,plY=dirX*PLANE;
   const cx0=Math.floor(px),cy0=Math.floor(py),mem=MODE==='memory',eyeZ=EYE+eyeH,T0=mem?0:TIME;
   const floorPix=(i,x,y,cc,h,rdx,rdy)=>{
-    const dist=(eyeZ-h)*PROJ/(y+.5-HALF),fx=px+rdx*dist,fy=py+rdy*dist,ix=Math.floor(fx),iy=Math.floor(fy),d=dist*SEC[x];
+    const dist=(eyeZ-h)*PROJ/(y+.5-HZ),fx=px+rdx*dist,fy=py+rdy*dist,ix=Math.floor(fx),iy=Math.floor(fy),d=dist*SEC[x];
     DEPTH[i]=dist;SURF[i]=4096+iy*MW+ix;
     if(cc==='v'){LUM[i]=mem?.06*MEM.amb*8:(hash(Math.floor(fx*2),Math.floor(fy*2))>.96?.9:.015);SURF[i]=0;return;}
     let alb;
@@ -593,11 +598,11 @@ function render(){
     for(let n=0;n<96&&cT<cB;n++){
       let d,side;
       if(sdx<sdy){d=sdx;sdx+=ddx;mx+=sx;side=0;}else{d=sdy;sdy+=ddy;my+=sy;side=1;}
-      const sc=PROJ/d,yAt=z=>HALF+(eyeZ-z)*sc;
+      const sc=PROJ/d,yAt=z=>HZ+(eyeZ-z)*sc;
       // floor of the current cell
       if(eyeZ>cfh){const ys=Math.max(cT,Math.ceil(yAt(cfh)));for(let y=ys;y<cB;y++)floorPix(y*W+x,x,y,cc,cfh,rdx,rdy);cB=Math.max(cT,Math.min(cB,ys));}
       // ceiling of the current cell
-      if(cch<1e8&&eyeZ<cch){const ye=Math.min(cB,Math.ceil(yAt(cch)));for(let y=cT;y<ye;y++){const i=y*W+x,dist=(cch-eyeZ)*PROJ/(HALF-y-.5),fx=px+rdx*dist,fy=py+rdy*dist,t=TX.ceil;
+      if(cch<1e8&&eyeZ<cch){const ye=Math.min(cB,Math.ceil(yAt(cch)));for(let y=cT;y<ye;y++){const i=y*W+x,dist=(cch-eyeZ)*PROJ/(HZ-y-.5),fx=px+rdx*dist,fy=py+rdy*dist,t=TX.ceil;
           LUM[i]=t.l[(((fy*.5-Math.floor(fy*.5))*64)|0)*64+(((fx*.5-Math.floor(fx*.5))*64)|0)]*lightPix(fx,fy,dist*SEC[x],i,false);DEPTH[i]=dist;SURF[i]=8192+Math.floor(fy)*MW+Math.floor(fx);}
         cT=Math.max(cT,ye);}
       if(cT>=cB||mx<0||my<0||mx>=MW||my>=MH)break;
@@ -605,10 +610,10 @@ function render(){
       let u=side===0?hy:hx;u-=Math.floor(u);if(side===0&&rdx<0)u=1-u;if(side===1&&rdy>0)u=1-u;
       const shade=side===1?.82:1,colL=mem?lightPix(hx,hy,dl,0,outdoor):0;
       const face=(z0,z1,tex,vfn,type)=>{const ya=Math.max(cT,Math.ceil(yAt(z1))),yb=Math.min(cB,Math.ceil(yAt(z0))),tx=Math.min(tex.w-1,(u*tex.w)|0);
-        for(let y=ya;y<yb;y++){const i=y*W+x,z=eyeZ-(y+.5-HALF)/sc,ty=Math.max(0,Math.min(tex.h-1,(vfn(z)*tex.h)|0));LUM[i]=tex.l[ty*tex.w+tx]*shade*(mem?colL:lightPix(0,0,dl,i,outdoor));DEPTH[i]=d;SURF[i]=type*4096+cid;}
+        for(let y=ya;y<yb;y++){const i=y*W+x,z=eyeZ-(y+.5-HZ)/sc,ty=Math.max(0,Math.min(tex.h-1,(vfn(z)*tex.h)|0));LUM[i]=tex.l[ty*tex.w+tx]*shade*(mem?colL:lightPix(0,0,dl,i,outdoor));DEPTH[i]=d;SURF[i]=type*4096+cid;}
         return [ya,yb];};
       const wallV=z=>{let t=z-cfh;if(t>3)t=1.6+((t-3)%1.4);return (3-t)/3;};
-      if(OPEN.indexOf(nc)<0){const r=face(WBOT[my][mx],WTOP[my][mx],wallTex(nc,cc),wallV,3);for(let y=cT;y<r[0];y++){const i=y*W+x;LUM[i]=y<HALF?skyAt(x,y):.015;DEPTH[i]=1e9;SURF[i]=0;}cT=Math.max(cT,r[1]);break;}
+      if(OPEN.indexOf(nc)<0){const r=face(WBOT[my][mx],WTOP[my][mx],wallTex(nc,cc),wallV,3);for(let y=cT;y<r[0];y++){const i=y*W+x;LUM[i]=y<HZ?skyAt(x,y):.015;DEPTH[i]=1e9;SURF[i]=0;}cT=Math.max(cT,r[1]);break;}
       const nfh=fhAt(mx,my),nch=chAt(mx,my);
       if(nfh>cfh){face(cfh,nfh,TX.riser,z=>(nfh-z)/(nfh-cfh),5);cB=Math.max(cT,Math.min(cB,Math.ceil(yAt(nfh))));}
       if(nch<cch){
@@ -618,7 +623,7 @@ function render(){
       }
       cc=nc;cfh=nfh;cch=nch;
     }
-    for(let y=cT;y<cB;y++){const i=y*W+x;LUM[i]=y<HALF?skyAt(x,y):.015;DEPTH[i]=1e9;SURF[i]=0;}
+    for(let y=cT;y<cB;y++){const i=y*W+x;LUM[i]=y<HZ?skyAt(x,y):.015;DEPTH[i]=1e9;SURF[i]=0;}
   }
   // sprites
   const list=[];
@@ -627,7 +632,7 @@ function render(){
   let sid=0;const gph=Math.floor(TIME*9)%97;
   for(const [s,dep,lat] of list){
     sid++;const img=s.img,sc=PROJ/dep,scx=W/2*(1+(lat/dep)/PLANE),zb=s.z+fhAt(Math.floor(s.x),Math.floor(s.y));
-    const sw=img.w/100*sc,x0=scx-sw/2,top=HALF+(eyeZ-(zb+img.h/100))*sc,bot=HALF+(eyeZ-zb)*sc,sh=bot-top;
+    const sw=img.w/100*sc,x0=scx-sw/2,top=HZ+(eyeZ-(zb+img.h/100))*sc,bot=HZ+(eyeZ-zb)*sc,sh=bot-top;
     const xa=Math.max(0,Math.ceil(x0)),xb=Math.min(W,Math.ceil(x0+sw)),ya=Math.max(0,Math.ceil(top)),yb=Math.min(H,Math.ceil(bot));
     const d=Math.hypot(s.x-px,s.y-py),cl=mem?lightPix(s.x,s.y,d,0,false):0;
     for(let x=xa;x<xb;x++){
@@ -675,6 +680,9 @@ function update(dt){
   const s=(keys.KeyD||vk.sr?1:0)-(keys.KeyA||vk.sl?1:0);
   const t=(keys.ArrowRight||vk.tr?1:0)-(keys.ArrowLeft||vk.tl?1:0);
   pa+=t*2.1*dt;
+  const lk=(keys.KeyF||keys.PageDown||vk.ld?1:0)-(keys.KeyR||keys.PageUp||vk.lu?1:0);
+  if(lk)PIT=Math.max(-60,Math.min(95,PIT+lk*110*dt));
+  if(vk.lc)PIT=14;
   eyeH+=(fhAt(Math.floor(px),Math.floor(py))-eyeH)*Math.min(1,dt*12);
   if(f||s){
     const sp=2.4*dt*(f&&s?.72:1),dx=(Math.cos(pa)*f-Math.sin(pa)*s)*sp,dy=(Math.sin(pa)*f+Math.cos(pa)*s)*sp;
@@ -701,19 +709,19 @@ function update(dt){
 
 /* ---------- interaction ---------- */
 const INTER=[
-  {x:3.0,y:4.0,r:1.8,label:'古いカメラ',when:()=>!has('camera'),use:pickupCamera},
-  {x:1.3,y:1.4,r:1.9,label:'暗室の現像タンク',use:useDarkroom},
+  {x:3.0,y:4.0,r:2.8,label:'古いカメラ',when:()=>!has('camera'),use:pickupCamera},
+  {x:1.3,y:1.4,r:2.4,label:'暗室の現像タンク',use:useDarkroom},
   {x:17.6,y:17.2,r:2.0,label:'用務員の男と話す',use:talkIwasaki},
-  {x:17.5,y:20.7,r:1.6,label:'用務員日誌',use:readLog},
+  {x:17.5,y:20.7,r:2.4,label:'用務員日誌',use:readLog},
   {x:12.5,y:10.5,r:1.5,label:'音楽室の扉',when:()=>!F('musicOpen'),use:()=>tryDoor('music')},
   {x:24.5,y:10.5,r:1.5,label:'理科室の扉',when:()=>!F('scienceOpen'),use:()=>tryDoor('science')},
   {x:2.0,y:25.3,r:1.7,label:'屋上への鉄扉',when:()=>!F('roofOpen'),use:()=>tryDoor('roof')},
   {x:10.9,y:2.9,r:2.3,label:'ピアノの前の少女',when:()=>F('musicOpen')&&!F('sumiko'),use:talkSumiko},
-  {x:28.4,y:1.3,r:1.7,label:'収納棚のダイヤル錠',when:()=>!F('cabinet'),use:useLock},
-  {x:21.2,y:4.95,r:1.8,label:'薬品の瓶',when:()=>!has('dev')&&!has('print'),use:()=>{give('dev');rebuildScene();}},
+  {x:28.4,y:1.3,r:2.2,label:'収納棚のダイヤル錠',when:()=>!F('cabinet'),use:useLock},
+  {x:21.2,y:4.95,r:2.6,label:'薬品の瓶',when:()=>!has('dev')&&!has('print'),use:()=>{give('dev');rebuildScene();}},
   {x:1.5,y:22.6,r:2.3,label:'階段の少年',when:()=>!F('toru'),use:talkToru},
   {x:12.5,y:19.5,r:1.6,label:'三番目の個室',when:()=>!F('harumi'),use:knockStall},
-  {x:26.0,y:15.6,r:1.8,label:'プールの水面',when:()=>!F('kuroda'),use:usePool},
+  {x:26.0,y:15.6,r:2.2,label:'プールの水面',when:()=>!F('kuroda'),use:usePool},
   {x:7.8,y:30.75,r:2.6,label:'屋上の縁の白い影',when:()=>!F('end'),use:talkKashiwagi},
 ];
 let target=null;
@@ -900,7 +908,7 @@ function renderSettings(body){
   const b=document.createElement('button');b.className='btn';b.textContent=resetArm?'本当に消す（もう一度押す）':'記録を消して最初から';
   b.onclick=()=>{if(!resetArm){resetArm=true;renderNotebook();return;}try{localStorage.removeItem(KEY);}catch(e){}location.reload();};
   r.append(b);body.append(r);
-  const k=document.createElement('p');k.className='small';k.style.marginTop='16px';k.innerHTML='操作：W/S・↑/↓ 前後　A/D 横歩き　←/→・画面ドラッグ 向き<br>E・Space 調べる／話す　N 手帳　選択肢は数字キーでも選べる';body.append(k);
+  const k=document.createElement('p');k.className='small';k.style.marginTop='16px';k.innerHTML='操作：W/S・↑/↓ 前後　A/D 横歩き　←/→ 向き　R/F 上/下を見る　画面ドラッグ 見回す<br>E・Space 調べる／話す　N 手帳　選択肢は数字キーでも選べる';body.append(k);
 }
 
 /* ---------- audio ---------- */
@@ -991,7 +999,7 @@ addEventListener('keydown',e=>{
   if(!$('#msg').hidden){if(['Escape'].includes(e.code)||(['Space','Enter','KeyE'].includes(e.code)&&!(document.activeElement&&document.activeElement.tagName==='SELECT'))){e.preventDefault();closeMsg();}return;}
   if(!$('#notebook').hidden){if(e.code==='Escape'||e.code==='KeyN'){e.preventDefault();closeNotebook();}return;}
   if(!started)return;
-  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','PageUp','PageDown'].includes(e.code))e.preventDefault();
   keys[e.code]=true;
   if(e.code==='KeyE'||e.code==='Space'||e.code==='Enter')action();
   if(e.code==='KeyN'||e.code==='Tab'){e.preventDefault();openNotebook();}
@@ -1009,8 +1017,8 @@ document.querySelectorAll('.pad .btn').forEach(b=>{const k=b.dataset.k;
   b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('lostpointercapture',off);
   b.addEventListener('contextmenu',e=>e.preventDefault());});
 let drag=null;
-cv.addEventListener('pointerdown',e=>{drag={x:e.clientX};try{cv.setPointerCapture(e.pointerId);}catch(_){}});
-cv.addEventListener('pointermove',e=>{if(!drag||paused)return;const dx=e.clientX-drag.x;drag.x=e.clientX;pa+=dx*(TAU*.9/cv.clientWidth);});
+cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};try{cv.setPointerCapture(e.pointerId);}catch(_){}});
+cv.addEventListener('pointermove',e=>{if(!drag||paused)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;pa+=dx*(TAU*.9/cv.clientWidth);PIT=Math.max(-60,Math.min(95,PIT+dy*(H/cv.clientHeight)*1.1));});
 const endDrag=()=>{drag=null;};cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
 
 /* ---------- boot ---------- */
