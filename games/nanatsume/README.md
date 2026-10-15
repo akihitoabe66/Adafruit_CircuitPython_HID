@@ -1,6 +1,6 @@
 # 七つ目の記憶 ─ 夕霧高校 旧校舎
 
-1-bit dithered first-person mystery adventure (in the spirit of *Return of the Obra Dinn*),
+1-bit dithered first-person horror adventure with an Obra Dinn–style monochrome look,
 set in a Japanese school ghost story à la *Twilight Syndrome*.
 
 - `index.html` — open it in a browser to play (no build step, no dependencies).
@@ -8,10 +8,12 @@ set in a Japanese school ghost story à la *Twilight Syndrome*.
 
 ## How to play
 
-Explore the old school building at night with a flashlight. Point the photo-club camera at the
-stains left behind by the dead to enter the frozen moment of what happened in 1979.
-Inspect the people inside each memory, then use the notebook to identify all seven faces from
-the group photo and decide each person's fate. Fates are confirmed two correct answers at a time.
+A night in 1999. You sneak into the old school building to cover its seven ghost stories for the
+school paper. Walk the halls with a flashlight, talk to the old caretaker and to the ghosts left
+behind by a night in 1979, collect items (a key ring, developer fluid, a sheet of music, purifying
+salt, the roof key) and solve small puzzles such as a dial lock and developing a roll of film.
+Clear all six rumors and climb the stairs to the roof for the ending; your last choice decides
+between two endings. The notebook tracks your items and each rumor's status and next lead.
 
-Keys: W/S or ↑/↓ move, A/D strafe, ←/→ or drag to turn, E/Space inspect, N notebook, Q leave a memory.
-Touch controls appear on phones.
+Keys: W/S or ↑/↓ move, A/D strafe, ←/→ or drag to turn, E/Space inspect or talk, N notebook,
+1–9 pick a dialogue choice. Touch controls appear on phones.

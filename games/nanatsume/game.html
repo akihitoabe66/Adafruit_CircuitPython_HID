@@ -61,11 +61,16 @@ button,select{font-family:var(--font)}
 .title-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
 .small{font-size:12px;opacity:.85;margin:0;line-height:1.6}
 
-#dialog{background:var(--ink);flex-direction:column;cursor:pointer}
-.dlg-box{width:min(720px,100%);display:flex;flex-direction:column;gap:12px}
+#dialog{background:transparent;flex-direction:column;justify-content:flex-end;cursor:pointer}
+.dlg-box{width:min(760px,100%);display:flex;flex-direction:column;gap:10px;background:var(--ink);outline:2px solid var(--paper);outline-offset:-6px;padding:18px 22px;box-sizing:border-box;max-height:70%;overflow:auto}
 #dlgSpk{font-size:14px;letter-spacing:.2em;min-height:1.4em}
-#dlgTxt{font-size:clamp(18px,3.4vw,24px);line-height:1.7;min-height:5.2em}
-#dlgTxt.narr{font-size:clamp(15px,2.8vw,19px);opacity:.85}
+#dlgTxt{font-size:clamp(16px,2.8vw,21px);line-height:1.7;min-height:3.4em}
+#dlgTxt.narr{font-size:clamp(15px,2.5vw,18px);opacity:.88}
+.opts{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.opts .btn{font-size:17px;text-align:left}
+.dial{display:flex;gap:8px;margin:8px 0}
+.dial select{font-size:22px;padding:4px 8px;background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:0}
+#dlgOpts:not(:empty)+.dlg-next{display:none}
 .dlg-next{font-size:12px;opacity:.7;text-align:right}
 
 .panel{background:var(--paper);color:var(--ink);width:min(640px,100%);max-height:100%;overflow:auto;padding:18px 20px;box-sizing:border-box;outline:3px solid var(--paper);outline-offset:4px}
@@ -129,11 +134,10 @@ button,select{font-family:var(--font)}
       <button class="btn" data-k="b" aria-label="後ろへ">▼</button>
       <button class="btn" data-k="sr" aria-label="右へ">▷</button>
     </div>
-    <div class="keys">W / S ・ ↑ / ↓ ─ 前後　A / D ─ 横歩き　← / → ・ ドラッグ ─ 向き<br>E ・ Space ─ 調べる / 撮る　N ─ 手帳　Q ─ 現在へ戻る</div>
+    <div class="keys">W / S ・ ↑ / ↓ ─ 前後　A / D ─ 横歩き　← / → ・ ドラッグ ─ 向き<br>E ・ Space ─ 調べる / 話す　N ─ 手帳　1〜9 ─ 選択肢</div>
     <div class="acts">
-      <button class="btn" id="bAct">調べる</button>
+      <button class="btn" id="bAct">調べる・話す</button>
       <button class="btn" id="bNote">手帳</button>
-      <button class="btn" id="bBack" hidden>現在へ戻る</button>
     </div>
   </div>
 </div>
@@ -156,6 +160,7 @@ button,select{font-family:var(--font)}
   <div class="dlg-box">
     <div id="dlgSpk"></div>
     <div id="dlgTxt"></div>
+    <div id="dlgOpts" class="opts"></div>
     <div class="dlg-next">▼ タップ / Space</div>
   </div>
 </div>
@@ -187,7 +192,7 @@ const D2R=Math.PI/180, TAU=Math.PI*2;
 const W=384,H=216,HALF=H/2;
 const FOV=66*D2R, PLANE=Math.tan(FOV/2), PROJ=(W/2)/PLANE;
 const WALLH=3.0, EYE=1.5;
-const KEY='nanatsume-v2';
+const KEY='nanatsume-v3';
 
 /* ---------- palettes (two-colour monitors) ---------- */
 const PALS=[
@@ -245,15 +250,6 @@ const PEOPLE={
 };
 const PIDS=['iwasaki','kashiwagi','kuroda','kayo','sumiko','harumi','toru'];
 const BACKLIST=['toru','sumiko','kuroda','iwasaki','harumi','kashiwagi','kayo'];
-const FATES=[
-  {id:'beaten',label:'殴られて死亡',needs:true},
-  {id:'pushed',label:'突き落とされて死亡',needs:true},
-  {id:'drowned',label:'水に落とされ溺死',needs:true},
-  {id:'jumped',label:'自ら身を投げて死亡',needs:false},
-  {id:'alive',label:'生存',needs:false},
-];
-const ANSWER={iwasaki:['alive'],kashiwagi:['jumped'],kuroda:['drowned','kayo'],kayo:['alive'],sumiko:['beaten','kuroda'],harumi:['alive'],toru:['pushed','kuroda']};
-
 /* ---------- drawing people ---------- */
 function drawHead(g,pid,back){
   const hs=PEOPLE[pid].hair;
@@ -338,7 +334,7 @@ function drawBody(g,pid,ps){
   if(ps.prop==='chestcam')drawCamera(g,k.hdR[0]+2,k.hdR[1]-2,.8);
   if(ps.prop==='flashlight'){g.fillStyle=gray(.75);g.fillRect(k.hdR[0]-1,k.hdR[1]-3.5,14,7);g.fillStyle=gray(.98);g.fillRect(k.hdR[0]+12,k.hdR[1]-4.5,3,9);}
 }
-const PCACHE={};
+const PCACHE={},PCV={};
 function personImg(pid,pose,mirror){
   const key=pid+'|'+pose+'|'+(mirror?1:0);if(PCACHE[key])return PCACHE[key];
   const s=PEOPLE[pid].h/1.62;let c,g;
@@ -360,7 +356,7 @@ function personImg(pid,pose,mirror){
     else{c=mk(170,200);g=c.getContext('2d');if(mirror){g.translate(170,0);g.scale(-1,1);}g.translate(85,198);}
     g.scale(s,s);g.translate(0,-gy);drawBody(g,pid,ps);
   }
-  return PCACHE[key]=lumOf(c);
+  PCV[key]=c;return PCACHE[key]=lumOf(c);
 }
 function drawBust(g,pid,x,y,sc){
   const P=PEOPLE[pid],C=OUTFIT[P.outfit];
@@ -390,16 +386,19 @@ G[10][2]='H';G[10][11]='M';G[10][23]='R';G[13][2]='X';G[13][9]='J';G[13][16]='Y'
 fill(0,23,31,31,'v');fill(0,25,13,30,'F');fill(1,26,12,30,'r');
 for(let y=22;y<=25;y++){G[y][0]='#';G[y][3]='#';}
 for(let y=14;y<=25;y++){G[y][1]=G[y][2]='s';}
+G[10][12]=G[10][24]='D';G[25][1]=G[25][2]='E';
 const WALKABLE='.tcrs', OPEN='.tcrpvs', OUTDOOR='crpv';
 const STEP=.36,ROOFH=STEP*13;
 const FH=[],CHT=[],WTOP=[],WBOT=[];
-for(let y=0;y<MH;y++){FH.push(new Float32Array(MW));CHT.push(new Float32Array(MW));WTOP.push(new Float32Array(MW));WBOT.push(new Float32Array(MW));
-  for(let x=0;x<MW;x++){const c=G[y][x];
+for(let y=0;y<MH;y++){FH.push(new Float32Array(MW));CHT.push(new Float32Array(MW));WTOP.push(new Float32Array(MW));WBOT.push(new Float32Array(MW));}
+function computeHeights(){
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){const c=G[y][x];
     FH[y][x]=c==='s'?(y-13)*STEP:c==='r'?ROOFH:c==='v'?-12:c==='p'?-.22:0;
-    CHT[y][x]=OUTDOOR.indexOf(c)>=0?1e9:((x>=1&&x<=5&&y>=14&&y<=21)||c==='s')?7.8:WALLH;}}
-for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){if('.tcrpvs'.indexOf(G[y][x])>=0)continue;let top=0,bot=1e9,any=false;
-  for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=MW||Y>=MH||'.tcrpvs'.indexOf(G[Y][X])<0)continue;any=true;const f=FH[Y][X],c=CHT[Y][X];top=Math.max(top,c<1e8?c:f+(G[Y][X]==='r'?1.7:2.6));bot=Math.min(bot,f);}
-  WTOP[y][x]=any?top:WALLH;WBOT[y][x]=any?bot:0;}
+    CHT[y][x]=OUTDOOR.indexOf(c)>=0?1e9:((x>=1&&x<=5&&y>=14&&y<=21)||c==='s'||c==='E')?7.8:WALLH;}
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){if(OPEN.indexOf(G[y][x])>=0)continue;let top=0,bot=1e9,any=false;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=MW||Y>=MH||OPEN.indexOf(G[Y][X])<0)continue;any=true;const f=FH[Y][X],c=CHT[Y][X];top=Math.max(top,c<1e8?c:f+(G[Y][X]==='r'?1.7:2.6));bot=Math.min(bot,f);}
+    WTOP[y][x]=any?top:WALLH;WBOT[y][x]=any?bot:0;}
+}
 const fhAt=(x,y)=>(x<0||y<0||x>=MW||y>=MH)?-12:FH[y][x];
 const chAt=(x,y)=>(x<0||y<0||x>=MW||y>=MH)?1e9:CHT[y][x];
 const cellAt=(x,y)=>(x<0||y<0||x>=MW||y>=MH)?'v':G[y][x];
@@ -431,6 +430,8 @@ function buildTextures(){
   T('ftile',64,64,g=>{g.fillStyle=gray(.7);g.fillRect(0,0,64,64);g.fillStyle=gray(.5);for(let i=0;i<64;i+=16){g.fillRect(i,0,1,64);g.fillRect(0,i,64,1);}speckle(g,64,64,.15,80);});
   T('fconc',64,64,g=>{g.fillStyle=gray(.44);g.fillRect(0,0,64,64);speckle(g,64,64,.3,300);g.fillStyle=gray(.34);g.fillRect(0,0,64,1);g.fillRect(0,0,1,64);});
   T('froof',64,64,g=>{g.fillStyle=gray(.5);g.fillRect(0,0,64,64);speckle(g,64,64,.35,300);g.fillStyle=gray(.38);g.fillRect(0,31,64,2);g.fillRect(31,0,2,64);});
+  T('door',64,192,g=>{wallBase(g);g.fillStyle=gray(.36);g.fillRect(4,24,56,168);g.strokeStyle=gray(.12);g.lineWidth=2;g.strokeRect(4,24,56,168);g.fillStyle=gray(.08);g.fillRect(12,40,40,52);g.strokeStyle=gray(.55);g.lineWidth=1;g.strokeRect(12,40,40,52);g.beginPath();g.moveTo(32,40);g.lineTo(32,92);g.stroke();g.fillStyle=gray(.75);g.fillRect(50,110,4,16);g.fillStyle=gray(.2);for(let y=100;y<186;y+=12)g.fillRect(6,y,52,1);});
+  T('ironDoor',64,192,g=>{g.fillStyle=gray(.42);g.fillRect(0,0,64,192);speckle(g,64,192,.3,300);g.fillStyle=gray(.3);g.fillRect(2,20,60,172);g.strokeStyle=gray(.6);g.lineWidth=2;g.strokeRect(2,20,60,172);g.fillStyle=gray(.75);g.fillRect(48,100,8,14);plate(g,'屋上',36);});
   T('tread',64,64,g=>{g.fillStyle=gray(.5);g.fillRect(0,0,64,64);speckle(g,64,64,.2,120);g.fillStyle=gray(.3);for(let x=0;x<64;x+=16)g.fillRect(x,0,1,64);g.fillStyle=gray(.85);g.fillRect(0,0,64,4);g.fillRect(0,60,64,4);});
   T('riser',64,64,g=>{g.fillStyle=gray(.3);g.fillRect(0,0,64,64);speckle(g,64,64,.2,100);g.fillStyle=gray(.82);g.fillRect(0,0,64,9);g.fillStyle=gray(.12);g.fillRect(0,9,64,3);g.fillStyle=gray(.2);g.fillRect(0,0,1,64);});
   T('ceil',64,64,g=>{g.fillStyle=gray(.5);g.fillRect(0,0,64,64);g.fillStyle=gray(.38);for(let i=0;i<64;i+=16){g.fillRect(i,0,1,64);g.fillRect(0,i,64,1);}g.fillStyle=gray(.82);g.fillRect(28,6,8,52);g.fillStyle=gray(.3);g.strokeRect(28,6,8,52);});
@@ -439,7 +440,7 @@ function wallTex(ch,prev){
   switch(ch){
     case '#':return prev==='t'?TX.tile:(prev==='c'?TX.concrete:(prev==='r'?TX.fence:TX.wall));
     case 'W':return TX.window;case 'B':return TX.board;case 'K':return TX.shelf;case 'L':return TX.locker;
-    case 'P':return TX.stall;case 'F':return TX.fence;
+    case 'P':return TX.stall;case 'F':return TX.fence;case 'D':return TX.door;case 'E':return TX.ironDoor;
     default:return TX['sign'+ch]||TX.wall;
   }
 }
@@ -461,69 +462,91 @@ function buildProps(){
   P('jdesk',80,82,g=>{g.fillStyle=gray(.4);g.fillRect(2,32,76,7);g.strokeStyle=gray(.05);g.lineWidth=1.5;g.strokeRect(2,32,76,7);g.fillStyle=gray(.25);g.fillRect(6,39,26,40);g.fillStyle=gray(.1);g.fillRect(72,39,4,43);g.fillStyle=gray(.94);g.fillRect(14,24,22,8);g.fillRect(37,24,22,8);g.fillStyle=gray(.45);for(let i=0;i<3;i++){g.fillRect(16,26+i*2,18,1);g.fillRect(39,26+i*2,18,1);}ell(g,66,26,4,5,.7,true);});
   P('bench',150,95,g=>{g.fillStyle=gray(.06);g.fillRect(0,40,150,8);g.fillStyle=gray(.3);g.fillRect(6,48,138,47);g.strokeStyle=gray(.16);g.lineWidth=1;for(let x=6;x<144;x+=34.5)g.strokeRect(x,50,34.5,43);g.fillStyle=gray(.7);for(let x=6;x<144;x+=34.5)g.fillRect(x+28,68,3,8);g.strokeStyle=gray(.6);g.lineWidth=3;g.beginPath();g.moveTo(75,40);g.lineTo(75,18);g.lineTo(86,18);g.lineTo(86,24);g.stroke();g.fillStyle=gray(.75);g.fillRect(20,32,14,8);g.fillRect(118,32,6,8);});
   P('bucket',50,70,g=>{g.strokeStyle=gray(.58);g.lineWidth=3;g.beginPath();g.moveTo(34,4);g.lineTo(26,56);g.stroke();poly(g,[[6,42],[40,42],[36,68],[10,68]],.44);g.strokeStyle=gray(.75);g.lineWidth=1.5;g.beginPath();g.arc(23,44,15,Math.PI,TAU);g.stroke();});
+  P('bottle',24,40,g=>{poly(g,[[6,14],[18,14],[20,38],[4,38]],.12);g.fillStyle=gray(.12);g.fillRect(9,4,6,11);g.fillStyle=gray(.92);g.fillRect(6,20,12,10);g.fillStyle=gray(.3);g.fillRect(8,23,8,1);g.fillRect(8,26,6,1);});
+  P('tank',90,190,g=>{g.fillStyle=gray(.16);g.fillRect(4,10,82,180);g.fillStyle=gray(.05);for(let x=8;x<86;x+=8)g.fillRect(x,10,3,180);ell(g,45,24,9,9,.95,true);g.fillStyle=gray(.4);g.fillRect(14,104,62,6);ell(g,30,96,8,10,.3,true);ell(g,58,96,8,10,.3,true);g.fillStyle=gray(.9);g.fillRect(20,60,50,14);g.fillStyle=gray(.1);g.font='11px DotGothic16, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('暗室',45,67);});
   P('flash',90,90,g=>{const r=g.createRadialGradient(45,45,2,45,45,44);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.35,'rgba(240,240,240,.9)');r.addColorStop(1,'rgba(200,200,200,0)');g.fillStyle=r;g.fillRect(0,0,90,90);g.strokeStyle='#fff';g.lineWidth=2;for(let i=0;i<8;i++){const a=i*Math.PI/4;g.beginPath();g.moveTo(45,45);g.lineTo(45+Math.cos(a)*44,45+Math.sin(a)*44);g.stroke();}});
   P('flycam',44,36,g=>{g.translate(22,18);g.rotate(-.6);drawCamera(g,0,0,1.1);g.strokeStyle=gray(.3);g.lineWidth=1.5;g.beginPath();g.arc(0,8,14,0,Math.PI);g.stroke();});
 }
 
 /* ---------- world content ---------- */
+const MODEL_POS=[[27.6,1.5],[26.0,3.3],[24.0,4.6]];
 const PROPS=[
-  {k:'deskcam',x:3.0,y:4.0,r:.32,when:()=>MODE==='present'&&!S.hasCamera},
-  {k:'desk',x:3.0,y:4.0,r:.32,when:()=>MODE!=='present'||S.hasCamera},
+  {k:'deskcam',x:3.0,y:4.0,r:.32,when:()=>!has('camera')},
+  {k:'desk',x:3.0,y:4.0,r:.32,when:()=>has('camera')},
   {k:'desk',x:2.0,y:6.8,r:.3},
+  {k:'tank',x:1.3,y:1.4,r:.35},
   {k:'piano',x:9.6,y:1.7,r:.6},
   {k:'desk',x:12.6,y:6.0,r:.3},{k:'desk',x:14.6,y:6.0,r:.3},{k:'desk',x:12.6,y:8.2,r:.3},{k:'desk',x:15.0,y:8.2,r:.3},
-  {k:'model',x:27.6,y:1.5,r:.3},
+  {k:'model',r:.3},
   {k:'bench',x:21.5,y:5.0,r:.55},{k:'bench',x:25.0,y:5.8,r:.55},{k:'bench',x:21.0,y:8.2,r:.55},
+  {k:'bottle',x:21.2,y:4.95,z:.92,when:()=>!has('dev')&&!has('print')},
   {k:'jdesk',x:17.5,y:20.7,r:.35},{k:'bucket',x:15.6,y:14.6,r:.2},
 ];
+const CAST=[
+  {p:'iwasaki',pose:'stand',x:17.6,y:17.2},
+  {p:'sumiko',pose:'stand',x:10.9,y:2.9,ghost:1,when:()=>F('musicOpen')&&!F('sumiko')},
+  {p:'toru',pose:'cover',x:1.5,y:22.6,ghost:1,when:()=>!F('toru')},
+  {p:'kuroda',pose:'drown',x:26.0,y:18.0,z:-.28,ghost:1,when:()=>F('kuroShow')},
+  {p:'kashiwagi',pose:'ledge',x:7.8,y:30.75,ghost:1,when:()=>!F('end')},
+];
+const TRACES=[{x:9.6,y:2.9},{x:26.6,y:2.7},{x:3.4,y:14.6},{x:26.0,y:15.2},{x:7.0,y:30.3}];
+const ITEMS={
+  camera:{n:'早瀬のカメラ',d:'古い一眼レフ。ストラップに「早瀬」の名札。フィルムが一本、入ったままになっている。'},
+  letter:{n:'K.S.の手紙',d:`このカメラを見つけた人へ。
+
+これは早瀬くんのカメラです。
+中のフィルムには、あの夜のことが写っているはずです。
+私には、現像する勇気がありませんでした。
+
+旧校舎には、あの夜に取り残された人たちが、まだいます。
+どうか、終わらせてあげてください。
+　　　　　　　　　　　　── K.S.　昭和五十四年 冬`},
+  photo79:{n:'集合写真',d:'文化祭実行委員会の集合写真。裏に鉛筆で「昭和54年11月2日 夕方」と書いてある。',img:'group'},
+  keys:{n:'鍵束',d:'用務員の岩崎さんに借りた鍵束。「音楽室」「理科室」の札がついている。'},
+  dev:{n:'現像液',d:'理科室の実験台にあった、古い現像液の瓶。まだ使えそうだ。'},
+  score:{n:'「月光」の楽譜',d:'理科室の収納棚の奥にあった楽譜。第一楽章の最後のページ。名前の欄に「二年 白石」。'},
+  print:{n:'現像した写真',d:'早瀬のカメラのフィルムを現像した一枚。理科室で、二人の男が女子生徒を運んでいる。',img:'evidence'},
+  techo:{n:'森ハルミの生徒手帳',d:`「二年 森ハルミ」の生徒手帳。最後のページに、震える字で書かれている。
+
+十一月二日。会長が、早瀬くんを階段から。
+私、見てしまった。
+鈴原先輩が、早瀬くんのカメラを拾ってプールへ走っていった。
+会長が追いかけていく。先輩、行かないで。`},
+  salt:{n:'清めの塩',d:'岩崎さんにもらった、小さな紙包みの塩。'},
+  roofkey:{n:'屋上の鍵',d:'プールの底に沈んでいた鍵。「屋上」と書かれた木札がついている。'},
+};
 const RUMORS=[
-  {mem:'music',t:'音楽室の夜のピアノ',d:'誰もいない音楽室から、夜ごと「月光」が聞こえる。曲はいつも同じところで止まる。'},
-  {mem:'science',t:'理科室の歩く人体模型',d:'理科室の人体模型は、夜になると収納棚の前まで歩いてくる。'},
-  {mem:'stairs',t:'西階段の十三段目',d:'十二段しかない西階段が、夜だけ十三段になる。十三段目を踏むと、足首をつかまれる。'},
-  {mem:'toilet',t:'女子便所 三番目の個室',d:'三番目の個室を三回叩くと、中から「来ないで」と返事がある。'},
-  {mem:'pool',t:'プールの手招き',d:'冬の夜のプールで、水の中から白い腕が手招きする。'},
-  {mem:'roof',t:'屋上の白い影',d:'夜明け前、屋上の縁から白い影が落ちていくのが見える。'},
-  {mem:null,t:'七つ目',d:'七つ目を知った者は、旧校舎から出られなくなる。'},
+  {t:'音楽室の夜のピアノ',d:'誰もいない音楽室から、夜ごと「月光」が聞こえる。曲はいつも同じところで止まる。',
+    st:()=>F('sumiko')?['解決','白石澄子は、答案の不正を告発しようとして、生徒会長・黒田恭介に殴られて死んだ。']:F('musicOpen')?['調査中','ピアノの前に、セーラー服の少女が立っている。何かを探しているようだ。']:['未調査','音楽室には鍵がかかっている。用務員室に、誰かいるらしい。']},
+  {t:'理科室の歩く人体模型',d:'理科室の人体模型は、夜になると収納棚の前まで歩いてくる。',
+    st:()=>F('cabinet')?['解決','人体模型が向かっていたのは、収納棚だった。棚の奥には、白石澄子の楽譜が隠されていた。']:F('scienceOpen')?['調査中','人体模型が、見るたびに収納棚へ近づいている。棚には四桁のダイヤル錠。「あの日」と彫られている。']:['未調査','理科室には鍵がかかっている。']},
+  {t:'西階段の十三段目',d:'十二段しかない西階段が、夜だけ十三段になる。十三段目を踏むと、足首をつかまれる。',
+    st:()=>F('toru')?['解決','早瀬透は、フィルムを奪おうとした黒田に、階段から突き落とされた。']:has('print')?['調査中','階段の少年に、現像した写真を見せてみよう。']:['調査中','西階段の上に、学生服の少年がうずくまっている。「フィルム」を探しているらしい。']},
+  {t:'女子便所 三番目の個室',d:'三番目の個室を三回叩くと、中から「来ないで」と返事がある。',
+    st:()=>F('harumi')?['解決','あの夜、森ハルミは三番目の個室に隠れていた。彼女の生徒手帳が残されていた。']:['未調査','三番目の個室を、三回叩いてみる……？']},
+  {t:'プールの手招き',d:'冬の夜のプールで、水の中から白い腕が手招きする。',
+    st:()=>F('kuroda')?['解決','黒田恭介は、カメラを守ろうとした鈴原加代ともみ合い、冷たいプールに沈んだ。']:has('salt')?['調査中','清めの塩がある。プールの水面に近づいてみよう。']:['未調査','プールの水面に近づくと、引きずりこまれる。身を守るものが必要だ。']},
+  {t:'屋上の白い影',d:'夜明け前、屋上の縁から白い影が落ちていくのが見える。',
+    st:()=>F('end')?['解決','理科教諭・柏木正は、夜明け前に屋上から身を投げた。']:F('roofOpen')?['調査中','屋上の縁に、白衣の影が立っている。']:['未調査','屋上への扉には鍵がかかっている。あの夜、誰かが鍵を持ち出したらしい。']},
+  {t:'七つ目',d:'七つ目を知った者は、旧校舎から出られなくなる。',
+    st:()=>F('good')?['解決','七つ目を知った者は、それを書かずにはいられない。']:['？？？','六つの噂の真相を、すべて明らかにすること。']},
 ];
 const N=(t,fx)=>({s:'',t,fx});
-const MEMS={
-  music:{name:'音楽室',time:'昭和54年11月2日　午後9時10分',start:[13.8,7.4,-2.3],amb:.2,lights:[[10.2,2.8,1.8],[12.5,11.4,.7]],sky:'night',
-    figs:[{p:'sumiko',pose:'lie',x:9.9,y:3.0},{p:'kuroda',pose:'push',mirror:true,x:11.5,y:3.5},{p:'toru',pose:'camera',x:12.5,y:11.1}],
-    lines:[N('（ピアノの音。ベートーヴェン「月光」。）','moonlight'),{s:'少女の声',t:'……会長。こんな時間に、どうしたんですか。'},{s:'若い男の声',t:'白石。昼間の話、考え直してくれないか。'},{s:'少女の声',t:'見たんです。柏木先生が、会長に期末試験の答案を渡しているところ。'},{s:'若い男の声',t:'推薦がかかってるんだ。頼む、黙っていてくれ。'},{s:'少女の声',t:'明日の朝、校長先生に話します。'},{s:'若い男の声',t:'待て！'},N('（鈍い音。鍵盤がいっせいに鳴る。）','crash')]},
-  science:{name:'理科室',time:'昭和54年11月2日　午後9時40分',start:[21.6,7.0,-.95],amb:.2,lights:[[24.5,10.2,2.6],[27,2.2,.4]],sky:'night',
-    figs:[{p:'sumiko',pose:'lie',x:26.6,y:2.5,z:.72},{p:'kuroda',pose:'carry',x:25.3,y:3.0},{p:'kashiwagi',pose:'carry',mirror:true,x:27.9,y:3.0},{p:'toru',pose:'camera',x:24.5,y:10.9}],
-    props:[{k:'flash',x:24.5,y:10.55,z:1.15,emit:true}],
-    lines:[N('（重いものを引きずる音。）','drag'),{s:'中年の男の声',t:'……なんてことをしてくれたんだ、黒田。'},{s:'若い男の声',t:'先生だって同罪ですよ。答案のことが知れたら、先生もおしまいだ。'},{s:'中年の男の声',t:'…………人体模型の収納棚だ。朝までに、どうにかする。'},N('（カシャッ。シャッターの音。）','shutter'),{s:'若い男の声',t:'誰だ！'},{s:'少年の声',t:'ひっ……！'}]},
-  stairs:{name:'西階段',time:'昭和54年11月2日　午後9時55分',start:[4.5,18.6,-2.22],amb:.26,lights:[[2.5,15.5,1.6],[1.6,19.5,1.0]],sky:'night',
-    figs:[{p:'kuroda',pose:'push',x:1.6,y:17.5},{p:'toru',pose:'fall',x:2.3,y:15.6,z:.35},{p:'harumi',pose:'cover',x:1.5,y:20.5}],
-    props:[{k:'flycam',x:3.0,y:15.0,z:1.1}],
-    lines:[N('（階段を駆け下りる足音。）','steps'),{s:'若い男の声',t:'早瀬！ そのフィルムをよこせ！'},{s:'少年の声',t:'いやです！ これは……証拠です！'},{s:'少女の声',t:'やめて、会長！'},{s:'若い男の声',t:'よこせと言ってるんだ！'},N('（突き飛ばす音。何かが階段を転がり落ちていく。）','fall'),{s:'少女の声',t:'…………早瀬くん？'}]},
-  toilet:{name:'女子便所',time:'昭和54年11月2日　午後10時30分',start:[9.6,16.0,.8],amb:.24,lights:[[8.5,14.8,1.7],[12.5,18.0,.8]],sky:'night',
-    figs:[{p:'iwasaki',pose:'light',x:8.2,y:14.7},{p:'kayo',pose:'knock',x:12.5,y:18.4},{p:'harumi',pose:'crouch',x:12.5,y:20.7}],
-    lines:[N('（コン、コン、コン。三番目の扉を叩く音。）','knock'),{s:'落ち着いた少女の声',t:'森さん。いるんでしょう。もう大丈夫だから、出てきて。'},{s:'震える少女の声',t:'……来ないで。鈴原先輩、会長とつきあってるんでしょう。知ってるんだから。'},{s:'落ち着いた少女の声',t:'違うの。私は、あの人を止めたいの。'},{s:'年老いた男の声',t:'おい、こんな時間に誰だ。……鈴原か？'},{s:'落ち着いた少女の声',t:'……岩崎さん。森さんを、お願いします。家まで送ってあげて。'},N('（足早に去っていく足音。）','steps')]},
-  pool:{name:'プール',time:'昭和54年11月2日　午後11時15分',start:[22.0,14.6,.5],amb:.28,lights:[[26,17.5,.7]],sky:'night',
-    figs:[{p:'kuroda',pose:'drown',x:26.0,y:17.8,z:-.28},{p:'kayo',pose:'holdcam',x:26.2,y:15.3}],
-    lines:[N('（風の音。水面を打つ音。）','wind'),{s:'落ち着いた少女の声',t:'そのカメラ、どうするつもり。'},{s:'若い男の声',t:'沈める。フィルムごとな。……お前も、見なかったことにしろ。'},{s:'落ち着いた少女の声',t:'白石さんも、早瀬くんも。あなたがやったのね。'},{s:'若い男の声',t:'仕方なかったんだ！ どけ、加代！'},{s:'落ち着いた少女の声',t:'カメラは渡さない。'},N('（揉み合う音。大きな水しぶき。）','splash'),{s:'若い男の声',t:'がっ……か、加代……つめた……手を……'},{s:'落ち着いた少女の声',t:'……………………'},N('（水音が、やがて止む。）','bubbles')]},
-  roof:{name:'屋上',time:'昭和54年11月3日　午前5時40分',start:[3.8,27.6,.8],amb:.42,lights:[],sky:'dawn',
-    figs:[{p:'kashiwagi',pose:'ledge',x:7.8,y:30.75},{p:'iwasaki',pose:'reach',x:5.2,y:30.1}],
-    lines:[N('（夜明け前の風。金網がきしむ音。）','wind'),{s:'年老いた男の声',t:'先生！ 柏木先生、早まっちゃいかん！'},{s:'中年の男の声',t:'岩崎さん……私が答案など流さなければ、三人とも死なずに済んだ。'},{s:'年老いた男の声',t:'警察へ行きましょう。まだ、やり直せる。'},{s:'中年の男の声',t:'教え子を三人も死なせた教師に、明日はありませんよ。'},N('（風の音だけが残る。）','wind')]},
-};
-const MEM_ORDER=['music','science','stairs','toilet','pool','roof'];
-const TRACES=[
-  {mem:'music',x:9.6,y:2.9,label:'ピアノの鍵盤の黒い染み',look:'ピアノの鍵盤に、黒い染みがこびりついている。'},
-  {mem:'science',x:26.6,y:2.7,label:'人体模型の前の引きずった跡',look:'人体模型の前の床に、何かを引きずった跡が黒く残っている。'},
-  {mem:'stairs',x:3.4,y:14.6,label:'階段の下の染み',look:'階段の下に黒ずんだ染み。見上げると、十二段のはずの階段が、十三段あるように見える。'},
-  {mem:'toilet',x:12.5,y:20.4,label:'三番目の個室の刻み文字',look:'三番目の個室。扉の内側に、爪で「たすけて」と刻まれている。'},
-  {mem:'pool',x:26.0,y:15.2,label:'乾かない濡れた足跡',look:'プールサイドに、いつまでも乾かない濡れた足跡がある。'},
-  {mem:'roof',x:7.0,y:30.3,label:'屋上の縁の靴跡',look:'屋上の縁のコンクリートに、靴の跡がひとつだけ残っている。'},
-];
+const L=(s,t,fx)=>({s,t,fx});
 
 /* ---------- state ---------- */
-const S={hasCamera:false,visited:{},seen:{},nb:{},confirmed:{},done:false,pal:'mac'};
+const S={items:[],flags:{},modelIdx:0,pal:'mac'};
+const has=id=>S.items.includes(id);
+const F=k=>!!S.flags[k];
+function setF(k){S.flags[k]=1;save();}
 let px=3.5,py=7.6,pa=-Math.PI/2;
-let MODE='present',MEM=null,MEMID=null,saved=null,TIME=0,paused=true,started=false;
-function save(){try{const pos=MODE==='memory'&&saved?saved:{x:px,y:py,a:pa};localStorage.setItem(KEY,JSON.stringify({S,pos}));}catch(e){}}
-function loadSave(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');return d&&d.S?d:null;}catch(e){return null;}}
+let MODE='present',MEM=null,TIME=0,paused=true,started=false;
+function save(){try{localStorage.setItem(KEY,JSON.stringify({S,pos:{x:px,y:py,a:pa}}));}catch(e){}}
+function loadSave(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');return d&&d.S&&d.S.items?d:null;}catch(e){return null;}}
+function give(id){if(!has(id))S.items.push(id);save();sfx('chime');toast(`「${ITEMS[id].n}」を手に入れた。`);}
+function drop(id){S.items=S.items.filter(x=>x!==id);save();}
+const DOORS={music:{cells:[[12,10]],to:'.',need:'keys'},science:{cells:[[24,10]],to:'.',need:'keys'},roof:{cells:[[1,25],[2,25]],to:'s',need:'roofkey'}};
+function applyDoors(){for(const k in DOORS){const d=DOORS[k],open=F(k+'Open');for(const [x,y] of d.cells)G[y][x]=open?d.to:(k==='roof'?'E':'D');}computeHeights();}
 
 /* ---------- renderer ---------- */
 const cv=$('#view'),cx=cv.getContext('2d'),IMG=cx.createImageData(W,H),OUT32=new Uint32Array(IMG.data.buffer);
@@ -601,7 +624,7 @@ function render(){
   const list=[];
   for(const s of SPR){const dx=s.x-px,dy=s.y-py,dep=dx*dirX+dy*dirY;if(dep<.12)continue;list.push([s,dep,dx*(-dirY)+dy*dirX]);}
   list.sort((a,b)=>b[1]-a[1]);
-  let sid=0;
+  let sid=0;const gph=Math.floor(TIME*9)%97;
   for(const [s,dep,lat] of list){
     sid++;const img=s.img,sc=PROJ/dep,scx=W/2*(1+(lat/dep)/PLANE),zb=s.z+fhAt(Math.floor(s.x),Math.floor(s.y));
     const sw=img.w/100*sc,x0=scx-sw/2,top=HALF+(eyeZ-(zb+img.h/100))*sc,bot=HALF+(eyeZ-zb)*sc,sh=bot-top;
@@ -610,7 +633,8 @@ function render(){
     for(let x=xa;x<xb;x++){
       const tx=Math.min(img.w-1,(((x+.5-x0)/sw)*img.w)|0);
       for(let y=ya;y<yb;y++){const i=y*W+x;if(dep>=DEPTH[i])continue;const ty=Math.min(img.h-1,(((y+.5-top)/sh)*img.h)|0),j=ty*img.w+tx;if(!img.a[j])continue;
-        LUM[i]=s.emit?img.l[j]*1.2:img.l[j]*(mem?cl:lightPix(0,0,d,i,false));DEPTH[i]=dep;SURF[i]=7*4096+sid;}
+        if(s.ghost&&hash(x+gph,y*.37+gph)<.32)continue;
+        LUM[i]=s.ghost?(.2+img.l[j]*.75)*(.75+.5*lightPix(0,0,d,i,false)):s.emit?img.l[j]*1.2:img.l[j]*(mem?cl:lightPix(0,0,d,i,false));DEPTH[i]=dep;SURF[i]=7*4096+sid;}
     }
   }
   // outlines where surfaces meet, then dither
@@ -625,16 +649,11 @@ function render(){
 }
 
 /* ---------- scene assembly ---------- */
-let memFigs=[];
 function rebuildScene(){
   SPR=[];SOLIDS=[];
-  for(const p of PROPS){if(p.when&&!p.when())continue;const img=PIMG[p.k];SPR.push({x:p.x,y:p.y,z:0,img});SOLIDS.push({x:p.x,y:p.y,r:p.r});}
-  memFigs=[];
-  if(MODE==='memory'){
-    for(const f of MEM.figs){const img=personImg(f.p,f.pose,f.mirror);SPR.push({x:f.x,y:f.y,z:f.z||0,img});memFigs.push({x:f.x,y:f.y,r:2.4,pid:f.p,fig:true});if(f.pose!=='lie'&&f.pose!=='drown'&&!f.z)SOLIDS.push({x:f.x,y:f.y,r:.25});}
-    for(const p of (MEM.props||[]))SPR.push({x:p.x,y:p.y,z:p.z||0,img:PIMG[p.k],emit:p.emit});
-  }
-  TR_ACTIVE=MODE==='present'?TRACES:[];
+  for(const p of PROPS){if(p.when&&!p.when())continue;let x=p.x,y=p.y;if(p.k==='model')[x,y]=MODEL_POS[S.modelIdx||0];SPR.push({x,y,z:p.z||0,img:PIMG[p.k]});if(p.r)SOLIDS.push({x,y,r:p.r});}
+  for(const c of CAST){if(c.when&&!c.when())continue;SPR.push({x:c.x,y:c.y,z:c.z||0,img:personImg(c.p,c.pose,c.mirror),ghost:!!c.ghost});if(!c.ghost)SOLIDS.push({x:c.x,y:c.y,r:.28});}
+  TR_ACTIVE=TRACES;
 }
 
 /* ---------- movement ---------- */
@@ -646,7 +665,9 @@ function canStand(x,y,ox,oy){
   for(const o of SOLIDS){const d2=(x-o.x)**2+(y-o.y)**2;if(d2<o.r*o.r&&d2<(ox-o.x)**2+(oy-o.y)**2)return false;}
   return true;
 }
-let stepAcc=0,tpLock=false,stairHint=false,roofHint=false,eyeH=0;
+let stepAcc=0,eyeH=0,modelT=0,lastPiano=-99,poolBusy=false;
+const seenArea={};
+function areaHint(id,cond,text){if(!seenArea[id]&&cond){seenArea[id]=1;toast(text);return true;}return false;}
 function update(dt){
   TIME+=dt;
   if(paused){eyeH=fhAt(Math.floor(px),Math.floor(py));return;}
@@ -662,95 +683,175 @@ function update(dt){
     if(canStand(px,py+dy,ox,oy))py+=dy;
     stepAcc+=Math.hypot(px-ox,py-oy);if(stepAcc>.85){stepAcc=0;sfx('step');}
   }
-  if(MODE==='present'&&!roofHint&&py>25.6){roofHint=true;toast('屋上に出た。冷たい風が吹いている。');}
-  if(MODE==='present'&&!stairHint&&px<6&&py>13.6&&py<22){stairHint=true;toast('奥へのびる階段。上りきれば、屋上に出られるはずだ。');}
+  const inMusic=px>7&&px<17&&py<10,inSci=px>18&&py<10;
+  // events
+  areaHint('stairs',px<6&&py>13.6&&py<21,'奥へのびる階段。……上の方に、誰かいる？');
+  areaHint('roof',py>25.6,'屋上に出た。冷たい風が吹いている。');
+  areaHint('toilet',px>6.5&&px<14&&py>13.6&&py<22,'女子便所。三番目の個室だけ、扉が閉まっている。');
+  areaHint('pool',px>20.5&&py>13.6&&py<22,'プール。冬なのに、水が抜かれていない。');
+  areaHint('jan',px>14.5&&px<20&&py>13.6&&py<22&&!F('metIwa'),'用務員室。年老いた男が、ひとりで茶をすすっている。');
+  if(inMusic&&F('musicOpen')&&!F('sumiko')&&TIME-lastPiano>16){lastPiano=TIME;sfx('moonlight');areaHint('music',true,'誰もいないはずの音楽室に、「月光」が響いている。');}
+  if(inSci&&F('scienceOpen')&&!F('cabinet')&&S.modelIdx<MODEL_POS.length-1){
+    modelT+=dt;const m=MODEL_POS[S.modelIdx];let da=Math.atan2(m[1]-py,m[0]-px)-pa;da=Math.atan2(Math.sin(da),Math.cos(da));
+    if(Math.abs(da)>1.1&&modelT>4){modelT=0;S.modelIdx++;save();rebuildScene();sfx('drag');toast(S.modelIdx===1?'……今、後ろで何か動いた？':'人体模型が、また近づいている。収納棚の前に……');}
+  }
+  if(!F('kuroda')&&!has('salt')&&!poolBusy&&px>22.5&&px<29.5&&py>15.3&&py<15.95)poolTrap();
   updatePrompt();
 }
 
 /* ---------- interaction ---------- */
 const INTER=[
-  {x:3.0,y:4.0,r:1.8,label:'古いカメラ',when:()=>!S.hasCamera,use:pickupCamera},
-  {x:17.5,y:20.7,r:1.8,label:'用務員日誌',use:readLog},
-  ...TRACES.map(t=>({x:t.x,y:t.y,r:1.7,label:t.label,use:()=>useTrace(t)})),
+  {x:3.0,y:4.0,r:1.8,label:'古いカメラ',when:()=>!has('camera'),use:pickupCamera},
+  {x:1.3,y:1.4,r:1.9,label:'暗室の現像タンク',use:useDarkroom},
+  {x:17.6,y:17.2,r:2.0,label:'用務員の男と話す',use:talkIwasaki},
+  {x:17.5,y:20.7,r:1.6,label:'用務員日誌',use:readLog},
+  {x:12.5,y:10.5,r:1.5,label:'音楽室の扉',when:()=>!F('musicOpen'),use:()=>tryDoor('music')},
+  {x:24.5,y:10.5,r:1.5,label:'理科室の扉',when:()=>!F('scienceOpen'),use:()=>tryDoor('science')},
+  {x:2.0,y:25.3,r:1.7,label:'屋上への鉄扉',when:()=>!F('roofOpen'),use:()=>tryDoor('roof')},
+  {x:10.9,y:2.9,r:2.3,label:'ピアノの前の少女',when:()=>F('musicOpen')&&!F('sumiko'),use:talkSumiko},
+  {x:28.4,y:1.3,r:1.7,label:'収納棚のダイヤル錠',when:()=>!F('cabinet'),use:useLock},
+  {x:21.2,y:4.95,r:1.8,label:'薬品の瓶',when:()=>!has('dev')&&!has('print'),use:()=>{give('dev');rebuildScene();}},
+  {x:1.5,y:22.6,r:2.3,label:'階段の少年',when:()=>!F('toru'),use:talkToru},
+  {x:12.5,y:19.5,r:1.6,label:'三番目の個室',when:()=>!F('harumi'),use:knockStall},
+  {x:26.0,y:15.6,r:1.8,label:'プールの水面',when:()=>!F('kuroda'),use:usePool},
+  {x:7.8,y:30.75,r:2.6,label:'屋上の縁の白い影',when:()=>!F('end'),use:talkKashiwagi},
 ];
 let target=null;
 function findTarget(){
-  const list=MODE==='present'?INTER.filter(i=>!i.when||i.when()):memFigs;
   let best=null,bs=1e9;
-  for(const it of list){const dx=it.x-px,dy=it.y-py,d=Math.hypot(dx,dy);if(d>it.r)continue;let da=Math.atan2(dy,dx)-pa;da=Math.atan2(Math.sin(da),Math.cos(da));const lim=it.fig?.45:(d<1.2?1.25:.7);if(Math.abs(da)>lim&&d>.6)continue;const sc=d+Math.abs(da)*2;if(sc<bs){bs=sc;best=it;}}
+  for(const it of INTER){if(it.when&&!it.when())continue;const dx=it.x-px,dy=it.y-py,d=Math.hypot(dx,dy);if(d>it.r)continue;let da=Math.atan2(dy,dx)-pa;da=Math.atan2(Math.sin(da),Math.cos(da));const lim=d<1.2?1.25:.7;if(Math.abs(da)>lim&&d>.6)continue;const sc=d+Math.abs(da)*2;if(sc<bs){bs=sc;best=it;}}
   return best;
 }
-function updatePrompt(){
-  target=findTarget();const el=$('#prompt');
-  if(!target){el.hidden=true;return;}
-  let txt;
-  if(target.fig){const pid=target.pid,nm=S.nb[pid]&&S.nb[pid].name?PEOPLE[S.nb[pid].name].name:'名前不明';txt=`人物 No.${PEOPLE[pid].no}（${nm}）を調べる`;}
-  else txt=target.label;
-  el.firstChild.textContent='▶ '+txt;el.hidden=false;
-}
-function action(){if(paused||!started)return;if(!target)return;if(target.fig)inspect(target.pid);else target.use();}
-function teleport(x,y,a,msg){if(tpLock)return;tpLock=true;flashInk(()=>{px=x;py=y;pa=a;toast(msg);save();setTimeout(()=>tpLock=false,400);});}
-function useTrace(t){
-  if(!S.hasCamera){showMsg('黒い染み',`<p>${t.look}</p><p>……何かで記録できればいいのに。写真部の部室に、何かあった気がする。</p>`);return;}
-  sfx('shutter');flashPaper();
-  saved={x:px,y:py,a:pa};
-  setTimeout(()=>openDialog(MEMS[t.mem].lines,()=>enterMemory(t.mem)),450);
-}
-function enterMemory(id){
-  MODE='memory';MEMID=id;MEM=MEMS[id];const st=MEM.start;px=st[0];py=st[1];pa=st[2];eyeH=fhAt(Math.floor(px),Math.floor(py));
-  S.visited[id]=true;save();rebuildScene();
-  const b=$('#banner');b.innerHTML=`<b>${MEM.name}</b>${MEM.time}`;b.hidden=false;
-  $('#bBack').hidden=false;droneOn(.05);sfx('sting');flashInk();
-  if(!S.seenHint){S.seenHint=true;setTimeout(()=>toast('止まった時間の中を歩ける。人物の前で［調べる］と手帳に記録される。'),900);}
-}
-function exitMemory(){
-  if(MODE!=='memory')return;
-  flashInk(()=>{MODE='present';MEM=null;MEMID=null;if(saved){px=saved.x;py=saved.y;pa=saved.a;}eyeH=fhAt(Math.floor(px),Math.floor(py));saved=null;rebuildScene();$('#banner').hidden=true;$('#bBack').hidden=true;droneOff();save();
-    const v=MEM_ORDER.filter(m=>S.visited[m]).length;
-    if(v===6&&!S.allHint){S.allHint=true;toast('六つの記憶をすべて見た。手帳で七人の運命を確かめよう。');}});
-}
+function updatePrompt(){target=findTarget();const el=$('#prompt');if(!target){el.hidden=true;return;}el.firstChild.textContent='▶ '+target.label;el.hidden=false;}
+function action(){if(paused||!started||!target)return;target.use();}
+
 function pickupCamera(){
-  S.hasCamera=true;save();rebuildScene();sfx('chime');
-  showMsg('古いカメラ',`<p>写真部の机の上に、古い一眼レフが置かれていた。ストラップに名札。「早瀬」。<br>カメラの下に、封筒が挟まっている。</p><p class="letter">このカメラを見つけた人へ。
-
-これは早瀬くんのカメラです。
-あの夜、旧校舎で起きたことを、このカメラは全部覚えています。
-あの人たちが最期にいた場所の「染み」にレンズを向けて、シャッターを切ってください。
-私には、もう一度見る勇気がありませんでした。
-
-封筒に、あの日の夕方に撮った集合写真を入れておきます。
-　　　　　　　　　　　　── K.S.　昭和五十四年 冬</p>`,()=>{
+  S.items.push('camera','letter','photo79');save();rebuildScene();sfx('chime');
+  showMsg('古いカメラ',`<p>机の上に、古い一眼レフが置かれていた。ストラップに名札。「早瀬」。<br>カメラの下に、封筒が挟まっている。</p><p class="letter">${ITEMS.letter.d}</p>`,()=>{
     const wrap=document.createElement('div');wrap.append(uiCanvas(PHOTO));
-    const p=document.createElement('p');p.innerHTML=`<br>写真の裏に、鉛筆で名前が書かれている（並び順は写真と関係ないようだ）。<br>${BACKLIST.map(k=>PEOPLE[k].name).join('・')}`;wrap.append(p);
-    showMsg('文化祭実行委員会　昭和54年11月2日',wrap,()=>toast('手帳［N］に七人の顔が記録された。'));
+    const p=document.createElement('p');p.innerHTML='<br>封筒には集合写真も入っていた。裏に「昭和54年11月2日 夕方」。';wrap.append(p);
+    showMsg('集合写真',wrap,()=>toast('廊下の向こう、用務員室に明かりがついている。'));
   });
 }
 function readLog(){
-  showMsg('用務員日誌',`<p class="letter">昭和五十四年十一月二日（金）　晴れのち曇り
+  showMsg('用務員日誌',`<p class="letter">昭和五十四年十一月二日（金）
 文化祭準備のため、旧校舎は午後十時まで使用許可。
-
-午後十時半、三階女子便所にて二年・森ハルミを保護。ひどく怯えており、何も話さず。自宅まで送り届ける。
+午後十時半、女子便所にて二年・森ハルミを保護。ひどく怯えており、何も話さず。自宅まで送る。
 
 十一月三日（土）
-午前五時四十分、屋上にて――（インクがにじんで読めない）――
+午前五時四十分、屋上にて――（インクがにじんで読めない）
 
 同日より旧校舎は立入禁止。
 二年・白石澄子、一年・早瀬透の両名、行方知れず。
 三年・黒田恭介、プールにて水死。事故として処理。</p>`);
 }
+function tryDoor(id){
+  const d=DOORS[id];
+  if(has(d.need)){
+    S.flags[id+'Open']=1;applyDoors();rebuildScene();save();sfx('knock');
+    toast(id==='roof'?'屋上の鍵で、鉄扉を開けた。':'鍵束の鍵で、扉を開けた。');
+    if(id==='roof')drop('roofkey');
+    return;
+  }
+  const msg={music:'鍵がかかっている。……扉の向こうから、ピアノの音が聞こえる。',science:'鍵がかかっている。曇りガラスの向こうで、何かが動いた気がした。',roof:'重い鉄扉。鍵がかかっている。屋上の鍵は、どこにあるのだろう。'}[id];
+  sfx('knock');toast(msg);
+}
+function useDarkroom(){
+  if(has('print')){toast('フィルムはもう現像した。');return;}
+  if(!has('camera')){toast('暗室だ。現像タンクと、赤い安全灯がある。');return;}
+  if(!has('dev')){showMsg('暗室',`<p>赤い安全灯と、古い現像タンク。カメラのフィルムを現像できそうだ。</p><p>……でも、現像液の瓶は空っぽだ。理科室になら、残っているかもしれない。</p>`);return;}
+  openDialog([N('赤い安全灯をつけ、カメラからフィルムを巻き取る。'),N('現像液を注ぎ、タンクをゆっくり揺らす。時間が、やけに長い。'),N('……水洗いしたフィルムを、光にかざす。最後のコマに、何かが写っている。','shutter')],()=>{
+    drop('dev');give('print');
+    const wrap=document.createElement('div');wrap.append(uiCanvas(EVID));
+    const p=document.createElement('p');p.innerHTML='<br>理科室。白衣の男と、詰め襟の男子生徒が、ぐったりした女子生徒を運んでいる。<br>日付の焼きこみ：<b>79 11 2</b>';wrap.append(p);
+    showMsg('現像した写真',wrap);
+  });
+}
+function talkIwasaki(){
+  const menu=()=>{
+    const o=[{t:'七不思議のこと',f:()=>openDialog(IWA_RUMOR,menu)}];
+    if(has('camera')&&!has('keys'))o.push({t:'カメラを見せる',f:()=>openDialog(IWA_CAMERA,()=>{give('keys');menu();})});
+    if(has('techo')&&!has('salt')&&!F('kuroda'))o.push({t:'プールのこと',f:()=>openDialog(IWA_POOL,()=>{give('salt');menu();})});
+    if(F('sumiko')&&F('toru'))o.push({t:'二十年前の夜のこと',f:()=>openDialog(IWA_PAST,menu)});
+    o.push({t:'立ち去る',f:()=>{}});
+    ask('岩崎','……まだ何か用か。',o);
+  };
+  if(!F('metIwa')){setF('metIwa');openDialog(IWA_FIRST,menu);}else menu();
+}
+function talkSumiko(){
+  if(!has('score')){openDialog(SUMIKO_ASK);return;}
+  ask('少女','……それ、私の楽譜……？',[{t:'楽譜を渡す',f:()=>openDialog(SUMIKO_GIVE,()=>{drop('score');setF('sumiko');rebuildScene();toast('ピアノの音は、もう聞こえない。');})},{t:'やめておく',f:()=>{}}]);
+}
+function useLock(){
+  if(!F('scienceOpen'))return;
+  const wrap=document.createElement('div');
+  wrap.innerHTML=`<p>四桁のダイヤル錠。錠の横に、カッターで「あの日」と彫りつけてある。</p><div class="dial">${[0,1,2,3].map(i=>`<select id="dial${i}" aria-label="${i+1}桁目">${[...Array(10).keys()].map(n=>`<option>${n}</option>`).join('')}</select>`).join('')}</div><div class="row" style="justify-content:flex-start"><button class="btn" id="dialGo">回してみる</button></div><p id="dialMsg" class="small"></p>`;
+  showMsg('収納棚',wrap);
+  $('#dialGo').onclick=()=>{
+    const code=[0,1,2,3].map(i=>$('#dial'+i).value).join('');
+    if(code==='1102'){closeMsg();setF('cabinet');sfx('knock');openDialog(CABINET,()=>{give('score');rebuildScene();});}
+    else{sfx('knock');$('#dialMsg').textContent='……開かない。';}
+  };
+}
+function talkToru(){
+  if(!has('print')){openDialog(TORU_ASK);return;}
+  ask('少年','……それ、僕のフィルム……？',[{t:'現像した写真を見せる',f:()=>openDialog(TORU_GIVE,()=>{setF('toru');rebuildScene();toast('少年の姿は、もうどこにもない。');})},{t:'やめておく',f:()=>{}}]);
+}
+function knockStall(){
+  ask('','三番目の個室。扉はぴったり閉まっている。',[{t:'三回ノックする',f:()=>openDialog(STALL,()=>{setF('harumi');give('techo');})},{t:'やめておく',f:()=>{}}]);
+}
+function poolTrap(){
+  poolBusy=true;
+  openDialog([N('水面が、音もなく波立つ。','splash'),N('水の中から白い腕がのびて、ゆっくりと手招きしている。'),N('足首を、氷のような手につかまれた――')],()=>flashInk(()=>{px=25.5;py=12.3;pa=-Math.PI/2;eyeH=0;poolBusy=false;save();toast('気がつくと、廊下に倒れていた。……身を守るものがなければ、近づけない。');}));
+}
+function usePool(){
+  if(!has('salt')){poolTrap();return;}
+  ask('','水面がざわめいている。……誰かが、水の底からこちらを見ている。',[{t:'清めの塩をまく',f:()=>{S.flags.kuroShow=1;rebuildScene();openDialog(POOL,()=>{delete S.flags.kuroShow;drop('salt');setF('kuroda');rebuildScene();give('roofkey');});}},{t:'離れる',f:()=>{}}]);
+}
+function talkKashiwagi(){
+  if(!(F('sumiko')&&F('toru')&&F('kuroda'))){openDialog(KASHI_WAIT);return;}
+  openDialog(KASHI,()=>ask('白衣の男','君は、あの夜のことを、どうする？',[{t:'記事に書いて、みんなに伝える',f:goodEnd},{t:'誰にも言わない',f:badEnd}]));
+}
+function goodEnd(){openDialog(GOOD_END,()=>{setF('end');setF('good');rebuildScene();toast('旧校舎は、まだ歩ける。');});}
+function badEnd(){openDialog(BAD_END,()=>flashInk(()=>{px=1.6;py=23.4;pa=Math.PI/2;eyeH=fhAt(1,23);save();toast('……気がつくと、階段の途中に立っていた。もう一度、屋上へ。');}));}
+
+/* ---------- script ---------- */
+const IWA_FIRST=[L('用務員','……こら。こんな時間に、何をしとる。'),L('用務員','新聞部？ 七不思議の取材だと？'),L('岩崎','わしは岩崎。この旧校舎の用務員を、四十年やっとる。'),L('岩崎','悪いことは言わん、帰りなさい。この校舎はな、二十年前のあの夜から、時間が止まっとるんだ。')];
+const IWA_RUMOR=[L('岩崎','音楽室のピアノ、理科室の模型、西階段、女子便所、プール、屋上……。'),L('岩崎','全部、二十年前の文化祭前夜から始まった噂だ。'),L('岩崎','……あの晩、わしは宿直だった。それ以上は、年寄りの口からは言えん。')];
+const IWA_CAMERA=[L('岩崎','そのカメラ……早瀬の……！'),L('岩崎','どこでそれを。……そうか、写真部の棚か。鈴原が、置いていったんだな。'),N('岩崎さんは長いあいだ黙りこみ、やがて腰の鍵束を外した。'),L('岩崎','持っていきなさい。音楽室と理科室の鍵がついとる。'),L('岩崎','屋上の鍵だけは、ここにはない。あの夜から、見つかっとらんのだ。')];
+const IWA_POOL=[L('岩崎','……森の手帳か。あの子を家まで送ったのは、わしだ。'),L('岩崎','プールには近づくな。冬の夜、水の中から腕がのびてくる。'),L('岩崎','どうしても行くなら、これを持っていけ。清めの塩だ。……あいつを、楽にしてやってくれ。')];
+const IWA_PAST=[L('岩崎','白石と早瀬は、あの夜から行方知れずだ。黒田はプールで死んだ。柏木先生は……夜明けに、屋上から。'),L('岩崎','わしは屋上で、先生を止められなかった。'),L('岩崎','屋上に、まだ先生が立っとるという噂がある。……行ってやってくれんか。')];
+const SUMIKO_ASK=[N('ピアノの前に、セーラー服の少女が立っている。顔が、よく見えない。'),L('少女','……楽譜が、ないの。'),L('少女','最後のページがないと、続きが弾けないの。'),L('少女','理科室……模型の、棚の中……')];
+const SUMIKO_GIVE=[N('少女は楽譜を受け取ると、ピアノに向かった。'),N('（「月光」。今度は、最後まで。）','moonlight'),L('少女','……ありがとう。'),L('少女','あの夜、会長に言ったの。柏木先生が、会長に答案を渡しているのを見たって。'),L('少女','会長は、推薦がかかってるって……。それで、私を……'),L('少女','……早瀬くんが、ドアの外にいた。あの子のカメラに、全部写っているはず。'),N('鍵盤の音が消えたとき、少女の姿もなかった。')];
+const CABINET=[N('カチリ、と錠が外れた。','knock'),N('人体模型が、棚の前でこちらを見下ろしている。'),N('棚の奥に、色あせたセーラー服のリボンと、楽譜が押しこまれていた。'),N('……床に、古い乾いた染みが広がっている。')];
+const TORU_ASK=[N('階段の途中に、学生服の少年がうずくまっている。'),L('少年','……フィルム……僕のフィルム、どこ……'),L('少年','あれがないと、誰も信じてくれない……'),L('少年','カメラ……写真部に、あるはずなのに……')];
+const TORU_GIVE=[N('少年は、写真をじっと見つめた。'),L('少年','……写ってる。ちゃんと、写ってたんだ。'),L('少年','会長は、これを取り返そうとして……僕を、ここから突き落とした。'),L('少年','十二段のはずの階段が、十三段に見えるだろう。……十三段目は、僕が落ちた段だよ。'),L('少年','カメラは、鈴原先輩が拾ってくれた。先輩は、プールの方へ……'),N('少年の姿は、階段の暗がりに溶けていった。')];
+const STALL=[N('コン、コン、コン。','knock'),L('か細い声','……来ないで。'),L('か細い声','会長が……来る……'),N('沈黙。やがて、扉がひとりでに、きい、と開いた。'),N('中には誰もいない。床に、古い生徒手帳が落ちている。')];
+const POOL=[N('水面に塩をまくと、ざわめきが止んだ。','splash'),N('水の中に、詰め襟の男子生徒が浮かんでいる。','sting'),L('男子生徒','……加代……加代か……？'),L('男子生徒','……違う。お前、誰だ。'),L('男子生徒','白石を殴ったのも、早瀬を突き落としたのも、俺だ。推薦が欲しかった。それだけだった。'),L('男子生徒','加代は、カメラを渡さなかった。もみ合って、俺はこの水に落ちた。……あいつは、俺を止めてくれたんだ。'),L('男子生徒','屋上の鍵は、俺が持ってた。柏木先生に会いに行くつもりだった。……先生を、頼む。'),N('男子生徒の姿は、水の底へ沈んでいった。……水底で、何かが光っている。','bubbles')];
+const KASHI_WAIT=[N('屋上の縁に、白衣の男が背を向けて立っている。'),L('白衣の男','……まだだ。まだ、全部は明らかになっていない。'),N('風が吹くと、その姿は霧のように薄れた。')];
+const KASHI=[N('白衣の男が、ゆっくりと振り向いた。','wind'),L('白衣の男','君は……新聞部か。全部、知ってしまったんだね。'),L('白衣の男','私が、黒田に答案を流した。あの子の推薦のために。それが、三人の命を奪った。'),L('白衣の男','あの朝、岩崎さんは私を止めてくれた。それでも私は、ここから……'),L('白衣の男','二十年、ここで待っていた。誰かが、あの夜を終わらせてくれるのを。')];
+const GOOD_END=[L('白衣の男','……そうか。ありがとう。'),N('東の空が白みはじめる。白い影は、朝の光のなかに消えていった。','chime'),N('昭和五十四年十一月二日、文化祭前夜。答案の不正を知った白石澄子は、生徒会長・黒田恭介に殴られて死んだ。'),N('それを写真に収めた早瀬透は、西階段で突き落とされた。森ハルミは女子便所に隠れ、用務員の岩崎源三に保護された。'),N('カメラを守った鈴原加代ともみ合い、黒田はプールに沈んだ。夜明け前、柏木正は屋上から身を投げた。'),N('翌月、私の記事が校内新聞に載った。旧校舎は取り壊され、理科室の跡から、白石澄子と早瀬透が見つかった。'),N('解体の朝、音楽室のほうから「月光」が最後まで聞こえた――と、岩崎さんは言っていた。'),N('七不思議の、七つ目。七つ目を知った者は、それを書かずにはいられない。'),N('── 終 ──')];
+const BAD_END=[L('白衣の男','……そうか。'),L('白衣の男','なら、君もここに残るといい。あの夜は、まだ終わらない。'),N('白衣の男が、こちらへ手をのばす。','sting'),N('七不思議の、七つ目。七つ目を知った者は――旧校舎から、出られない。'),N('── BAD END ──')];
 
 /* ---------- overlays ---------- */
-let dlg=null,typer=null;
-function openDialog(lines,done){paused=true;dlg={lines,i:-1,done,full:false};$('#dialog').hidden=false;droneOn(.09);nextLine();}
+let dlg=null,typer=null,asking=false;
+function openDialog(lines,done){paused=true;dlg={lines,i:-1,done,full:false};$('#dlgOpts').innerHTML='';$('#dialog').hidden=false;droneOn(.06);nextLine();}
 function nextLine(){
-  if(!dlg)return;
+  if(!dlg||asking)return;
   if(!dlg.full){clearInterval(typer);$('#dlgTxt').textContent=dlg.lines[dlg.i]?dlg.lines[dlg.i].t:'';dlg.full=true;if(dlg.i>=0)return;}
   dlg.i++;
-  if(dlg.i>=dlg.lines.length){$('#dialog').hidden=true;const d=dlg.done;dlg=null;paused=false;if(MODE!=='memory')droneOff();if(d)d();return;}
-  const L=dlg.lines[dlg.i];if(L.fx)sfx(L.fx);
-  $('#dlgSpk').textContent=L.s?`── ${L.s}`:'';const el=$('#dlgTxt');el.className=L.s?'':'narr';el.textContent='';
+  if(dlg.i>=dlg.lines.length){$('#dialog').hidden=true;const d=dlg.done;dlg=null;paused=false;droneOff();if(d)d();return;}
+  const Ln=dlg.lines[dlg.i];if(Ln.fx)sfx(Ln.fx);
+  $('#dlgSpk').textContent=Ln.s?`── ${Ln.s}`:'';const el=$('#dlgTxt');el.className=Ln.s?'':'narr';el.textContent='';
   dlg.full=false;let n=0;clearInterval(typer);
-  typer=setInterval(()=>{n++;el.textContent=L.t.slice(0,n);if(n>=L.t.length){clearInterval(typer);if(dlg)dlg.full=true;}},38);
+  typer=setInterval(()=>{n++;el.textContent=Ln.t.slice(0,n);if(n>=Ln.t.length){clearInterval(typer);if(dlg)dlg.full=true;}},38);
+}
+function ask(spk,text,opts){
+  paused=true;asking=true;clearInterval(typer);
+  $('#dialog').hidden=false;$('#dlgSpk').textContent=spk?`── ${spk}`:'';const el=$('#dlgTxt');el.className=spk?'':'narr';el.textContent=text;
+  const box=$('#dlgOpts');box.innerHTML='';
+  opts.forEach((o,i)=>{const b=document.createElement('button');b.className='btn';b.textContent=`${i+1}. ${o.t}`;b.onclick=e=>{e.stopPropagation();asking=false;box.innerHTML='';$('#dialog').hidden=true;paused=false;o.f();};box.append(b);});
+  setTimeout(()=>{const b=box.querySelector('button');if(b)b.focus({preventScroll:true});},30);
 }
 let msgDone=null;
 function showMsg(title,body,done){
@@ -758,95 +859,37 @@ function showMsg(title,body,done){
   msgDone=done||null;$('#msg').hidden=false;$('#msgOk').focus({preventScroll:true});
 }
 function closeMsg(){$('#msg').hidden=true;paused=false;const d=msgDone;msgDone=null;if(d)d();}
-function inspect(pid){
-  const P=PEOPLE[pid];S.seen[pid]=S.seen[pid]||{};S.seen[pid][MEMID]=true;save();
-  const wrap=document.createElement('div');wrap.className='insp';
-  const c=uiCanvas(PORT[pid]);wrap.append(c);
-  const nm=S.nb[pid]&&S.nb[pid].name?PEOPLE[S.nb[pid].name].name:'名前不明';
-  const d=document.createElement('div');
-  d.innerHTML=`<p style="font-size:20px">人物 No.${P.no}</p><p>手帳での推定：${nm}</p><p>${MEM.name}（${MEM.time}）での姿を手帳に記録した。</p>`;
-  wrap.append(d);sfx('shutter');
-  showMsg('人物を記録',wrap);
-}
 let toastT=0;
 function toast(t){const el=$('#toast');el.firstChild.textContent=t;el.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on'),4200);}
-function flashPaper(){const f=$('#flash');f.classList.remove('ink');f.style.transition='none';f.style.opacity=1;requestAnimationFrame(()=>requestAnimationFrame(()=>{f.style.transition='';f.style.opacity=0;}));}
 function flashInk(mid){const f=$('#flash');f.classList.add('ink');f.style.transition='opacity .25s';f.style.opacity=1;setTimeout(()=>{if(mid)mid();f.style.transition='opacity .6s';f.style.opacity=0;},260);}
 
 /* ---------- notebook ---------- */
-let nbTab='people',resetArm=false;
-function openNotebook(tab){if(!started)return;if(tab)nbTab=tab;if(!S.hasCamera&&nbTab==='people')nbTab='rumors';paused=true;renderNotebook();$('#notebook').hidden=false;}
-function closeNotebook(){$('#notebook').hidden=true;paused=false;if(S.done&&!S.endSeen)playEnding();}
-function isCorrect(pid){const e=S.nb[pid];if(!e)return false;const a=ANSWER[pid],f=FATES.find(x=>x.id===e.fate);if(e.name!==pid||e.fate!==a[0])return false;return f.needs?e.cul===a[1]:true;}
-function checkConfirm(){
-  const un=PIDS.filter(p=>!S.confirmed[p]),ok=un.filter(isCorrect);
-  if(ok.length>=2||(ok.length>0&&ok.length===un.length)){
-    ok.forEach(p=>S.confirmed[p]=true);sfx('chime');
-    const n=PIDS.filter(p=>S.confirmed[p]).length;
-    if(n===7)S.done=true;
-    return `運命が確定した ─ ${ok.map(p=>'No.'+PEOPLE[p].no).join('・')}`;
-  }
-  return null;
-}
+let nbTab='items',resetArm=false;
+function openNotebook(tab){if(!started)return;if(tab)nbTab=tab;paused=true;renderNotebook();$('#notebook').hidden=false;}
+function closeNotebook(){$('#notebook').hidden=true;paused=false;}
 function renderNotebook(){
-  const tabs=S.hasCamera?[['people','人物'],['rumors','七不思議'],['memories','記憶'],['settings','表示']]:[['rumors','七不思議'],['settings','表示']];
+  const tabs=[['items','持ち物'],['rumors','七不思議'],['settings','表示']];
   const tb=$('#nbTabs');tb.innerHTML='';
   for(const [id,lab] of tabs){const b=document.createElement('button');b.className='btn'+(nbTab===id?' on':'');b.textContent=lab;b.onclick=()=>{nbTab=id;renderNotebook();};tb.append(b);}
-  const body=$('#nbBody');const st=$('#notebook').scrollTop;body.innerHTML='';
-  if(nbTab==='people')renderPeople(body);
-  else if(nbTab==='rumors')renderRumors(body);
-  else if(nbTab==='memories')renderMemories(body);
-  else renderSettings(body);
-  $('#notebook').scrollTop=st;
+  const body=$('#nbBody');body.innerHTML='';
+  if(nbTab==='items')renderItems(body);else if(nbTab==='rumors')renderRumors(body);else renderSettings(body);
 }
-function renderPeople(body){
-  const n=PIDS.filter(p=>S.confirmed[p]).length;
-  const top=document.createElement('div');top.className='photo-wrap';
-  top.append(uiCanvas(PHOTO));
-  const note=document.createElement('div');note.className='photo-note';
-  note.innerHTML=`<div class="tally">確定した運命　${n} / 7</div><p>文化祭実行委員会の集合写真（昭和54年11月2日 夕方）。番号は写真の並び順。</p><p>裏書き：${BACKLIST.map(k=>PEOPLE[k].name).join('・')}</p><p>顔ごとに名前と運命を書きこむ。正しい組が<b>二人分</b>そろうたびに、その運命が確定する。</p>`;
-  top.append(note);body.append(top);
-  const msg=document.createElement('p');msg.className='tally';msg.id='nbNote';body.append(msg);
-  const grid=document.createElement('div');grid.className='cards';
-  for(const pid of PIDS){
-    const P=PEOPLE[pid],e=S.nb[pid]||(S.nb[pid]={name:'',fate:'',cul:''}),done=!!S.confirmed[pid];
-    const card=document.createElement('div');card.className='card'+(done?' done':'');
-    card.append(uiCanvas(PORT[pid]));
-    const no=document.createElement('div');no.className='no';no.textContent=`No.${P.no}`;card.append(no);
-    const mkSel=(id,opts,val,ph)=>{const s=document.createElement('select');s.id=`nb-${pid}-${id}`;s.setAttribute('aria-label',`No.${P.no} ${ph}`);s.innerHTML=`<option value="">── ${ph} ──</option>`+opts.map(([v,l])=>`<option value="${v}"${v===val?' selected':''}>${l}</option>`).join('');s.disabled=done;s.onchange=()=>{e[id]=s.value;const r=checkConfirm();save();renderNotebook();if(r){const m=$('#nbNote');if(m)m.textContent=r;}};return s;};
-    card.append(mkSel('name',PIDS.map(k=>[k,`${PEOPLE[k].name}（${PEOPLE[k].role}）`]),e.name,'名前'));
-    card.append(mkSel('fate',FATES.map(f=>[f.id,f.label]),e.fate,'運命'));
-    const f=FATES.find(x=>x.id===e.fate);
-    if(f&&f.needs)card.append(mkSel('cul',PIDS.map(k=>[k,'加害者：'+PEOPLE[k].name]),e.cul,'誰によって'));
-    else{const sp=document.createElement('div');card.append(sp);}
-    const seen=document.createElement('div');seen.className='seen';
-    const ms=MEM_ORDER.filter(m=>S.seen[pid]&&S.seen[pid][m]).map(m=>MEMS[m].name);
-    seen.textContent=ms.length?'記憶の中で見た場所：'+ms.join('・'):'まだ記憶の中で調べていない';
-    card.append(seen);
-    if(done){const s=document.createElement('div');s.className='stamp';s.textContent='確定';card.append(s);}
-    grid.append(card);
-  }
-  body.append(grid);
+function renderItems(body){
+  if(!S.items.length){const p=document.createElement('p');p.textContent='まだ何も持っていない。写真部の部室を調べてみよう。';body.append(p);return;}
+  const l=document.createElement('div');l.className='list';
+  for(const id of S.items){const it=ITEMS[id],d=document.createElement('div');d.className='item';
+    d.innerHTML=`<h3>${it.n}</h3><p class="letter">${it.d}</p>`;
+    if(it.img){const c=uiCanvas(it.img==='group'?PHOTO:EVID);c.style.cssText='width:min(100%,420px);image-rendering:pixelated;border:2px solid var(--ink);margin-top:8px;display:block';d.append(c);}
+    l.append(d);}
+  body.append(l);
 }
 function renderRumors(body){
   const l=document.createElement('div');l.className='list';
-  RUMORS.forEach((r,i)=>{const it=document.createElement('div');it.className='item';
-    const seen=r.mem?S.visited[r.mem]:S.done;
-    const t=r.mem?r.t:(S.done?'七つ目　写真部のカメラ':'七つ目　？？？');
-    const d=r.mem?r.d:(S.done?'写真部のカメラは、死者の最期を写す。それを見た者は、真実を書かずにはいられない。':r.d);
-    it.innerHTML=`<h3>${'一二三四五六七'[i]}．${t}　${seen?'［真相を見た］':'［未調査］'}</h3><p>${d}</p>`;l.append(it);});
-  const intro=document.createElement('p');intro.textContent='新聞部・特集「さよなら旧校舎」取材メモ。噂の出どころは、二十年前の文化祭前夜らしい。';
-  body.append(intro,l);
-}
-function renderMemories(body){
-  const l=document.createElement('div');l.className='list';
-  for(const id of MEM_ORDER){const m=MEMS[id],it=document.createElement('div');it.className='item';
-    if(!S.visited[id]){it.innerHTML=`<h3>？？？</h3><p>まだ見ていない記憶。</p>`;l.append(it);continue;}
-    const figs=m.figs.map(f=>{const s=S.seen[f.p]&&S.seen[f.p][id];return s?`No.${PEOPLE[f.p].no}`:'？';}).join('・');
-    it.innerHTML=`<h3>${m.name}　<span style="font-size:13px">${m.time}</span></h3><p>そこにいた人物：${figs}</p><div class="tr">${m.lines.map(L=>L.s?`<div><span class="s">${L.s}</span>「${L.t}」</div>`:`<div class="s">${L.t}</div>`).join('')}</div>`;
-    l.append(it);}
-  const p=document.createElement('p');p.textContent='記憶は時系列順。現場の染みの前でシャッターを切れば、何度でも見直せる。';
-  body.append(p,l);
+  const solved=RUMORS.slice(0,6).filter(r=>r.st()[0]==='解決').length;
+  const intro=document.createElement('p');intro.className='tally';intro.textContent=`解き明かした噂　${solved} / 6`;body.append(intro);
+  RUMORS.forEach((r,i)=>{const [st,txt]=r.st(),it=document.createElement('div');it.className='item';
+    it.innerHTML=`<h3>${'一二三四五六七'[i]}．${r.t}　［${st}］</h3><p>${r.d}</p><p class="tr">${txt}</p>`;l.append(it);});
+  body.append(l);
 }
 function renderSettings(body){
   const h=document.createElement('p');h.textContent='モニターの色（二色表示）';body.append(h);
@@ -854,25 +897,11 @@ function renderSettings(body){
   for(const p of PALS){const b=document.createElement('button');b.className='btn'+(PAL.id===p.id?' on':'');b.innerHTML=`<span class="sw" style="background:${p.ink}"></span><span class="sw" style="background:${p.paper}"></span>${p.name}`;b.onclick=()=>{S.pal=p.id;setPal(p);save();renderNotebook();};row.append(b);}
   body.append(row);
   const r=document.createElement('div');r.className='row';r.style.justifyContent='flex-start';
-  const b=document.createElement('button');b.className='btn';b.id='resetBtn';b.textContent=resetArm?'本当に消す（もう一度押す）':'記録を消して最初から';
+  const b=document.createElement('button');b.className='btn';b.textContent=resetArm?'本当に消す（もう一度押す）':'記録を消して最初から';
   b.onclick=()=>{if(!resetArm){resetArm=true;renderNotebook();return;}try{localStorage.removeItem(KEY);}catch(e){}location.reload();};
   r.append(b);body.append(r);
-  const k=document.createElement('p');k.className='small';k.style.marginTop='16px';k.innerHTML='操作：W/S・↑/↓ 前後　A/D 横歩き　←/→・画面ドラッグ 向き<br>E・Space 調べる／撮る　N 手帳　Q 現在へ戻る';body.append(k);
+  const k=document.createElement('p');k.className='small';k.style.marginTop='16px';k.innerHTML='操作：W/S・↑/↓ 前後　A/D 横歩き　←/→・画面ドラッグ 向き<br>E・Space 調べる／話す　N 手帳　選択肢は数字キーでも選べる';body.append(k);
 }
-
-/* ---------- ending ---------- */
-const ENDING=[
-  N('七人の運命が、すべて明らかになった。','chime'),
-  N('昭和五十四年十一月二日、文化祭前夜。生徒会長・黒田恭介は、理科教諭・柏木正から期末試験の答案を受け取っていた。'),
-  N('それを知った白石澄子は、音楽室で黒田に殴られ、命を落とした。二人は遺体を理科室の人体模型の棚に隠した。その瞬間を、写真部の早瀬透がカメラに収めていた。'),
-  N('フィルムを奪おうとした黒田は、西階段で早瀬を突き落とした。それを見てしまった森ハルミは女子便所に逃げこみ、用務員の岩崎源三に保護された。'),
-  N('プールでカメラを沈めようとした黒田は、鈴原加代ともみ合いになり、十一月の冷たい水に沈んだ。夜明け前、柏木は屋上から身を投げた。'),
-  N('鈴原加代は町を出た。カメラは写真部の棚の奥で、二十年のあいだ、誰かを待っていた。'),
-  N('七不思議の、七つ目。「写真部のカメラは、死者の最期を写す」。……私は、この記事を書かなければならない。'),
-  N('翌月、旧校舎は取り壊された。解体の朝、音楽室のほうから「月光」が最後まで聞こえた――と、作業員のひとりが話していたそうだ。'),
-  N('── 終 ──'),
-];
-function playEnding(){S.endSeen=true;save();openDialog(ENDING,()=>toast('旧校舎は、まだ歩ける。'));}
 
 /* ---------- audio ---------- */
 let AC=null,master=null,drone=null;
@@ -920,6 +949,21 @@ function buildPhoto(){
   PHOTO=c;
   for(const pid of PIDS){const q=mk(64,72),h=q.getContext('2d');const r=h.createLinearGradient(0,0,0,72);r.addColorStop(0,gray(.66));r.addColorStop(1,gray(.42));h.fillStyle=r;h.fillRect(0,0,64,72);drawBust(h,pid,32,30,2.1);PORT[pid]=q;}
 }
+let EVID=null;
+function buildEvidence(){
+  personImg('kuroda','carry');personImg('kashiwagi','carry',true);personImg('sumiko','lie');
+  const c=mk(320,200),g=c.getContext('2d');
+  g.fillStyle=gray(.12);g.fillRect(0,0,320,200);
+  g.fillStyle=gray(.22);g.fillRect(150,20,160,130);g.fillStyle=gray(.08);for(let x=158;x<300;x+=36)g.fillRect(x,28,30,60);
+  g.fillStyle=gray(.3);g.fillRect(0,150,320,50);
+  g.drawImage(PCV['sumiko|lie|0'],90,52,190,74);
+  g.drawImage(PCV['kuroda|carry|0'],40,24,140,165);
+  g.drawImage(PCV['kashiwagi|carry|1'],170,22,140,165);
+  const r=g.createRadialGradient(40,40,10,40,40,190);r.addColorStop(0,'rgba(255,255,255,.55)');r.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=r;g.fillRect(0,0,320,200);
+  seed=21;speckle(g,320,200,.4,1200);
+  g.fillStyle=gray(.85);g.font='12px DotGothic16, sans-serif';g.textAlign='right';g.fillText("'79 11 2",310,190);
+  EVID=c;
+}
 function numTag(g,n,x,y){g.fillStyle=gray(.95);g.fillRect(x-7,y-7,14,14);g.strokeStyle=gray(.05);g.lineWidth=1.5;g.strokeRect(x-7,y-7,14,14);g.fillStyle=gray(.05);g.font='12px DotGothic16, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(String(n),x,y+1);}
 function buildTitle(){
   seed=5;const c=mk(384,216),g=c.getContext('2d');
@@ -941,15 +985,16 @@ function buildTitle(){
 
 /* ---------- input ---------- */
 addEventListener('keydown',e=>{
-  if(!$('#dialog').hidden){if(['Space','Enter','KeyE'].includes(e.code)){e.preventDefault();nextLine();}return;}
-  if(!$('#msg').hidden){if(['Space','Enter','Escape','KeyE'].includes(e.code)){e.preventDefault();closeMsg();}return;}
+  if(!$('#dialog').hidden){
+    if(asking){const m=/^Digit([1-9])$/.exec(e.code);if(m){const b=$('#dlgOpts').querySelectorAll('button')[+m[1]-1];if(b){e.preventDefault();b.click();}}return;}
+    if(['Space','Enter','KeyE'].includes(e.code)){e.preventDefault();nextLine();}return;}
+  if(!$('#msg').hidden){if(['Escape'].includes(e.code)||(['Space','Enter','KeyE'].includes(e.code)&&!(document.activeElement&&document.activeElement.tagName==='SELECT'))){e.preventDefault();closeMsg();}return;}
   if(!$('#notebook').hidden){if(e.code==='Escape'||e.code==='KeyN'){e.preventDefault();closeNotebook();}return;}
   if(!started)return;
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
   keys[e.code]=true;
   if(e.code==='KeyE'||e.code==='Space'||e.code==='Enter')action();
   if(e.code==='KeyN'||e.code==='Tab'){e.preventDefault();openNotebook();}
-  if(e.code==='KeyQ'||e.code==='Escape')exitMemory();
 });
 addEventListener('keyup',e=>{keys[e.code]=false;});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;for(const k in vk)vk[k]=false;});
@@ -958,15 +1003,14 @@ $('#msgOk').addEventListener('click',closeMsg);
 $('#nbClose').addEventListener('click',closeNotebook);
 $('#bAct').addEventListener('click',action);
 $('#bNote').addEventListener('click',()=>openNotebook());
-$('#bBack').addEventListener('click',exitMemory);
 document.querySelectorAll('.pad .btn').forEach(b=>{const k=b.dataset.k;
   const on=e=>{e.preventDefault();vk[k]=true;b.classList.add('on');try{b.setPointerCapture(e.pointerId);}catch(_){}};
   const off=()=>{vk[k]=false;b.classList.remove('on');};
   b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('lostpointercapture',off);
   b.addEventListener('contextmenu',e=>e.preventDefault());});
 let drag=null;
-cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,id:e.pointerId,moved:0};try{cv.setPointerCapture(e.pointerId);}catch(_){}});
-cv.addEventListener('pointermove',e=>{if(!drag||paused)return;const dx=e.clientX-drag.x;drag.x=e.clientX;drag.moved+=Math.abs(dx);pa+=dx*(TAU*.9/cv.clientWidth);});
+cv.addEventListener('pointerdown',e=>{drag={x:e.clientX};try{cv.setPointerCapture(e.pointerId);}catch(_){}});
+cv.addEventListener('pointermove',e=>{if(!drag||paused)return;const dx=e.clientX-drag.x;drag.x=e.clientX;pa+=dx*(TAU*.9/cv.clientWidth);});
 const endDrag=()=>{drag=null;};cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
 
 /* ---------- boot ---------- */
@@ -981,21 +1025,22 @@ const INTRO=[
 function begin(fresh){
   initAudio();$('#title').hidden=true;
   if(fresh){try{localStorage.removeItem(KEY);}catch(e){}
-    Object.assign(S,{hasCamera:false,visited:{},seen:{},nb:{},confirmed:{},done:false,endSeen:false,seenHint:false,allHint:false});px=3.5;py=7.6;pa=-Math.PI/2;
-    openDialog(INTRO,()=>{started=true;paused=false;rebuildScene();save();toast('写真部の部室。奥の机の上に、何か置いてある。');});}
-  else{started=true;paused=false;rebuildScene();toast('旧校舎に戻ってきた。');}
+    const pal=S.pal;Object.assign(S,{items:[],flags:{},modelIdx:0,pal});px=3.5;py=7.6;pa=-Math.PI/2;applyDoors();rebuildScene();
+    openDialog(INTRO,()=>{started=true;paused=false;save();toast('写真部の部室。奥の机の上に、何か置いてある。');});}
+  else{started=true;paused=false;rebuildScene();toast('旧校舎に戻ってきた。手帳［N］で七不思議の進み具合を確かめられる。');}
 }
 let last=performance.now();
 function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;update(dt);if(TX.wall)render();requestAnimationFrame(loop);}
 async function boot(){
   const sv=loadSave();
   if(sv){Object.assign(S,sv.S);if(sv.pos){px=sv.pos.x;py=sv.pos.y;pa=sv.pos.a;}}
+  applyDoors();
   PAL=PALS.find(p=>p.id===S.pal)||PALS[0];setPal(PAL);
   try{await Promise.race([document.fonts.load('14px "DotGothic16"'),new Promise(r=>setTimeout(r,2500))]);}catch(e){}
-  buildTextures();buildProps();buildPhoto();buildTitle();
+  buildTextures();buildProps();buildPhoto();buildTitle();buildEvidence();
   $('#titleBg').append(uiCanvas(TITLE));
   rebuildScene();
-  if(sv&&sv.S.hasCamera!==undefined&&(sv.S.hasCamera||Object.keys(sv.S.visited||{}).length)){$('#btnCont').hidden=false;}
+  if(sv&&sv.S.items.length)$('#btnCont').hidden=false;
   $('#btnNew').onclick=()=>begin(true);$('#btnCont').onclick=()=>begin(false);
   requestAnimationFrame(loop);
 }
