@@ -506,6 +506,7 @@ function buildProps(){
   P('bucket',50,70,g=>{g.strokeStyle=gray(.58);g.lineWidth=3;g.beginPath();g.moveTo(34,4);g.lineTo(26,56);g.stroke();poly(g,[[6,42],[40,42],[36,68],[10,68]],.44);g.strokeStyle=gray(.75);g.lineWidth=1.5;g.beginPath();g.arc(23,44,15,Math.PI,TAU);g.stroke();});
   P('bottle',24,40,g=>{poly(g,[[6,14],[18,14],[20,38],[4,38]],.12);g.fillStyle=gray(.12);g.fillRect(9,4,6,11);g.fillStyle=gray(.92);g.fillRect(6,20,12,10);g.fillStyle=gray(.3);g.fillRect(8,23,8,1);g.fillRect(8,26,6,1);});
   P('tank',90,190,g=>{g.fillStyle=gray(.16);g.fillRect(4,10,82,180);g.fillStyle=gray(.05);for(let x=8;x<86;x+=8)g.fillRect(x,10,3,180);ell(g,45,24,9,9,.95,true);g.fillStyle=gray(.4);g.fillRect(14,104,62,6);ell(g,30,96,8,10,.3,true);ell(g,58,96,8,10,.3,true);g.fillStyle=gray(.9);g.fillRect(20,60,50,14);g.fillStyle=gray(.1);g.font='11px DotGothic16, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('暗室',45,67);});
+  P('lamp',40,50,g=>{const r=g.createRadialGradient(20,18,2,20,18,20);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,40,40);g.fillStyle=gray(.9);g.beginPath();g.moveTo(10,22);g.lineTo(30,22);g.lineTo(25,10);g.lineTo(15,10);g.closePath();g.fill();g.fillStyle=gray(.5);g.fillRect(19,22,2,22);g.fillRect(12,44,16,4);});
   P('keybox',40,48,g=>{g.fillStyle=gray(.25);g.fillRect(2,2,36,44);g.strokeStyle=gray(.06);g.lineWidth=2;g.strokeRect(2,2,36,44);g.fillStyle=gray(.12);g.fillRect(6,6,28,36);g.fillStyle=gray(.8);for(let i=0;i<3;i++)g.fillRect(9+i*8,10,4,2);g.fillStyle=gray(.9);g.fillRect(26,20,8,10);g.fillStyle=gray(.1);g.fillRect(28,23,4,4);});
   P('bed',170,120,g=>{g.fillStyle=gray(.85);g.fillRect(6,70,158,22);g.strokeStyle=gray(.05);g.lineWidth=2;g.strokeRect(6,70,158,22);g.fillStyle=gray(.95);g.fillRect(10,60,40,12);g.fillStyle=gray(.15);g.fillRect(8,92,6,26);g.fillRect(156,92,6,26);g.fillStyle=gray(.6);g.fillRect(4,0,3,120);g.fillRect(163,0,3,120);g.fillRect(4,0,162,3);g.fillStyle='rgba(235,235,235,.75)';for(let x=8;x<160;x+=10)g.fillRect(x,4,7,60);});
   P('key',24,12,g=>{ell(g,6,6,4.5,4.5,.85,true);g.fillStyle=gray(.85);g.fillRect(10,5,12,3);g.fillRect(18,8,2,3);g.fillRect(14,8,2,3);});
@@ -526,7 +527,7 @@ const PROPS=[
   {k:'model',r:.3},
   {k:'bench',x:21.5,y:5.0,r:.55},{k:'bench',x:25.0,y:5.8,r:.55},{k:'bench',x:21.0,y:8.2,r:.55},
   {k:'bottle',x:21.2,y:4.95,z:.92,when:()=>!has('dev')&&!has('print')},
-  {k:'jdesk',x:17.5,y:20.7,r:.35},{k:'bucket',x:15.6,y:14.6,r:.2},
+  {k:'jdesk',x:17.5,y:20.7,r:.35},{k:'bucket',x:15.6,y:14.6,r:.2},{k:'lamp',x:18.3,y:20.55,z:.82,emit:1},
   // staff room
   {k:'desk',x:33.5,y:4.0,r:.3},{k:'desk',x:35.5,y:4.0,r:.3},{k:'desk',x:33.5,y:6.6,r:.3},{k:'desk',x:35.5,y:6.6,r:.3},{k:'jdesk',x:37.6,y:5.2,r:.35},
   {k:'keybox',x:36.6,y:1.15,z:1.05},
@@ -643,8 +644,12 @@ function skyAt(x,y){
   return base;
 }
 let SPR=[],SOLIDS=[],TR_ACTIVE=[],PIT=14;
+const LAMPS=[[17.6,18.4,.95,.16],[17.5,13.2,.55,.55]];
 function lightPix(wx,wy,d,i,outdoor){
-  if(MODE==='present')return Math.min(1.08,(outdoor?.09:.02)+1.7*FLK*CONE[i]/(1+d*d*.05));
+  if(MODE==='present'){let L=(outdoor?.09:.02)+1.7*FLK*CONE[i]/(1+d*d*.05);
+    // lamps that stay on: the night-duty room and the light spilling from its door into the corridor
+    for(const l of LAMPS){const dx=wx-l[0],dy=wy-l[1];L+=l[2]/(1+(dx*dx+dy*dy)*l[3]);}
+    return Math.min(1.08,L);}
   let L=MEM.amb*1.6+.08;for(const l of MEM.lights){const dx=wx-l[0],dy=wy-l[1];L+=l[2]*1.4/(1+(dx*dx+dy*dy)*.25);}return L/(1+d*.02);
 }
 function render(){
@@ -683,7 +688,7 @@ function render(){
       let u=side===0?hy:hx;u-=Math.floor(u);if(side===0&&rdx<0)u=1-u;if(side===1&&rdy>0)u=1-u;
       const shade=side===1?.82:1,colL=mem?lightPix(hx,hy,dl,0,outdoor):0;
       const face=(z0,z1,tex,vfn,type)=>{const ya=Math.max(cT,Math.ceil(yAt(z1))),yb=Math.min(cB,Math.ceil(yAt(z0))),tx=Math.min(tex.w-1,(u*tex.w)|0);
-        for(let y=ya;y<yb;y++){const i=y*W+x,z=eyeZ-(y+.5-HZ)/sc,ty=Math.max(0,Math.min(tex.h-1,(vfn(z)*tex.h)|0));LUM[i]=tex.l[ty*tex.w+tx]*shade*(mem?colL:lightPix(0,0,dl,i,outdoor));DEPTH[i]=d;SURF[i]=type*4096+cid;}
+        for(let y=ya;y<yb;y++){const i=y*W+x,z=eyeZ-(y+.5-HZ)/sc,ty=Math.max(0,Math.min(tex.h-1,(vfn(z)*tex.h)|0));LUM[i]=tex.l[ty*tex.w+tx]*shade*(mem?colL:lightPix(hx,hy,dl,i,outdoor));DEPTH[i]=d;SURF[i]=type*4096+cid;}
         return [ya,yb];};
       const wallV=z=>{let t=z-cfh;if(t>3)t=1.6+((t-3)%1.4);return (3-t)/3;};
       if(OPEN.indexOf(nc)<0){const r=face(WBOT[my][mx],WTOP[my][mx],wallTex(nc,cc,mx,my),wallV,3);for(let y=cT;y<r[0];y++){const i=y*W+x;LUM[i]=y<HZ?skyAt(x,y):.015;DEPTH[i]=1e9;SURF[i]=0;}cT=Math.max(cT,r[1]);break;}
@@ -712,7 +717,7 @@ function render(){
       const tx=Math.min(img.w-1,(((x+.5-x0)/sw)*img.w)|0);
       for(let y=ya;y<yb;y++){const i=y*W+x;if(dep>=DEPTH[i])continue;const ty=Math.min(img.h-1,(((y+.5-top)/sh)*img.h)|0),j=ty*img.w+tx;if(!img.a[j])continue;
         if(s.ghost&&hash(x+gph,y*.37+gph)<.32)continue;
-        LUM[i]=s.person?(s.ghost?img.l[j]*(.7+.3*hash(y,gph)):0):s.emit?img.l[j]*1.2:img.l[j]*(mem?cl:lightPix(0,0,d,i,false));DEPTH[i]=dep;SURF[i]=7*4096+sid;}
+        LUM[i]=s.person?(s.ghost?img.l[j]*(.7+.3*hash(y,gph)):0):s.emit?img.l[j]*1.2:img.l[j]*(mem?cl:lightPix(s.x,s.y,d,i,false));DEPTH[i]=dep;SURF[i]=7*4096+sid;}
     }
   }
   // outlines where surfaces meet, then dither
@@ -729,7 +734,7 @@ function render(){
 /* ---------- scene assembly ---------- */
 function rebuildScene(){
   SPR=[];SOLIDS=[];
-  for(const p of PROPS){if(p.when&&!p.when())continue;let x=p.x,y=p.y;if(p.k==='model')[x,y]=MODEL_POS[S.modelIdx||0];SPR.push({x,y,z:p.z||0,img:PIMG[p.k]});if(p.r)SOLIDS.push({x,y,r:p.r});}
+  for(const p of PROPS){if(p.when&&!p.when())continue;let x=p.x,y=p.y;if(p.k==='model')[x,y]=MODEL_POS[S.modelIdx||0];SPR.push({x,y,z:p.z||0,img:PIMG[p.k],emit:p.emit});if(p.r)SOLIDS.push({x,y,r:p.r});}
   for(const c of CAST){if(c.when&&!c.when())continue;SPR.push({x:c.x,y:c.y,z:c.z||0,img:personImg(c.p,c.pose,c.mirror),ghost:!!c.ghost,person:true});if(!c.ghost)SOLIDS.push({x:c.x,y:c.y,r:.28});}
   TR_ACTIVE=TRACES;
 }
@@ -859,7 +864,7 @@ function pickupCamera(){
   showMsg('古いカメラ',`<p>机の上に、古い一眼レフが置かれていた。ストラップに名札。「早瀬」。<br>カメラの下に、封筒が挟まっている。</p><p class="letter">${ITEMS.letter.d}</p>`,()=>{
     const wrap=document.createElement('div');wrap.append(uiCanvas(PHOTO));
     const p=document.createElement('p');p.innerHTML='<br>封筒には集合写真も入っていた。裏に「昭和54年11月2日 夕方」。';wrap.append(p);
-    showMsg('集合写真',wrap,()=>toast('廊下の向こう、宿直室に明かりがついている。'));
+    showMsg('集合写真',wrap,()=>toast('廊下に出ると、宿直室の扉から明かりが漏れている。'));
   });
 }
 function readLog(){
