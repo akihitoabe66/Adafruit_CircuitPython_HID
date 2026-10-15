@@ -364,8 +364,9 @@ function silhouette(src){
 }
 function personImg(pid,pose,mirror){
   const key=pid+'|'+pose+'|'+(mirror?1:0);if(PCACHE[key])return PCACHE[key];
-  const sil=pose==='drown'?SILC.bust[pid]:(pose==='lie'||pose==='carry')?null:SILC.full[pid];
-  if(sil){const c=silhouette(sil);PCV[key]=c;return PCACHE[key]=lumOf(c);}
+  const sil=pose==='drown'?SILC.bust.kashiwagi:(pose==='lie'||pose==='carry')?null:SILC.full.kashiwagi;
+  if(sil){const k=PEOPLE[pid].h/1.7,sc=mk(Math.round(sil.width*k),Math.round(sil.height*k));sc.getContext('2d').drawImage(sil,0,0,sc.width,sc.height);
+    const c=silhouette(sc);PCV[key]=c;return PCACHE[key]=lumOf(c);}
   const s=PEOPLE[pid].h/1.62;let c,g;
   if(pose==='drown'){
     c=mk(150,140);g=c.getContext('2d');if(mirror){g.translate(150,0);g.scale(-1,1);}
@@ -460,6 +461,7 @@ function buildTextures(){
   T('fconc',64,64,g=>{g.fillStyle=gray(.44);g.fillRect(0,0,64,64);speckle(g,64,64,.3,300);g.fillStyle=gray(.34);g.fillRect(0,0,64,1);g.fillRect(0,0,1,64);});
   T('froof',64,64,g=>{g.fillStyle=gray(.5);g.fillRect(0,0,64,64);speckle(g,64,64,.35,300);g.fillStyle=gray(.38);g.fillRect(0,31,64,2);g.fillRect(31,0,2,64);});
   T('door',64,192,g=>{wallBase(g);g.fillStyle=gray(.36);g.fillRect(4,24,56,168);g.strokeStyle=gray(.12);g.lineWidth=2;g.strokeRect(4,24,56,168);g.fillStyle=gray(.08);g.fillRect(12,40,40,52);g.strokeStyle=gray(.55);g.lineWidth=1;g.strokeRect(12,40,40,52);g.beginPath();g.moveTo(32,40);g.lineTo(32,92);g.stroke();g.fillStyle=gray(.75);g.fillRect(50,110,4,16);g.fillStyle=gray(.2);for(let y=100;y<186;y+=12)g.fillRect(6,y,52,1);});
+  T('stallDoor',64,192,g=>{tileBase(g,72);g.fillStyle=gray(.5);g.fillRect(2,46,60,132);g.strokeStyle=gray(.22);g.lineWidth=2;g.strokeRect(2,46,60,132);g.fillStyle=gray(.38);g.fillRect(6,52,52,120);g.fillStyle=gray(.12);g.fillRect(44,104,10,8);g.fillStyle=gray(.85);g.fillRect(46,106,6,4);g.fillStyle=gray(.08);g.fillRect(0,178,64,14);});
   T('ironDoor',64,192,g=>{g.fillStyle=gray(.42);g.fillRect(0,0,64,192);speckle(g,64,192,.3,300);g.fillStyle=gray(.3);g.fillRect(2,20,60,172);g.strokeStyle=gray(.6);g.lineWidth=2;g.strokeRect(2,20,60,172);g.fillStyle=gray(.75);g.fillRect(48,100,8,14);plate(g,'屋上',36);});
   T('tread',64,64,g=>{g.fillStyle=gray(.5);g.fillRect(0,0,64,64);speckle(g,64,64,.2,120);g.fillStyle=gray(.3);for(let x=0;x<64;x+=16)g.fillRect(x,0,1,64);g.fillStyle=gray(.85);g.fillRect(0,0,64,4);g.fillRect(0,60,64,4);});
   T('riser',64,64,g=>{g.fillStyle=gray(.3);g.fillRect(0,0,64,64);speckle(g,64,64,.2,100);g.fillStyle=gray(.82);g.fillRect(0,0,64,9);g.fillStyle=gray(.12);g.fillRect(0,9,64,3);g.fillStyle=gray(.2);g.fillRect(0,0,1,64);});
@@ -469,7 +471,7 @@ function wallTex(ch,prev){
   switch(ch){
     case '#':return prev==='t'?TX.tile:(prev==='c'?TX.concrete:(prev==='r'?TX.fence:TX.wall));
     case 'W':return TX.window;case 'B':return TX.board;case 'K':return TX.shelf;case 'L':return TX.locker;
-    case 'P':return TX.stall;case 'F':return TX.fence;case 'D':return TX.door;case 'E':return TX.ironDoor;
+    case 'P':return TX.stall;case 'F':return TX.fence;case 'D':return TX.door;case 'E':return TX.ironDoor;case 'U':return TX.stallDoor;
     default:return TX['sign'+ch]||TX.wall;
   }
 }
@@ -574,8 +576,8 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify({S,pos:{x:px,y:py,a:
 function loadSave(){try{const d=JSON.parse(localStorage.getItem(KEY)||'null');return d&&d.S&&d.S.items?d:null;}catch(e){return null;}}
 function give(id){if(!has(id))S.items.push(id);save();sfx('chime');toast(`「${ITEMS[id].n}」を手に入れた。`);}
 function drop(id){S.items=S.items.filter(x=>x!==id);save();}
-const DOORS={music:{cells:[[12,10]],to:'.',need:'keys'},science:{cells:[[24,10]],to:'.',need:'keys'},roof:{cells:[[1,25],[2,25]],to:'s',need:'roofkey'}};
-function applyDoors(){for(const k in DOORS){const d=DOORS[k],open=F(k+'Open');for(const [x,y] of d.cells)G[y][x]=open?d.to:(k==='roof'?'E':'D');}computeHeights();}
+const DOORS={music:{cells:[[12,10]],to:'.',need:'keys'},science:{cells:[[24,10]],to:'.',need:'keys'},roof:{cells:[[1,25],[2,25]],to:'s',need:'roofkey'},stall:{cells:[[12,19]],to:'t',closed:'U'}};
+function applyDoors(){for(const k in DOORS){const d=DOORS[k],open=F(k+'Open');for(const [x,y] of d.cells)G[y][x]=(open||(k==='stall'&&F('harumi')))?d.to:(d.closed||(k==='roof'?'E':'D'));}computeHeights();}
 
 /* ---------- renderer ---------- */
 const cv=$('#view'),cx=cv.getContext('2d'),IMG=cx.createImageData(W,H),OUT32=new Uint32Array(IMG.data.buffer);
@@ -692,7 +694,10 @@ const keys={},vk={};
 function solidCell(x,y){return WALKABLE.indexOf(cellAt(Math.floor(x),Math.floor(y)))<0;}
 function canStand(x,y,ox,oy){
   const r=.22,h0=fhAt(Math.floor(ox),Math.floor(oy));
-  for(const [cx_,cy_] of [[x-r,y-r],[x+r,y-r],[x-r,y+r],[x+r,y+r]]){if(solidCell(cx_,cy_))return false;if(fhAt(Math.floor(cx_),Math.floor(cy_))>h0+.55)return false;}
+  // the range of floor heights the body already overlaps, so a wedged player can always step back out
+  let oMin=h0,oMax=h0;for(const [a,b] of [[ox-r,oy-r],[ox+r,oy-r],[ox-r,oy+r],[ox+r,oy+r]]){const f=fhAt(Math.floor(a),Math.floor(b));oMin=Math.min(oMin,f);oMax=Math.max(oMax,f);}
+  const hi=Math.max(h0+.55,oMax),lo=Math.min(h0-.55,oMin);
+  for(const [cx_,cy_] of [[x-r,y-r],[x+r,y-r],[x-r,y+r],[x+r,y+r]]){if(solidCell(cx_,cy_))return false;const f=fhAt(Math.floor(cx_),Math.floor(cy_));if(f>hi||f<lo)return false;}
   for(const o of SOLIDS){const d2=(x-o.x)**2+(y-o.y)**2;if(d2<o.r*o.r&&d2<(ox-o.x)**2+(oy-o.y)**2)return false;}
   return true;
 }
@@ -730,6 +735,7 @@ function update(dt){
     if(Math.abs(da)>1.1&&modelT>4){modelT=0;S.modelIdx++;save();rebuildScene();sfx('drag');toast(S.modelIdx===1?'……今、後ろで何か動いた？':'人体模型が、また近づいている。収納棚の前に……');}
   }
   if(!F('kuroda')&&!has('salt')&&!poolBusy&&px>22.5&&px<29.5&&py>15.3&&py<15.95)poolTrap();
+  ambience();
   updatePrompt();
 }
 
@@ -832,7 +838,7 @@ function talkToru(){
   ask('少年','……それ、僕のフィルム……？',[{t:'現像した写真を見せる',f:()=>openDialog(TORU_GIVE,()=>{setF('toru');rebuildScene();toast('少年の姿は、もうどこにもない。');})},{t:'やめておく',f:()=>{}}]);
 }
 function knockStall(){
-  ask('','三番目の個室。扉はぴったり閉まっている。',[{t:'三回ノックする',f:()=>openDialog(STALL,()=>{setF('harumi');give('techo');})},{t:'やめておく',f:()=>{}}]);
+  ask('','三番目の個室。扉はぴったり閉まっている。',[{t:'三回ノックする',f:()=>openDialog(STALL,()=>{S.flags.stallOpen=1;setF('harumi');applyDoors();rebuildScene();give('techo');})},{t:'やめておく',f:()=>{}}]);
 }
 function poolTrap(){
   poolBusy=true;
@@ -930,6 +936,9 @@ function renderSettings(body){
   const row=document.createElement('div');row.className='pals';
   for(const p of PALS){const b=document.createElement('button');b.className='btn'+(PAL.id===p.id?' on':'');b.innerHTML=`<span class="sw" style="background:${p.ink}"></span><span class="sw" style="background:${p.paper}"></span>${p.name}`;b.onclick=()=>{S.pal=p.id;setPal(p);save();renderNotebook();};row.append(b);}
   body.append(row);
+  const bg=document.createElement('div');bg.className='row';bg.style.justifyContent='flex-start';
+  const bb=document.createElement('button');bb.className='btn';bb.textContent=S.bgm===0?'BGM：オフ':'BGM：オン';
+  bb.onclick=()=>{S.bgm=S.bgm===0?1:0;save();if(S.bgm===0)bgmStop();else{initAudio();bgmStart();}renderNotebook();};bg.append(bb);body.append(bg);
   const r=document.createElement('div');r.className='row';r.style.justifyContent='flex-start';
   const b=document.createElement('button');b.className='btn';b.textContent=resetArm?'本当に消す（もう一度押す）':'記録を消して最初から';
   b.onclick=()=>{if(!resetArm){resetArm=true;renderNotebook();return;}try{localStorage.removeItem(KEY);}catch(e){}location.reload();};
@@ -960,7 +969,38 @@ function sfx(n){
     case 'chime':[523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(t+i*.12,f,1.2,.1,'sine'));break;
     case 'sting':[110,116.54,164.81,233.08].forEach(f=>tone(t,f,4,.07));break;
     case 'step':nz(t,.05,'lowpass',260,.12);break;
+    case 'creak':{const o=AC.createOscillator(),f=AC.createBiquadFilter(),g=AC.createGain();o.type='sawtooth';o.frequency.setValueAtTime(150,t);o.frequency.linearRampToValueAtTime(92,t+1.1);f.type='bandpass';f.frequency.value=900;f.Q.value=7;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.09,t+.15);g.gain.exponentialRampToValueAtTime(.0008,t+1.2);o.connect(f);f.connect(g);g.connect(master);o.start(t);o.stop(t+1.3);break;}
+    case 'drip':for(let i=0;i<3;i++){const o=AC.createOscillator(),g=AC.createGain(),tt=t+i*.9;o.type='sine';o.frequency.setValueAtTime(1500,tt);o.frequency.exponentialRampToValueAtTime(520,tt+.07);g.gain.setValueAtTime(.08*(1-i*.3),tt);g.gain.exponentialRampToValueAtTime(.0005,tt+.12);o.connect(g);g.connect(master);o.start(tt);o.stop(tt+.15);}break;
+    case 'farsteps':for(let i=0;i<5;i++)nz(t+i*.55,.07,'lowpass',180,.16);break;
+    case 'whisper':nz(t,1.8,'bandpass',2600,.07);nz(t+.6,1.4,'bandpass',1900,.05);break;
+    case 'thump':tone(t,48,.5,.3,'sine');nz(t,.2,'lowpass',160,.3);break;
+    case 'heart':tone(t,62,.16,.32,'sine');tone(t+.24,55,.2,.26,'sine');break;
   }
+}
+let bgm=null,nextAmb=10,lastBeat=0;
+function bgmStart(){
+  if(!AC||bgm||S.bgm===0)return;
+  const out=AC.createGain();out.gain.value=0;out.gain.linearRampToValueAtTime(.55,AC.currentTime+5);out.connect(master);
+  const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=200;lp.Q.value=5;
+  const lfo=AC.createOscillator();lfo.frequency.value=.06;const lg=AC.createGain();lg.gain.value=110;lfo.connect(lg);lg.connect(lp.frequency);lfo.start();
+  const oscs=[36.71,36.95,55.0,77.8].map(f=>{const o=AC.createOscillator();o.type='sawtooth';o.frequency.value=f;o.connect(lp);o.start();return o;});
+  const pg=AC.createGain();pg.gain.value=.12;lp.connect(pg);pg.connect(out);
+  const dl=AC.createDelay(2);dl.delayTime.value=.62;const fb=AC.createGain();fb.gain.value=.5;dl.connect(fb);fb.connect(dl);const dg=AC.createGain();dg.gain.value=.55;dl.connect(dg);dg.connect(out);
+  bgm={out,oscs,lfo,dl};
+}
+function bgmStop(){if(!bgm)return;const b=bgm;bgm=null;const t=AC.currentTime;b.out.gain.cancelScheduledValues(t);b.out.gain.setValueAtTime(b.out.gain.value,t);b.out.gain.linearRampToValueAtTime(0,t+1.5);setTimeout(()=>{b.oscs.forEach(o=>o.stop());b.lfo.stop();},1700);}
+// a few detuned music-box notes drifting through the echo
+function musicBox(){
+  if(!bgm)return;const sc=[440,493.88,523.25,659.25,698.46,880];let t=AC.currentTime+.05;const n=3+Math.floor(Math.random()*4);
+  for(let i=0;i<n;i++){const f=sc[Math.floor(Math.random()*sc.length)]*(Math.random()<.25?.5:1)*(1+(Math.random()-.5)*.012),o=AC.createOscillator(),g=AC.createGain();
+    o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.045,t+.01);g.gain.exponentialRampToValueAtTime(.0005,t+1.8);o.connect(g);g.connect(bgm.out);g.connect(bgm.dl);o.start(t);o.stop(t+1.9);t+=.4+Math.random()*.6;}
+}
+function ambience(){
+  if(!AC||!started||paused)return;
+  if(TIME>nextAmb){nextAmb=TIME+7+Math.random()*13;const r=Math.random();
+    if(r<.25)musicBox();else sfx(['creak','drip','farsteps','whisper','thump'][Math.floor(Math.random()*5)]);}
+  let near=1e9;for(const sp of SPR)if(sp.ghost)near=Math.min(near,Math.hypot(sp.x-px,sp.y-py));
+  if(near<5&&TIME-lastBeat>.55+near*.18){lastBeat=TIME;sfx('heart');}
 }
 function droneOn(v){if(!AC)return;if(drone){drone.g.gain.linearRampToValueAtTime(v,AC.currentTime+.8);return;}const g=AC.createGain();g.gain.value=0;g.gain.linearRampToValueAtTime(v,AC.currentTime+1.5);const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=300;const os=[55,55.7,82.4].map(fr=>{const o=AC.createOscillator();o.type='sawtooth';o.frequency.value=fr;o.connect(f);o.start();return o;});f.connect(g);g.connect(master);drone={g,os};}
 function droneOff(){if(!drone||!AC)return;const d=drone;drone=null;const t=AC.currentTime;d.g.gain.cancelScheduledValues(t);d.g.gain.setValueAtTime(d.g.gain.value,t);d.g.gain.linearRampToValueAtTime(0,t+1.2);d.os.forEach(o=>o.stop(t+1.3));}
@@ -1063,7 +1103,7 @@ const INTRO=[
   N('私は懐中電灯を手に、写真部の部室の窓から、閉ざされた旧校舎へ忍びこんだ。','wind'),
 ];
 function begin(fresh){
-  initAudio();$('#title').hidden=true;
+  initAudio();bgmStart();$('#title').hidden=true;
   if(fresh){try{localStorage.removeItem(KEY);}catch(e){}
     const pal=S.pal;Object.assign(S,{items:[],flags:{},modelIdx:0,pal});px=3.5;py=7.6;pa=-Math.PI/2;applyDoors();rebuildScene();
     openDialog(INTRO,()=>{started=true;paused=false;save();toast('写真部の部室。奥の机の上に、何か置いてある。');});}
