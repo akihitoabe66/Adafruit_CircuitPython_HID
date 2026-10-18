@@ -35,6 +35,10 @@
       $('#opt-one').addEventListener('change', (e) => { this.oneClick = e.target.checked; });
       $('#opt-bgm').addEventListener('change', (e) => MJ.Audio.setOn(e.target.checked));
       $('#opt-vol').addEventListener('input', (e) => MJ.Audio.setVolume(+e.target.value));
+      $('#opt-sfx').addEventListener('change', (e) => MJ.SFX.setOn(e.target.checked));
+      $('#opt-voice').addEventListener('change', (e) => MJ.SFX.setVoice(e.target.checked));
+      $('#opt-sfx').checked = MJ.SFX.on;
+      $('#opt-voice').checked = MJ.SFX.voiceOn;
       $('#opt-bgm').checked = MJ.Audio.on;
       $('#opt-vol').value = MJ.Audio.volume;
       $('#btn-hint').addEventListener('click', () => {
@@ -48,6 +52,8 @@
         this.refreshCoach();
       });
     },
+
+    sfx(name) { MJ.SFX.play(name); },
 
     attach(game) {
       this.game = game;
@@ -199,7 +205,7 @@
       if (!s || s.type !== 'self') return;
       const h = s.p.hand.find((x) => x.id === id);
       if (!h || !this.allowed(s, h)) return;
-      if (!this.oneClick && this.picked !== id) { this.picked = id; this.showInfo(id); this.render(this.game); return; }
+      if (!this.oneClick && this.picked !== id) { MJ.SFX.play('select'); this.picked = id; this.showInfo(id); this.render(this.game); return; }
       this.finish({ act: this.riichiMode ? 'riichi' : 'discard', tile: h });
     },
     onAction(b) {
@@ -273,6 +279,9 @@
     banner(game, p, text) {
       const col = text === 'リーチ' ? '#ff5b8a' : text === 'ロン' || text === 'ツモ' ? '#ff7b5a' : '#5aa6ff';
       const fx = $('#fx');
+      const SFXN = { 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' };
+      MJ.SFX.play(SFXN[text]);
+      MJ.SFX.voice(text, p);
       const face = p.char && p.char.img ? `<img class="bface" src="${p.char.img}" alt="">` : '';
       fx.innerHTML = `<div class="banner" style="--c:${col}">${face}${text}<small>${p.name}</small></div>`;
       return new Promise((r) => setTimeout(() => { fx.innerHTML = ''; r(); }, game.fast ? 0 : 1000));
@@ -282,6 +291,7 @@
       setTimeout(() => { if (this.game === game) this.render(game); }, 2400);
     },
     handStart(game) {
+      MJ.SFX.play('start');
       const tip = MJ.Coach.startTip(game);
       this.tipHtml = `<div class="cc rec"><div class="cc-h">💡 この局のポイント</div><div class="cc-b">${tip}</div></div>`;
       this.coachHtml = '';
@@ -342,6 +352,8 @@
           html = `<h2>${game.kyokuLabel()} 流局</h2><p>山の牌がなくなりました(荒牌平局)。テンパイ者がノーテン者から3000点を受け取ります。</p><table class="scores">${tp}</table>`;
         }
         html += this.scoreTable(game, res);
+        if (res.type === 'win') MJ.SFX.play(res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'win');
+        else MJ.SFX.play('drawgame');
         const last = game.length === 'single';
         html += `<div style="text-align:right"><button class="btn pri" id="res-next">${last ? '結果へ' : '次へ'}</button></div>`;
         this.overlay(html);
@@ -353,6 +365,7 @@
     gameEnd(game, final) {
       return new Promise((resolve) => {
         const me = final.results.find((r) => r.p.seat === 0);
+        MJ.SFX.play(me.rank <= 2 ? 'end' : 'lose');
         const msg = me.rank === 1 ? '🎉 トップ!おめでとうございます!' : me.rank === 4 ? '残念…ラスでした。振り返って次に活かそう!' : `${me.rank}位でした。`;
         const rows = final.results.map((r) => `<div class="rank"><div class="rk">${r.rank}</div>${r.p.char.img ? `<img src="${r.p.char.img}">` : '<div style="font-size:30px;width:56px;text-align:center">🀄</div>'}<div><b>${r.p.name}</b></div><div class="rs">${fmt(r.p.score)}点</div></div>`).join('');
         this.overlay(`<h2>対局終了</h2><p>${msg}</p><div class="ranks">${rows}</div><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="end-menu">メニューへ</button><button class="btn pri" id="end-again">もう一度</button></div>`);

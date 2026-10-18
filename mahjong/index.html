@@ -3,20 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>麻雀道場 パロディ・ギャンブラーズ</title>
+<title>麻雀・ギャンブラーズ</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="menu-bg"></div>
 <div id="app">
 
   <!-- メニュー -->
   <section id="screen-menu" class="screen">
-    <h1 class="title">🀄 麻雀道場</h1>
-    <p class="sub">〜 パロディ・ギャンブラーズ 〜　対戦しながら「役づくり」「捨て牌」「点数計算」が身につく4人麻雀</p>
-    <div id="menu-faces" class="chars" style="grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:4px;margin:6px 0 10px"></div>
-    <div class="modes" id="menu-modes"></div>
-    <div id="menu-stats" class="footer"></div>
-    <div class="footer">※ 基本ルール: 4人・25000点持ち・赤ドラ(各色1枚)あり・喰いタンあり・東風戦(東1〜4局)または1局戦。CPUは5段階の強さ(入門〜達人)があります。</div>
+    <div class="menu-wrap">
+      <div class="menu-spacer"></div>
+      <h1 class="title">麻雀・ギャンブラーズ</h1>
+      <p class="sub">対戦しながら「役づくり」「捨て牌」「点数計算」が身につく4人麻雀</p>
+      <div class="modes" id="menu-modes"></div>
+      <div id="menu-stats" class="footer"></div>
+      <div class="footer">4人・25000点持ち・赤ドラあり・喰いタンあり・東風戦(東1〜4局)または1局戦。CPUは5段階の強さ(入門〜達人)。</div>
+    </div>
   </section>
 
   <!-- 対戦相手選択 -->
@@ -54,6 +57,8 @@
             <label><input type="checkbox" id="opt-reveal"> CPUの手牌を見る</label>
             <label><input type="checkbox" id="opt-one"> ワンクリック打牌</label>
             <label><input type="checkbox" id="opt-bgm"> BGM</label>
+            <label><input type="checkbox" id="opt-sfx"> 効果音</label>
+            <label><input type="checkbox" id="opt-voice"> 掛け声(ロン・ポン等)</label>
             <label>音量 <input type="range" id="opt-vol" min="0" max="1" step="0.05"></label>
           </div>
         </details>
@@ -77,6 +82,7 @@
 <script src="js/lessons.js"></script>
 <script src="js/game.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/sfx.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
 </body>

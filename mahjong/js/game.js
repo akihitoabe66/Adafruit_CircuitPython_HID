@@ -32,6 +32,7 @@
     wait(ms) { return this.fast ? Promise.resolve() : sleep(ms); }
     sync() { if (this.ui) this.ui.render(this); }
     async banner(p, text) { if (this.ui) await this.ui.banner(this, p, text); }
+    sfx(name) { if (this.ui && this.ui.sfx) this.ui.sfx(name); }
     speak(p, key) { if (this.ui && !p.isHuman && p.char.lines && p.char.lines[key]) this.ui.speak(this, p, p.char.lines[key]); }
 
     /* ---------- 全体進行 ---------- */
@@ -98,6 +99,7 @@
       const t = this.live.shift();
       p.hand.push(t);
       p.drawn = t;
+      if (p.isHuman) this.sfx('draw');
     }
     drawRinshan(p) {
       const t = this.rin[this.rinCount++];
@@ -254,6 +256,7 @@
       p.kuikae = [];
       p.ippatsu = false;
       p.tempFuriten = false;
+      this.sfx('discard');
       const d = { tile, riichi: !!riichi, called: false, seq: ++this.seq };
       p.discards.push(d);
       p.discardTypes.add(tile.t);

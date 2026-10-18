@@ -17,12 +17,12 @@
     mode: 'free', picks: [], length: 'east', game: null, lastCfg: null,
 
     show(id) {
+      document.body.classList.toggle('on-menu', id === 'menu');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       window.scrollTo(0, 0);
     },
 
     buildMenu() {
-      $('#menu-faces').innerHTML = MJ.CHARS.map((c) => `<img src="${c.img}" alt="${c.short}" title="${c.name}" style="width:100%;border-radius:6px;aspect-ratio:251/123;object-fit:cover">`).join('');
       $('#menu-modes').innerHTML = MODE_CARDS.map((m) => `<button class="mode-card" data-mode="${m.id}"><div class="mi">${m.icon}</div><h3>${MJ.Coach.MODES[m.id].name}</h3><p>${m.desc}</p><span class="badge">${m.badge}</span></button>`).join('') +
         `<button class="mode-card" data-mode="notes"><div class="mi">📖</div><h3>麻雀ノート</h3><p>役の一覧・点数計算のしかた・点数早見表・スジ/カベの見方・鳴きのルールをまとめて確認。</p><span class="badge">読み物</span></button>`;
       $('#menu-modes').addEventListener('click', (e) => {
@@ -124,6 +124,14 @@
 
   function init() {
     MJ.UI.init();
+    document.body.classList.add('on-menu');
+    const unlock = () => MJ.SFX.unlock();
+    document.addEventListener('pointerdown', unlock, { capture: true });
+    document.addEventListener('touchstart', unlock, { capture: true, passive: true });
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.hand .tile')) return;
+      if (e.target.closest('button, summary, .char, .mode-card')) MJ.SFX.play('click');
+    }, true);
     App.buildMenu();
     $('#chars').addEventListener('click', (e) => { const b = e.target.closest('.char'); if (b) App.pickChar(+b.dataset.id); });
     $('#sel-back').addEventListener('click', () => App.show('menu'));
