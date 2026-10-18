@@ -10,8 +10,18 @@
 <div id="menu-bg"></div>
 <div id="app">
 
+  <!-- タイトル -->
+  <section id="screen-title" class="screen">
+    <button id="bell" class="bell" type="button" aria-pressed="true"><span class="bi">🔔</span><span class="bt">BGM ON</span></button>
+    <div class="title-wrap">
+      <h1 class="title t-portrait">麻雀・ギャンブラーズ</h1>
+      <button id="btn-start" class="btn pri start" type="button">ゲーム開始</button>
+      <div class="footer">画面右上の 🔔 でBGMのON/OFFを切り替えられます</div>
+    </div>
+  </section>
+
   <!-- メニュー -->
-  <section id="screen-menu" class="screen">
+  <section id="screen-menu" class="screen hidden">
     <details class="gset menu-gset"><summary class="btn sm">🔊 音の設定</summary>
       <div class="gsetp"><div class="audioset">
         <label><input type="checkbox" class="ac" data-audio="bgm"> BGM</label>

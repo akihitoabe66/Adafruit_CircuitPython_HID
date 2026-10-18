@@ -71,6 +71,12 @@
     },
     syncAudio(except) {
       const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn };
+      const bell = $('#bell');
+      if (bell) {
+        bell.setAttribute('aria-pressed', String(MJ.Audio.on));
+        bell.querySelector('.bi').textContent = MJ.Audio.on ? '🔔' : '🔕';
+        bell.querySelector('.bt').textContent = MJ.Audio.on ? 'BGM ON' : 'BGM OFF';
+      }
       document.querySelectorAll('.ac').forEach((c) => {
         if (c === except) return;
         const v = val[c.dataset.audio];

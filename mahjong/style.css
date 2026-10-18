@@ -298,3 +298,28 @@ h1.title { font-size: clamp(30px, 7vw, 56px); margin: 4px 0 2px; letter-spacing:
 #toast { color: #fff; }
 
 #sound-hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 70; box-shadow: 0 6px 20px #000a; }
+
+/* ---------- タイトル画面 ---------- */
+body.on-title #menu-bg { display: block; }
+body.on-title { background: transparent; }
+body.on-title #menu-bg::after { background: linear-gradient(180deg, rgba(7, 10, 28, 0) 0%, rgba(7, 10, 28, 0) 52%, rgba(7, 10, 28, .75) 68%, rgba(7, 10, 28, .96) 76%, rgba(7, 10, 28, .96) 100%); }
+@media (orientation: portrait) { body.on-title #menu-bg { background-size: auto 74%; } }
+#screen-title { position: relative; }
+.title-wrap { min-height: calc(100vh - 28px); display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 14px; padding-bottom: 14px; text-align: center; }
+.title-wrap .title { margin: 0; }
+.start { font-size: clamp(22px, 5vw, 30px); padding: 14px 52px; border-radius: 999px; letter-spacing: .12em; box-shadow: 0 8px 26px #000a, 0 0 28px #ffcc4d88; animation: startpulse 1.8s ease-in-out infinite; }
+@keyframes startpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@media (prefers-reduced-motion: reduce) { .start { animation: none; } }
+.bell { position: absolute; top: 10px; right: 12px; z-index: 6; display: flex; gap: 8px; align-items: center; background: #0b1d18d9; color: #fff; border: 1px solid #3c7a67; border-radius: 999px; padding: 8px 16px 8px 12px; font-weight: 800; font-size: 14px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.bell .bi { font-size: 20px; }
+.bell[aria-pressed="false"] { color: #a9c2b8; border-color: #555; }
+.bell[aria-pressed="false"] .bi { filter: grayscale(1); opacity: .7; }
+@media (orientation: landscape) { .t-portrait { display: none; } }
+@media (orientation: landscape) and (max-height: 560px) { .bell { right: 60px; top: 6px; } .title-wrap { min-height: calc(100vh - 20px); } .start { padding: 10px 44px; } }
+@media (orientation: landscape) {
+  body.on-title #menu-bg { background-position: center 88%; }
+  body.on-title #menu-bg::after { background: linear-gradient(180deg, rgba(7, 10, 28, 0) 75%, rgba(7, 10, 28, .4) 100%); }
+  #screen-title .title-wrap { align-items: flex-end; padding-right: 2%; }
+  #screen-title .footer { display: none; }
+}
+@media (orientation: landscape) { #screen-title .start { font-size: 20px; padding: 9px 30px; } }

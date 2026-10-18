@@ -11,7 +11,7 @@
   const A = (MJ.Audio = {
     on: load('mj_bgm', true),
     volume: load('mj_bgmvol', 0.25),
-    scene: 'home',
+    scene: 'title',
 
     _el() {
       if (!el && typeof Audio !== 'undefined') {
@@ -54,12 +54,12 @@
     setScene(scene) {
       const changed = A.scene !== scene || !el || el.paused;
       A.scene = scene;
-      if (!A.on) { A.stop(); return; }
+      if (scene === 'title' || !A.on) { A.stop(); return; }
       if (scene === 'home') { if (changed || (el && !el.src.endsWith(HOME))) A._load(HOME, true); }
       else if (changed && !(el && el.src && GAME.some((s) => el.src.endsWith(s)) && !el.paused)) A._playGame();
     },
     resume() {
-      if (!A.on) return;
+      if (!A.on || A.scene === 'title') return;
       const c = MJ.SFX && MJ.SFX.getCtx && MJ.SFX.getCtx();
       if (c && c.state !== 'running') { try { c.resume(); } catch (e) { /* ignore */ } }
       A.setScene(A.scene);
