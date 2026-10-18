@@ -81,6 +81,7 @@
       this.game = game;
       MJ.UI.attach(game);
       this.show('game');
+      MJ.Audio.start();
       game.run().catch((e) => { console.error(e); });
     },
     again() { if (this.lastCfg) this.launch(this.lastCfg); },
@@ -96,6 +97,7 @@
     },
     toMenu() {
       this.stopGame();
+      MJ.Audio.stop();
       MJ.UI.closeOverlay();
       this.buildStatsOnly();
       this.show('menu');

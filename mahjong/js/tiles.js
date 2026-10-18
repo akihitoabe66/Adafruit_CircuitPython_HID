@@ -73,23 +73,7 @@
     return P.map(([x, y, c, h]) => stick(x, y, h || 20, c)).join('');
   }
 
-  MJ.tileSVG = function (t) {
-    if (cache[t]) return cache[t];
-    let body;
-    if (t < 9) {
-      body = `<text x="20" y="25" font-size="23" text-anchor="middle" font-weight="700" fill="#1b1b1b" font-family="'Noto Serif JP','Hiragino Mincho ProN',serif">${'一二三四五六七八九'[t]}</text><text x="20" y="49" font-size="19" text-anchor="middle" font-weight="700" fill="${C.r}" font-family="'Noto Serif JP','Hiragino Mincho ProN',serif">萬</text>`;
-    } else if (t < 18) body = pinSVG(t - 8);
-    else if (t < 27) body = souSVG(t - 17);
-    else {
-      const k = t - 27;
-      if (k === 4) body = `<rect x="9" y="10" width="22" height="36" rx="2" fill="none" stroke="${C.b}" stroke-width="2.4"/>`;
-      else {
-        const col = k === 5 ? C.g : k === 6 ? C.r : '#1b1b1b';
-        body = `<text x="20" y="38" font-size="31" text-anchor="middle" font-weight="700" fill="${col}" font-family="'Noto Serif JP','Hiragino Mincho ProN',serif">${MJ.HONOR_CH[k]}</text>`;
-      }
-    }
-    return (cache[t] = `<svg viewBox="0 0 40 56" preserveAspectRatio="xMidYMid meet" aria-label="${MJ.tileName(t)}">${body}</svg>`);
-  };
+  MJ.tileSVG = (t) => `<img src="img/tiles/${t}.png" alt="${MJ.tileName(t)}" draggable="false">`;
 
   /* HTML文字列 (cls: 追加クラス) */
   MJ.tileHTML = (t, cls = '', attrs = '', red = false) =>

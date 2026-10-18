@@ -33,6 +33,10 @@
       window.addEventListener('orientationchange', () => setTimeout(() => this.relayout(), 250));
       $('#opt-reveal').addEventListener('change', (e) => { this.reveal = e.target.checked; if (this.game) this.render(this.game); });
       $('#opt-one').addEventListener('change', (e) => { this.oneClick = e.target.checked; });
+      $('#opt-bgm').addEventListener('change', (e) => MJ.Audio.setOn(e.target.checked));
+      $('#opt-vol').addEventListener('input', (e) => MJ.Audio.setVolume(+e.target.value));
+      $('#opt-bgm').checked = MJ.Audio.on;
+      $('#opt-vol').value = MJ.Audio.volume;
       $('#btn-hint').addEventListener('click', () => {
         this.hintOn = !this.hintOn;
         const s = this.sel;
@@ -90,12 +94,12 @@
       sw = Math.min(sw, desk ? 42 : 40);
       hw = Math.min(hw, desk ? 60 : 66);
       if (land) {
-        const fit = () => gb + 14 + (34 + 3 * (sw * 1.38 + 2) + 16) + (hw * 1.38 + 24) + 50 + 22;
+        const fit = () => gb + 14 + (sw * 2 + 14 + 2.4 * (sw * 1.32 + 2) + 16) + (hw * 1.32 + 24) + 50 + 22;
         while (fit() > H && hw > 22) { hw--; if (sw > hw * 0.55) sw--; }
       }
       const r = document.documentElement.style;
       r.setProperty('--sw', sw + 'px');
-      r.setProperty('--sh', Math.round(sw * 1.38) + 'px');
+      r.setProperty('--sh', Math.round(sw * 1.32) + 'px');
       r.setProperty('--hw', hw + 'px');
     },
 
@@ -128,7 +132,7 @@
       const melds = p.melds.length ? `<div class="melds">${p.melds.map((m) => this.meldHTML(m)).join('')}</div>` : '';
       const river = p.discards.map((d) => MJ.tileHTML(d.tile.t, `${d.called ? 'called' : ''}${d.riichi ? ' rch' : ''}${game.lastDiscard && game.lastDiscard.d === d && !d.called ? ' hl' : ''}`, '', d.tile.red)).join('');
       const rev = this.reveal && s !== 0 ? `<div class="hrev">${p.hand.map((h) => MJ.tileHTML(h.t, '', '', h.red)).join('')}</div>` : '';
-      return `<div class="blk${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}">${bub}<div class="strip">${face}<div class="meta"><div class="nm">${p.name}</div><div class="sc">${fmt(p.score)}</div></div></div><div class="chips" style="margin:0 2px 4px">${chips}</div>${melds}<div class="river">${river}</div>${rev}</div>`;
+      return `<div class="blk${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}">${bub}<div class="strip">${face}<div class="meta"><div class="nm">${p.name}</div><div class="sc">${fmt(p.score)}</div><div class="chips">${chips}</div></div></div>${melds}<div class="river">${river}</div>${rev}</div>`;
     },
 
     mineHTML(game) {
@@ -269,8 +273,9 @@
     banner(game, p, text) {
       const col = text === 'リーチ' ? '#ff5b8a' : text === 'ロン' || text === 'ツモ' ? '#ff7b5a' : '#5aa6ff';
       const fx = $('#fx');
-      fx.innerHTML = `<div class="banner" style="--c:${col}">${text}<small>${p.name}</small></div>`;
-      return new Promise((r) => setTimeout(() => { fx.innerHTML = ''; r(); }, game.fast ? 0 : 950));
+      const face = p.char && p.char.img ? `<img class="bface" src="${p.char.img}" alt="">` : '';
+      fx.innerHTML = `<div class="banner" style="--c:${col}">${face}${text}<small>${p.name}</small></div>`;
+      return new Promise((r) => setTimeout(() => { fx.innerHTML = ''; r(); }, game.fast ? 0 : 1000));
     },
     speak(game, p, text) {
       this.bubbles[p.seat] = { text, until: Date.now() + 2300 };
