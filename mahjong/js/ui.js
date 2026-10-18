@@ -41,7 +41,7 @@
         const root = b.dataset.read === 'coach' ? $('#coach') : $('.modal');
         if (!root) return;
         if (MJ.SFX.speaking()) { MJ.SFX.stopSpeak(); return; }
-        if (!MJ.SFX.read(this.textOf(root))) this.toast('この端末では読み上げが使えません');
+        if (!MJ.SFX.read(this.textOf(root))) this.toast('この端末には日本語の読み上げ音声がありません');
       });
       this.syncAudio();
       $('#btn-hint').addEventListener('click', () => {

@@ -81,6 +81,8 @@
       const game = new MJ.Game({ chars, mode: cfg.mode, length: cfg.length, ui: MJ.UI });
       this.game = game;
       MJ.UI.attach(game);
+      MJ.SFX.unlock();
+      MJ.SFX.preloadVoices([0].concat(chars.map((c) => c.id)));
       this.show('game');
       game.run().catch((e) => { console.error(e); });
     },

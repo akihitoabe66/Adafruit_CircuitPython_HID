@@ -4,12 +4,8 @@
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
 
-  /* キャラごとの声の高さ・速さ */
-  const VOICE = { 0: [1.0, 1.05], 1: [0.8, 1.0], 2: [0.85, 1.15], 3: [0.75, 0.95], 4: [1.25, 1.0], 5: [0.9, 1.1], 6: [1.05, 0.95], 7: [0.8, 1.2], 8: [1.15, 1.1],
-    9: [1.5, 1.0], 10: [1.4, 0.9], 11: [1.0, 1.3], 12: [1.45, 1.0], 13: [0.95, 1.25], 14: [0.6, 0.85], 15: [1.2, 1.15], 16: [0.7, 0.9] };
-  const SAY = { 'リーチ': 'リーチ!', 'ポン': 'ポン!', 'チー': 'チー!', 'カン': 'カン!', 'ロン': 'ロン!', 'ツモ': 'ツモ!' };
 
-  let ctx = null, master = null, jaVoice = null;
+  let ctx = null, master = null;
   const S = (MJ.SFX = {
     on: load('mj_sfx', true),
     voiceOn: load('mj_voice', true),
@@ -24,7 +20,6 @@
           if (AC) { ctx = new AC(); master = ctx.createGain(); master.gain.value = S.vol; master.connect(ctx.destination); }
         }
         if (ctx && ctx.state === 'suspended') ctx.resume();
-        if (G.speechSynthesis && !S._spoke) { S._spoke = true; const u = new SpeechSynthesisUtterance(''); G.speechSynthesis.speak(u); }
       } catch (e) { /* ignore */ }
     },
     setOn(v) { S.on = v; save('mj_sfx', v); },
@@ -81,18 +76,25 @@
     },
 
     /* ---- 読み上げ(女性の声) ---- */
+    /* Web Speech API(標準機能)の日本語音声から、女性の声らしいものを選ぶ。
+       端末にない場合はブラウザ既定の日本語音声を使う */
     femaleVoice() {
       const vs = G.speechSynthesis ? G.speechSynthesis.getVoices().filter((v) => /^ja/i.test(v.lang)) : [];
-      const ng = /otoya|ichiro|hattori|takumi|keita|male(?!.*female)/i;
-      return vs.find((v) => /kyoko|o-?ren|haruka|nanami|ayumi|sayaka|mizuki|female/i.test(v.name)) || vs.find((v) => !ng.test(v.name)) || vs[0] || null;
+      const female = /kyoko|o-?ren|haruka|nanami|ayumi|sayaka|mizuki|female|woman|girl/i;
+      const male = /otoya|ichiro|hattori|takumi|keita|ken\b|male(?!.*female)|man\b/i;
+      return vs.find((v) => female.test(v.name)) || vs.find((v) => !male.test(v.name)) || vs[0] || null;
+    },
+    hasJaVoice() {
+      if (!G.speechSynthesis) return false;
+      const all = G.speechSynthesis.getVoices();
+      return !all.length || all.some((v) => /^ja/i.test(v.lang));
     },
     speaking() { return !!(G.speechSynthesis && (G.speechSynthesis.speaking || G.speechSynthesis.pending)); },
     stopSpeak() { if (G.speechSynthesis) { S._readId = (S._readId || 0) + 1; G.speechSynthesis.cancel(); } },
     /* 長い文章は区切って順に読む(iPhoneは長文が途中で止まるため) */
     read(text) {
       const syn = G.speechSynthesis;
-      if (!syn) return false;
-      S.unlock();
+      if (!syn || !S.hasJaVoice()) return false;
       syn.cancel();
       const id = (S._readId = (S._readId || 0) + 1);
       const parts = [];
@@ -119,24 +121,34 @@
       return true;
     },
 
-    /* ---- 掛け声 ---- */
+    /* ---- 掛け声(収録済みの音声ファイル audio/voice/<キャラid>_<種類>.mp3) ---- */
+    _vbuf: {},
+    _vkey: { 'リーチ': 'riichi', 'ポン': 'pon', 'チー': 'chi', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' },
+    _loadVoice(id, key) {
+      const k = id + '_' + key;
+      if (S._vbuf[k] !== undefined) return S._vbuf[k];
+      S._vbuf[k] = null;
+      if (!ctx || typeof fetch === 'undefined') { delete S._vbuf[k]; return null; }
+      fetch(`audio/voice/${k}.mp3`).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng)))
+        .then((buf) => { S._vbuf[k] = buf; }).catch(() => { /* 読み込めなければ無音 */ });
+      return null;
+    },
+    preloadVoices(ids) {
+      if (!ctx) return;
+      ids.forEach((id) => Object.values(S._vkey).forEach((key) => S._loadVoice(id, key)));
+    },
     voice(text, p) {
-      if (!S.voiceOn || !G.speechSynthesis || !SAY[text]) return;
-      try {
-        const syn = G.speechSynthesis;
-        if (!jaVoice) {
-          const vs = syn.getVoices();
-          jaVoice = vs.find((v) => /^ja/i.test(v.lang) && /kyoko|otoya|google|hattori|haruka/i.test(v.name)) || vs.find((v) => /^ja/i.test(v.lang)) || null;
-        }
-        const u = new SpeechSynthesisUtterance(SAY[text]);
-        u.lang = 'ja-JP';
-        if (jaVoice) u.voice = jaVoice;
-        const [pitch, rate] = VOICE[p && p.char ? p.char.id : 0] || [1, 1.05];
-        u.pitch = pitch; u.rate = rate; u.volume = Math.min(1, S.vol + 0.2);
-        syn.cancel();
-        syn.speak(u);
-      } catch (e) { /* ignore */ }
+      const key = S._vkey[text];
+      if (!S.voiceOn || !key || !ctx) return;
+      const id = p && p.char ? p.char.id : 0;
+      const buf = S._vbuf[id + '_' + key] || S._loadVoice(id, key);
+      if (!buf) return;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.value = 1.3;
+      src.connect(g); g.connect(master);
+      src.start();
     },
   });
-  if (G.speechSynthesis && G.speechSynthesis.addEventListener) G.speechSynthesis.addEventListener('voiceschanged', () => { jaVoice = null; });
 })(typeof window !== 'undefined' ? window : globalThis);
