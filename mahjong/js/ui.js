@@ -17,10 +17,20 @@
         const tl = e.target.closest('.hand .tile[data-id]');
         if (tl) this.onTile(+tl.dataset.id);
       });
-      T.addEventListener('mouseover', (e) => {
+      const M = $('#mine');
+      M.addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-act]');
+        if (b) return this.onAction(b);
+        const tl = e.target.closest('.hand .tile[data-id]');
+        if (tl) this.onTile(+tl.dataset.id);
+      });
+      M.addEventListener('mouseover', (e) => {
         const tl = e.target.closest('.hand .tile[data-id]');
         if (tl) this.showInfo(+tl.dataset.id);
       });
+      $('#btn-coach').addEventListener('click', () => document.body.classList.toggle('coach-open'));
+      window.addEventListener('resize', () => this.relayout());
+      window.addEventListener('orientationchange', () => setTimeout(() => this.relayout(), 250));
       $('#opt-reveal').addEventListener('change', (e) => { this.reveal = e.target.checked; if (this.game) this.render(this.game); });
       $('#opt-one').addEventListener('change', (e) => { this.oneClick = e.target.checked; });
       $('#btn-hint').addEventListener('click', () => {
@@ -47,20 +57,56 @@
       $('#btn-hint').classList.toggle('hidden', game.mode !== 'free');
       $('#fx').innerHTML = '';
       this.coachHtml = '';
+      this.summary = '';
+      document.body.classList.remove('coach-open');
+      this.layoutKey = '';
       this.refreshCoach();
     },
+    relayout() { if (this.game) { this.layoutKey = ''; this.render(this.game); } },
     coachActive() { return this.game.mode !== 'free' || this.hintOn; },
+
+    /* ---------- レイアウト(画面サイズに合わせて牌の大きさを決める) ---------- */
+    layout() {
+      const T = $('#table');
+      const W = window.innerWidth, H = window.innerHeight;
+      const desk = W >= 1000 && H >= 600;
+      const land = !desk && W > H;
+      const body = document.body;
+      body.classList.toggle('desk', desk);
+      body.classList.toggle('land', land);
+      body.classList.toggle('short', land && H <= 640);
+      const gl = $('.gleft');
+      const full = gl ? gl.clientWidth : 0;
+      if (!full) return;
+      const gb = $('.gbar').offsetHeight;
+      const key = [W, H, full, gb].join('x');
+      if (key === this.layoutKey) return;
+      this.layoutKey = key;
+      const n = desk || land ? 4 : 2;
+      const inner = full - 16;
+      const bw = (inner - 5 * (n - 1)) / n;
+      let sw = Math.floor((bw - 14) / 6.05);
+      let hw = Math.floor((full - 14) / 14.3);
+      sw = Math.min(sw, desk ? 42 : 40);
+      hw = Math.min(hw, desk ? 60 : 66);
+      if (land) {
+        const fit = () => gb + 14 + (34 + 3 * (sw * 1.38 + 2) + 16) + (hw * 1.38 + 24) + 50 + 22;
+        while (fit() > H && hw > 22) { hw--; if (sw > hw * 0.55) sw--; }
+      }
+      const r = document.documentElement.style;
+      r.setProperty('--sw', sw + 'px');
+      r.setProperty('--sh', Math.round(sw * 1.38) + 'px');
+      r.setProperty('--hw', hw + 'px');
+    },
 
     /* ---------- 描画 ---------- */
     render(game) {
       if (this.game !== game) return;
-      $('#g-kyoku').textContent = `${game.kyokuLabel()}${game.length === 'single' ? '(1局戦)' : '(東風戦)'}`;
-      $('#table').innerHTML =
-        `<div class="seat top">${this.seatCard(game, 2)}</div>` +
-        `<div class="seat left">${this.seatCard(game, 3)}</div>` +
-        `<div class="center">${this.centerHTML(game)}</div>` +
-        `<div class="seat right">${this.seatCard(game, 1)}</div>` +
-        `<div class="seat bottom">${this.myArea(game)}</div>`;
+      this.layout();
+      const doras = game.doraInd.map((d) => MJ.tileHTML(d.t, '', '', d.red)).join('') + game.doraAll.slice(game.doraInd.length).map(() => MJ.backHTML()).join('');
+      $('#ginfo').innerHTML = `<span class="kk">${game.kyokuLabel()}</span><span>${game.length === 'single' ? '1局戦' : '東風戦'}</span><span class="doras">ドラ表示 ${doras}</span><span>残り ${game.live.length}枚</span>${game.kyotaku ? `<span>供託 ${game.kyotaku}</span>` : ''}`;
+      $('#table').innerHTML = `<div class="blocks">${[3, 2, 1, 0].map((s) => this.block(game, s)).join('')}</div>`;
+      $('#mine').innerHTML = this.mineHTML(game);
     },
 
     meldHTML(m) {
@@ -71,36 +117,24 @@
       return `<div class="meld">${tiles.join('')}</div>`;
     },
 
-    seatCard(game, s) {
+    block(game, s) {
       const p = game.players[s];
       const ch = p.char;
+      const w = game.seatWindOf(p);
       const b = this.bubbles[s];
       const bub = b && b.until > Date.now() ? `<div class="bubble">${b.text}</div>` : '';
-      const chips = `<span class="chip ${game.seatWindOf(p) === 0 ? 'dealer' : ''}">${WINDS[game.seatWindOf(p)]}${game.seatWindOf(p) === 0 ? '(親)' : ''}</span>${p.riichi ? '<span class="chip r">リーチ</span>' : ''}${ch.level ? `<span class="chip lv">${MJ.LEVEL_JP[ch.level]}</span>` : ''}`;
+      const face = s === 0 ? '<div class="face me">🀄</div>' : `<img class="face" src="${ch.img}" alt="">`;
+      const chips = `<span class="chip ${w === 0 ? 'dealer' : ''}">${WINDS[w]}${w === 0 ? '親' : ''}</span>${p.riichi ? '<span class="chip r">リーチ</span>' : ''}${ch.level ? `<span class="chip lv">${MJ.LEVEL_JP[ch.level]}</span>` : ''}`;
       const melds = p.melds.length ? `<div class="melds">${p.melds.map((m) => this.meldHTML(m)).join('')}</div>` : '';
-      const hand = this.reveal
-        ? p.hand.map((h) => MJ.tileHTML(h.t, '', '', h.red)).join('')
-        : p.hand.map(() => MJ.backHTML()).join('');
-      const act = game.turn === s ? ' act' : '';
-      return `<div class="scard${act}${p.riichi ? ' rch-on' : ''}">${bub}<img class="face" src="${ch.img}" alt="${ch.short}"><div class="meta"><div class="nm">${p.name}</div><div class="sc">${fmt(p.score)}</div><div>${chips}</div></div></div>${melds}<div class="cards-row">${hand}</div>`;
+      const river = p.discards.map((d) => MJ.tileHTML(d.tile.t, `${d.called ? 'called' : ''}${d.riichi ? ' rch' : ''}${game.lastDiscard && game.lastDiscard.d === d && !d.called ? ' hl' : ''}`, '', d.tile.red)).join('');
+      const rev = this.reveal && s !== 0 ? `<div class="hrev">${p.hand.map((h) => MJ.tileHTML(h.t, '', '', h.red)).join('')}</div>` : '';
+      return `<div class="blk${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}">${bub}<div class="strip">${face}<div class="meta"><div class="nm">${p.name}</div><div class="sc">${fmt(p.score)}</div></div></div><div class="chips" style="margin:0 2px 4px">${chips}</div>${melds}<div class="river">${river}</div>${rev}</div>`;
     },
 
-    centerHTML(game) {
-      const rivers = game.players.map((p) => {
-        const items = p.discards.map((d) => MJ.tileHTML(d.tile.t, `t-s${d.called ? ' called' : ''}${d.riichi ? ' rch' : ''}${game.lastDiscard && game.lastDiscard.d === d && !d.called ? ' hl' : ''}`, '', d.tile.red)).join('');
-        return `<div class="river r${p.seat}">${items}</div>`;
-      }).join('');
-      const doras = game.doraInd.map((d) => MJ.tileHTML(d.t, 't-s', '', d.red)).join('') + game.doraAll.slice(game.doraInd.length).map(() => MJ.backHTML('t-s')).join('');
-      const info = `<div class="cinfo"><div class="kk">${game.kyokuLabel()}</div><div class="doras">${doras}</div><div class="sub2">残り ${game.live.length}枚${game.kyotaku ? ` / 供託${game.kyotaku}` : ''}</div></div>`;
-      return rivers + info;
-    },
-
-    myArea(game) {
+    mineHTML(game) {
       const p = game.players[0];
       const sel = this.sel && this.sel.type === 'self' ? this.sel : null;
       const adv = this.adv;
-      const w = game.seatWindOf(p);
-      const info = `<div class="myrow"><div class="scard${game.turn === 0 ? ' act' : ''}${p.riichi ? ' rch-on' : ''}"><div class="face me">🀄</div><div class="meta"><div class="nm">あなた</div><div class="sc">${fmt(p.score)}</div><div><span class="chip ${w === 0 ? 'dealer' : ''}">${WINDS[w]}${w === 0 ? '(親)' : ''}</span>${p.riichi ? '<span class="chip r">リーチ</span>' : ''}</div></div></div><div class="melds">${p.melds.map((m) => this.meldHTML(m)).join('')}</div></div>`;
       const hand = p.hand.filter((h) => h !== p.drawn);
       const all = p.drawn ? hand.concat([p.drawn]) : hand;
       const tiles = all.map((h) => {
@@ -110,7 +144,6 @@
           cls += ok ? ' ok' : ' dis';
           if (this.riichiMode && ok) cls += ' rch-ok';
           if (adv && adv.recId === h.id && !this.riichiMode) cls += ' rec';
-          if (sel.opts.riichi.length && sel.opts.riichi.includes(h.t) && !this.riichiMode && false) cls += ' rch-ok';
           const m = adv && adv.marks[h.id];
           if (m && m.txt && this.coachActive()) mk = `<span class="mk ${m.cls}">${m.txt}</span>`;
         }
@@ -118,7 +151,9 @@
         if (this.picked === h.id) cls += ' picked';
         return `<div class="tile${cls}${h.red ? ' aka' : ''}" data-id="${h.id}" data-t="${h.t}">${MJ.tileSVG(h.t)}${mk}</div>`;
       }).join('');
-      return `${info}<div class="hand${this.riichiMode ? ' riichi-mode' : ''}" id="hand">${tiles}</div><div class="actions">${this.actionsHTML(game)}</div><div class="tipline" id="tipline"></div>`;
+      const tip = this.picked && adv && adv.info && this.coachActive() ? adv.info[this.picked] || '' : '';
+      const sum = this.sel && this.coachActive() ? this.summary || '' : '';
+      return `<div class="hand${this.riichiMode ? ' riichi-mode' : ''}" id="hand">${tiles}</div><div class="tipline" id="tipline">${tip}</div><div class="actrow"><div class="sumline">${sum}</div><div class="actions">${this.actionsHTML(game)}</div></div>`;
     },
 
     allowed(sel, h) {
@@ -186,10 +221,12 @@
       this.refreshCoach();
     },
     showInfo(id) {
-      const el = $('#tileinfo');
-      if (!el) return;
       const t = this.adv && this.adv.info && this.adv.info[id];
-      if (t && this.coachActive()) { el.style.display = 'block'; el.innerHTML = t; }
+      if (!t || !this.coachActive()) return;
+      const el = $('#tipline');
+      if (el) el.innerHTML = t;
+      const ti = $('#tileinfo');
+      if (ti) { ti.style.display = 'block'; ti.innerHTML = t; }
     },
 
     askSelf(game, p, opts, st) {
@@ -198,6 +235,7 @@
         this.riichiMode = false; this.picked = null;
         this.adv = this.coachActive() || game.mode !== 'free' ? MJ.Coach.selfAdvice(game, p, opts, st) : null;
         this.coachHtml = this.adv ? this.adv.html : '';
+        this.summary = this.adv ? this.adv.summary || '' : '';
         this.render(game);
         this.refreshCoach();
       });
@@ -207,6 +245,7 @@
         this.sel = { type: 'react', p: q, o, res };
         this.adv = null;
         this.coachHtml = this.coachActive() || game.mode !== 'free' ? MJ.Coach.reactAdvice(game, q, o) : '';
+        this.summary = o.ron ? 'ロンできます!' : o.chi.length || o.pon || o.kan ? '鳴くかどうかは 🎓解説 で確認できます' : '';
         const tile = o.tile;
         this.render(game);
         this.refreshCoach();

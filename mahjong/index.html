@@ -42,19 +42,27 @@
   </section>
 
   <!-- 対局 -->
-  <section id="screen-game" class="screen hidden" style="padding-top:8px">
+  <section id="screen-game" class="screen hidden">
     <div class="gbar">
       <button class="btn sm ghost" id="btn-quit">☰ メニュー</button>
-      <span class="gt" id="g-title"></span><span class="gk" id="g-kyoku"></span>
-      <label><input type="checkbox" id="opt-reveal"> CPUの手牌を見る</label>
-      <label><input type="checkbox" id="opt-one"> ワンクリック打牌</label>
-      <button class="btn sm" id="btn-hint">💡 ヒント ON/OFF</button>
+      <span class="gt" id="g-title"></span>
+      <div class="gtools">
+        <button class="btn sm" id="btn-hint">💡 ヒント</button>
+        <button class="btn sm" id="btn-coach">🎓 解説</button>
+        <details class="gset"><summary class="btn sm">⚙ 設定</summary>
+          <div class="gsetp">
+            <label><input type="checkbox" id="opt-reveal"> CPUの手牌を見る</label>
+            <label><input type="checkbox" id="opt-one"> ワンクリック打牌</label>
+          </div>
+        </details>
+      </div>
+      <div id="ginfo" class="ginfo"></div>
     </div>
     <div class="gmain">
-      <div id="table"></div>
-      <div id="fx"></div>
+      <div class="gleft"><div id="table"></div><div id="mine"></div></div>
       <aside id="coach"></aside>
     </div>
+    <div id="fx"></div>
   </section>
 </div>
 <div id="overlay" class="hidden"></div>

@@ -144,7 +144,7 @@
     // ツモ・役なし
     if (opts.tsumo) {
       cards.push(card('🎉 ツモ和了!', `完成形です。<b>「ツモ」</b>ボタンで上がれます。役: ${opts.tsumo.yaku.map((y) => `${y.n}(${y.h})`).join('、')}${mode !== 'free' ? '<br>上がった後に点数計算を丁寧に解説します。' : ''}`, 'good'));
-      return { html: cards.join(''), marks, recId: null, info: {} };
+      return { html: cards.join(''), marks, recId: null, info: {}, summary: '🎉 ツモ和了できます!' };
     }
     if (opts.tsumoNoYaku) cards.push(card('⚠ 形はできているのに…', '手牌は完成形ですが<b>役がありません</b>。麻雀は「役」が1つ以上ないと上がれません。リーチ(門前の場合)・役牌・タンヤオなど、役を付けてから上がりましょう。', 'warn'));
 
@@ -240,7 +240,17 @@
       const txt = `<b>${ic(e.t)} ${tn(e.t)}</b> を切ると: ${e.sh === an.minSh ? '<span class="good">シャンテン維持</span>' : '<span class="bad">シャンテンが戻る</span>'}(${e.sh === 0 ? 'テンパイ' : e.sh + 'シャンテン'}) / 有効牌 ${e.ukeire.n}枚${e.danger ? `<br>危険度: <b>${e.danger.tag}</b>(約${Math.round(e.danger.score)}%) ${e.danger.why}` : e.genCount ? `<br>${e.genCount}人の現物` : ''}`;
       for (const h of p.hand) if (h.t === e.t) info[h.id] = txt;
     }
-    return { html: cards.filter(Boolean).join(''), marks, recId, info };
+    let summary = '';
+    const rec = recId ? p.hand.find((h) => h.id === recId) : null;
+    if (rec) {
+      const re = an.evals.find((x) => x.t === rec.t);
+      summary = `${an.minSh === 0 ? 'テンパイ' : an.minSh + 'シャンテン'} ★${tn(rec.t)}を切る`;
+      if (an.opps.length && re && re.danger) summary += `(${re.danger.tag})`;
+      const sf = an.opps.length ? A.bySafety(an.evals)[0] : null;
+      if (sf && sf.t !== rec.t) summary += ` / 🛡安全:${tn(sf.t)}(${sf.danger.tag})`;
+    }
+    if (opts.riichi.length) summary = '✨リーチできます! ' + summary;
+    return { html: cards.filter(Boolean).join(''), marks, recId, info, summary };
   };
 
   /* ---------- 守備モード ---------- */
@@ -270,7 +280,7 @@
     } else {
       // リーチ無し
       for (const e of an.evals) for (const h of p.hand) if (h.t === e.t) {
-        marks[h.id] = e.genCount === 3 ? { txt: '全現物', cls: 'safe' } : e.genCount > 0 ? { txt: `現物×${e.genCount}`, cls: 'ok' } : { txt: '', cls: '' };
+        marks[h.id] = e.genCount === 3 ? { txt: "全現", cls: 'safe' } : e.genCount > 0 ? { txt: `現${e.genCount}`, cls: 'ok' } : { txt: '', cls: '' };
       }
       const gens = an.evals.filter((e) => e.genCount === 3).map((e) => e.t);
       cards.push(card('🛡 いまはリーチなし', `まだ誰もリーチしていません。基本は<b>牌効率</b>で攻めてOK。ただし、あとでリーチが入ったときのために<b>安全牌を1〜2枚キープ</b>しておくのがコツです。<br>全員の現物(最も安全)の牌: ${gens.length ? icons(gens) : 'なし'}<div class="cc-s">手牌の上のマークは「何人の現物か」。×3なら誰にでも通る牌です。</div>`));
