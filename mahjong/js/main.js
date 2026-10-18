@@ -137,7 +137,11 @@
       App.picks = r ? r.slice() : MJ.shuffle(MJ.CHARS.slice()).slice(0, 3).map((c) => c.id);
       App.renderChars();
     });
-    $('#btn-quit').addEventListener('click', () => { if (confirm('対局を中断してメニューに戻りますか?')) App.toMenu(); });
+    $('#btn-quit').addEventListener('click', () => {
+      MJ.UI.overlay('<h2>対局を中断しますか?</h2><p>メニューに戻ります。</p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="q-no">続ける</button><button class="btn pri" id="q-yes">メニューへ</button></div>');
+      document.querySelector('#q-no').addEventListener('click', () => MJ.UI.closeOverlay());
+      document.querySelector('#q-yes').addEventListener('click', () => App.toMenu());
+    });
   }
   init();
 })();
