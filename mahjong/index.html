@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>麻雀道場 パロディ・ギャンブラーズ</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- メニュー -->
+  <section id="screen-menu" class="screen">
+    <h1 class="title">🀄 麻雀道場</h1>
+    <p class="sub">〜 パロディ・ギャンブラーズ 〜　対戦しながら「役づくり」「捨て牌」「点数計算」が身につく4人麻雀</p>
+    <div id="menu-faces" class="chars" style="grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:4px;margin:6px 0 10px"></div>
+    <div class="modes" id="menu-modes"></div>
+    <div id="menu-stats" class="footer"></div>
+    <div class="footer">※ 基本ルール: 4人・25000点持ち・赤ドラ(各色1枚)あり・喰いタンあり・東風戦(東1〜4局)または1局戦。CPUは5段階の強さ(入門〜達人)があります。</div>
+  </section>
+
+  <!-- 対戦相手選択 -->
+  <section id="screen-select" class="screen hidden">
+    <div class="back-row"><button class="btn ghost sm" id="sel-back">← メニュー</button><h2 id="sel-title" style="margin:0"></h2></div>
+    <p class="sub" id="sel-desc"></p>
+    <div class="opts">
+      <label>対局 <select id="sel-length"><option value="east">東風戦(東1〜4局)</option><option value="single">1局だけ(練習向き)</option></select></label>
+      <button class="btn sm" id="sel-reco">おすすめの相手</button>
+      <button class="btn sm" id="sel-rand">ランダム</button>
+    </div>
+    <div class="sel-bar" id="sel-bar"></div>
+    <div class="char-detail" id="char-detail">対戦相手を3人選んでください(クリックで選択/解除)。</div>
+    <div class="chars" id="chars"></div>
+    <div style="text-align:right;margin-top:14px"><button class="btn pri" id="sel-start" disabled>対局開始</button></div>
+  </section>
+
+  <!-- ノート -->
+  <section id="screen-notes" class="screen hidden">
+    <div class="back-row"><button class="btn ghost sm" id="notes-back">← メニュー</button><h2 style="margin:0">📖 麻雀ノート</h2></div>
+    <div class="tabs" id="notes-tabs"></div>
+    <div class="note" id="notes-body"></div>
+  </section>
+
+  <!-- 対局 -->
+  <section id="screen-game" class="screen hidden" style="padding-top:8px">
+    <div class="gbar">
+      <button class="btn sm ghost" id="btn-quit">☰ メニュー</button>
+      <span class="gt" id="g-title"></span><span class="gk" id="g-kyoku"></span>
+      <label><input type="checkbox" id="opt-reveal"> CPUの手牌を見る</label>
+      <label><input type="checkbox" id="opt-one"> ワンクリック打牌</label>
+      <button class="btn sm" id="btn-hint">💡 ヒント ON/OFF</button>
+    </div>
+    <div class="gmain">
+      <div id="table"></div>
+      <div id="fx"></div>
+      <aside id="coach"></aside>
+    </div>
+  </section>
+</div>
+<div id="overlay" class="hidden"></div>
+
+<script src="js/tiles.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/chars.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/coach.js"></script>
+<script src="js/lessons.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
