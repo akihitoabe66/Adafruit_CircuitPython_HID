@@ -130,14 +130,6 @@
     const unlock = () => { MJ.SFX.unlock(); MJ.Audio.resume(); };
     ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((ev) => document.addEventListener(ev, unlock, { capture: true, passive: true }));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) MJ.Audio.resume(); });
-    // 音が出ていない間は「タップで音を出す」ボタンを表示(どこをタップしても開始される)
-    const hint = document.createElement('button');
-    hint.id = 'sound-hint';
-    hint.className = 'btn pri';
-    hint.hidden = true;
-    hint.textContent = '🔈 タップして音を出す';
-    document.body.appendChild(hint);
-    setInterval(() => { hint.hidden = !(MJ.Audio.scene !== 'title' && MJ.Audio.on && !MJ.Audio.isPlaying() && !document.hidden); }, 600);
     document.addEventListener('click', (e) => {
       if (e.target.closest('.hand .tile')) return;
       if (e.target.closest('button, summary, .char, .mode-card')) MJ.SFX.play('click');
