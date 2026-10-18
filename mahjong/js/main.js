@@ -18,6 +18,7 @@
 
     show(id) {
       document.body.classList.toggle('on-menu', id === 'menu');
+      if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : 'home');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       window.scrollTo(0, 0);
     },
@@ -81,7 +82,6 @@
       this.game = game;
       MJ.UI.attach(game);
       this.show('game');
-      MJ.Audio.start();
       game.run().catch((e) => { console.error(e); });
     },
     again() { if (this.lastCfg) this.launch(this.lastCfg); },
@@ -97,7 +97,6 @@
     },
     toMenu() {
       this.stopGame();
-      MJ.Audio.stop();
       MJ.UI.closeOverlay();
       this.buildStatsOnly();
       this.show('menu');
@@ -125,9 +124,11 @@
   function init() {
     MJ.UI.init();
     document.body.classList.add('on-menu');
-    const unlock = () => MJ.SFX.unlock();
+    const unlock = () => { MJ.SFX.unlock(); MJ.Audio.resume(); };
     document.addEventListener('pointerdown', unlock, { capture: true });
     document.addEventListener('touchstart', unlock, { capture: true, passive: true });
+    document.addEventListener('click', unlock, true);
+    document.addEventListener('touchend', unlock, { capture: true, passive: true });
     document.addEventListener('click', (e) => {
       if (e.target.closest('.hand .tile')) return;
       if (e.target.closest('button, summary, .char, .mode-card')) MJ.SFX.play('click');

@@ -13,7 +13,9 @@
   const S = (MJ.SFX = {
     on: load('mj_sfx', true),
     voiceOn: load('mj_voice', true),
-    vol: load('mj_sfxvol', 0.8),
+    vol: load('mj_sfxvol2', 0.8),
+
+    getCtx() { return ctx; },
 
     unlock() {
       try {
@@ -27,7 +29,7 @@
     },
     setOn(v) { S.on = v; save('mj_sfx', v); },
     setVoice(v) { S.voiceOn = v; save('mj_voice', v); if (!v && G.speechSynthesis) G.speechSynthesis.cancel(); },
-    setVol(v) { S.vol = v; save('mj_sfxvol', v); if (master) master.gain.value = v; },
+    setVol(v) { S.vol = v; save('mj_sfxvol2', v); if (master) master.gain.value = v; },
 
     /* ---- 部品 ---- */
     tone(f, dur, type = 'sine', vol = 0.3, to = null, at = 0) {
@@ -76,6 +78,45 @@
         case 'error': T(200, 0.12, 'square', 0.15); break;
         default: break;
       }
+    },
+
+    /* ---- 読み上げ(女性の声) ---- */
+    femaleVoice() {
+      const vs = G.speechSynthesis ? G.speechSynthesis.getVoices().filter((v) => /^ja/i.test(v.lang)) : [];
+      const ng = /otoya|ichiro|hattori|takumi|keita|male(?!.*female)/i;
+      return vs.find((v) => /kyoko|o-?ren|haruka|nanami|ayumi|sayaka|mizuki|female/i.test(v.name)) || vs.find((v) => !ng.test(v.name)) || vs[0] || null;
+    },
+    speaking() { return !!(G.speechSynthesis && (G.speechSynthesis.speaking || G.speechSynthesis.pending)); },
+    stopSpeak() { if (G.speechSynthesis) { S._readId = (S._readId || 0) + 1; G.speechSynthesis.cancel(); } },
+    /* 長い文章は区切って順に読む(iPhoneは長文が途中で止まるため) */
+    read(text) {
+      const syn = G.speechSynthesis;
+      if (!syn) return false;
+      S.unlock();
+      syn.cancel();
+      const id = (S._readId = (S._readId || 0) + 1);
+      const parts = [];
+      text.replace(/([。!?\n])/g, '$1|').split('|').forEach((seg) => {
+        const t = seg.trim();
+        if (!t) return;
+        let cur = parts.length ? parts[parts.length - 1] : '';
+        if (cur && (cur + t).length <= 90) parts[parts.length - 1] = cur + t; else parts.push(t);
+      });
+      const v = S.femaleVoice();
+      const speakAt = (i) => {
+        if (i >= parts.length || S._readId !== id) return;
+        const u = new SpeechSynthesisUtterance(parts[i]);
+        u.lang = 'ja-JP';
+        if (v) u.voice = v;
+        u.pitch = v ? 1.08 : 1.3;
+        u.rate = 1.0;
+        u.volume = Math.min(1, S.vol + 0.2);
+        u.onend = () => speakAt(i + 1);
+        u.onerror = () => speakAt(i + 1);
+        syn.speak(u);
+      };
+      speakAt(0);
+      return true;
     },
 
     /* ---- 掛け声 ---- */

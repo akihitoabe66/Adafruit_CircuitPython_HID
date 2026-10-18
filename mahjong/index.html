@@ -12,6 +12,15 @@
 
   <!-- メニュー -->
   <section id="screen-menu" class="screen">
+    <details class="gset menu-gset"><summary class="btn sm">🔊 音の設定</summary>
+      <div class="gsetp"><div class="audioset">
+        <label><input type="checkbox" class="ac" data-audio="bgm"> BGM</label>
+        <label class="vol">BGM音量 <input type="range" class="ac" data-audio="vol" min="0" max="1" step="0.05"></label>
+        <label><input type="checkbox" class="ac" data-audio="sfx"> 効果音</label>
+        <label class="vol">効果音の音量 <input type="range" class="ac" data-audio="svol" min="0" max="1" step="0.05"></label>
+        <label><input type="checkbox" class="ac" data-audio="voice"> 掛け声(ロン・ポン等)</label>
+      </div></div>
+    </details>
     <div class="menu-wrap">
       <div class="menu-spacer"></div>
       <h1 class="title">麻雀・ギャンブラーズ</h1>
@@ -56,10 +65,13 @@
           <div class="gsetp">
             <label><input type="checkbox" id="opt-reveal"> CPUの手牌を見る</label>
             <label><input type="checkbox" id="opt-one"> ワンクリック打牌</label>
-            <label><input type="checkbox" id="opt-bgm"> BGM</label>
-            <label><input type="checkbox" id="opt-sfx"> 効果音</label>
-            <label><input type="checkbox" id="opt-voice"> 掛け声(ロン・ポン等)</label>
-            <label>音量 <input type="range" id="opt-vol" min="0" max="1" step="0.05"></label>
+            <div class="audioset">
+              <label><input type="checkbox" class="ac" data-audio="bgm"> BGM</label>
+              <label class="vol">BGM音量 <input type="range" class="ac" data-audio="vol" min="0" max="1" step="0.05"></label>
+              <label><input type="checkbox" class="ac" data-audio="sfx"> 効果音</label>
+              <label class="vol">効果音の音量 <input type="range" class="ac" data-audio="svol" min="0" max="1" step="0.05"></label>
+              <label><input type="checkbox" class="ac" data-audio="voice"> 掛け声(ロン・ポン等)</label>
+            </div>
           </div>
         </details>
       </div>

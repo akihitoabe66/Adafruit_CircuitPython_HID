@@ -33,14 +33,17 @@
       window.addEventListener('orientationchange', () => setTimeout(() => this.relayout(), 250));
       $('#opt-reveal').addEventListener('change', (e) => { this.reveal = e.target.checked; if (this.game) this.render(this.game); });
       $('#opt-one').addEventListener('change', (e) => { this.oneClick = e.target.checked; });
-      $('#opt-bgm').addEventListener('change', (e) => MJ.Audio.setOn(e.target.checked));
-      $('#opt-vol').addEventListener('input', (e) => MJ.Audio.setVolume(+e.target.value));
-      $('#opt-sfx').addEventListener('change', (e) => MJ.SFX.setOn(e.target.checked));
-      $('#opt-voice').addEventListener('change', (e) => MJ.SFX.setVoice(e.target.checked));
-      $('#opt-sfx').checked = MJ.SFX.on;
-      $('#opt-voice').checked = MJ.SFX.voiceOn;
-      $('#opt-bgm').checked = MJ.Audio.on;
-      $('#opt-vol').value = MJ.Audio.volume;
+      document.addEventListener('input', (e) => this.onAudioCtl(e));
+      document.addEventListener('change', (e) => this.onAudioCtl(e));
+      document.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-read]');
+        if (!b) return;
+        const root = b.dataset.read === 'coach' ? $('#coach') : $('.modal');
+        if (!root) return;
+        if (MJ.SFX.speaking()) { MJ.SFX.stopSpeak(); return; }
+        if (!MJ.SFX.read(this.textOf(root))) this.toast('この端末では読み上げが使えません');
+      });
+      this.syncAudio();
       $('#btn-hint').addEventListener('click', () => {
         this.hintOn = !this.hintOn;
         const s = this.sel;
@@ -54,6 +57,43 @@
     },
 
     sfx(name) { MJ.SFX.play(name); },
+
+    onAudioCtl(e) {
+      const c = e.target.closest && e.target.closest('.ac');
+      if (!c) return;
+      const k = c.dataset.audio, v = c.type === 'range' ? +c.value : c.checked;
+      if (k === 'bgm') MJ.Audio.setOn(v);
+      else if (k === 'vol') MJ.Audio.setVolume(v);
+      else if (k === 'sfx') MJ.SFX.setOn(v);
+      else if (k === 'svol') MJ.SFX.setVol(v);
+      else if (k === 'voice') MJ.SFX.setVoice(v);
+      this.syncAudio(c);
+    },
+    syncAudio(except) {
+      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn };
+      document.querySelectorAll('.ac').forEach((c) => {
+        if (c === except) return;
+        const v = val[c.dataset.audio];
+        if (c.type === 'range') c.value = v; else c.checked = v;
+      });
+    },
+    toast(msg) {
+      let t = $('#toast');
+      if (!t) { t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+      t.textContent = msg; t.style.display = 'block';
+      clearTimeout(this._tt); this._tt = setTimeout(() => { t.style.display = 'none'; }, 2200);
+    },
+    /* 画面の文章を読み上げ用テキストにする */
+    textOf(root) {
+      const c = root.cloneNode(true);
+      c.querySelectorAll('.rd, button, table.scores, .tileinfo, summary, script, style').forEach((n) => n.remove());
+      c.querySelectorAll('img').forEach((i) => i.replaceWith(document.createTextNode(i.alt || '')));
+      c.querySelectorAll('li, .cc, .cc-h, tr, p, div').forEach((n) => n.append('。'));
+      let t = c.textContent;
+      const map = [[/萬/g, 'マン'], [/筒/g, 'ピン'], [/索/g, 'ソウ'], [/飜/g, 'ハン'], [/符/g, 'フ'], [/和了/g, 'あがり'], [/牌/g, 'パイ'], [/×/g, 'かける'], [/≒/g, 'およそ'], [/→/g, '、'], [/%/g, 'パーセント'], [/\//g, '、'], [/[★☆✨🎉🛡🚨🔎📘🎯💡⚖🚫🥇🥈🥉]/gu, ''], [/ /g, ' ']];
+      map.forEach(([r, s]) => { t = t.replace(r, s); });
+      return t.replace(/\s+/g, ' ').replace(/。(\s*。)+/g, '。').trim();
+    },
 
     attach(game) {
       this.game = game;
@@ -272,7 +312,7 @@
       else if (this.coachHtml) body = this.coachHtml;
       else body = `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
       if (this.sel && this.sel.type === 'self' && this.coachActive()) body = '<div class="tileinfo" id="tileinfo"></div>' + body;
-      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b></div>${body}`;
+      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><button class="btn sm rd" data-read="coach">🔊 読み上げ</button></div>${body}`;
     },
 
     /* ---------- 演出 ---------- */
@@ -356,6 +396,7 @@
         else MJ.SFX.play('drawgame');
         const last = game.length === 'single';
         html += `<div style="text-align:right"><button class="btn pri" id="res-next">${last ? '結果へ' : '次へ'}</button></div>`;
+        html = `<div class="readbar"><button class="btn sm rd" data-read="modal">🔊 結果を読み上げ</button></div>` + html;
         this.overlay(html);
         $('#res-next').addEventListener('click', () => { this.closeOverlay(); resolve(); });
         this.render(game);
