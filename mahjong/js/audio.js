@@ -58,7 +58,18 @@
       if (scene === 'home') { if (changed || (el && !el.src.endsWith(HOME))) A._load(HOME, true); }
       else if (changed && !(el && el.src && GAME.some((s) => el.src.endsWith(s)) && !el.paused)) A._playGame();
     },
-    resume() { if (A.on) A.setScene(A.scene); },
+    resume() {
+      if (!A.on) return;
+      const c = MJ.SFX && MJ.SFX.getCtx && MJ.SFX.getCtx();
+      if (c && c.state !== 'running') { try { c.resume(); } catch (e) { /* ignore */ } }
+      A.setScene(A.scene);
+      if (el && el.paused) { const p = el.play(); if (p && p.catch) p.catch(() => {}); }
+    },
+    /* 実際に音が出ている状態か(自動再生が止められていないか) */
+    isPlaying() {
+      const c = MJ.SFX && MJ.SFX.getCtx && MJ.SFX.getCtx();
+      return !!el && !el.paused && el.currentTime > 0 && (!wired || (c && c.state === 'running'));
+    },
     stop() { if (el) el.pause(); },
     setOn(v) { A.on = v; save('mj_bgm', v); if (v) A.setScene(A.scene); else A.stop(); },
     setVolume(v) { A.volume = v; save('mj_bgmvol', v); A._apply(); },

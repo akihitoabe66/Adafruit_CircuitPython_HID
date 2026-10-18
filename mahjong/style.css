@@ -296,3 +296,5 @@ h1.title { font-size: clamp(30px, 7vw, 56px); margin: 4px 0 2px; letter-spacing:
 .readbar { display: flex; justify-content: flex-end; margin-bottom: 4px; }
 #coach .ch .rd { flex: none; }
 #toast { color: #fff; }
+
+#sound-hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 70; box-shadow: 0 6px 20px #000a; }
