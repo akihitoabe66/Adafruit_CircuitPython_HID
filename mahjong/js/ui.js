@@ -92,7 +92,7 @@
     /* 画面の文章を読み上げ用テキストにする */
     textOf(root) {
       const c = root.cloneNode(true);
-      c.querySelectorAll('.rd, button, table.scores, .tileinfo, summary, script, style').forEach((n) => n.remove());
+      c.querySelectorAll('.ch, .rd, button, table.scores, .tileinfo, summary, script, style').forEach((n) => n.remove());
       c.querySelectorAll('img').forEach((i) => i.replaceWith(document.createTextNode(i.alt || '')));
       c.querySelectorAll('li, .cc, .cc-h, tr, p, div').forEach((n) => n.append('。'));
       let t = c.textContent;
