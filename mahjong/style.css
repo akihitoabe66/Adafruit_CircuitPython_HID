@@ -324,13 +324,10 @@ body.on-title #menu-bg::after { background: linear-gradient(180deg, rgba(7, 10, 
 }
 @media (orientation: landscape) { #screen-title .start { font-size: 20px; padding: 9px 30px; } }
 
-/* 縦画面は縦長のタイトル画像を使う(タイトル文字入り) */
+/* 縦画面のタイトル画面だけ縦長のタイトル画像を使う(ホーム画面は横長画像のまま) */
 @media (orientation: portrait) {
-  #menu-bg, body.on-title #menu-bg { background-image: url(img/title_p.jpg); background-size: cover; background-position: center top; animation: none; }
+  body.on-title #menu-bg { background-image: url(img/title_p.jpg); background-size: cover; background-position: center top; animation: none; }
   body.on-title #menu-bg::after { background: linear-gradient(180deg, rgba(7, 10, 28, 0) 0%, rgba(7, 10, 28, 0) 70%, rgba(7, 10, 28, .5) 100%); }
-  #screen-title .t-portrait, #screen-menu h1.title { display: none; }
-  .title-wrap { padding-bottom: 9vh; }
-  #menu-bg::after { background: linear-gradient(180deg, rgba(7, 10, 28, 0) 0%, rgba(7, 10, 28, 0) 36%, rgba(7, 10, 28, .88) 56%, rgba(7, 10, 28, .95) 100%); }
-  body.on-title #menu-bg::after { background: linear-gradient(180deg, rgba(7, 10, 28, 0) 0%, rgba(7, 10, 28, 0) 70%, rgba(7, 10, 28, .5) 100%); }
+  #screen-title .t-portrait, #screen-title .footer { display: none; }
+  #screen-title .title-wrap { justify-content: flex-start; padding-top: 60vh; padding-bottom: 0; }
 }
-@media (orientation: portrait) { #screen-title .footer, #screen-menu .sub { display: none; } }
