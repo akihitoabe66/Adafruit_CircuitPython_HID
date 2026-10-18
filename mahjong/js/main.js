@@ -57,7 +57,7 @@
         const c = MJ.CHARS.find((x) => x.id === this.picks[i]);
         return `<div class="slot">${c ? `<img src="${c.img}">` : `相手${i + 1}`}</div>`;
       }).join('');
-      $('#sel-start').disabled = this.picks.length !== 3;
+      document.querySelectorAll('.sel-start').forEach((b) => { b.disabled = this.picks.length !== 3; });
     },
     pickChar(id) {
       const i = this.picks.indexOf(id);
@@ -150,7 +150,7 @@
     $('#sel-back').addEventListener('click', () => App.show('menu'));
     $('#notes-back').addEventListener('click', () => App.show('menu'));
     $('#notes-tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) App.showNote(b.dataset.n); });
-    $('#sel-start').addEventListener('click', () => App.start());
+    document.querySelectorAll('.sel-start').forEach((b) => b.addEventListener('click', () => App.start()));
     $('#sel-rand').addEventListener('click', () => {
       App.picks = MJ.shuffle(MJ.CHARS.slice()).slice(0, 3).map((c) => c.id);
       App.renderChars();

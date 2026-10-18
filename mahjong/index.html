@@ -44,7 +44,7 @@
 
   <!-- 対戦相手選択 -->
   <section id="screen-select" class="screen hidden">
-    <div class="back-row"><button class="btn ghost sm" id="sel-back">← メニュー</button><h2 id="sel-title" style="margin:0"></h2></div>
+    <div class="back-row"><button class="btn ghost sm" id="sel-back">← メニュー</button><h2 id="sel-title" style="margin:0"></h2><button class="btn pri sel-start" id="sel-start-top" disabled style="margin-left:auto">対局開始</button></div>
     <p class="sub" id="sel-desc"></p>
     <div class="opts">
       <label>対局 <select id="sel-length"><option value="east">東風戦(東1〜4局)</option><option value="single">1局だけ(練習向き)</option></select></label>
@@ -54,7 +54,7 @@
     <div class="sel-bar" id="sel-bar"></div>
     <div class="char-detail" id="char-detail">対戦相手を3人選んでください(クリックで選択/解除)。</div>
     <div class="chars" id="chars"></div>
-    <div style="text-align:right;margin-top:14px"><button class="btn pri" id="sel-start" disabled>対局開始</button></div>
+    <div style="text-align:right;margin-top:14px"><button class="btn pri sel-start" id="sel-start" disabled>対局開始</button></div>
   </section>
 
   <!-- ノート -->
