@@ -491,3 +491,11 @@ body:not(.desk):not(.land) #btn-coach { display: inline-block; }
 /* 河の置き場所をうっすら表示 */
 .river .gh { width: var(--sw); height: var(--sh); border-radius: 3px; background: rgba(0, 0, 0, .16); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05), inset 0 2px 4px rgba(0, 0, 0, .25); pointer-events: none; }
 .blk { background-image: radial-gradient(circle at 50% 100%, rgba(255, 255, 255, .035), transparent 60%); }
+
+/* 手牌の下の説明を大きく */
+.tipline { font-size: 17px; line-height: 1.4; padding: 4px 6px; }
+.tipline .tile { vertical-align: middle; }
+.sumline { font-size: 16px; padding: 6px 10px; }
+.actions .msg { font-size: 15px; }
+@media (max-width: 520px) { .tipline { font-size: 14px; } .sumline { font-size: 13.5px; } .actions .msg { font-size: 12.5px; } }
+#coach .ch, #coach .ctabs { font-size: 14px; }

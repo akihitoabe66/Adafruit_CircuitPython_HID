@@ -466,9 +466,9 @@
       let body;
       if (!this.coachActive()) body = '<div class="cc"><div class="cc-b">💡「ヒント」ボタンでアドバイスを表示できます。</div></div>';
       else if (this.coachHtml) {
-        // 「この局のポイント」は局の間ずっと残す。最初の2巡は上に、その後は助言の下に表示
+        // 「この局のポイント」は最初の1巡だけ先頭に出し、その後は最後のページに回す
         const tip = this.tipHtml || '';
-        body = g.players[0].discards.length < 2 ? tip + this.coachHtml : this.coachHtml + tip;
+        body = g.players[0].discards.length < 1 ? tip + this.coachHtml : this.coachHtml + tip;
       }
       else body = `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
       if (this.sel && this.sel.type === 'self' && this.coachActive()) body = '<div class="tileinfo" id="tileinfo"></div>' + body;
@@ -481,8 +481,12 @@
 
     /* 助言カードは、枠に収まる枚数だけまとめて表示(◀▶で次のまとまりへ)。文字は枠いっぱいまで大きくする */
     pageCoach(el) {
-      const cards = [...el.querySelectorAll(':scope > .cc')];
+      let cards = [...el.querySelectorAll(':scope > .cc')];
       const tabs = el.querySelector('.ctabs');
+      // 最初の1巡は「この局のポイント」の次に「おすすめ」を並べる
+      const h0 = ((cards[0] && cards[0].querySelector('.cc-h')) || {}).textContent || '';
+      const sIdx = cards.findIndex((c) => /★|おすすめ/.test(((c.querySelector('.cc-h') || {}).textContent || '')));
+      if (/ポイント/.test(h0) && this.game.players[0].discards.length < 1 && sIdx > 1) { cards[0].after(cards[sIdx]); cards = [...el.querySelectorAll(':scope > .cc')]; }
       this.coachCards = cards.length;
       if (cards.length <= 1) { cards.forEach((c) => c.classList.add('on')); if (tabs) tabs.remove(); this.growFont(el); return; }
       const hd = (c) => ((c.querySelector('.cc-h') || {}).textContent || '').trim();
@@ -493,12 +497,13 @@
       const show = (from, g) => cards.forEach((c, j) => c.classList.toggle('on', j >= from && j < from + g));
       const fits = (px) => { el.style.fontSize = px + 'px'; return el.scrollHeight <= el.clientHeight + 1; };
       const choose = (from) => {
-        for (let g = cards.length - from; g >= 1; g--) { show(from, g); if (fits(13)) return g; }
+        for (let g = cards.length - from; g >= 1; g--) { show(from, g); if (fits(g === 1 ? 10 : 16)) return g; }
         show(from, 1); return 1;
       };
       let g = choose(i);
       // 最初は「おすすめ」カードが見える位置から
-      if (this.coachStar && star >= 0 && !(star >= i && star < i + g)) { i = star; g = choose(i); }
+      const tipFirst = this.game.players[0].discards.length < 1 && /ポイント/.test(hd(cards[0]));
+      if (this.coachStar && star >= 0 && !tipFirst && !(star >= i && star < i + g)) { i = star; g = choose(i); }
       this.coachStar = false;
       this.coachPage = i; this.coachG = g;
       this.growFont(el);
