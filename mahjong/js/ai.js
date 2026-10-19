@@ -129,6 +129,7 @@
     let v = 0;
     for (const d of game.doraInd) if (MJ.doraOf(d.t) === t) v -= 6;
     if (c[t] >= 2 && isYakuhaiFor(game, p, t)) v -= 5;
+    if (c[t] === 1 && t >= 27 && t < 31 && t === 27 + game.seatWindOf(p) && t === 27 + game.roundWind) v -= 2; // 連風牌(場風と自風が同じ)は2飜なので特に残す
     if (t >= 27 && c[t] === 1 && !isYakuhaiFor(game, p, t)) v += 2;
     if (t >= 27 && c[t] === 1 && isYakuhaiFor(game, p, t)) v -= 1;
     if (MJ.isTerminal(t) && c[t] === 1) v += 1.5;
@@ -169,7 +170,7 @@
     }
     return { f, c, vis, evals, minSh, opps, others };
   };
-  A.effScore = (e) => -e.sh * 100 + e.ukeire.n * 1.5 - e.adj;
+  A.effScore = (e) => -e.sh * 100 + e.ukeire.n * 1.5 + e.adj; // adj: 大きいほど「切りたい牌」(ドラ・役牌の対子は負=残したい)
   A.byEff = (evals) => evals.slice().sort((a, b) => A.effScore(b) - A.effScore(a));
   A.bySafety = (evals) => evals.slice().sort((a, b) => (a.danger ? a.danger.score : 0) - (b.danger ? b.danger.score : 0) || A.effScore(b) - A.effScore(a));
 
@@ -240,7 +241,7 @@
       const dn = e.danger ? e.danger.score : 0;
       let s;
       if (fold) s = -dn * 10 - e.sh * 3 + e.ukeire.n * 0.2;
-      else s = -e.sh * 100 + e.ukeire.n * (lv === 1 ? 0.3 : 1.5) - (lv >= 2 ? e.adj : 0) - dn * k * kk * 1.5;
+      else s = -e.sh * 100 + e.ukeire.n * (lv === 1 ? 0.3 : 1.5) + (lv >= 2 ? e.adj : 0) - dn * k * kk * 1.5;
       return { e, s };
     });
     scored.sort((a, b) => b.s - a.s);
