@@ -587,6 +587,9 @@
       MJ.Gloss.decorate(el);
       this.addReadFrom(el);
       this.fitCoachText(el);
+      // 牌画像などが後から読み込まれて高さが変わっても、枠からはみ出さないよう再調整する
+      if (!el._ld) { el._ld = 1; el.addEventListener('load', () => this.growFont(el), true); }
+      clearTimeout(this._gt); this._gt = setTimeout(() => this.growFont(el), 250);
     },
 
     /* 助言カードは、枠に収まる枚数だけまとめて表示(◀▶で次のまとまりへ)。文字は枠いっぱいまで大きくする */
@@ -623,9 +626,7 @@
     growFont(el) {
       let px = 17;
       el.style.fontSize = px + 'px';
-      while (el.scrollHeight > el.clientHeight + 1 && px > 11) { px -= 0.5; el.style.fontSize = px + 'px'; }
-      // それでも収まらないときは、補足の比較行だけ省く(文章を途中で切らない)
-      if (el.scrollHeight > el.clientHeight + 1) { const c = el.querySelector('.cmp'); if (c) c.style.display = 'none'; }
+      while (el.scrollHeight > el.clientHeight + 1 && px > 10) { px -= 0.5; el.style.fontSize = px + 'px'; }
     },
     fitCoachText(el) { this.growFont(el); },
     /* 手牌の下の説明が枠からはみ出さないよう、文字サイズを下げて収める */
@@ -633,8 +634,14 @@
       const el = $('#tipline');
       if (!el) return;
       el.style.fontSize = '';
+      el.querySelectorAll('.cmp').forEach((c) => { c.style.display = ''; });
+      const over = () => el.scrollHeight > el.clientHeight + 1;
       let px = parseFloat(getComputedStyle(el).fontSize) || 15;
-      while (el.scrollHeight > el.clientHeight + 1 && px > 10) { px -= 0.5; el.style.fontSize = px + 'px'; }
+      const shrink = (min) => { while (over() && px > min) { px -= 0.5; el.style.fontSize = px + 'px'; } };
+      shrink(13);
+      // まだ収まらなければ補足の比較行を省き、それでも駄目なら文字をさらに小さく(文章を途中で切らない)
+      if (over()) { const c = el.querySelector('.cmp'); if (c) c.style.display = 'none'; }
+      shrink(9);
     },
     goCoachPage(d, abs) {
       const el = $('#coach');
