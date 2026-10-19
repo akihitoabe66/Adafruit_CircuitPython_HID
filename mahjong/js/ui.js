@@ -79,6 +79,12 @@
         if (!MJ.SFX.read(this.textOf(root))) this.toast('この端末には日本語の読み上げ音声がありません');
       });
       document.addEventListener('click', (e) => {
+        // 解説の引き出し: ✕ボタン、または引き出しの外をタップで閉じる
+        if (document.body.classList.contains('coach-open')) {
+          const inDrawer = e.target.closest('#coach');
+          const isDrawer = !document.body.classList.contains('desk');
+          if (isDrawer && (e.target.closest('[data-coachclose]') || (!inDrawer && !e.target.closest('#btn-coach, .gl, #overlay, #gloss-sheet, #gloss-panel')))) { document.body.classList.remove('coach-open'); return; }
+        }
         // 縦画面: 解説パネルをタップで大きく開く/閉じる
         const cp = e.target.closest('#coach');
         if (cp && !document.body.classList.contains('desk') && !document.body.classList.contains('land') && !e.target.closest('button, .gl, [data-pj], .rf')) {
@@ -589,7 +595,7 @@
         body = g.players[0].discards.length < 1 ? tip + this.coachHtml : this.coachHtml + tip;
       }
       else body = `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
-      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><button class="btn sm rd" data-read="coach">🔊 読み上げ</button></div><div class="ctabs"></div>${body}`;
+      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><span class="chb"><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}`;
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
       this.addReadFrom(el);

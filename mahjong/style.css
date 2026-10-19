@@ -732,3 +732,9 @@ body.rot .callq::before, body.short .callq::before { font-size: 11px; top: -11px
 /* 鳴きの確認は、手牌の下(ふだん説明が出る空き場所)に出す: 相手の捨て牌も、持ち上がった自分の牌も隠さない */
 .callq { bottom: 2px; top: auto; }
 .callq::before { top: -12px; }
+
+/* 解説の引き出し(スマホ): ✕閉じるボタン */
+#coach .chb { display: inline-flex; gap: 6px; align-items: center; }
+#coach .cx { display: none; }
+body:not(.desk) #coach .cx { display: inline-flex; }
+#coach .cx { background: #7a2b2b; border-color: #e88; color: #fff; }
