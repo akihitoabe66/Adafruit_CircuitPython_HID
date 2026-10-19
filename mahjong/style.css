@@ -275,7 +275,7 @@ h1.title { font-size: clamp(30px, 7vw, 56px); margin: 4px 0 2px; letter-spacing:
   .menu-spacer { min-height: 20vh; }
   h1.title { font-size: 30px; margin: 0; }
   .sub { margin: 0 0 8px; font-size: 12px; }
-  .modes { grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 4px; }
+  .modes { grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 4px; }
   .mode-card { padding: 8px 10px; }
   .mode-card p, .mode-card .badge { display: none; }
   .mode-card h3 { font-size: 14px; margin: 2px 0 0; }
@@ -330,3 +330,33 @@ body.on-title #menu-bg::after { background: linear-gradient(180deg, rgba(7, 10, 
   #screen-title .t-portrait, #screen-title .footer { display: none; }
   #screen-title .title-wrap { justify-content: flex-start; padding-top: 60vh; padding-bottom: 0; }
 }
+
+/* ---------- 練習問題 ---------- */
+#screen-drill { padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px)); }
+.short #screen-drill .back-row { padding-left: 52px; padding-right: 52px; }
+.dscore { margin-left: auto; font-weight: 800; color: var(--acc); font-size: 14px; }
+.ds-theme { margin: 14px 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--panel); border-radius: 12px; padding: 10px 12px; }
+.dq-sit { background: var(--panel); border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; line-height: 1.8; }
+.dq-prompt { font-size: 16px; font-weight: 700; margin: 10px 2px; line-height: 1.6; }
+.dblocks { display: grid; grid-template-columns: 1fr; gap: 6px; margin-bottom: 6px; }
+@media (min-width: 700px) { .dblocks { grid-template-columns: repeat(3, 1fr); } }
+.dq .blk { min-height: 0; }
+.dq .river { grid-template-columns: repeat(9, var(--sw)); }
+.dq .strip .face { width: 64px; height: 44px; }
+#dq-hand .hand { padding-top: 22px; }
+#dq-hand .hand .tile.picked { transform: translateY(-9px); outline: 3px solid var(--acc); }
+.dq-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 12px 0; }
+.dq-opt { font-size: 20px; padding: 14px 12px; line-height: 1.6; text-align: center; }
+.dq-opt .tile.t-xs { width: 1.35em; height: 1.85em; }
+.dq-opt.chosen { outline: 3px solid var(--acc); }
+.dq-actions { display: flex; justify-content: center; margin: 12px 0; }
+.dq-actions .btn { font-size: 18px; padding: 12px 36px; }
+.dq-fb { margin: 12px 0 30px; border-left: 6px solid #3c7a67; background: var(--panel); border-radius: 10px; padding: 12px 14px; line-height: 1.7; }
+.dq-fb.good { border-color: var(--good); } .dq-fb.warn { border-color: var(--warn); } .dq-fb.bad { border-color: var(--bad); }
+.dq-fh { font-size: 22px; font-weight: 900; margin-bottom: 4px; }
+.dq-fa { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 10px; }
+.dq-fb .cc-help { margin-top: 8px; }
+.expl-list { list-style: none; padding: 0; margin: 6px 0; }
+.expl-list li { margin: 6px 0; }
+.dq-fb.good, .dq-fb.warn, .dq-fb.bad { color: var(--ink); }
+.dq-fb.good .dq-fh { color: var(--good); } .dq-fb.warn .dq-fh { color: var(--warn); } .dq-fb.bad .dq-fh { color: var(--bad); }

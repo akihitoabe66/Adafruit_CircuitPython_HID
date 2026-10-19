@@ -38,7 +38,7 @@
       document.addEventListener('click', (e) => {
         const b = e.target.closest('[data-read]');
         if (!b) return;
-        const root = b.dataset.read === 'coach' ? $('#coach') : $('.modal');
+        const root = b.dataset.read === 'coach' ? $('#coach') : b.dataset.read === 'drill' ? $('#dq-fb') : $('.modal');
         if (!root) return;
         if (MJ.SFX.speaking()) { MJ.SFX.stopSpeak(); return; }
         if (!MJ.SFX.read(this.textOf(root))) this.toast('この端末には日本語の読み上げ音声がありません');

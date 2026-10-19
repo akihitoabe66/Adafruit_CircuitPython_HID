@@ -14,6 +14,7 @@
     free: { name: 'フリー対戦', short: 'フリー', desc: '好きな相手と自由に対戦。ヒントはいつでもON/OFFできます。' },
     beginner: { name: '入門: 役づくり講座', short: '入門', desc: '手牌を一緒に見ながら、役の作り方・鳴き・ロンされない打ち方を教えます。' },
     defense: { name: '捨て牌特訓: 守備', short: '守備', desc: '現物・スジ・カベなど、安全な牌の選び方に特化。牌ごとの危険度を表示します。' },
+    drill: { name: '練習問題', short: '練習', desc: '毎回ランダムな問題で、何切る・役・守備・鳴き・待ち・点数計算を練習します。' },
     inter: { name: '中級のコツ', short: '中級', desc: '押し引き・打点・待ちの良し悪し・リーチかダマかなど、勝つための判断を学びます。' },
   };
 
@@ -448,4 +449,5 @@
   };
 
   C.TAG_HELP = TAG_HELP;
+  C.reasonFor = reasonFor;
 })(typeof window !== 'undefined' ? window : globalThis);

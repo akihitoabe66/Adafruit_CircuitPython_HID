@@ -57,6 +57,21 @@
     <div style="text-align:right;margin-top:14px"><button class="btn pri sel-start" id="sel-start" disabled>対局開始</button></div>
   </section>
 
+  <!-- 練習問題 -->
+  <section id="screen-drill" class="screen hidden">
+    <div class="back-row"><button class="btn ghost sm" id="drill-back">← 戻る</button><h2 id="drill-title" style="margin:0">📝 練習問題</h2><span id="drill-score" class="dscore"></span></div>
+    <div id="drill-home"></div>
+    <div id="drill-quiz" class="hidden dq">
+      <div id="dq-sit" class="dq-sit"></div>
+      <div id="dq-board"></div>
+      <div id="dq-prompt" class="dq-prompt"></div>
+      <div id="dq-hand"></div>
+      <div id="dq-opts" class="dq-opts"></div>
+      <div id="dq-actions" class="dq-actions hidden"><button class="btn pri" id="dq-ok" disabled>この牌を切る</button></div>
+      <div id="dq-fb" class="hidden"></div>
+    </div>
+  </section>
+
   <!-- ノート -->
   <section id="screen-notes" class="screen hidden">
     <div class="back-row"><button class="btn ghost sm" id="notes-back">← メニュー</button><h2 style="margin:0">📖 麻雀ノート</h2></div>
@@ -107,6 +122,8 @@
 <script src="js/audio.js"></script>
 <script src="js/sfx.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/drill.js"></script>
+<script src="js/drillui.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

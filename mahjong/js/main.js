@@ -2,13 +2,14 @@
 (function () {
   const MJ = window.MJ;
   const $ = (s) => document.querySelector(s);
-  const SCREENS = ['title', 'menu', 'select', 'notes', 'game'];
+  const SCREENS = ['title', 'menu', 'drill', 'select', 'notes', 'game'];
 
   const MODE_CARDS = [
     { id: 'free', icon: '🎴', badge: 'ヒントON/OFF可', desc: '好きな相手3人と自由に対戦。慣れたらヒントを消して実戦練習。' },
     { id: 'beginner', icon: '🌱', badge: '初心者おすすめ', desc: '手牌を一緒に見ながら、シャンテン・おすすめ打牌・狙える役・鳴いて良いかを教えてくれます。ロンされないための注意も。' },
     { id: 'defense', icon: '🛡', badge: '捨て牌に特化', desc: '現物・スジ・カベ・字牌など安全牌の決め方を、実際の対戦で牌ごとの危険度を見ながら練習。' },
     { id: 'inter', icon: '🧠', badge: '中級のコツ', desc: '押し引き・打点・待ちの良し悪し・リーチかダマかなど、一歩進んだ判断を解説。' },
+    { id: 'drill', icon: '📝', badge: '何パターンでも', desc: '何切る・狙える役・守備・鳴き判断・待ち当て・点数計算を、毎回ランダムな問題で練習。答え合わせで理由を解説します。' },
   ];
   /* モードごとのおすすめ対戦相手 (CHARSのid) */
   const RECO = { free: null, beginner: [9, 14, 5], defense: [5, 11, 13], inter: [2, 7, 12] };
@@ -30,7 +31,7 @@
       $('#menu-modes').addEventListener('click', (e) => {
         const b = e.target.closest('[data-mode]');
         if (!b) return;
-        if (b.dataset.mode === 'notes') this.openNotes(); else this.openSelect(b.dataset.mode);
+        if (b.dataset.mode === 'notes') this.openNotes(); else if (b.dataset.mode === 'drill') MJ.DrillUI.open(); else this.openSelect(b.dataset.mode);
       });
       try {
         const st = JSON.parse(localStorage.getItem('mj_stats') || 'null');
@@ -126,6 +127,7 @@
 
   function init() {
     MJ.UI.init();
+    MJ.DrillUI.init();
     // 最初の操作でBGMを開始。iPhoneは pointerdown/touchstart では許可されないため、指を離した時(touchend/click)でも毎回試す
     const unlock = () => { MJ.SFX.unlock(); MJ.Audio.resume(); };
     ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((ev) => document.addEventListener(ev, unlock, { capture: true, passive: true }));
