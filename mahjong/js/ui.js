@@ -349,15 +349,17 @@
           if (this.riichiMode && ok) cls += ' rch-ok';
           if (adv && !this.riichiMode && (adv.recId === h.id || (recT != null && h.t === recT))) cls += ' rec';
           const m = adv && adv.marks[h.id];
-          const dv = this.dangerView(h.t);
-          if (dv) { cls += ` dgt dg-${dv.cls}`; mk = `<span class="dgb ${dv.cls}">${dv.sym}${({ '現物': '現', 'スジ': 'ス', '字牌': '字', '無スジ': '無', '端牌': '端', 'カベ': '壁', 'ワンチャンス': '1C', '半スジ': '半', '全見え': '見' })[dv.tag.replace(/\(.*\)/, '')] || ''}</span>`; }
-          else if (m && m.txt && this.coachActive()) mk = `<span class="mk ${m.cls}">${m.txt}</span>`;
+          if (m && m.txt && this.coachActive() && !this.dng) mk = `<span class="mk ${m.cls}">${m.txt}</span>`;
         }
         if (h === p.drawn) cls += ' drawn';
         if (this.picked === h.id) cls += ' picked';
-        return `<div class="tile${cls}${h.red ? ' aka' : ''}" data-id="${h.id}" data-t="${h.t}">${MJ.tileSVG(h.t)}${mk}</div>`;
+        const dv0 = sel && this.dng ? this.dangerView(h.t) : null;
+        const chip = dv0 ? `<span class="dgc ${dv0.cls}${dv0.hyp ? ' hyp' : ''}">${dv0.sym}</span>` : '';
+        if (dv0) cls += ` dgt dg-${dv0.cls}`;
+        return `<div class="tile${cls}${h.red ? ' aka' : ''}" data-id="${h.id}" data-t="${h.t}">${MJ.tileSVG(h.t)}${chip}${mk}</div>`;
       }).join('');
-      const tip = this.picked && adv && adv.info && this.coachActive() ? adv.info[this.picked] || '' : '';
+      let tip = this.picked && adv && adv.info && this.coachActive() ? adv.info[this.picked] || '' : '';
+      if (!tip && this.dng && sel) tip = `<span class="dglg">左上の印: <b class="dgl safe">◎</b>ほぼ安全 <b class="dgl ok">○</b>比較的安全 <b class="dgl warn">△</b>注意 <b class="dgl danger">✕</b>危険${this.dng.hyp ? ' <span class="cc-s">(いまはリーチなし。「もし全員がリーチしていたら」の目安)</span>' : ''}</span>`;
       const sum = this.sel && this.coachActive() ? this.summary || '' : '';
       const card = cand ? this.callCard(game, rs, cand) : '';
       const dtabs = sel && this.dng && this.dng.opps.length >= 2 ? `<div class="dtabs"><span>危険度の対象:</span><button class="btn sm${this.dngTab === 'all' ? ' on' : ''}" data-dtab="all">全員</button>${this.dng.opps.map((q, i) => `<button class="btn sm${this.dngTab === i ? ' on' : ''}" data-dtab="${i}">${q.name}</button>`).join('')}</div>` : '';
@@ -491,22 +493,27 @@
     buildDanger(game, p) {
       this.dng = null;
       if (!this.dangerOn) return;
-      const an = MJ.AI.analyze(game, p, { know: 2 });
-      if (!an.opps.length) return;
-      this.dng = { an, opps: an.opps };
-      if (this.dngTab !== 'all' && !an.opps[this.dngTab]) this.dngTab = 'all';
+      const A = MJ.AI;
+      const vis = A.visible(game, p);
+      const others = game.players.filter((q) => q !== p);
+      const rii = others.filter((q) => q.riichi);
+      // リーチ者がいなければ「もし全員がリーチしていたら」の仮定で、河(公開情報)だけから危険度を出す
+      const opps = rii.length ? rii : others;
+      const map = {};
+      [...new Set(p.hand.map((h) => h.t))].forEach((t) => { map[t] = opps.map((q) => A.danger1(game, vis, t, q, A.safeSet(game, q), 2)); });
+      this.dng = { opps, hyp: !rii.length, map };
+      if (this.dngTab !== 'all' && !opps[this.dngTab]) this.dngTab = 'all';
     },
     dangerView(t) {
       const d = this.dng;
-      if (!d) return null;
-      const e = d.an.evals.find((x) => x.t === t);
-      if (!e || !e.danger) return null;
-      const one = this.dngTab !== 'all' ? e.dangerBy[this.dngTab] : null;
-      const score = one ? one.score : e.danger.score;
-      const tag = one ? one.tag : e.danger.tag;
-      const why = one ? one.why : e.danger.why;
+      if (!d || !d.map[t]) return null;
+      const per = d.map[t];
+      let score, w;
+      if (this.dngTab !== 'all') { w = per[this.dngTab]; score = w.score; }
+      else { w = per.reduce((m, x) => (x.score > m.score ? x : m), per[0]); score = d.hyp ? w.score : per.reduce((s2, x) => s2 + x.score, 0); }
       const r = MJ.Coach.rate(score);
-      return { sym: r.sym, cls: r.cls, stars: r.stars, score: Math.round(score), tag, why, who: one ? d.opps[this.dngTab].name : (d.opps.length > 1 ? `${d.opps.length}人のリーチ全体` : d.opps[0].name) };
+      const who = this.dngTab !== 'all' ? d.opps[this.dngTab].name : (d.hyp ? '全員がリーチしていたと仮定して(いちばん危ない相手)' : d.opps.length > 1 ? `${d.opps.length}人のリーチ全体` : d.opps[0].name);
+      return { sym: r.sym, cls: r.cls, stars: r.stars, score: Math.round(score), tag: w.tag, why: w.why, who, hyp: d.hyp };
     },
     /* 河の中で「その牌の安全の理由になる牌」を光らせる(同じ牌=現物 / 3つ違い=スジの元) */
     hilite(t) {
