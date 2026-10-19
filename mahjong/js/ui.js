@@ -775,6 +775,90 @@
       `;
     },
 
+    scoreTable(game, res) {
+      const rows = game.players.map((p, i) => `<tr><td>${p.name}</td><td>${fmt(res.before[i])}</td><td>${signed(res.delta[i])}</td><td><b>${fmt(res.after[i])}</b></td></tr>`).join('');
+      return `<table class="scores"><tr><th>プレイヤー</th><th>前</th><th>増減</th><th>持ち点</th></tr>${rows}</table>`;
+    },
+
+    /* 長い振り返りを、見出し(①②③④)ごとに2つずつのページに分ける */
+    splitReview(html) {
+      const d = document.createElement('div');
+      d.innerHTML = html;
+      const card = d.querySelector('.cc');
+      if (!card) return [];
+      const head = card.querySelector('.cc-h').outerHTML;
+      const body = card.querySelector('.cc-b');
+      const groups = [];
+      [...body.childNodes].forEach((n) => {
+        if (n.nodeType === 1 && n.classList.contains('rv-h')) groups.push([]);
+        if (!groups.length) groups.push([]);
+        groups[groups.length - 1].push(n.outerHTML || n.textContent);
+      });
+      const pages = [];
+      // 見出しごとの大きさ(文字数+図の分)を見積もって、1ページに収まる分だけまとめる
+      const weight = (g) => { const t = document.createElement('div'); t.innerHTML = g.join(''); return t.textContent.length + (t.querySelector('.tl') ? 380 : 0); };
+      const cap = document.body.classList.contains('short') ? 300 : 640; // スマホ横は画面が低いので、1ページに入れる量を減らす
+      const chunks = [];
+      let curC = [], w = 0;
+      groups.forEach((g) => { const gw = weight(g); if (curC.length && w + gw > cap) { chunks.push(curC); curC = []; w = 0; } curC.push(g); w += gw; });
+      if (curC.length) chunks.push(curC);
+      chunks.forEach((c) => { if (c.length) pages.push(`<div class="${card.className}">${head}<div class="cc-b">${c.map((g) => g.join('')).join('')}</div></div>`); });
+      return pages;
+    },
+    /* ページ式のダイアログ(スクロールなしで画面に収める) */
+    pagedModal(pages, onDone, lastLabel) {
+      let cur = 0;
+      this.overlay(`<div class="modal paged"><div class="pm-top"><span class="pm-title"></span><span class="pm-dots">${pages.map(() => '<i></i>').join('')}</span></div><div class="pm-body">${pages.map((p) => `<div class="pm-page">${p.html}</div>`).join('')}</div><div class="pm-foot"><button class="btn" id="pm-prev">◀ 戻る</button><button class="btn pri" id="pm-next"></button></div></div>`, { plain: true, raw: true });
+      const modal = $('#overlay .modal');
+      const body = modal.querySelector('.pm-body');
+      const els = [...modal.querySelectorAll('.pm-page')];
+      els.forEach((e) => MJ.Gloss.decorate(e));
+      const show = (i) => {
+        cur = Math.max(0, Math.min(pages.length - 1, i));
+        els.forEach((e, k) => { e.classList.toggle('on', k === cur); e.style.zoom = ''; });
+        modal.querySelector('.pm-title').textContent = `${pages[cur].t}  ${cur + 1}/${pages.length}`;
+        modal.querySelectorAll('.pm-dots i').forEach((d, k) => d.classList.toggle('on', k === cur));
+        modal.querySelector('#pm-prev').style.visibility = cur ? 'visible' : 'hidden';
+        modal.querySelector('#pm-next').textContent = cur === pages.length - 1 ? lastLabel : '次へ ▶';
+        const pg = els[cur];
+        // 枠に収まるまで文字サイズを下げる(iPhoneのSafariでも確実に効くよう zoom ではなく font-size で調整)
+        pg.style.fontSize = '';
+        let fpx = parseFloat(getComputedStyle(pg).fontSize) || 16;
+        const fover = () => pg.scrollHeight > body.clientHeight + 1;
+        while (fover() && fpx > 9) { fpx -= 0.5; pg.style.fontSize = fpx + 'px'; }
+        if (fover()) { pg.style.zoom = String(Math.max(0.55, (body.clientHeight - 2) / Math.max(1, pg.scrollHeight))); }
+        MJ.SFX.stopSpeak();
+      };
+      modal.querySelector('#pm-prev').addEventListener('click', () => show(cur - 1));
+      modal.querySelector('#pm-next').addEventListener('click', () => { if (cur < pages.length - 1) show(cur + 1); else onDone(); });
+      show(0);
+      return { show };
+    },
+
+    showResult(game, res) {
+      return new Promise((resolve) => {
+        const pages = [];
+        if (res.type === 'win') {
+          pages.push({ t: '和了', html: `<h2>${game.kyokuLabel()} 和了</h2>` + res.wins.map((w) => this.winHTML(game, w)).join('<hr>') });
+          pages.push({ t: '点数計算', html: res.wins.map((w) => this.winExplHTML(game, w)).join('<hr>') + this.scoreTable(game, res) });
+          const rv = res.loseReview ? MJ.Coach.loseReview(game, res) : res.review ? MJ.Coach.reviewText(res.review) : '';
+          if (rv) this.splitReview(rv).forEach((h, i, a) => pages.push({ t: `振り返り`, html: h, rv: true }));
+        } else {
+          const tp = res.tenpai.map((t, i) => `<tr><td>${game.players[i].name}</td><td>${t ? '<b class="good">テンパイ</b>' : 'ノーテン'}</td><td>${res.tenpai[i] ? res.hands[i].concealed.map((h) => MJ.tileHTML(h.t, 't-s')).join('') : ''}</td></tr>`).join('');
+          pages.push({ t: '流局', html: `<h2>${game.kyokuLabel()} 流局</h2><p>山の牌がなくなりました(荒牌平局)。テンパイ者がノーテン者から3000点を受け取ります。</p><table class="scores">${tp}</table>${this.scoreTable(game, res)}` });
+          if (res.drawReview) this.splitReview(MJ.Coach.drawReview(game, res)).forEach((h) => pages.push({ t: '流局の振り返り', html: h, rv: true }));
+        }
+        if (res.type === 'win') MJ.SFX.play(res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'win');
+        else MJ.SFX.play('drawgame');
+        const last = game.length === 'single';
+        this.pagedModal(pages, () => { MJ.SFX.stopSpeak(); MJ.Audio.endResult(); this.closeOverlay(); resolve(); }, last ? '結果へ ▶' : '次の局へ ▶');
+        if (res.type === 'win') this.announceWin(game, res);
+        // 結果画面のBGM: 自分が上がった=win / 自分がマイナス=lose / 流局・CPU同士の和了=draw
+        MJ.Audio.playResult(res.type === 'draw' ? 'draw' : res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'draw'); // CPU同士の和了など、自分に関係ない結果は落ち着いた曲(流局と同じ)
+        this.render(game);
+      });
+    },
+
     /* 上がったとき、役の名前を必ず読み上げる(「リーチ、イッパツ、ツモ、サンショク、ドラ2」) */
     announceWin(game, res) {
       if (!MJ.SFX.yakuRead || game.fast) return;
