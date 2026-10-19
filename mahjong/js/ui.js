@@ -623,7 +623,9 @@
     growFont(el) {
       let px = 17;
       el.style.fontSize = px + 'px';
-      while (el.scrollHeight > el.clientHeight + 1 && px > 10) { px -= 0.5; el.style.fontSize = px + 'px'; }
+      while (el.scrollHeight > el.clientHeight + 1 && px > 11) { px -= 0.5; el.style.fontSize = px + 'px'; }
+      // それでも収まらないときは、補足の比較行だけ省く(文章を途中で切らない)
+      if (el.scrollHeight > el.clientHeight + 1) { const c = el.querySelector('.cmp'); if (c) c.style.display = 'none'; }
     },
     fitCoachText(el) { this.growFont(el); },
     /* 手牌の下の説明が枠からはみ出さないよう、文字サイズを下げて収める */
