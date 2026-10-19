@@ -10,7 +10,7 @@
     on: load('mj_sfx', true),
     voiceOn: load('mj_voice', true),
     vol: load('mj_sfxvol2', 0.8),
-    readVol: load('mj_readvol', 0.5),
+    readVol: load('mj_readvol', 0.8),
 
     getCtx() { return ctx; },
 

@@ -324,7 +324,11 @@
       const m = MJ.Coach.MODES[g.mode];
       let body;
       if (!this.coachActive()) body = '<div class="cc"><div class="cc-b">💡「ヒント」ボタンでアドバイスを表示できます。</div></div>';
-      else if (this.coachHtml) body = this.coachHtml;
+      else if (this.coachHtml) {
+        // 「この局のポイント」は局の間ずっと残す。最初の2巡は上に、その後は助言の下に表示
+        const tip = this.tipHtml || '';
+        body = g.players[0].discards.length < 2 ? tip + this.coachHtml : this.coachHtml + tip;
+      }
       else body = `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
       if (this.sel && this.sel.type === 'self' && this.coachActive()) body = '<div class="tileinfo" id="tileinfo"></div>' + body;
       el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><button class="btn sm rd" data-read="coach">🔊 読み上げ</button></div>${body}`;
