@@ -300,6 +300,7 @@
       $('#ginfo').innerHTML = `<span class="kk">${game.kyokuLabel()}</span><span class="myw">あなたは<b>${WINDS[game.seatWindOf(game.players[0])]}家</b>${game.seatWindOf(game.players[0]) === 0 ? '(親)' : ''}</span><span>${game.length === 'single' ? '1局戦' : '東風戦'}</span><span class="doras">ドラ表示 ${doras}</span><span>残り ${game.live.length}枚</span>${game.kyotaku ? `<span>供託 ${game.kyotaku}</span>` : ''}`;
       $('#table').innerHTML = `<div class="blocks">${[3, 2, 1, 0].map((s) => this.block(game, s)).join('')}</div>`;
       $('#mine').innerHTML = this.mineHTML(game);
+      this.fitTip();
       if (this.dng) this.hilite(this.picked != null ? ((game.players[0].hand.find((x) => x.id === this.picked) || {}).t) : this.hiType); 
       this.fitHeight();
     },
@@ -477,14 +478,14 @@
         this.hilite(hh.t);
         const dl = this.dangerLine(hh.t);
         const base = this.adv && this.adv.info && this.adv.info[id] && this.coachActive() ? `${this.adv.info[id]}<br>` : '';
-        const el0 = $('#tipline'); if (el0) el0.innerHTML = dl;
+        const el0 = $('#tipline'); if (el0) { el0.innerHTML = dl; this.fitTip(); }
         const ti0 = $('#tileinfo'); if (ti0) { ti0.style.display = 'block'; ti0.innerHTML = base + dl; }
         return;
       }
       const t = this.adv && this.adv.info && this.adv.info[id];
       if (!t || !this.coachActive()) return;
       const el = $('#tipline');
-      if (el) el.innerHTML = t;
+      if (el) { el.innerHTML = t; this.fitTip(); }
       const ti = $('#tileinfo');
       if (ti) { ti.style.display = 'block'; ti.innerHTML = (this.adv.infoLong && this.adv.infoLong[id]) || t; }
     },
@@ -581,7 +582,6 @@
         body = g.players[0].discards.length < 1 ? tip + this.coachHtml : this.coachHtml + tip;
       }
       else body = `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
-      if (this.sel && this.sel.type === 'self' && this.coachActive()) body = '<div class="tileinfo" id="tileinfo"></div>' + body;
       el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><button class="btn sm rd" data-read="coach">🔊 読み上げ</button></div><div class="ctabs"></div>${body}`;
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
@@ -626,6 +626,14 @@
       while (el.scrollHeight > el.clientHeight + 1 && px > 10) { px -= 0.5; el.style.fontSize = px + 'px'; }
     },
     fitCoachText(el) { this.growFont(el); },
+    /* 手牌の下の説明が枠からはみ出さないよう、文字サイズを下げて収める */
+    fitTip() {
+      const el = $('#tipline');
+      if (!el) return;
+      el.style.fontSize = '';
+      let px = parseFloat(getComputedStyle(el).fontSize) || 15;
+      while (el.scrollHeight > el.clientHeight + 1 && px > 10) { px -= 0.5; el.style.fontSize = px + 'px'; }
+    },
     goCoachPage(d, abs) {
       const el = $('#coach');
       const n = this.coachCards || 1, g = this.coachG || 1;
