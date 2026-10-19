@@ -280,7 +280,8 @@
       const ch = p.char;
       const w = game.seatWindOf(p);
       const b = this.bubbles[s];
-      const bub = b && b.until > Date.now() ? `<div class="bubble">${b.text}</div>` : '';
+      const bub = b && b.until > Date.now() ? `<div class="bubble${b.shown ? ' still' : ''}">${b.text}</div>` : '';
+      if (b) b.shown = true; // 再描画のたびにアニメーションをやり直さない(ちらつき防止)
       const face = ch.img ? `<img class="face${s === 0 ? ' you' : ''}" src="${ch.img}" alt="">` : '<div class="face me">🀄</div>';
       const chips = `<span class="chip ${w === 0 ? 'dealer' : ''}">${WINDS[w]}${w === 0 ? '親' : ''}</span>${p.riichi ? '<span class="chip r">リーチ</span>' : ''}${ch.level ? `<span class="chip lv">${MJ.LEVEL_JP[ch.level]}</span>` : ''}`;
       const melds = p.melds.length ? `<div class="melds">${p.melds.map((m) => this.meldHTML(m)).join('')}</div>` : '';

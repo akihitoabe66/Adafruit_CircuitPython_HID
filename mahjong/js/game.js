@@ -398,7 +398,7 @@
       this.sortHand(q);
       this.sync();
       await this.banner(q, kind === 'pon' ? 'ポン' : kind === 'chi' ? 'チー' : 'カン');
-      if (this.ui && MJ.Banter) MJ.Banter.call(this, q);
+      if (this.ui && MJ.Banter) MJ.Banter.call(this, q, p);
       if (kind === 'kan') { /* 嶺上牌は playHand 側で引く */ }
     }
 
