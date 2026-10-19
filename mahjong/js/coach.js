@@ -40,6 +40,38 @@
     return n;
   };
 
+  /* ---------- 「なぜその牌を切るのか」の考え方 ---------- */
+  function whyCard(game, p, an, e, eff) {
+    const c = an.c, t = e.t, li = [];
+    const left = (x) => Math.max(0, 4 - (an.vis[x] || 0));
+    const pairs = c.reduce((n, v, i) => n + (v === 2 ? 1 : 0), 0);
+    const sh = an.minSh;
+    li.push(`<b>ゴール</b>: 上がりは「<b>面子</b>(3枚1組)を4つ+<b>雀頭</b>(同じ牌2枚)を1つ」。いまは<b>${sh === 0 ? 'テンパイ' : sh + 'シャンテン'}</b>。${sh > 0 ? `完成に近づく牌を引ける形ほど良い形です。` : ''}`);
+    if (t >= 27) {
+      if (c[t] === 1) li.push(`<b>なぜ${tn(t)}?</b> 字牌は<b>順子(連続する3枚)が作れず</b>、使うには同じ牌をあと2枚そろえて刻子にするしかありません(まだ見えていない残りは${left(t)}枚)。他の牌とつながらない孤立牌なので、手を進める力が小さいのです。`);
+      else li.push(`<b>なぜ${tn(t)}?</b> 対子を崩しますが、他に切れる牌より有効牌が多く残るためです。`);
+    } else if (c[t] === 2) {
+      li.push(`<b>なぜ対子を1枚減らす?</b> 雀頭は<b>1組</b>あれば足ります。いま対子が<b>${pairs}組</b>${pairs >= 3 ? 'あり、余りが出ています' : ''}。対子から面子にするには<b>同じ牌をもう1枚</b>引く必要があり、${tn(t)}のまだ見えていない残りは最大${left(t)}枚だけ。`);
+      li.push(`一方、連続する牌(例: 4と5)は<b>両側</b>(3と6)のどちらを引いても順子になるので、<b>最大8枚</b>が味方します。だから「ペアを増やす」より「つながる形に広げる」ほうが早く完成します。`);
+    } else if (c[t] >= 3) {
+      li.push(`<b>なぜ刻子を崩す?</b> 通常は完成した面子は崩しません。それでも崩すのは、ほかに切れる牌がほとんど無く、これで有効牌が最も多く残るためです。`);
+    } else {
+      const near = [-2, -1, 1, 2].filter((d) => Math.floor((t + d) / 9) === Math.floor(t / 9) && t + d >= 0 && c[t + d] > 0).length;
+      if (!near) li.push(`<b>なぜ${tn(t)}?</b> 前後2つ以内(${tn(t)}の隣と1つ飛ばし)に牌が無い<b>孤立牌</b>。順子を作るには、あと2枚を自力で引かなければならず、完成までがとても遠いからです。`);
+      else if (MJ.isTerminal(t)) li.push(`<b>なぜ${tn(t)}?</b> 1・9の端の牌は、順子を作れる形が<b>1通りだけ</b>(1なら123、9なら789)。真ん中の牌は最大3通り作れるので、端のほうが価値が低いのです。`);
+      else li.push(`<b>なぜ${tn(t)}?</b> ほかの牌と比べて、この牌を残してもつながりが少なく、切ったあとの<b>有効牌が多く残る</b>からです。`);
+    }
+    const sec = eff.find((x) => x !== e && x.sh === sh);
+    if (sec && sh >= 0) {
+      const d = e.ukeire.n - sec.ukeire.n;
+      li.push(d > 0 ? `<b>比べると</b>: 次の候補 ${ic(sec.t)}${tn(sec.t)} を切ると有効牌は${sec.ukeire.n}枚。${d}枚少ないぶん、手が進むチャンスが減ります。` : `<b>比べると</b>: 次の候補 ${ic(sec.t)}${tn(sec.t)} と有効牌は同じです。そのときは<b>ドラ・役・安全度</b>で選びます。`);
+    }
+    if (e.ukeire.n && sh > 0) li.push(`<b>この後</b>: ${icons(e.ukeire.tiles, 6)}のどれかを引くと<b>${sh - 1}シャンテン</b>に進みます。`);
+    const yao = c.reduce((n, v, i) => n + (MJ.isYaochu(i) ? v : 0), 0);
+    if (MJ.isYaochu(t) && yao <= 5) li.push(`<b>おまけ</b>: 1・9・字牌を減らすと「<b>タンヤオ</b>(1飜)」が付けやすくなります。`);
+    return card('🧠 どうして?(考え方)', `<ul class="cc-ul">${li.slice(0, 5).map((x) => `<li>${x}</li>`).join('')}</ul>`, 'rec');
+  }
+
   /* ---------- 打牌の理由 ---------- */
   function reasonFor(game, p, an, e) {
     const c = an.c, t = e.t, parts = [];
@@ -165,7 +197,7 @@
     const bestCard = () => {
       if (!best) return '';
       const top = eff.slice(0, 3).map((e, i) => `<li>${i === 0 ? '★' : ''}${ic(e.t)} ${tn(e.t)} → ${e.sh === an.minSh ? `有効牌 ${e.ukeire.n}枚` : `シャンテンが戻る(${e.sh}シャンテン)`}</li>`).join('');
-      return card('★ おすすめの捨て牌', `<b>${ic(best.t)} ${tn(best.t)}</b> を切る。<br>${reasonFor(game, p, an, best)}。<ul class="cc-ul">${top}</ul><div class="cc-s">「有効牌」=引くとシャンテンが進む牌の残り枚数。多いほど手が進みやすい。</div>`, 'rec');
+      return card('★ おすすめの捨て牌', `<b>${ic(best.t)} ${tn(best.t)}</b> を切る。<br>${reasonFor(game, p, an, best)}。<ul class="cc-ul">${top}</ul><div class="cc-s">「有効牌」=引くとシャンテンが進む牌の残り枚数。多いほど手が進みやすい。</div>`, 'rec') + whyCard(game, p, an, best, eff);
     };
 
     const defenseWarn = () => {
@@ -300,7 +332,7 @@
     return cards;
   }
   function bestCardLite(game, p, an, best, eff) {
-    return card('★ 効率のおすすめ', `${ic(best.t)} <b>${tn(best.t)}</b> を切る(${best.sh === 0 ? 'テンパイ' : best.sh + 'シャンテン'} / 有効牌${best.ukeire.n}枚)。<br>${reasonFor(game, p, an, best)}。`, 'rec');
+    return card('★ 効率のおすすめ', `${ic(best.t)} <b>${tn(best.t)}</b> を切る(${best.sh === 0 ? 'テンパイ' : best.sh + 'シャンテン'} / 有効牌${best.ukeire.n}枚)。<br>${reasonFor(game, p, an, best)}。`, 'rec') + whyCard(game, p, an, best, eff);
   }
 
   /* ---------- 中級モード ---------- */
