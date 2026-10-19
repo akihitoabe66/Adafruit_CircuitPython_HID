@@ -116,7 +116,7 @@
     addReadFrom(root, kids) {
       if (!root) return;
       (kids || [...root.children]).forEach((k) => {
-        if (k.classList.contains('ch') || k.classList.contains('readbar') || k.querySelector(':scope > .rf') || (k.textContent || '').trim().length < 6 || k.tagName === 'BUTTON') return;
+        if (k.classList.contains('ch') || k.classList.contains('ctabs') || k.classList.contains('readbar') || k.querySelector(':scope > .rf') || (k.textContent || '').trim().length < 6 || k.tagName === 'BUTTON') return;
         k.classList.add('rfb');
         k.insertAdjacentHTML('afterbegin', '<button class="rf rd" data-readfrom title="ここから読み上げ" aria-label="ここから読み上げ">▶</button>');
       });
@@ -477,34 +477,46 @@
       this.fitCoachText(el);
     },
 
-    /* 助言カードは1枚ずつ表示(◀▶で切り替え)。スクロールなしで枠に収める */
+    /* 助言カードは、枠に収まる枚数だけまとめて表示(◀▶で次のまとまりへ)。文字は枠いっぱいまで大きくする */
     pageCoach(el) {
       const cards = [...el.querySelectorAll(':scope > .cc')];
       const tabs = el.querySelector('.ctabs');
-      if (cards.length <= 1) { cards.forEach((c) => c.classList.add('on')); if (tabs) tabs.remove(); this.fitCoachText(el); return; }
+      this.coachCards = cards.length;
+      if (cards.length <= 1) { cards.forEach((c) => c.classList.add('on')); if (tabs) tabs.remove(); this.growFont(el); return; }
       const hd = (c) => ((c.querySelector('.cc-h') || {}).textContent || '').trim();
       const key = cards.length + '|' + hd(cards[0]);
-      if (key !== this.coachKey) {
-        this.coachKey = key;
-        const r = cards.findIndex((c) => /★|おすすめ/.test(hd(c)));
-        this.coachPage = r >= 0 ? r : 0;
-      }
-      const i = Math.max(0, Math.min(this.coachPage || 0, cards.length - 1));
-      cards.forEach((c, j) => c.classList.toggle('on', j === i));
-      tabs.innerHTML = `<button class="btn sm pg" data-pg="-1" aria-label="前へ">◀</button><span class="pgs">${cards.map((c, j) => `<i data-pj="${j}" class="${j === i ? 'on' : ''}"></i>`).join('')}</span><span class="pgt">${i + 1}/${cards.length}</span><button class="btn sm pg" data-pg="1" aria-label="次へ">▶</button>`;
-      this.fitCoachText(el);
+      const star = cards.findIndex((c) => /★|おすすめ/.test(hd(c)));
+      if (key !== this.coachKey) { this.coachKey = key; this.coachPage = 0; this.coachStar = true; }
+      let i = Math.max(0, Math.min(this.coachPage || 0, cards.length - 1));
+      const show = (from, g) => cards.forEach((c, j) => c.classList.toggle('on', j >= from && j < from + g));
+      const fits = (px) => { el.style.fontSize = px + 'px'; return el.scrollHeight <= el.clientHeight + 1; };
+      const choose = (from) => {
+        for (let g = cards.length - from; g >= 1; g--) { show(from, g); if (fits(13)) return g; }
+        show(from, 1); return 1;
+      };
+      let g = choose(i);
+      // 最初は「おすすめ」カードが見える位置から
+      if (this.coachStar && star >= 0 && !(star >= i && star < i + g)) { i = star; g = choose(i); }
+      this.coachStar = false;
+      this.coachPage = i; this.coachG = g;
+      this.growFont(el);
+      tabs.innerHTML = `<button class="btn sm pg" data-pg="-1" aria-label="前へ">◀</button><span class="pgs">${cards.map((c, j) => `<i data-pj="${j}" class="${j >= i && j < i + g ? 'on' : ''}"></i>`).join('')}</span><span class="pgt">${i + 1}${g > 1 ? '-' + (i + g) : ''}/${cards.length}</span><button class="btn sm pg" data-pg="1" aria-label="次へ">▶</button>`;
     },
-    fitCoachText(el) {
-      el.style.fontSize = '';
-      let px = 14;
+    /* 表示中の内容が枠に収まる最大の文字サイズにする(10〜22px) */
+    growFont(el) {
+      let px = 22;
+      el.style.fontSize = px + 'px';
       while (el.scrollHeight > el.clientHeight + 1 && px > 10) { px -= 0.5; el.style.fontSize = px + 'px'; }
     },
+    fitCoachText(el) { this.growFont(el); },
     goCoachPage(d, abs) {
       const el = $('#coach');
-      const n = el.querySelectorAll(':scope > .cc').length;
-      this.coachPage = abs != null ? abs : (((this.coachPage || 0) + d) % n + n) % n;
+      const n = this.coachCards || 1, g = this.coachG || 1;
+      if (abs != null) this.coachPage = abs;
+      else { let nx = (this.coachPage || 0) + d * g; if (nx >= n) nx = 0; if (nx < 0) nx = Math.max(0, n - g); this.coachPage = nx; }
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
+      this.growFont(el);
     },
 
     /* ---------- 演出 ---------- */

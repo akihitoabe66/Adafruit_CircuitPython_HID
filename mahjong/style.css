@@ -484,3 +484,6 @@ body:not(.desk):not(.land) #btn-coach { display: inline-block; }
 .desk .blocks { height: 100%; }
 .desk .blk { height: 100%; }
 #coach .tileinfo { max-height: none; font-size: 12.5px; padding: 4px 8px; margin-bottom: 6px; }
+.desk #coach > .cc.on, body:not(.desk):not(.land) #coach > .cc.on { flex: 1 0 auto; overflow: visible; margin-bottom: 8px; }
+.desk #coach > .cc.on:last-of-type, .desk #coach > .cc.on:last-child { margin-bottom: 0; }
+#coach > .cc.on { margin-bottom: 8px; }
