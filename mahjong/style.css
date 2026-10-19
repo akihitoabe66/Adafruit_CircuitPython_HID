@@ -679,3 +679,9 @@ select.ac { background: #0b1d18; color: #fff; border: 1px solid #3c7a67; border-
 /* スマホ横持ち(画面が低い)では手牌の下の説明も小さく */
 body.short .tipline, body.short .tipline:empty { font-size: 12px; min-height: 3.4em; max-height: 3.4em; padding: 1px 6px; }
 body.short .tipline .tile { vertical-align: middle; }
+
+/* 吹き出しは捨て牌(河)に重ならないよう、顔・名前の帯の上に出し、半透明にして下が透けるようにする */
+.bubble, .desk .bubble { top: 4px; left: 6px; right: 6px; background: rgba(255, 255, 255, .66); color: #111; pointer-events: none; padding: 5px 10px; box-shadow: 0 2px 8px #0005; backdrop-filter: blur(1px); }
+.desk .bubble { font-size: 16px; padding: 6px 12px; }
+.bubble::after { display: none; }
+.bubble, .desk .bubble { right: auto; max-width: calc(100% - 12px); }
