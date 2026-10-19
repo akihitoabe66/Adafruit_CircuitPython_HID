@@ -84,7 +84,10 @@
       const vs = G.speechSynthesis ? G.speechSynthesis.getVoices().filter((v) => /^ja/i.test(v.lang)) : [];
       const female = /kyoko|o-?ren|haruka|nanami|ayumi|sayaka|mizuki|female|woman|girl/i;
       const male = /otoya|ichiro|hattori|takumi|keita|ken\b|male(?!.*female)|man\b/i;
-      return vs.find((v) => female.test(v.name)) || vs.find((v) => !male.test(v.name)) || vs[0] || null;
+      // 高品質な音声(Enhanced/Premium/Natural/Online/Google)を優先すると、抑揚がずっと自然になる
+      const hq = /enhanced|premium|natural|online|neural|google/i;
+      const fem = vs.filter((v) => female.test(v.name) || (!male.test(v.name) && hq.test(v.name)));
+      return fem.find((v) => hq.test(v.name)) || fem[0] || vs.find((v) => hq.test(v.name) && !male.test(v.name)) || vs.find((v) => !male.test(v.name)) || vs[0] || null;
     },
     hasJaVoice() {
       if (!G.speechSynthesis) return false;
@@ -93,7 +96,7 @@
     },
     speaking() { return !!(G.speechSynthesis && (G.speechSynthesis.speaking || G.speechSynthesis.pending)); },
     stopSpeak() { if (G.speechSynthesis) { S._readId = (S._readId || 0) + 1; G.speechSynthesis.cancel(); } },
-    /* 長い文章は区切って順に読む(iPhoneは長文が途中で止まるため) */
+    /* 読み上げ: 文ごとに区切り、見出しっぽい短文・疑問・文末で声の高さ/速さ/間を変えて抑揚をつける */
     read(text) {
       const syn = G.speechSynthesis;
       if (!syn || !S.hasJaVoice()) return false;
@@ -102,21 +105,29 @@
       const parts = [];
       text.replace(/([。!?\n])/g, '$1|').split('|').forEach((seg) => {
         const t = seg.trim();
-        if (!t) return;
-        let cur = parts.length ? parts[parts.length - 1] : '';
-        if (cur && (cur + t).length <= 90) parts[parts.length - 1] = cur + t; else parts.push(t);
+        if (!t || /^[。!?、\s]+$/.test(t)) return;
+        // 長い文は読点で区切る(息つぎ)
+        if (t.length > 46) t.replace(/([、,])/g, '$1|').split('|').forEach((c) => { c = c.trim(); if (!c) return; const l = parts[parts.length - 1]; if (l && !l.end && (l.t + c).length <= 40) l.t += c; else parts.push({ t: c, end: false }); });
+        else parts.push({ t, end: true });
+        parts[parts.length - 1].end = true;
       });
       const v = S.femaleVoice();
+      const base = v && /enhanced|premium|natural|online|neural|google/i.test(v.name) ? 1.0 : 1.06;
       const speakAt = (i) => {
         if (i >= parts.length || S._readId !== id) return;
-        const u = new SpeechSynthesisUtterance(parts[i]);
+        const { t } = parts[i];
+        const u = new SpeechSynthesisUtterance(t);
         u.lang = 'ja-JP';
         if (v) u.voice = v;
-        u.pitch = v ? 1.08 : 1.3;
-        u.rate = 1.0;
+        const head = t.length <= 14 && i > 0; // 見出し・短い言い切り
+        const q = /[?]$/.test(t) || /でしょうか|ですか$/.test(t);
+        // 文ごとに少しずつ高さと速さをゆらす
+        u.pitch = base + (head ? 0.1 : 0) + (q ? 0.12 : 0) + ((i % 3) - 1) * 0.04;
+        u.rate = (head ? 0.93 : 1.0) + ((i % 2) ? 0.02 : -0.02);
         u.volume = Math.min(1, S.vol + 0.2);
-        u.onend = () => speakAt(i + 1);
-        u.onerror = () => speakAt(i + 1);
+        const next = () => { if (S._readId !== id) return; const gap = head ? 380 : parts[i].end ? 220 : 90; setTimeout(() => speakAt(i + 1), gap); };
+        u.onend = next;
+        u.onerror = next;
         syn.speak(u);
       };
       speakAt(0);

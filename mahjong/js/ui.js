@@ -93,10 +93,14 @@
     textOf(root) {
       const c = root.cloneNode(true);
       c.querySelectorAll('.ch, .rd, button, table.scores, summary, script, style').forEach((n) => n.remove());
-      c.querySelectorAll('img').forEach((i) => i.replaceWith(document.createTextNode(i.alt || '')));
+      // 牌の絵は「名前」を読むが、すぐ後ろに同じ名前の文字がある場合は重複して読まない。牌が4つ以上並ぶ所は最初の3つまで
+      c.querySelectorAll('img').forEach((i) => i.replaceWith(document.createTextNode(i.alt ? `\u0001${i.alt}\u0002` : '')));
       c.querySelectorAll('li, .cc, .cc-h, tr, p, div').forEach((n) => n.append('。'));
       let t = c.textContent;
       const map = [[/萬/g, 'マン'], [/筒/g, 'ピン'], [/索/g, 'ソウ'], [/飜/g, 'ハン'], [/符/g, 'フ'], [/和了/g, 'あがり'], [/牌/g, 'パイ'], [/×/g, 'かける'], [/≒/g, 'およそ'], [/→/g, '、'], [/%/g, 'パーセント'], [/\//g, '、'], [/[★☆✨🎉🛡🚨🔎📘🎯💡⚖🚫🥇🥈🥉]/gu, ''], [/ /g, ' ']];
+      t = t.replace(/\u0001([^\u0002]+)\u0002\s*(\1)/g, '$1'); // 牌の絵+同じ名前の文字
+      t = t.replace(/((?:\u0001[^\u0002]+\u0002[\s、,・]*){3})(?:\u0001[^\u0002]+\u0002[\s、,・]*)+/g, '$1など'); // 長い牌の並び
+      t = t.replace(/[\u0001\u0002]/g, '');
       map.forEach(([r, s]) => { t = t.replace(r, s); });
       return t.replace(/\s+/g, ' ').replace(/。(\s*。)+/g, '。').trim();
     },
