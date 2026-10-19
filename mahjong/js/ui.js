@@ -42,7 +42,20 @@
       $('#opt-one').addEventListener('change', (e) => { this.oneClick = e.target.checked; });
       document.addEventListener('input', (e) => this.onAudioCtl(e));
       document.addEventListener('change', (e) => this.onAudioCtl(e));
+      document.addEventListener('change', (e) => {
+        const r = e.target.closest && e.target.closest('.vpr');
+        if (r) { MJ.SFX.setReadVoice(r.value); this.renderVoices(); MJ.SFX.stopSpeak(); MJ.SFX.read('この声で読み上げます。'); }
+      });
+      this.renderVoices();
+      if (window.speechSynthesis) window.speechSynthesis.addEventListener('voiceschanged', () => this.renderVoices());
       document.addEventListener('click', (e) => {
+        const rf = e.target.closest('[data-readfrom]');
+        if (rf) {
+          const blk = rf.closest('.rfb'), root = blk && blk.parentElement;
+          if (!root) return;
+          if (!MJ.SFX.read(this.textOf(root, blk))) this.toast('この端末には日本語の読み上げ音声がありません');
+          return;
+        }
         const b = e.target.closest('[data-read]');
         if (!b) return;
         const root = b.dataset.read === 'coach' ? $('#coach') : b.dataset.read === 'drill' ? $('#dq-fb') : $('.modal');
@@ -78,6 +91,23 @@
       this.syncAudio(c);
     },
     /* 読み上げ音量を変えたとき、短い見本を読んで確かめられるようにする */
+    /* 読み上げの声の選択(端末にある日本語音声から最大6つ) */
+    renderVoices() {
+      const list = MJ.SFX.voiceList(), cur = MJ.SFX.femaleVoice();
+      document.querySelectorAll('.vp-list').forEach((box, bi) => {
+        if (!list.length) { box.innerHTML = '<span class="cc-s">この端末では選べる声がありません</span>'; return; }
+        box.innerHTML = list.map((v, i) => `<label><input type="radio" class="vpr" name="rv${bi}" value="${v.voiceURI}"${cur && cur.voiceURI === v.voiceURI ? ' checked' : ''}> 声${i + 1}<small>${v.name.replace(/^(Microsoft|Google)\s*/i, '').replace(/\s*\(.*\)$/, '').slice(0, 14)}</small></label>`).join('');
+      });
+    },
+    /* 「ここから読む」ボタンを、読み上げ対象の各ブロックに付ける */
+    addReadFrom(root, kids) {
+      if (!root) return;
+      (kids || [...root.children]).forEach((k) => {
+        if (k.classList.contains('ch') || k.classList.contains('readbar') || k.querySelector(':scope > .rf') || (k.textContent || '').trim().length < 6 || k.tagName === 'BUTTON') return;
+        k.classList.add('rfb');
+        k.insertAdjacentHTML('afterbegin', '<button class="rf rd" data-readfrom title="ここから読み上げ" aria-label="ここから読み上げ">▶</button>');
+      });
+    },
     sampleRead() { if (!MJ.SFX.speaking()) MJ.SFX.read('この大きさで読み上げます。'); },
     syncAudio(except) {
       const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, rvol: MJ.SFX.readVol };
@@ -100,8 +130,9 @@
       clearTimeout(this._tt); this._tt = setTimeout(() => { t.style.display = 'none'; }, 2200);
     },
     /* 画面の文章を読み上げ用テキストにする */
-    textOf(root) {
+    textOf(root, from) {
       const c = root.cloneNode(true);
+      if (from) { const k = [...root.children].indexOf(from); for (let n = 0; n < k; n++) c.children[0].remove(); }
       c.querySelectorAll('.ch, .rd, button, table.scores, summary, script, style').forEach((n) => n.remove());
       // 牌の絵は「名前」を読むが、すぐ後ろに同じ名前の文字がある場合は重複して読まない。牌が4つ以上並ぶ所は最初の3つまで
       c.querySelectorAll('img').forEach((i) => i.replaceWith(document.createTextNode(i.alt ? `\u0001${i.alt}\u0002` : '')));
@@ -385,6 +416,7 @@
       if (this.sel && this.sel.type === 'self' && this.coachActive()) body = '<div class="tileinfo" id="tileinfo"></div>' + body;
       el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><button class="btn sm rd" data-read="coach">🔊 読み上げ</button></div>${body}`;
       MJ.Gloss.decorate(el);
+      this.addReadFrom(el);
     },
 
     /* ---------- 演出 ---------- */
@@ -420,6 +452,7 @@
       o.classList.remove('hidden');
       o.scrollTop = 0;
       MJ.Gloss.decorate(o);
+      this.addReadFrom(o.querySelector('.modal'));
       return o;
     },
     closeOverlay() { $('#overlay').classList.add('hidden'); $('#overlay').innerHTML = ''; },

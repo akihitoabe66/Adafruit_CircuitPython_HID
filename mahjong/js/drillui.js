@@ -161,6 +161,7 @@
       fb.className = `dq-fb ${good ? 'good' : r.r === 'near' ? 'warn' : 'bad'}`;
       fb.innerHTML = `<div class="dq-fh">${head}</div><div id="dq-exp">${r.html}</div><div class="dq-fa"><button class="btn sm rd" data-read="drill">🔊 読み上げ</button><button class="btn pri" id="dq-next">次の問題 ▶</button></div>`;
       MJ.Gloss.decorate(fb);
+      MJ.UI.addReadFrom($('#dq-exp'));
       $('#dq-actions').classList.add('hidden');
       fb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     },

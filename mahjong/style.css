@@ -433,3 +433,13 @@ body.gp-open { overflow: hidden; }
   .cq-plus { font-size: 13px; }
   .cq-why { display: none; }
 }
+
+/* ---- 読み上げ: 声の選択 / ここから読む ---- */
+.vpick { border-top: 1px solid #3c7a67; padding-top: 6px; }
+.vp-t { font-size: 12px; opacity: .8; margin-bottom: 4px; }
+.vp-list { display: grid; gap: 4px; }
+.vp-list label { display: flex; gap: 6px; align-items: center; font-size: 14px; }
+.vp-list small { opacity: .6; font-size: 11px; }
+.rfb { position: relative; }
+.rf { position: absolute; right: 6px; top: 6px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid #3c7a67; background: #0b1d18cc; color: #ffd35a; font-size: 11px; padding: 0; line-height: 1; z-index: 3; }
+.rfb:has(> .rf) { padding-right: 38px; }

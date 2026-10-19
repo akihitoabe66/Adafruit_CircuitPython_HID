@@ -11,6 +11,7 @@
     voiceOn: load('mj_voice', true),
     vol: load('mj_sfxvol2', 0.8),
     readVol: load('mj_readvol', 0.8),
+    readVoice: load('mj_readvoice', ''),
 
     getCtx() { return ctx; },
 
@@ -82,15 +83,20 @@
     /* ---- 読み上げ(女性の声) ---- */
     /* Web Speech API(標準機能)の日本語音声から、女性の声らしいものを選ぶ。
        端末にない場合はブラウザ既定の日本語音声を使う */
-    femaleVoice() {
+    /* 日本語の音声の一覧(女性らしい声・高品質な声を先に) */
+    voiceList() {
       const vs = G.speechSynthesis ? G.speechSynthesis.getVoices().filter((v) => /^ja/i.test(v.lang)) : [];
       const female = /kyoko|o-?ren|haruka|nanami|ayumi|sayaka|mizuki|female|woman|girl/i;
       const male = /otoya|ichiro|hattori|takumi|keita|ken\b|male(?!.*female)|man\b/i;
-      // 高品質な音声(Enhanced/Premium/Natural/Online/Google)を優先すると、抑揚がずっと自然になる
       const hq = /enhanced|premium|natural|online|neural|google/i;
-      const fem = vs.filter((v) => female.test(v.name) || (!male.test(v.name) && hq.test(v.name)));
-      return fem.find((v) => hq.test(v.name)) || fem[0] || vs.find((v) => hq.test(v.name) && !male.test(v.name)) || vs.find((v) => !male.test(v.name)) || vs[0] || null;
+      const score = (v) => (male.test(v.name) ? 0 : 4) + (female.test(v.name) ? 2 : 0) + (hq.test(v.name) ? 1 : 0);
+      return vs.slice().sort((a, b) => score(b) - score(a)).slice(0, 6);
     },
+    femaleVoice() {
+      const list = S.voiceList();
+      return list.find((v) => v.voiceURI === S.readVoice) || list[0] || null;
+    },
+    setReadVoice(uri) { S.readVoice = uri; save('mj_readvoice', uri); },
     hasJaVoice() {
       if (!G.speechSynthesis) return false;
       const all = G.speechSynthesis.getVoices();
@@ -124,8 +130,8 @@
         const head = t.length <= 14 && i > 0; // 見出し・短い言い切り
         const q = /[?]$/.test(t) || /でしょうか|ですか$/.test(t);
         // 文ごとに少しずつ高さと速さをゆらす
-        u.pitch = base + (head ? 0.1 : 0) + (q ? 0.12 : 0) + ((i % 3) - 1) * 0.04;
-        u.rate = (head ? 0.93 : 1.0) + ((i % 2) ? 0.02 : -0.02);
+        u.pitch = base + (head ? 0.06 : 0) + (q ? 0.1 : 0);
+        u.rate = head ? 0.95 : 1.0;
         u.volume = S.readVol;
         const next = () => { if (S._readId !== id) return; const gap = head ? 380 : parts[i].end ? 220 : 90; setTimeout(() => speakAt(i + 1), gap); };
         u.onend = next;
