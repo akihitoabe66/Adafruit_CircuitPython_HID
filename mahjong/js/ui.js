@@ -620,7 +620,14 @@
       this.coachStar = false;
       this.coachPage = i; this.coachG = g;
       this.growFont(el);
-      tabs.innerHTML = `<button class="btn sm pg" data-pg="-1" aria-label="前へ">◀</button><span class="pgs">${cards.map((c, j) => `<i data-pj="${j}" class="${j >= i && j < i + g ? 'on' : ''}"></i>`).join('')}</span><span class="pgt">${i + 1}${g > 1 ? '-' + (i + g) : ''}/${cards.length}</span><button class="btn sm pg" data-pg="1" aria-label="次へ">▶</button>`;
+      tabs.innerHTML = cards.map((c, j) => `<button class="chip${j >= i && j < i + g ? ' on' : ''}" data-pj="${j}" title="${hd(c).replace(/"/g, '')}">${this.shortLabel(hd(c))}</button>`).join('');
+    },
+    /* カードの見出しから、ボタン用のひとこと(短い名前)を作る */
+    shortLabel(h) {
+      const M = [[/どうして/, 'どうして?'], [/安全な牌ランキング/, '安全牌'], [/守備の目線/, '守備'], [/リーチへの警戒/, '警戒'], [/いまはリーチなし/, 'リーチなし'], [/役がありません|形はできている/, '役なし'], [/フリテン/, 'フリテン'], [/リーチ者の捨て牌/, '現物'], [/河を観察/, '河を見る'], [/状況/, '状況'], [/コツ/, 'コツ'], [/狙える役/, '狙う役'], [/打点/, '打点'], [/ロンできます/, 'ロン!'], [/ツモ和了/, 'ツモ!'], [/鳴いた後/, '鳴いた後'], [/ロンされない/, '放銃注意'], [/リーチのチャンス/, 'リーチ!'], [/スジの実例/, 'スジ例'], [/カン/, 'カン'], [/いまの手牌/, '手牌'], [/押す|押し引き/, '押し引き'], [/おすすめ/, 'おすすめ'], [/ポイント/, 'ポイント']];
+      for (const [re, l] of M) if (re.test(h)) return l;
+      const t = h.replace(/^[^\p{L}\p{N}]+/u, '').replace(/[:：]\s*$/, '');
+      return t.length > 7 ? t.slice(0, 7) : t;
     },
     /* 表示中の内容が枠に収まる最大の文字サイズにする(10〜22px) */
     growFont(el) {

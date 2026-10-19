@@ -685,3 +685,9 @@ body.short .tipline .tile { vertical-align: middle; }
 .desk .bubble { font-size: 16px; padding: 6px 12px; }
 .bubble::after { display: none; }
 .bubble, .desk .bubble { right: auto; max-width: calc(100% - 12px); }
+
+/* 助言カードの切り替え: ◀▶ではなく、ひとこと書いたボタン(2段に折り返し) */
+.ctabs { flex-wrap: wrap; gap: 5px; }
+.ctabs .chip { font: inherit; font-size: 13px; font-weight: 800; line-height: 1.2; padding: 4px 10px; border-radius: 999px; border: 1.5px solid #3c7a67; background: #0f3128; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.ctabs .chip.on { background: var(--acc); border-color: var(--acc); color: #2b1a00; }
+.desk .ctabs .chip { font-size: 14px; padding: 5px 12px; }
