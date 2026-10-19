@@ -92,12 +92,15 @@
       <span class="gt" id="g-title"></span>
       <div class="gtools">
         <button class="btn sm" id="btn-hint">💡 ヒント</button>
+        <button class="btn sm" id="btn-danger" title="危険度の表示ON/OFF">⚠ 危険度</button>
+        <button class="btn sm" id="btn-tl" title="切り牌ログ(危険度のタイムライン)">📈 切り牌</button>
         <button class="btn sm" id="btn-coach">🎓 解説</button>
         <button class="btn sm" data-open-gloss title="用語辞典">📚</button>
         <details class="gset"><summary class="btn sm">⚙ 設定</summary>
           <div class="gsetp">
             <label><input type="checkbox" id="opt-reveal"> CPUの手牌を見る</label>
             <label><input type="checkbox" id="opt-one"> ワンクリック打牌</label>
+            <label><input type="checkbox" class="ac" data-audio="danger"> 危険度の表示(◎○△✕・★)</label>
             <div class="audioset">
               <label><input type="checkbox" class="ac" data-audio="bgm"> BGM</label>
               <label class="vol">BGM音量 <input type="range" class="ac" data-audio="vol" min="0" max="1" step="0.05"></label>

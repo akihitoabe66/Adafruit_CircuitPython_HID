@@ -480,6 +480,29 @@
     return `<div class="cc bad"><div class="cc-h">🔎 放銃の振り返り</div><div class="cc-b">あなたが切った${ic(review.t)}${tn(review.t)}は<b>${review.danger.tag}</b>(危険度 約${Math.round(review.danger.score)}%)でした。${sf}<div class="cc-s">${review.danger.why}</div>リーチ者がいる時は「現物 → スジ → 字牌」の順に安全な牌を探す習慣をつけましょう。</div></div>`;
   };
 
+  /* ---------- 危険度の見える化: 記号(◎○△✕)・星・色 ---------- */
+  C.rate = function (score) {
+    const sc = score || 0;
+    const r = sc <= 1 ? { sym: '◎', cls: 'safe', n: 5 } : sc < 4 ? { sym: '○', cls: 'ok', n: 4 } : sc < 8 ? { sym: '△', cls: 'warn', n: 3 } : sc < 13 ? { sym: '✕', cls: 'danger', n: 2 } : { sym: '✕', cls: 'danger', n: 1 };
+    r.stars = '★'.repeat(r.n) + '☆'.repeat(5 - r.n);
+    return r;
+  };
+  /* 自分の切り牌タイムライン。full=false: 対局中に分かる情報(リーチ)だけ / full=true: 振り返り用(ダマテンも含む) */
+  C.timeline = function (log, opt = {}) {
+    const full = !!opt.full;
+    if (!log || !log.length) return '<p class="cc-s">まだ切り牌の記録がありません。</p>';
+    let prev = '';
+    const cells = log.map((e) => {
+      const info = full ? (e.threats && e.threats.length ? { score: e.score, tag: e.tag, names: e.threats.map((x) => `${x.name}${x.riichi ? '(リーチ)' : '(ダマテン)'}`) } : null) : (e.pub ? { score: e.pub.score, tag: e.pub.tag, names: e.pub.opps.map((n) => `${n}(リーチ)`) } : null);
+      const key = info ? info.names.join('、') : '';
+      let mark = '';
+      if (key !== prev) { mark = key ? `<div class="tl-mark">▶ ${key}</div>` : '<div class="tl-mark off">▶ 脅威なし</div>'; prev = key; }
+      const r = info ? C.rate(info.score) : null;
+      return `${mark}<div class="tl-c${r ? ' tl-' + r.cls : ''}${opt.lastHit && e === log[log.length - 1] ? ' tl-hit' : ''}"><div class="tl-n">${e.turn}</div>${ic(e.t)}<div class="tl-s">${r ? r.sym : '—'}</div><div class="tl-st">${r ? r.stars : ''}</div><div class="tl-t">${r ? info.tag.replace(/\(.*\)/, '') : '安全圏'}</div>${e.worse ? '<div class="tl-w" title="この牌で手が後退">↓</div>' : ''}</div>`;
+    }).join('');
+    return `<div class="tl">${cells}</div><div class="tl-legend">◎=ほぼ安全 ○=比較的安全 △=注意 ✕=危険 ／ ★が多いほど安全 ／ ↓=その牌で手が後退</div>`;
+  };
+
   /* ---------- 放銃(ロンされた)の詳しい振り返り ---------- */
   const WAITN = { ryanmen: '両面', kanchan: 'カンチャン(嵌張)', penchan: 'ペンチャン(辺張)', shanpon: 'シャンポン(双碰)', tanki: 'タンキ(単騎)' };
   C.loseReview = function (game, res) {
@@ -517,7 +540,7 @@
         const isLast = e === lr.log[lr.log.length - 1] && e.t === t;
         return `<li>${e.turn}回目: ${ic(e.t)}<b>${tn(e.t)}</b>(${e.tag || '—'}・いちばん危ない相手に対して約${e.score}%)${isLast ? ' ← <b class="bad">この牌でロン</b>' : ''}<br><span class="cc-s">　相手の状況: ${thr}</span>${e.safest && e.safest.t !== e.t ? `<br><span class="cc-s">　安全だった牌: ${ic(e.safest.t)}${tn(e.safest.t)}(${e.safest.tag}・約${e.safest.score}%)</span>` : ''}${e.worse ? `<br><span class="cc-s">　⚠ この牌で手が後退(${e.shBest}→${e.shAfter}シャンテン)</span>` : ''}</li>`;
       }).join('');
-      sec.push(`<div class="rv-h">③ 途中経過: 相手がテンパイしていた間のあなたの切り牌</div><p class="cc-s">(相手の手は対局中は見えません。終わってから分かった情報で記録しています)</p><ul class="cc-ul">${rows}</ul>`);
+      sec.push(`<div class="rv-h">③ 途中経過: 相手がテンパイしていた間のあなたの切り牌</div>${C.timeline(lr.log, { full: true, lastHit: true })}<p class="cc-s">(相手の手は対局中は見えません。終わってから分かった情報で記録しています)</p><ul class="cc-ul">${rows}</ul>`);
     } else {
       sec.push('<div class="rv-h">③ 途中経過</div><p class="cc-s">ロンされる直前までテンパイの形が整っていなかったか、直前にテンパイしたようです。こういうときは、<b>終盤(山が少ない)や、鳴きの後</b>に特に気をつけましょう。</p>');
     }
@@ -550,7 +573,7 @@
         const hit = e.threats.some((x) => x.hit);
         return `<li>残り${e.live}枚: ${ic(e.t)}<b>${tn(e.t)}</b>${e.tag ? `(${e.tag}・危険度 約${e.score}%)` : ''}${hit ? ' <b class="bad">⚠ 実は相手の当たり牌でした(ロンされませんでしたが、運が良かっただけ)</b>' : ''}<br><span class="cc-s">　相手の状況: ${thr}</span>${e.safest && e.safest.t !== e.t && e.score >= 6 ? `<br><span class="cc-s">　安全だった牌: ${ic(e.safest.t)}${tn(e.safest.t)}(${e.safest.tag}・約${e.safest.score}%)</span>` : ''}${e.worse ? `<br><span class="cc-s">　⚠ この牌で手が後退(${e.shBest}→${e.shAfter}シャンテン)</span>` : ''}</li>`;
       }).join('');
-      sec.push(`<div class="rv-h">② 終盤のあなたの切り牌(山が残り16枚=あと4回引けるころから)</div><ul class="cc-ul">${rows}</ul>`);
+      sec.push(`<div class="rv-h">② 終盤のあなたの切り牌(山が残り16枚=あと4回引けるころから)</div>${C.timeline(late, { full: true })}<ul class="cc-ul">${rows}</ul>`);
     }
     const worse = dr.log.filter((e) => e.worse).slice(-3);
     if (worse.length) sec.push(`<div class="rv-h">③ 手が崩れた場面</div><ul class="cc-ul">${worse.map((e) => `<li>${e.turn}回目に ${ic(e.t)}<b>${tn(e.t)}</b>を切って、<b>${e.shBest}シャンテン→${e.shAfter}シャンテン</b>に戻りました。形を残す(または役につながる)牌を切るほうが、テンパイに近づけました。</li>`).join('')}</ul>`);

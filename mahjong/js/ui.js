@@ -27,6 +27,18 @@
       });
       const hl = (ids) => M.querySelectorAll('.hand .tile[data-id]').forEach((tl) => tl.classList.toggle('cand', ids.includes(tl.dataset.id)));
       const allIds = () => [...M.querySelectorAll('.cq-btn[data-ids]')].flatMap((b) => b.dataset.ids.split(','));
+      M.addEventListener('click', (e) => {
+        const dt = e.target.closest('[data-dtab]');
+        if (!dt) return;
+        this.dngTab = dt.dataset.dtab === 'all' ? 'all' : +dt.dataset.dtab;
+        this.render(this.game);
+      });
+      M.addEventListener('mouseout', (e) => {
+        if (e.target.closest('.hand .tile[data-id]') && this.dng) {
+          const pk = this.picked != null ? this.sel && this.sel.p.hand.find((x) => x.id === this.picked) : null;
+          this.hilite(pk ? pk.t : null);
+        }
+      });
       M.addEventListener('mouseover', (e) => {
         const cb = e.target.closest('.cq-btn[data-ids]');
         if (cb) hl(cb.dataset.ids.split(','));
@@ -36,6 +48,8 @@
         const tl = e.target.closest('.hand .tile[data-id]');
         if (tl) this.showInfo(+tl.dataset.id);
       });
+      $('#btn-danger').addEventListener('click', () => this.setDanger(!this.dangerOn));
+      $('#btn-tl').addEventListener('click', () => this.showTimeline());
       $('#btn-coach').addEventListener('click', () => { document.body.classList.toggle('coach-open'); this.fitCoachText($('#coach')); });
       window.addEventListener('resize', () => this.relayout());
       window.addEventListener('orientationchange', () => setTimeout(() => this.relayout(), 250));
@@ -102,6 +116,7 @@
       else if (k === 'voice') MJ.SFX.setVoice(v);
       else if (k === 'banter') MJ.Banter.setOn(v);
       else if (k === 'yakuread') MJ.SFX.setYakuRead(v);
+      else if (k === 'danger') { if (this.game) this.setDanger(v); }
       else if (k === 'orient') { this.orient = v; try { localStorage.setItem('mj_orient', v); } catch (e) { /* ignore */ } this.relayout(); }
       else if (k === 'cvol') { MJ.SFX.setCallVol(v); if (e.type === 'change') MJ.SFX.voice('ポン', { char: { id: 1 } }); }
       else if (k === 'rvol') { MJ.SFX.setReadVol(v); if (e.type === 'change') this.sampleRead(); }
@@ -118,7 +133,7 @@
     },
     /* 「ここから読む」ボタンを、読み上げ対象の各ブロックに付ける */
     addReadFrom(root, kids) {
-      if (!root) return;
+      if (!root || root.querySelector('.tl')) return;
       (kids || [...root.children]).forEach((k) => {
         if (k.classList.contains('ch') || k.classList.contains('ctabs') || k.classList.contains('readbar') || k.querySelector(':scope > .rf') || (k.textContent || '').trim().length < 6 || k.tagName === 'BUTTON') return;
         k.classList.add('rfb');
@@ -127,7 +142,7 @@
     },
     sampleRead() { if (!MJ.SFX.speaking()) MJ.SFX.read('この大きさで読み上げます。'); },
     syncAudio(except) {
-      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, banter: MJ.Banter.on, yakuread: MJ.SFX.yakuRead, orient: this.orient, rvol: MJ.SFX.readVol, cvol: MJ.SFX.callVol };
+      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, banter: MJ.Banter.on, yakuread: MJ.SFX.yakuRead, danger: !!this.dangerOn, orient: this.orient, rvol: MJ.SFX.readVol, cvol: MJ.SFX.callVol };
       const bell = $('#bell');
       if (bell) {
         bell.setAttribute('aria-pressed', String(MJ.Audio.on));
@@ -167,6 +182,10 @@
       this.game = game;
       this.sel = null; this.bubbles = {}; this.adv = null; this.picked = null; this.riichiMode = false; this.reactHtml = '';
       this.hintOn = game.mode !== 'free';
+      // 危険度の表示(◎○△✕・★): 入門・捨て牌・中級は初期ON、フリー対戦は初期OFF(設定で切替、モードごとに記憶)
+      try { const v = localStorage.getItem('mj_danger_' + game.mode); this.dangerOn = v === null ? game.mode !== 'free' : JSON.parse(v); } catch (e) { this.dangerOn = game.mode !== 'free'; }
+      this.dng = null; this.dngTab = 'all'; this.hiType = null;
+      this.syncAudio();
       this.oneClick = game.mode === 'free';
       $('#opt-one').checked = this.oneClick;
       this.reveal = false;
@@ -179,6 +198,13 @@
       document.body.classList.remove('coach-open');
       this.layoutKey = '';
       this.refreshCoach();
+    },
+    setDanger(v) {
+      this.dangerOn = v;
+      try { localStorage.setItem('mj_danger_' + this.game.mode, JSON.stringify(v)); } catch (e) { /* ignore */ }
+      if (this.sel && this.sel.type === 'self') this.buildDanger(this.game, this.sel.p); else { this.dng = null; this.hilite(null); }
+      this.syncAudio();
+      this.render(this.game);
     },
     relayout() { if (this.game) { this.layoutKey = ''; this.render(this.game); } },
     coachActive() { return this.game.mode !== 'free' || this.hintOn; },
@@ -274,6 +300,7 @@
       $('#ginfo').innerHTML = `<span class="kk">${game.kyokuLabel()}</span><span class="myw">あなたは<b>${WINDS[game.seatWindOf(game.players[0])]}家</b>${game.seatWindOf(game.players[0]) === 0 ? '(親)' : ''}</span><span>${game.length === 'single' ? '1局戦' : '東風戦'}</span><span class="doras">ドラ表示 ${doras}</span><span>残り ${game.live.length}枚</span>${game.kyotaku ? `<span>供託 ${game.kyotaku}</span>` : ''}`;
       $('#table').innerHTML = `<div class="blocks">${[3, 2, 1, 0].map((s) => this.block(game, s)).join('')}</div>`;
       $('#mine').innerHTML = this.mineHTML(game);
+      if (this.dng) this.hilite(this.picked != null ? ((game.players[0].hand.find((x) => x.id === this.picked) || {}).t) : this.hiType); 
       this.fitHeight();
     },
 
@@ -300,7 +327,7 @@
       // まだ牌が置かれていない場所に、うっすら枠(影)を出す
       const ghosts = '<div class="gh"></div>'.repeat(Math.max(0, (document.body.classList.contains('desk') ? 24 : 12) - p.discards.length));
       const rev = this.reveal && s !== 0 ? `<div class="hrev">${p.hand.map((h) => MJ.tileHTML(h.t, '', '', h.red)).join('')}</div>` : '';
-      return `<div class="blk${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}">${bub}<div class="strip">${face}<div class="meta"><div class="wb${w === 0 ? ' dl' : ''}"><b>${WINDS[w]}</b>${w === 0 ? '<span>親</span>' : '<span>子</span>'}</div><div class="nm">${p.name}</div><div class="sc">${fmt(p.score)}</div><div class="chips">${chips}</div></div></div>${melds}<div class="river">${river}${ghosts}</div>${rev}</div>`;
+      return `<div class="blk${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}" data-seat="${s}">${bub}<div class="strip">${face}<div class="meta"><div class="wb${w === 0 ? ' dl' : ''}"><b>${WINDS[w]}</b>${w === 0 ? '<span>親</span>' : '<span>子</span>'}</div><div class="nm">${p.name}</div><div class="sc">${fmt(p.score)}</div><div class="chips">${chips}</div></div></div>${melds}<div class="river">${river}${ghosts}</div>${rev}</div>`;
     },
 
     mineHTML(game) {
@@ -322,7 +349,9 @@
           if (this.riichiMode && ok) cls += ' rch-ok';
           if (adv && !this.riichiMode && (adv.recId === h.id || (recT != null && h.t === recT))) cls += ' rec';
           const m = adv && adv.marks[h.id];
-          if (m && m.txt && this.coachActive()) mk = `<span class="mk ${m.cls}">${m.txt}</span>`;
+          const dv = this.dangerView(h.t);
+          if (dv) { cls += ` dgt dg-${dv.cls}`; mk = `<span class="dgb ${dv.cls}">${dv.sym}${({ '現物': '現', 'スジ': 'ス', '字牌': '字', '無スジ': '無', '端牌': '端', 'カベ': '壁', 'ワンチャンス': '1C', '半スジ': '半', '全見え': '見' })[dv.tag.replace(/\(.*\)/, '')] || ''}</span>`; }
+          else if (m && m.txt && this.coachActive()) mk = `<span class="mk ${m.cls}">${m.txt}</span>`;
         }
         if (h === p.drawn) cls += ' drawn';
         if (this.picked === h.id) cls += ' picked';
@@ -331,7 +360,8 @@
       const tip = this.picked && adv && adv.info && this.coachActive() ? adv.info[this.picked] || '' : '';
       const sum = this.sel && this.coachActive() ? this.summary || '' : '';
       const card = cand ? this.callCard(game, rs, cand) : '';
-      return `${card}<div class="hand${this.riichiMode ? ' riichi-mode' : ''}" id="hand">${tiles}</div><div class="tipline" id="tipline">${tip}</div><div class="actrow"><div class="sumline">${sum}</div><div class="actions">${this.actionsHTML(game)}</div></div>`;
+      const dtabs = sel && this.dng && this.dng.opps.length >= 2 ? `<div class="dtabs"><span>危険度の対象:</span><button class="btn sm${this.dngTab === 'all' ? ' on' : ''}" data-dtab="all">全員</button>${this.dng.opps.map((q, i) => `<button class="btn sm${this.dngTab === i ? ' on' : ''}" data-dtab="${i}">${q.name}</button>`).join('')}</div>` : '';
+      return `${card}${dtabs}<div class="hand${this.riichiMode ? ' riichi-mode' : ''}" id="hand">${tiles}</div><div class="tipline" id="tipline">${tip}</div><div class="actrow"><div class="sumline">${sum}</div><div class="actions">${this.actionsHTML(game)}</div></div>`;
     },
 
     /* 鳴ける選択肢ごとに、手牌のどの牌を使うかを求める */
@@ -432,7 +462,7 @@
     },
     finish(act) {
       const s = this.sel;
-      this.sel = null; this.picked = null; this.riichiMode = false; this.adv = null;
+      this.sel = null; this.picked = null; this.riichiMode = false; this.adv = null; this.dng = null; this.hiType = null;
       this.reactHtml = '';
       s.res(act);
       this.render(this.game);
@@ -440,12 +470,70 @@
       this.refreshCoach();
     },
     showInfo(id) {
+      const hh = this.sel && this.sel.type === 'self' ? this.sel.p.hand.find((x) => x.id === id) : null;
+      if (hh && this.dng) {
+        this.hilite(hh.t);
+        const dl = this.dangerLine(hh.t);
+        const base = this.adv && this.adv.info && this.adv.info[id] && this.coachActive() ? `${this.adv.info[id]}<br>` : '';
+        const el0 = $('#tipline'); if (el0) el0.innerHTML = dl;
+        const ti0 = $('#tileinfo'); if (ti0) { ti0.style.display = 'block'; ti0.innerHTML = base + dl; }
+        return;
+      }
       const t = this.adv && this.adv.info && this.adv.info[id];
       if (!t || !this.coachActive()) return;
       const el = $('#tipline');
       if (el) el.innerHTML = t;
       const ti = $('#tileinfo');
       if (ti) { ti.style.display = 'block'; ti.innerHTML = t; }
+    },
+
+    /* ---------- 危険度の見える化(◎○△✕・★・色)/ 河のスジ・現物マップ ---------- */
+    buildDanger(game, p) {
+      this.dng = null;
+      if (!this.dangerOn) return;
+      const an = MJ.AI.analyze(game, p, { know: 2 });
+      if (!an.opps.length) return;
+      this.dng = { an, opps: an.opps };
+      if (this.dngTab !== 'all' && !an.opps[this.dngTab]) this.dngTab = 'all';
+    },
+    dangerView(t) {
+      const d = this.dng;
+      if (!d) return null;
+      const e = d.an.evals.find((x) => x.t === t);
+      if (!e || !e.danger) return null;
+      const one = this.dngTab !== 'all' ? e.dangerBy[this.dngTab] : null;
+      const score = one ? one.score : e.danger.score;
+      const tag = one ? one.tag : e.danger.tag;
+      const why = one ? one.why : e.danger.why;
+      const r = MJ.Coach.rate(score);
+      return { sym: r.sym, cls: r.cls, stars: r.stars, score: Math.round(score), tag, why, who: one ? d.opps[this.dngTab].name : (d.opps.length > 1 ? `${d.opps.length}人のリーチ全体` : d.opps[0].name) };
+    },
+    /* 河の中で「その牌の安全の理由になる牌」を光らせる(同じ牌=現物 / 3つ違い=スジの元) */
+    hilite(t) {
+      this.hiType = t;
+      document.querySelectorAll('#table .river .tile.rel-g, #table .river .tile.rel-s').forEach((x) => x.classList.remove('rel-g', 'rel-s'));
+      if (t == null || !this.dng) return;
+      const seats = (this.dngTab === 'all' ? this.dng.opps : [this.dng.opps[this.dngTab]]).map((q) => q.seat);
+      const bases = [];
+      if (t < 27) { const n = t % 9; if (n >= 3) bases.push(t - 3); if (n <= 5) bases.push(t + 3); }
+      seats.forEach((s) => {
+        document.querySelectorAll(`#table .blk[data-seat="${s}"] .river .tile[data-t]`).forEach((el) => {
+          const x = +el.dataset.t;
+          if (x === t) el.classList.add('rel-g'); else if (bases.includes(x)) el.classList.add('rel-s');
+        });
+      });
+    },
+    dangerLine(t) {
+      const dv = this.dangerView(t);
+      if (!dv) return '';
+      return `<b class="dgl ${dv.cls}">${dv.sym} 安全度 ${dv.stars}</b> (${dv.who}に対して約${dv.score}%・${dv.tag})<br><span class="cc-s">${dv.why}</span>`;
+    },
+    /* 対局中に見られる、自分の切り牌ログ(危険度は対局中に見える情報=リーチだけで判定。相手の手は使わない) */
+    showTimeline() {
+      const g = this.game;
+      const log = (g && g.humanLog) || [];
+      this.overlay(`<h2>📈 この局のあなたの切り牌ログ</h2><p class="cc-s">切った牌と、そのときの危険度です。リーチが入った場面から色が付きます(相手の手牌は使っていないので、対局中でも見られます)。</p>${MJ.Coach.timeline(log, { full: false })}<div class="res-foot"><button class="btn pri" id="tl-close">閉じる</button></div>`);
+      $('#tl-close').addEventListener('click', () => this.closeOverlay());
     },
 
     askSelf(game, p, opts, st) {
@@ -455,6 +543,7 @@
         this.adv = this.coachActive() || game.mode !== 'free' ? MJ.Coach.selfAdvice(game, p, opts, st) : null;
         this.coachHtml = this.adv ? this.adv.html : '';
         this.summary = this.adv ? this.adv.summary || '' : '';
+        this.buildDanger(game, p);
         this.render(game);
         this.refreshCoach();
       });

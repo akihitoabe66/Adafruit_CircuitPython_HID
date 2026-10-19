@@ -281,12 +281,15 @@
       const opps = others.filter((q) => q.riichi);
       // ---- 従来: リーチ者がいるときの放銃用データ ----
       this.humanReview = null;
+      let pub = null; // 対局中に見える情報だけ(リーチ者に対する危険度)
       if (opps.length) {
         const an = MJ.AI.analyze(this, p);
         const e = an.evals.find((x) => x.t === tile.t);
         if (e && e.danger) {
           const safer = MJ.AI.bySafety(an.evals).filter((x) => x.t !== tile.t && x.danger.score < e.danger.score).slice(0, 2);
           this.humanReview = { t: tile.t, danger: e.danger, safer: safer.map((x) => ({ t: x.t, tag: x.danger.tag })), opps: opps.map((q) => q.name), seq: this.seq + 1 };
+          const b0 = MJ.AI.bySafety(an.evals)[0];
+          pub = { opps: opps.map((q) => q.name), tag: e.danger.tag, score: Math.round(e.danger.score), safest: b0 && b0.t !== tile.t ? { t: b0.t, tag: b0.danger.tag, score: Math.round(b0.danger.score) } : null };
         }
       }
       // ---- 振り返り用の記録(リーチなしでも、相手がテンパイ(ダマテン)していたら記録する。後から分かる情報) ----
@@ -315,7 +318,7 @@
         this.humanLog.push({
           t: tile.t, live: this.live.length, turn: this.humanLog.length + 1,
           threats: threats.map((x) => ({ name: x.q.name, riichi: !!x.q.riichi, waits: x.waits.slice(), hit: x.waits.includes(tile.t) })),
-          tag: wt ? wt.tag : '', score: wt ? Math.round(score(tile.t)) : 0, safest, shAfter, shBest: best, worse: shAfter > best,
+          pub, tag: wt ? wt.tag : '', score: wt ? Math.round(score(tile.t)) : 0, safest, shAfter, shBest: best, worse: shAfter > best,
         });
       } catch (e) { /* 記録に失敗しても対局は続ける */ }
     }
