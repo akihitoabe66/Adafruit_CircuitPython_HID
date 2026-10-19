@@ -554,3 +554,17 @@ body:not(.desk):not(.land):not(.coach-open) #coach > .cc.on { margin: 0; }
 #table { overflow: hidden; }
 #mine { position: relative; z-index: 5; }
 .callq { background: linear-gradient(#244f43, #17372f); opacity: 1; }
+
+/* ---- 風(東南西北)の帯ラベル ---- */
+.wb { display: flex; align-items: center; align-self: flex-start; border-radius: 5px; overflow: hidden; font-weight: 900; line-height: 1.35; font-size: 13px; background: #1d3b6e; color: #fff; }
+.wb b { padding: 0 8px; font-size: 1.15em; }
+.wb span { padding: 0 7px; background: #0006; font-size: .85em; }
+.wb.dl { background: #c8262d; }
+.desk .wb { font-size: 15px; }
+.fw, .fwrap { all: unset; }
+/* ---- 縦持ちスマホで横画面レイアウトを90°回して表示 ---- */
+body.on-game { background: radial-gradient(ellipse at 50% 50%, #0d2a23 0%, #040d0c 62%, #010405 100%); }
+body.on-game::before { content: ''; position: fixed; inset: 0; z-index: -1; background: repeating-linear-gradient(135deg, rgba(255,255,255,.025) 0 2px, transparent 2px 14px); pointer-events: none; }
+body.on-game.rot #overlay, body.on-game.rot #gloss-sheet, body.on-game.rot #gloss-panel, body.on-game.rot #toast { inset: auto; left: 0; top: 0; width: var(--vh); height: var(--vw); transform-origin: 0 0; transform: translate(var(--vw), 0) rotate(90deg); }
+body.on-game.rot #toast { width: auto; height: auto; }
+select.ac { background: #0b1d18; color: #fff; border: 1px solid #3c7a67; border-radius: 6px; padding: 3px 6px; font-size: 13px; }

@@ -7,6 +7,7 @@
   const signed = (n) => (n > 0 ? `<span class="plus">+${fmt(n)}</span>` : n < 0 ? `<span class="minus">${fmt(n)}</span>` : '±0');
 
   const UI = (MJ.UI = {
+    orient: (() => { try { return localStorage.getItem('mj_orient') || 'auto'; } catch (e) { return 'auto'; } })(),
     game: null, hintOn: true, oneClick: false, reveal: false, sel: null, bubbles: {}, adv: null, picked: null, riichiMode: false, reactHtml: '', coachHtml: '',
 
     init() {
@@ -93,13 +94,14 @@
     onAudioCtl(e) {
       const c = e.target.closest && e.target.closest('.ac');
       if (!c) return;
-      const k = c.dataset.audio, v = c.type === 'range' ? +c.value : c.checked;
+      const k = c.dataset.audio, v = c.type === 'range' ? +c.value : c.tagName === 'SELECT' ? c.value : c.checked;
       if (k === 'bgm') MJ.Audio.setOn(v);
       else if (k === 'vol') MJ.Audio.setVolume(v);
       else if (k === 'sfx') MJ.SFX.setOn(v);
       else if (k === 'svol') MJ.SFX.setVol(v);
       else if (k === 'voice') MJ.SFX.setVoice(v);
       else if (k === 'banter') MJ.Banter.setOn(v);
+      else if (k === 'orient') { this.orient = v; try { localStorage.setItem('mj_orient', v); } catch (e) { /* ignore */ } this.relayout(); }
       else if (k === 'cvol') { MJ.SFX.setCallVol(v); if (e.type === 'change') MJ.SFX.voice('ポン', { char: { id: 1 } }); }
       else if (k === 'rvol') { MJ.SFX.setReadVol(v); if (e.type === 'change') this.sampleRead(); }
       this.syncAudio(c);
@@ -124,7 +126,7 @@
     },
     sampleRead() { if (!MJ.SFX.speaking()) MJ.SFX.read('この大きさで読み上げます。'); },
     syncAudio(except) {
-      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, banter: MJ.Banter.on, rvol: MJ.SFX.readVol, cvol: MJ.SFX.callVol };
+      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, banter: MJ.Banter.on, orient: this.orient, rvol: MJ.SFX.readVol, cvol: MJ.SFX.callVol };
       const bell = $('#bell');
       if (bell) {
         bell.setAttribute('aria-pressed', String(MJ.Audio.on));
@@ -134,7 +136,7 @@
       document.querySelectorAll('.ac').forEach((c) => {
         if (c === except) return;
         const v = val[c.dataset.audio];
-        if (c.type === 'range') c.value = v; else c.checked = v;
+        if (c.type === 'range' || c.tagName === 'SELECT') c.value = v; else c.checked = v;
       });
     },
     toast(msg) {
@@ -186,8 +188,12 @@
     fitStage() {
       const el = $('#screen-game');
       if (!el || el.classList.contains('hidden')) return;
-      const W = window.innerWidth, H = window.innerHeight;
+      let W = window.innerWidth, H = window.innerHeight;
       const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      // 縦持ちのスマホでも横画面レイアウトを90°回して表示する(設定で縦のままにもできる)
+      const rot = H > W && this.orient !== 'portrait';
+      const RW = W, RH = H; // 実際の画面サイズ
+      if (rot) { W = RH; H = RW; }
       let sw, sh, sc = 1;
       if (W >= H) {
         const asp = clamp(W / H, 16 / 9, 19.5 / 9);
@@ -200,7 +206,10 @@
       const ox = Math.round((W - sw * sc) / 2), oy = Math.round((H - sh * sc) / 2);
       el.style.width = sw + 'px';
       el.style.height = sh + 'px';
-      el.style.transform = `translate(${ox}px, ${oy}px) scale(${sc})`;
+      el.style.transform = rot ? `translate(${RW}px, 0) rotate(90deg) translate(${ox}px, ${oy}px) scale(${sc})` : `translate(${ox}px, ${oy}px) scale(${sc})`;
+      document.body.classList.toggle('rot', rot);
+      const rs = document.documentElement.style;
+      rs.setProperty('--vw', RW + 'px'); rs.setProperty('--vh', RH + 'px');
       if (!this.stage || this.stage.w !== sw || this.stage.h !== sh) this.layoutKey = '';
       this.stage = { w: sw, h: sh, sc };
     },
@@ -283,14 +292,14 @@
       const bub = b && b.until > Date.now() ? `<div class="bubble${b.shown ? ' still' : ''}">${b.text}</div>` : '';
       if (b) b.shown = true; // 再描画のたびにアニメーションをやり直さない(ちらつき防止)
       const face0 = ch.img ? `<img class="face${s === 0 ? ' you' : ''}" src="${ch.img}" alt="">` : '<div class="face me">🀄</div>';
-      const face = `<div class="fwrap">${face0}<span class="fw${w === 0 ? ' dl' : ''}" title="${WINDS[w]}家${w === 0 ? '(親)' : ''}">${WINDS[w]}</span></div>`;
-      const chips = `<span class="chip ${w === 0 ? 'dealer' : ''}">${WINDS[w]}${w === 0 ? '親' : ''}</span>${p.riichi ? '<span class="chip r">リーチ</span>' : ''}${ch.level ? `<span class="chip lv">${MJ.LEVEL_JP[ch.level]}</span>` : ''}`;
+      const face = face0;
+      const chips = `${p.riichi ? '<span class="chip r">リーチ</span>' : ''}${ch.level ? `<span class="chip lv">${MJ.LEVEL_JP[ch.level]}</span>` : ''}`;
       const melds = p.melds.length ? `<div class="melds">${p.melds.map((m) => this.meldHTML(m)).join('')}</div>` : '';
       const river = p.discards.map((d) => MJ.tileHTML(d.tile.t, `${d.called ? 'called' : ''}${d.riichi ? ' rch' : ''}${game.lastDiscard && game.lastDiscard.d === d && !d.called ? ' hl' : ''}`, '', d.tile.red)).join('');
       // まだ牌が置かれていない場所に、うっすら枠(影)を出す
       const ghosts = '<div class="gh"></div>'.repeat(Math.max(0, (document.body.classList.contains('desk') ? 24 : 12) - p.discards.length));
       const rev = this.reveal && s !== 0 ? `<div class="hrev">${p.hand.map((h) => MJ.tileHTML(h.t, '', '', h.red)).join('')}</div>` : '';
-      return `<div class="blk${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}">${bub}<div class="strip">${face}<div class="meta"><div class="nm">${p.name}</div><div class="sc">${fmt(p.score)}</div><div class="chips">${chips}</div></div></div>${melds}<div class="river">${river}${ghosts}</div>${rev}</div>`;
+      return `<div class="blk${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}">${bub}<div class="strip">${face}<div class="meta"><div class="wb${w === 0 ? ' dl' : ''}"><b>${WINDS[w]}</b>${w === 0 ? '<span>親</span>' : '<span>子</span>'}</div><div class="nm">${p.name}</div><div class="sc">${fmt(p.score)}</div><div class="chips">${chips}</div></div></div>${melds}<div class="river">${river}${ghosts}</div>${rev}</div>`;
     },
 
     mineHTML(game) {
