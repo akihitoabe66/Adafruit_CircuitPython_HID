@@ -8,7 +8,7 @@
 
   const UI = (MJ.UI = {
     orient: (() => { try { return localStorage.getItem('mj_orient') || 'auto'; } catch (e) { return 'auto'; } })(),
-    game: null, hintOn: true, oneClick: false, reveal: false, sel: null, bubbles: {}, adv: null, picked: null, riichiMode: false, reactHtml: '', coachHtml: '',
+    dangerSym: (() => { try { return JSON.parse(localStorage.getItem('mj_dsym')) === true; } catch (e) { return false; } })(), game: null, hintOn: true, oneClick: false, reveal: false, sel: null, bubbles: {}, adv: null, picked: null, riichiMode: false, reactHtml: '', coachHtml: '',
 
     init() {
       const T = $('#table');
@@ -56,6 +56,7 @@
       $('#opt-reveal').addEventListener('change', (e) => { this.reveal = e.target.checked; document.body.classList.toggle('reveal-on', this.reveal); if (this.game) this.render(this.game); });
       $('#btn-peek').addEventListener('click', () => this.showPeek());
       $('#opt-one').addEventListener('change', (e) => { this.oneClick = e.target.checked; });
+      $('#opt-dsym').checked = this.dangerSym; $('#opt-dsym').addEventListener('change', (e) => { this.dangerSym = e.target.checked; try { localStorage.setItem('mj_dsym', JSON.stringify(this.dangerSym)); } catch (x) { /* ignore */ } if (this.game) this.render(this.game); });
       document.addEventListener('input', (e) => this.onAudioCtl(e));
       document.addEventListener('change', (e) => this.onAudioCtl(e));
       document.addEventListener('change', (e) => {
@@ -375,14 +376,14 @@
         if (h === p.drawn) cls += ' drawn';
         if (this.picked === h.id) cls += ' picked';
         const dv0 = sel && this.dng ? this.dangerView(h.t) : null;
-        const chip = dv0 ? `<span class="dgc ${dv0.cls}${dv0.hyp ? ' hyp' : ''}">${dv0.sym}</span>` : '';
+        const chip = dv0 ? (this.dangerSym ? `<span class="dgc ${dv0.cls}${dv0.hyp ? ' hyp' : ''}">${dv0.sym}</span>` : `<span class="dgc tg ${dv0.cls}${dv0.hyp ? ' hyp' : ''}">${this.tagShort(dv0.tag)}</span>`) : '';
         if (dv0) cls += ` dgt dg-${dv0.cls}`;
         const isDora = game.doraInd.some((d) => MJ.doraOf(d.t) === h.t);
         const badge = `${isDora ? '<span class="bg dr">ドラ</span>' : ''}${h.red ? '<span class="bg ak">赤</span>' : ''}`;
         return `<div class="tile${cls}${h.red ? ' aka' : ''}${isDora ? ' isdora' : ''}" data-id="${h.id}" data-t="${h.t}">${MJ.tileSVG(h.t)}${chip}${mk}${badge}</div>`;
       }).join('') + (p.drawn ? '' : '<div class="tile drawn ph"></div>'); // 引いた牌の場所を常に確保(牌の数が変わっても手牌が左右にずれない)
       let tip = this.picked && adv && adv.info && this.coachActive() ? adv.info[this.picked] || '' : '';
-      if (!tip && this.dng && sel) tip = `<span class="dglg">左上の印: <b class="dgl safe">◎</b>ほぼ安全 <b class="dgl ok">○</b>比較的安全 <b class="dgl warn">△</b>注意 <b class="dgl danger">✕</b>危険${this.dng.hyp ? ' <span class="cc-s">(いまはリーチなし。「もし全員がリーチしていたら」の目安)</span>' : ''}</span>`;
+      if (!tip && this.dng && sel) tip = this.dangerSym ? `<span class="dglg">左上の印: <b class="dgl safe">◎</b>ほぼ安全 <b class="dgl ok">○</b>比較的安全 <b class="dgl warn">△</b>注意 <b class="dgl danger">✕</b>危険${this.dng.hyp ? ' <span class="cc-s">(いまはリーチなし。「もし全員がリーチしていたら」の目安)</span>' : ''}</span>` : `<span class="dglg">左上の印: <b class="dgl safe">現物</b>100%安全 <b class="dgl safe">スジ</b>安全 <b class="dgl ok">半スジ</b>少し安全 <b class="dgl warn">無スジ</b>注意 ${this.dng.hyp ? ' <span class="cc-s">(いまはリーチなし。「もし全員がリーチしていたら」の目安)</span>' : ''}</span>`;
       const sum = this.sel && this.coachActive() ? this.summary || '' : '';
       const card = cand ? this.callCard(game, rs, cand) : '';
       const dtabs = sel && this.dng && this.dng.opps.length >= 2 ? `<div class="dtabs"><span>危険度の対象:</span><button class="btn sm${this.dngTab === 'all' ? ' on' : ''}" data-dtab="all">全員</button>${this.dng.opps.map((q, i) => `<button class="btn sm${this.dngTab === i ? ' on' : ''}" data-dtab="${i}">${q.name}</button>`).join('')}</div>` : '';
@@ -541,6 +542,17 @@
       [...new Set(p.hand.map((h) => h.t))].forEach((t) => { map[t] = opps.map((q) => A.danger1(game, vis, t, q, A.safeSet(game, q), 2)); });
       this.dng = { opps, hyp: !rii.length, map };
       if (this.dngTab !== 'all' && !opps[this.dngTab]) this.dngTab = 'all';
+    },
+    /* 危険度の印は、初期設定では「現物/スジ/半スジ/無スジ」など言葉で出す(設定で◎○△✕に切替) */
+    tagShort(tag) {
+      if (/^現物/.test(tag)) return '現物';
+      if (/^全見え/.test(tag)) return '全見え';
+      if (/^字牌/.test(tag)) return '字牌';
+      if (/^スジ/.test(tag)) return 'スジ';
+      if (/^半スジ/.test(tag)) return '半スジ';
+      if (/^カベ/.test(tag)) return 'カベ';
+      if (/^ワンチャンス/.test(tag)) return 'ワンC';
+      return '無スジ';
     },
     dangerView(t) {
       const d = this.dng;

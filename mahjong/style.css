@@ -859,3 +859,6 @@ body.short .win-hand { flex-wrap: wrap; }
 /* ---- おすすめ牌: ★に加えて、少し持ち上げて目立たせる(練習モードで「切る牌」が一目で分かるように) ---- */
 .hand .tile.rec { transform: translateY(-10px); }
 .hand .tile.rec.picked, .hand .tile.rec.ok:hover { transform: translateY(-16px); }
+
+/* 危険度の印を言葉で表示(現物・スジ・半スジ・無スジ) */
+.dgc.tg { font-size: max(8px, calc(var(--hw) * .24)); padding: 0 3px; white-space: nowrap; height: auto; min-height: calc(var(--hw) * .34); }
