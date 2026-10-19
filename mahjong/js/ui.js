@@ -625,8 +625,12 @@
     /* 表示中の内容が枠に収まる最大の文字サイズにする(10〜22px) */
     growFont(el) {
       let px = 17;
+      el.classList.remove('tight'); el.style.overflowY = '';
       el.style.fontSize = px + 'px';
-      while (el.scrollHeight > el.clientHeight + 1 && px > 10) { px -= 0.5; el.style.fontSize = px + 'px'; }
+      const over = () => el.scrollHeight > el.clientHeight + 1;
+      while (over() && px > 10) { px -= 0.5; el.style.fontSize = px + 'px'; }
+      // 1枚のカードでも収まらないときは補足(小さい注釈)を省き、それでも駄目なときだけスクロールできるようにする(文字は切らない)
+      if (over()) { el.classList.add('tight'); if (over()) el.style.overflowY = 'auto'; }
     },
     fitCoachText(el) { this.growFont(el); },
     /* 手牌の下の説明が枠からはみ出さないよう、文字サイズを下げて収める */

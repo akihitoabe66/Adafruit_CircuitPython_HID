@@ -673,3 +673,9 @@ select.ac { background: #0b1d18; color: #fff; border: 1px solid #3c7a67; border-
 /* 手牌の下=短い要約 / 右パネル=詳しい比較(内容が重ならないように) */
 #coach .tileinfo { height: auto; min-height: 4.6em; max-height: 9.5em; overflow: hidden; }
 .tipline .cmp { color: #ffe9a0; }
+
+/* 収まらないときは小さい注釈を省く */
+#coach.tight .cc-s, #coach.tight .cc-ul + .cc-s { display: none; }
+/* スマホ横持ち(画面が低い)では手牌の下の説明も小さく */
+body.short .tipline, body.short .tipline:empty { font-size: 12px; min-height: 3.4em; max-height: 3.4em; padding: 1px 6px; }
+body.short .tipline .tile { vertical-align: middle; }
