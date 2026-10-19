@@ -637,3 +637,9 @@ select.ac { background: #0b1d18; color: #fff; border: 1px solid #3c7a67; border-
 .expl-h { font-weight: 900; color: var(--acc); margin: 4px 0; }
 .expl-ol { margin: 4px 0 10px; padding-left: 22px; line-height: 1.6; }
 #overlay { grid-template-rows: minmax(0, 1fr); }
+
+/* おすすめ牌(★)を目立たせる: 鳴いたあと・白(無地)の牌でも分かるよう、金の枠と大きな★バッジ */
+.hand .tile.rec { box-shadow: 0 0 0 3px var(--acc), 0 0 14px 3px rgba(255, 210, 74, .75); z-index: 1; }
+.hand .tile.rec::before { content: '★'; top: -22px; font-size: 18px; line-height: 1; padding: 1px 6px; border-radius: 9px; background: #1d1600; border: 1px solid var(--acc); text-shadow: none; z-index: 3; }
+.hand .tile.rec .mk { bottom: calc(100% + 22px); }
+.hand { padding-top: 24px; }
