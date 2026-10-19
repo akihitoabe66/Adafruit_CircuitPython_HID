@@ -205,7 +205,8 @@
     MJ.UI.init();
     MJ.DrillUI.init();
     // 最初の操作でBGMを開始。iPhoneは pointerdown/touchstart では許可されないため、指を離した時(touchend/click)でも毎回試す
-    const unlock = () => { MJ.SFX.unlock(); MJ.Audio.resume(); };
+    let spk = false;
+    const unlock = () => { MJ.SFX.unlock(); MJ.Audio.resume(); if (!spk && window.speechSynthesis && window.SpeechSynthesisUtterance && /^(click|touchend|keydown)$/.test(event.type)) { spk = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); } catch (e) {} } }; // 読み上げの音声を最初のタップで有効にする(CPU同士の結果でも読めるように)
     ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((ev) => document.addEventListener(ev, unlock, { capture: true, passive: true }));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) MJ.Audio.resume(); });
     document.addEventListener('click', (e) => {

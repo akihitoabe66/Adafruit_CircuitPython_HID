@@ -150,7 +150,7 @@
         u.onerror = next;
         syn.speak(u);
       };
-      speakAt(0);
+      setTimeout(() => { if (S._readId === id) speakAt(0); }, 80); // iOSは cancel 直後の speak を捨てることがあるため少し待つ
       return true;
     },
 
