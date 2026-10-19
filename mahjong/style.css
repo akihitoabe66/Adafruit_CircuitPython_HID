@@ -862,3 +862,43 @@ body.short .win-hand { flex-wrap: wrap; }
 
 /* 危険度の印を言葉で表示(現物・スジ・半スジ・無スジ) */
 .dgc.tg { font-size: max(8px, calc(var(--hw) * .24)); padding: 0 3px; white-space: nowrap; height: auto; min-height: calc(var(--hw) * .34); }
+
+/* ---- 小さすぎた文字を読める大きさに(スマホでは盤面が縮小表示されるので、実寸で12px未満にしない) ---- */
+.tl-n { font-size: 13px; } .tl-st { font-size: 13px; } .tl-t { font-size: 13px; max-width: 72px; } .tl-s { font-size: 22px; } .tl-mark { font-size: 14px; }
+.tl-w { font-size: 14px; } .tl-c { min-width: 64px; padding: 5px 7px; } .tl-legend { font-size: 13px; line-height: 1.5; }
+.mode-card .badge, .gs-cat, .gs-note, .gp-c, .vp-list small, .cfm-c span, .actions .dtabs span, .sel-bar .slot .ss { font-size: 13px; }
+body.rot .callq::before, body.short .callq::before { font-size: 13px; top: -13px; }
+.sel-bar .slot .sx { font-size: 13px; width: 22px; height: 22px; }
+body:not(.desk):not(.land) #coach::after { font-size: 12px; }
+#overlay .modal .cc-s, #overlay .modal small { font-size: max(13px, .85em); }
+.cc-s, .gp-y, .gp-hit, .gx-lab, .vp-t, .pgt, .char .cl, .sel-rsum, .cfm .sub, .actions .dtabs .btn.sm { font-size: 13px; }
+.cq-btn small, .callq .cq-why, .cq-why { font-size: 13px; }
+
+/* ---- リーチできるときは、いちばん目立つボタンにする ---- */
+.actions .b-riichi { font-size: 20px; font-weight: 900; padding: 10px 22px; min-height: 48px; border-width: 2px; box-shadow: 0 0 0 3px #ffd35a, 0 0 18px 4px #ff5b8a; animation: rchpulse 1s ease-in-out infinite; letter-spacing: .04em; }
+.actions .b-riichi:active { transform: scale(.96); }
+@keyframes rchpulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 3px #ffd35a, 0 0 12px 2px #ff5b8a; } 50% { transform: scale(1.07); box-shadow: 0 0 0 4px #fff3a0, 0 0 26px 8px #ff5b8a; } }
+.rch-hint { color: #ffd35a; font-size: 15px; }
+body.short .actions .b-riichi { font-size: 18px; padding: 8px 18px; min-height: 44px; }
+
+/* ---- 流局の結果ページ: 大きな「流局」と4人の顔 ---- */
+.dr-big { font-size: clamp(44px, 9vw, 72px); font-weight: 900; text-align: center; color: #ffd35a; letter-spacing: .3em; padding-left: .3em; line-height: 1.1; text-shadow: 0 3px 0 #0008, 0 0 24px #ffd35a66; }
+.dr-sub { text-align: center; color: var(--mute); font-size: 14px; margin: 2px 0 8px; }
+.dr-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.dr-p { background: #0b241e; border: 2px solid #3c7a67; border-radius: 12px; padding: 6px 4px; text-align: center; min-width: 0; }
+.dr-p.tp { border-color: #ffd35a; background: #12342a; }
+.dr-face { width: 100%; max-width: 110px; aspect-ratio: 1/1; object-fit: cover; object-position: center top; border-radius: 10px; display: block; margin: 0 auto; }
+.dr-me { display: grid; place-items: center; font-size: 36px; background: #0007; }
+.dr-n { font-weight: 800; font-size: 15px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dr-s { display: inline-block; font-size: 14px; font-weight: 900; border-radius: 99px; padding: 1px 10px; margin: 2px 0; }
+.dr-s.tp { background: #ffd35a; color: #2b1a00; } .dr-s.no { background: #2a3a36; color: var(--mute); }
+.dr-d { font-size: 16px; font-weight: 900; } .dr-d.up { color: #6be39a; } .dr-d.dn { color: #ff8a80; }
+.dr-h { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; margin-top: 4px; }
+.dr-note { font-size: 14px; margin: 8px 0 4px; }
+body.short .dr-big { font-size: 40px; } body.short .dr-face { max-width: 64px; } body.short .dr-sub { margin: 0 0 4px; }
+body.short .dr-h { display: none; }
+.dr-t { font-size: 14px; color: var(--mute); }
+body.short .dr-note, body.short .dr-tbl { display: none; }
+/* リーチボタンが出ても手牌がずれないよう、操作ボタンの行は常に同じ高さを確保する */
+.actions { min-height: 52px; align-items: center; }
+body.short .actions { min-height: 48px; }

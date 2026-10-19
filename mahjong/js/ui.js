@@ -459,10 +459,10 @@
         const o = s.opts;
         let h = '';
         if (o.tsumo) h += btn('b-tsumo', 'tsumo', 'ツモ!');
-        if (o.riichi.length) h += btn('b-riichi', 'riichi', this.riichiMode ? 'リーチ取消' : 'リーチ');
+        if (o.riichi.length) h += btn('b-riichi', 'riichi', this.riichiMode ? 'リーチ取消' : '🔥 リーチできる!');
         for (const t of o.ankan) h += btn('b-call', 'ankan', `カン(${MJ.tileName(t)})`, `data-t="${t}"`);
         for (const t of o.kakan) h += btn('b-call', 'kakan', `加槓(${MJ.tileName(t)})`, `data-t="${t}"`);
-        let msg = s.p.riichi ? 'リーチ中: ツモ切りです(牌をクリック)' : s.st.afterCall ? '鳴いたので1枚切ります(暗い牌は食い替え禁止)' : this.riichiMode ? '赤枠の牌を切るとリーチ成立' : this.oneClick ? '切る牌をクリック' : '切る牌を選んで、もう一度クリックで捨てる';
+        let msg = !s.p.riichi && o.riichi.length && !this.riichiMode ? '<b class="rch-hint">テンパイ!リーチを宣言できます</b>' : s.p.riichi ? 'リーチ中: ツモ切りです(牌をクリック)' : s.st.afterCall ? '鳴いたので1枚切ります(暗い牌は食い替え禁止)' : this.riichiMode ? '赤枠の牌を切るとリーチ成立' : this.oneClick ? '切る牌をクリック' : '切る牌を選んで、もう一度クリックで捨てる';
         h += `<span class="msg">${msg}</span>`;
         return h;
       }
@@ -808,11 +808,34 @@
       });
       const pages = [];
       // 見出しごとの大きさ(文字数+図の分)を見積もって、1ページに収まる分だけまとめる
-      const weight = (g) => { const t = document.createElement('div'); t.innerHTML = g.join(''); return t.textContent.length + (t.querySelector('.tl') ? 380 : 0); };
-      const cap = document.body.classList.contains('short') ? 300 : 640; // スマホ横は画面が低いので、1ページに入れる量を減らす
+      const wOf = (html) => { const t = document.createElement('div'); t.innerHTML = html; return t.textContent.length + (t.querySelector('.tl') ? 300 : 0) + (t.querySelectorAll('.tile,svg').length ? 12 : 0); };
+      const weight = (g) => g.reduce((s, h) => s + wOf(h), 0);
+      const cap = document.body.classList.contains('short') ? 230 : 560; // スマホ横は画面が低いので、1ページに入れる量を減らす(文字を小さくしないため)
+      // 1つの見出しが長すぎるときは、中の段落・箇条書きの項目ごとに分けて、続きのページに回す
+      const exploded = [];
+      groups.forEach((g) => {
+        if (weight(g) <= cap) { exploded.push(g); return; }
+        let cur = [];
+        const flush = () => { if (cur.length) { exploded.push(cur); cur = []; } };
+        g.forEach((h) => {
+          const t = document.createElement('div'); t.innerHTML = h;
+          const el = t.firstElementChild;
+          if (el && /^(UL|OL)$/.test(el.tagName) && t.children.length === 1 && wOf(h) > cap / 2) {
+            [...el.children].forEach((li) => {
+              const piece = `<${el.tagName.toLowerCase()} class="${el.className}">${li.outerHTML}</${el.tagName.toLowerCase()}>`;
+              if (cur.length && weight(cur) + wOf(piece) > cap) flush();
+              cur.push(piece);
+            });
+          } else {
+            if (cur.length && weight(cur) + wOf(h) > cap) flush();
+            cur.push(h);
+          }
+        });
+        flush();
+      });
       const chunks = [];
       let curC = [], w = 0;
-      groups.forEach((g) => { const gw = weight(g); if (curC.length && w + gw > cap) { chunks.push(curC); curC = []; w = 0; } curC.push(g); w += gw; });
+      exploded.forEach((g) => { const gw = weight(g); if (curC.length && w + gw > cap) { chunks.push(curC); curC = []; w = 0; } curC.push(g); w += gw; });
       if (curC.length) chunks.push(curC);
       chunks.forEach((c) => { if (c.length) pages.push(`<div class="${card.className}">${head}<div class="cc-b">${c.map((g) => g.join('')).join('')}</div></div>`); });
       return pages;
@@ -837,8 +860,8 @@
         pg.style.fontSize = '';
         let fpx = parseFloat(getComputedStyle(pg).fontSize) || 16;
         const fover = () => pg.scrollHeight > body.clientHeight + 1;
-        while (fover() && fpx > 9) { fpx -= 0.5; pg.style.fontSize = fpx + 'px'; }
-        if (fover()) { pg.style.zoom = String(Math.max(0.55, (body.clientHeight - 2) / Math.max(1, pg.scrollHeight))); }
+        while (fover() && fpx > 13) { fpx -= 0.5; pg.style.fontSize = fpx + 'px'; }
+        if (fover()) { pg.style.overflowY = 'auto'; pg.style.maxHeight = body.clientHeight + 'px'; } // これ以上は小さくせず、はみ出す分はその場でスクロール
         MJ.SFX.stopSpeak();
       };
       modal.querySelector('#pm-prev').addEventListener('click', () => show(cur - 1));
@@ -856,8 +879,13 @@
           const rv = res.loseReview ? MJ.Coach.loseReview(game, res) : res.review ? MJ.Coach.reviewText(res.review) : '';
           if (rv) this.splitReview(rv).forEach((h, i, a) => pages.push({ t: `振り返り`, html: h, rv: true }));
         } else {
-          const tp = res.tenpai.map((t, i) => `<tr><td>${game.players[i].name}</td><td>${t ? '<b class="good">テンパイ</b>' : 'ノーテン'}</td><td>${res.tenpai[i] ? res.hands[i].concealed.map((h) => MJ.tileHTML(h.t, 't-s')).join('') : ''}</td></tr>`).join('');
-          pages.push({ t: '流局', html: `<h2>${game.kyokuLabel()} 流局</h2><p>山の牌がなくなりました(荒牌平局)。テンパイ者がノーテン者から3000点を受け取ります。</p><table class="scores">${tp}</table>${this.scoreTable(game, res)}` });
+          const cards = res.tenpai.map((t, i) => {
+            const p = game.players[i], ch = p.char || {};
+            const face = ch.img ? `<img class="dr-face" src="${ch.img}" alt="">` : '<div class="dr-face dr-me">🀄</div>';
+            const d = res.delta[i];
+            return `<div class="dr-p${t ? ' tp' : ''}">${face}<div class="dr-n">${p.name}</div><div class="dr-s ${t ? 'tp' : 'no'}">${t ? 'テンパイ' : 'ノーテン'}</div><div class="dr-d ${d > 0 ? 'up' : d < 0 ? 'dn' : ''}">${d ? (d > 0 ? '+' : '') + d.toLocaleString() : '±0'}</div><div class="dr-t">${fmt(res.after[i])}点</div>${t ? `<div class="dr-h">${res.hands[i].concealed.map((h) => MJ.tileHTML(h.t, 't-s')).join('')}</div>` : ''}</div>`;
+          }).join('');
+          pages.push({ t: '流局', html: `<div class="dr-big">流局</div><div class="dr-sub">${game.kyokuLabel()} ／ 山の牌がなくなりました(荒牌平局)</div><div class="dr-row">${cards}</div><p class="dr-note">テンパイの人がノーテンの人から合計3000点を受け取ります。</p><div class="dr-tbl">${this.scoreTable(game, res)}</div>` });
           if (res.drawReview) this.splitReview(MJ.Coach.drawReview(game, res)).forEach((h) => pages.push({ t: '流局の振り返り', html: h, rv: true }));
         }
         if (res.type === 'win') MJ.SFX.play(res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'win');
