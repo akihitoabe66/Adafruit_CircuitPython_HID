@@ -67,9 +67,19 @@
       }).join('');
       $('#sel-bar').innerHTML = [0, 1, 2].map((i) => {
         const c = MJ.CHARS.find((x) => x.id === this.picks[i]);
-        return `<div class="slot">${c ? `<img src="${c.img}">` : `相手${i + 1}`}</div>`;
+        return c
+          ? `<button class="slot on" data-id="${c.id}" title="タップで外す"><img src="${c.img}" alt=""><span class="sn">${c.name.replace(/\(.*$/, '')}</span><span class="ss">${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)}</span><span class="sx">✕</span></button>`
+          : `<div class="slot"><span class="sq">?</span><span class="sn">相手${i + 1}</span></div>`;
       }).join('');
-      document.querySelectorAll('.sel-start').forEach((b) => { b.disabled = this.picks.length !== 3; });
+      $('#sel-n').textContent = this.picks.length;
+    },
+    /* 3人そろったら、画面の中央に「対局開始 / キャンセル」の確認を出す(3人選ぶまで開始できない) */
+    confirmStart() {
+      if (this.picks.length !== 3) return;
+      const cs = this.picks.map((id) => MJ.CHARS.find((c) => c.id === id));
+      MJ.UI.overlay(`<div class="cfm"><h2>この3人と対戦しますか?</h2><div class="cfm-row">${cs.map((c) => `<div class="cfm-c"><img src="${c.img}" alt=""><b>${c.name.replace(/\(.*$/, '')}</b><span>${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)} ${MJ.LEVEL_JP[c.level]}</span></div>`).join('')}</div><p class="sub">${MJ.rulesSummary()}</p><div class="cfm-btns"><button class="btn big" id="cfm-cancel">キャンセル</button><button class="btn pri big" id="cfm-go">対局開始</button></div></div>`, { plain: true });
+      document.querySelector('#cfm-cancel').addEventListener('click', () => MJ.UI.closeOverlay());
+      document.querySelector('#cfm-go').addEventListener('click', () => { MJ.UI.closeOverlay(); this.start(); });
     },
     pickChar(id) {
       const i = this.picks.indexOf(id);
@@ -79,6 +89,7 @@
       const c = MJ.CHARS.find((x) => x.id === id);
       $('#char-detail').innerHTML = `<b>${c.name}</b>(${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)} ${MJ.LEVEL_JP[c.level]}・${MJ.STYLE_JP[c.style]})<br>${c.desc}`;
       this.renderChars();
+      if (this.picks.length === 3 && i < 0) this.confirmStart();
     },
 
     /* ---- 対局 ---- */
@@ -209,15 +220,15 @@
     $('#sel-back').addEventListener('click', () => App.show('menu'));
     $('#notes-back').addEventListener('click', () => App.show('menu'));
     $('#notes-tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) App.showNote(b.dataset.n); });
-    document.querySelectorAll('.sel-start').forEach((b) => b.addEventListener('click', () => App.start()));
+    $('#sel-bar').addEventListener('click', (e) => { const b = e.target.closest('.slot.on'); if (b) App.pickChar(+b.dataset.id); });
     $('#sel-rand').addEventListener('click', () => {
       App.picks = MJ.shuffle(MJ.CHARS.slice()).slice(0, 3).map((c) => c.id);
-      App.renderChars();
+      App.renderChars(); App.confirmStart();
     });
     $('#sel-reco').addEventListener('click', () => {
       const r = RECO[App.mode];
       App.picks = r ? r.slice() : MJ.shuffle(MJ.CHARS.slice()).slice(0, 3).map((c) => c.id);
-      App.renderChars();
+      App.renderChars(); App.confirmStart();
     });
     $('#btn-quit').addEventListener('click', () => {
       MJ.UI.overlay('<h2>対局を中断しますか?</h2><p>メニューに戻ります。</p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="q-no">続ける</button><button class="btn pri" id="q-yes">メニューへ</button></div>');

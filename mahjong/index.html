@@ -50,19 +50,27 @@
 
   <!-- 対戦相手選択 -->
   <section id="screen-select" class="screen hidden">
-    <div class="back-row"><button class="btn ghost sm" id="sel-back">← メニュー</button><h2 id="sel-title" style="margin:0"></h2><button class="btn pri sel-start" id="sel-start-top" disabled style="margin-left:auto">対局開始</button></div>
-    <p class="sub" id="sel-desc"></p>
-    <div class="opts">
-      <label>対局 <select id="sel-length"><option value="east">東風戦(東1〜4局)</option><option value="south">東南戦(東・南 計8局)</option><option value="single">1局だけ(練習向き)</option></select></label>
-      <button class="btn sm" id="sel-rules">⚙ ルール設定</button>
-      <button class="btn sm" id="sel-reco">おすすめの相手</button>
-      <button class="btn sm" id="sel-rand">ランダム</button>
+    <div class="sel-head">
+      <button class="btn ghost sm" id="sel-back">← メニュー</button>
+      <div class="sel-ttl"><h2 id="sel-title"></h2><p class="sub" id="sel-desc"></p></div>
     </div>
-    <p class="sub" id="sel-rule-sum" style="margin:2px 0 6px"></p>
-    <div class="sel-bar" id="sel-bar"></div>
-    <div class="char-detail" id="char-detail">対戦相手を3人選んでください(クリックで選択/解除)。</div>
+    <div class="sel-panel">
+      <div class="sel-vs">
+        <div class="sel-cnt">対戦相手 <b id="sel-n">0</b>/3</div>
+        <div class="sel-bar" id="sel-bar"></div>
+      </div>
+      <div class="sel-act">
+        <button class="btn pri big" id="sel-reco"><span>★</span>おすすめの相手</button>
+        <button class="btn big" id="sel-rand"><span>🎲</span>ランダム</button>
+      </div>
+      <div class="sel-rl">
+        <label>対局 <select id="sel-length"><option value="east">東風戦(東1〜4局)</option><option value="south">東南戦(東・南 計8局)</option><option value="single">1局だけ(練習向き)</option></select></label>
+        <button class="btn sm" id="sel-rules">⚙ ルール設定</button>
+        <span class="sel-rsum" id="sel-rule-sum"></span>
+      </div>
+    </div>
+    <div class="char-detail" id="char-detail">3人選ぶと、対局開始の確認が出ます(タップで選択/解除)。</div>
     <div class="chars" id="chars"></div>
-    <div style="text-align:right;margin-top:14px"><button class="btn pri sel-start" id="sel-start" disabled>対局開始</button></div>
   </section>
 
   <!-- 練習問題 -->

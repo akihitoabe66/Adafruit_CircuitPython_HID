@@ -18,7 +18,7 @@
     return ind === 33 ? 31 : ind + 1;
   };
   /* ---- ルール設定(ブラウザに保存。対局開始時の値が使われる) ---- */
-  MJ.RULE_DEFAULTS = { length: 'east', kuitan: true, aka: 3, ippatsu: true, ura: true, tobi: true, doubleRon: true, kuikae: false, kazoe: true, start: 25000 };
+  MJ.RULE_DEFAULTS = { length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: false, doubleRon: true, kuikae: false, kazoe: true, start: 25000 };
   MJ.RULES = Object.assign({}, MJ.RULE_DEFAULTS);
   MJ.loadRules = () => {
     try { Object.assign(MJ.RULES, JSON.parse(localStorage.getItem('mj_rules') || '{}')); } catch (e) { /* ignore */ }
