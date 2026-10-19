@@ -99,6 +99,7 @@
       else if (k === 'sfx') MJ.SFX.setOn(v);
       else if (k === 'svol') MJ.SFX.setVol(v);
       else if (k === 'voice') MJ.SFX.setVoice(v);
+      else if (k === 'banter') MJ.Banter.setOn(v);
       else if (k === 'cvol') { MJ.SFX.setCallVol(v); if (e.type === 'change') MJ.SFX.voice('ポン', { char: { id: 1 } }); }
       else if (k === 'rvol') { MJ.SFX.setReadVol(v); if (e.type === 'change') this.sampleRead(); }
       this.syncAudio(c);
@@ -123,7 +124,7 @@
     },
     sampleRead() { if (!MJ.SFX.speaking()) MJ.SFX.read('この大きさで読み上げます。'); },
     syncAudio(except) {
-      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, rvol: MJ.SFX.readVol, cvol: MJ.SFX.callVol };
+      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, banter: MJ.Banter.on, rvol: MJ.SFX.readVol, cvol: MJ.SFX.callVol };
       const bell = $('#bell');
       if (bell) {
         bell.setAttribute('aria-pressed', String(MJ.Audio.on));
@@ -538,8 +539,20 @@
       return new Promise((r) => setTimeout(() => { fx.innerHTML = ''; r(); }, game.fast ? 0 : 1000));
     },
     speak(game, p, text) {
-      this.bubbles[p.seat] = { text, until: Date.now() + 2300 };
-      setTimeout(() => { if (this.game === game) this.render(game); }, 2400);
+      this.bubbles[p.seat] = { text, until: Date.now() + 3600 };
+      this.render(game);
+      setTimeout(() => { if (this.game === game) this.render(game); }, 3700);
+    },
+    /* 顔のカットイン(特別なセリフ) */
+    cutin(game, p, text) {
+      const host = $('#screen-game');
+      const old = host.querySelector('.cutin');
+      if (old) old.remove();
+      const el = document.createElement('div');
+      el.className = 'cutin';
+      el.innerHTML = `${p.char && p.char.img ? `<img src="${p.char.img}" alt="">` : ''}<div class="ct"><small>${p.name}</small>${text}</div>`;
+      host.appendChild(el);
+      setTimeout(() => el.remove(), 2600);
     },
     handStart(game) {
       MJ.SFX.play('start');

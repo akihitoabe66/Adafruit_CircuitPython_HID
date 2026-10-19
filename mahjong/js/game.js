@@ -182,6 +182,7 @@
     async playHand() {
       this.setupHand();
       if (this.ui) await this.ui.handStart(this);
+      if (this.ui && MJ.Banter) MJ.Banter.handStart(this);
       this.sync();
       let cur = this.dealer;
       let drawMode = 'normal'; // normal | none (鳴き後) | rinshan
@@ -263,11 +264,13 @@
       this.discardLog.push({ seq: d.seq, tile, by: p.seat });
       this.lastDiscard = { tile, by: p.seat, d };
       this.sortHand(p);
+      if (this.ui && MJ.Banter && !riichi) MJ.Banter.discard(this, p, tile);
       if (riichi) {
         p.riichiPending = true;
         this.sync();
         this.speak(p, 'riichi');
         await this.banner(p, 'リーチ');
+        if (this.ui && MJ.Banter) MJ.Banter.riichi(this, p);
       } else this.sync();
       if (!p.isHuman) await this.wait(120);
     }
@@ -395,6 +398,7 @@
       this.sortHand(q);
       this.sync();
       await this.banner(q, kind === 'pon' ? 'ポン' : kind === 'chi' ? 'チー' : 'カン');
+      if (this.ui && MJ.Banter) MJ.Banter.call(this, q);
       if (kind === 'kan') { /* 嶺上牌は playHand 側で引く */ }
     }
 
