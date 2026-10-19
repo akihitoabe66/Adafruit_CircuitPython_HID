@@ -10,7 +10,7 @@
 
   const A = (MJ.Audio = {
     on: load('mj_bgm', true),
-    volume: load('mj_bgmvol', 0.25),
+    volume: load('mj_bgmvol', 0.12),
     scene: 'title',
 
     _el() {

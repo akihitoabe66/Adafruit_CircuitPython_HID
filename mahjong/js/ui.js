@@ -67,10 +67,13 @@
       else if (k === 'sfx') MJ.SFX.setOn(v);
       else if (k === 'svol') MJ.SFX.setVol(v);
       else if (k === 'voice') MJ.SFX.setVoice(v);
+      else if (k === 'rvol') { MJ.SFX.setReadVol(v); if (e.type === 'change') this.sampleRead(); }
       this.syncAudio(c);
     },
+    /* 読み上げ音量を変えたとき、短い見本を読んで確かめられるようにする */
+    sampleRead() { if (!MJ.SFX.speaking()) MJ.SFX.read('この大きさで読み上げます。'); },
     syncAudio(except) {
-      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn };
+      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, rvol: MJ.SFX.readVol };
       const bell = $('#bell');
       if (bell) {
         bell.setAttribute('aria-pressed', String(MJ.Audio.on));

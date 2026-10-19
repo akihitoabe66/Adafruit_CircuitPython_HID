@@ -10,6 +10,7 @@
     on: load('mj_sfx', true),
     voiceOn: load('mj_voice', true),
     vol: load('mj_sfxvol2', 0.8),
+    readVol: load('mj_readvol', 0.5),
 
     getCtx() { return ctx; },
 
@@ -24,6 +25,7 @@
     },
     setOn(v) { S.on = v; save('mj_sfx', v); },
     setVoice(v) { S.voiceOn = v; save('mj_voice', v); if (!v && G.speechSynthesis) G.speechSynthesis.cancel(); },
+    setReadVol(v) { S.readVol = v; save('mj_readvol', v); },
     setVol(v) { S.vol = v; save('mj_sfxvol2', v); if (master) master.gain.value = v; },
 
     /* ---- 部品 ---- */
@@ -124,7 +126,7 @@
         // 文ごとに少しずつ高さと速さをゆらす
         u.pitch = base + (head ? 0.1 : 0) + (q ? 0.12 : 0) + ((i % 3) - 1) * 0.04;
         u.rate = (head ? 0.93 : 1.0) + ((i % 2) ? 0.02 : -0.02);
-        u.volume = Math.min(1, S.vol + 0.2);
+        u.volume = S.readVol;
         const next = () => { if (S._readId !== id) return; const gap = head ? 380 : parts[i].end ? 220 : 90; setTimeout(() => speakAt(i + 1), gap); };
         u.onend = next;
         u.onerror = next;
