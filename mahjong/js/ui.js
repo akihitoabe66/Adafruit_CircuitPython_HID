@@ -92,7 +92,7 @@
     /* 画面の文章を読み上げ用テキストにする */
     textOf(root) {
       const c = root.cloneNode(true);
-      c.querySelectorAll('.ch, .rd, button, table.scores, .tileinfo, summary, script, style').forEach((n) => n.remove());
+      c.querySelectorAll('.ch, .rd, button, table.scores, summary, script, style').forEach((n) => n.remove());
       c.querySelectorAll('img').forEach((i) => i.replaceWith(document.createTextNode(i.alt || '')));
       c.querySelectorAll('li, .cc, .cc-h, tr, p, div').forEach((n) => n.append('。'));
       let t = c.textContent;
@@ -179,7 +179,7 @@
       const w = game.seatWindOf(p);
       const b = this.bubbles[s];
       const bub = b && b.until > Date.now() ? `<div class="bubble">${b.text}</div>` : '';
-      const face = s === 0 ? '<div class="face me">🀄</div>' : `<img class="face" src="${ch.img}" alt="">`;
+      const face = ch.img ? `<img class="face" src="${ch.img}" alt="">` : '<div class="face me">🀄</div>';
       const chips = `<span class="chip ${w === 0 ? 'dealer' : ''}">${WINDS[w]}${w === 0 ? '親' : ''}</span>${p.riichi ? '<span class="chip r">リーチ</span>' : ''}${ch.level ? `<span class="chip lv">${MJ.LEVEL_JP[ch.level]}</span>` : ''}`;
       const melds = p.melds.length ? `<div class="melds">${p.melds.map((m) => this.meldHTML(m)).join('')}</div>` : '';
       const river = p.discards.map((d) => MJ.tileHTML(d.tile.t, `${d.called ? 'called' : ''}${d.riichi ? ' rch' : ''}${game.lastDiscard && game.lastDiscard.d === d && !d.called ? ' hl' : ''}`, '', d.tile.red)).join('');
@@ -193,13 +193,15 @@
       const adv = this.adv;
       const hand = p.hand.filter((h) => h !== p.drawn);
       const all = p.drawn ? hand.concat([p.drawn]) : hand;
+      const recH = adv && adv.recId ? p.hand.find((x) => x.id === adv.recId) : null;
+      const recT = recH ? recH.t : null;
       const tiles = all.map((h) => {
         let cls = '', mk = '';
         if (sel) {
           const ok = this.allowed(sel, h);
           cls += ok ? ' ok' : ' dis';
           if (this.riichiMode && ok) cls += ' rch-ok';
-          if (adv && adv.recId === h.id && !this.riichiMode) cls += ' rec';
+          if (adv && !this.riichiMode && (adv.recId === h.id || (recT != null && h.t === recT))) cls += ' rec';
           const m = adv && adv.marks[h.id];
           if (m && m.txt && this.coachActive()) mk = `<span class="mk ${m.cls}">${m.txt}</span>`;
         }

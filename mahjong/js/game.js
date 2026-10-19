@@ -11,7 +11,7 @@
       this.fast = !!cfg.fast;
       this.mode = cfg.mode || 'free';
       this.length = cfg.length || 'east'; // 'east' | 'single'
-      const me = { id: 0, name: 'あなた', short: 'あなた', level: 0, style: 'balanced', img: null, lines: {} };
+      const me = { id: 0, name: 'あなた', short: 'あなた', level: 0, style: 'balanced', img: `img/you/${String(1 + Math.floor(Math.random() * 18)).padStart(2, '0')}.jpg`, lines: {} };
       const chars = [me].concat(cfg.chars);
       this.players = chars.map((ch, i) => ({
         seat: i, char: ch, name: ch.short, isHuman: i === 0 && !cfg.allCpu, score: 25000,
