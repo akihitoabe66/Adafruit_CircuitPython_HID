@@ -31,7 +31,9 @@
     if (safe.has(t))
       return { score: 0, tag: '現物', cls: 'safe', why: `${tn}は${opp.name}が捨てた牌(またはリーチ後に通った牌)。${opp.name}は同じ牌ではロンできない(フリテン)ので100%安全。` };
     const left = 4 - vis[t];
-    if (left <= 0) return { score: 0, tag: '全見え', cls: 'safe', why: `${tn}は4枚全て見えているので、誰も持っていません。当たりません。` };
+    // 字牌は両面などの待ちがなく、シャンポン・単騎は「同じ牌を持っている」ことが必要。4枚見えていれば誰も持っていない=当たらない。
+    // 数牌は、4枚見えていても順子の待ち(両面・カンチャンなど)には当たる(シャンポン・単騎だけが消える)ので、安全とは言えない。
+    if (left <= 0 && t >= 27) return { score: 0, tag: '全見え', cls: 'safe', why: `${tn}は4枚全て見えているので、誰も持っていません。当たりません。` };
     if (t >= 27) {
       let sc = (left >= 2 ? 3.0 : 1.0) * 1.6;
       const yh = isYakuhaiFor(game, opp, t);
@@ -74,7 +76,7 @@
       total += w;
     }
     // D: シャンポン/タンキ
-    total += left >= 2 ? 2.0 : 1.0;
+    total += left >= 2 ? 2.0 : left === 1 ? 1.0 : 0; // 4枚見えている数牌は、シャンポン・単騎(同じ牌を持つ待ち)だけが消える
     let sc = total * 1.6;
     let dora = false;
     for (const d of game.doraInd) if (MJ.doraOf(d.t) === t) dora = true;
@@ -86,7 +88,8 @@
     else if (kabeEx && kabeEx >= ryCount) tag = 'カベ';
     else if (kabeEx) tag = 'カベ(片側)';
     else if (one) tag = 'ワンチャンス';
-    else tag = n === 0 || n === 8 ? '端牌(無スジ)' : '無スジ';
+    else tag = left <= 0 ? '4枚見え(無スジ)' : n === 0 || n === 8 ? '端牌(無スジ)' : '無スジ';
+    if (left <= 0) why.push(`${tn}は4枚とも見えていますが、順子の待ち(両面・カンチャン)には当たります。安全牌ではありません`);
     if (one) why.push('隣の牌が3枚見えている(ワンチャンス)ので、その形の待ちは作りにくい');
     if (dora) why.push('ドラは相手が持っている/待っている可能性が高く特に危険');
     if (!why.length) why.push(`${tn}は手がかりのない牌。${n >= 2 && n <= 6 ? '真ん中の牌は両面待ちに当たりやすく危険' : '端に近い牌は両面待ちに当たりにくい'}。`);

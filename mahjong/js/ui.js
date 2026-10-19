@@ -53,7 +53,8 @@
       $('#btn-coach').addEventListener('click', () => { document.body.classList.toggle('coach-open'); this.fitCoachText($('#coach')); });
       window.addEventListener('resize', () => this.relayout());
       window.addEventListener('orientationchange', () => setTimeout(() => this.relayout(), 250));
-      $('#opt-reveal').addEventListener('change', (e) => { this.reveal = e.target.checked; if (this.game) this.render(this.game); });
+      $('#opt-reveal').addEventListener('change', (e) => { this.reveal = e.target.checked; document.body.classList.toggle('reveal-on', this.reveal); if (this.game) this.render(this.game); });
+      $('#btn-peek').addEventListener('click', () => this.showPeek());
       $('#opt-one').addEventListener('change', (e) => { this.oneClick = e.target.checked; });
       document.addEventListener('input', (e) => this.onAudioCtl(e));
       document.addEventListener('change', (e) => this.onAudioCtl(e));
@@ -196,6 +197,7 @@
       this.oneClick = game.mode === 'free';
       $('#opt-one').checked = this.oneClick;
       this.reveal = false;
+      document.body.classList.remove('reveal-on');
       $('#opt-reveal').checked = false;
       $('#g-title').textContent = MJ.Coach.MODES[game.mode].name;
       $('#btn-hint').classList.toggle('hidden', game.mode !== 'free');
@@ -384,7 +386,21 @@
       const sum = this.sel && this.coachActive() ? this.summary || '' : '';
       const card = cand ? this.callCard(game, rs, cand) : '';
       const dtabs = sel && this.dng && this.dng.opps.length >= 2 ? `<div class="dtabs"><span>危険度の対象:</span><button class="btn sm${this.dngTab === 'all' ? ' on' : ''}" data-dtab="all">全員</button>${this.dng.opps.map((q, i) => `<button class="btn sm${this.dngTab === i ? ' on' : ''}" data-dtab="${i}">${q.name}</button>`).join('')}</div>` : '';
-      return `${card}${dtabs}<div class="hand${this.riichiMode ? ' riichi-mode' : ''}" id="hand">${tiles}</div><div class="tipline" id="tipline">${tip}</div><div class="actrow"><div class="sumline">${sum}</div><div class="actions">${this.actionsHTML(game)}</div></div>`;
+      return `${card}<div class="hand${this.riichiMode ? ' riichi-mode' : ''}" id="hand">${tiles}</div><div class="tipline" id="tipline">${tip}</div><div class="actrow"><div class="sumline">${sum}</div><div class="actions">${dtabs}${this.actionsHTML(game)}</div></div>`;
+    },
+
+    /* スマホ横: CPUの手牌は、盤面の中に小さく出さず、大きな一覧で見せる(盤面や自分の牌が小さくならない) */
+    showPeek() {
+      const g = this.game;
+      if (!g) return;
+      const rows = [1, 2, 3].map((s) => {
+        const q = g.players[s];
+        const hand = q.hand.slice().sort((a, b) => a.t - b.t || a.id - b.id);
+        const melds = q.melds.map((m) => '<span class="gap"></span>' + m.tiles.map((h) => MJ.tileHTML(h.t, 't-m', '', h.red)).join('')).join('');
+        return `<div class="peek-row"><div class="peek-n"><b>${q.name}</b>${q.riichi ? '<span class="chip r">リーチ</span>' : ''}</div><div class="peek-t">${hand.map((h) => MJ.tileHTML(h.t, 't-m', '', h.red)).join('')}${melds}</div></div>`;
+      }).join('');
+      this.overlay(`<h2>👁 相手の手牌</h2><div class="peek">${rows}</div><div class="res-foot"><button class="btn pri" id="peek-close">閉じる</button></div>`, { plain: true });
+      $('#peek-close').addEventListener('click', () => this.closeOverlay());
     },
 
     /* 鳴ける選択肢ごとに、手牌のどの牌を使うかを求める */
@@ -752,10 +768,10 @@
       else if (win.seat === game.dealer) pts = `${fmt(w.pay.each)}点オール`;
       else pts = `${fmt(w.pay.fromOther)}・${fmt(w.pay.fromDealer)}点`;
       return `<div class="win-head">${win.char.img ? `<img src="${win.char.img}">` : '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): ${w.loser.name}`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || ''}」</div>`}</div></div>
-      <div class="win-hand">${concealed}${melds}${winT}</div>
-      <div>ドラ表示牌: ${dora}${ura}</div>
-      <table class="yakus">${rows.replace(/門前清自摸和/g, '門前清自摸和(メンゼンツモ)')}</table>
-      <div class="score-big">${r.yakuman ? r.limit : `${r.han}飜 ${r.fu}符${r.limit ? ' ' + r.limit : ''}`} → ${pts}</div>
+      <div class="win-cols"><div class="win-l"><div class="win-hand">${concealed}${melds}${winT}</div>
+      <div>ドラ表示牌: ${dora}${ura}</div></div>
+      <div class="win-r"><table class="yakus">${rows.replace(/門前清自摸和/g, '門前清自摸和(メンゼンツモ)')}</table>
+      <div class="score-big">${r.yakuman ? r.limit : `${r.han}飜 ${r.fu}符${r.limit ? ' ' + r.limit : ''}`} → ${pts}</div></div></div>
       `;
     },
 
@@ -805,9 +821,10 @@
       const pages = [];
       // 見出しごとの大きさ(文字数+図の分)を見積もって、1ページに収まる分だけまとめる
       const weight = (g) => { const t = document.createElement('div'); t.innerHTML = g.join(''); return t.textContent.length + (t.querySelector('.tl') ? 380 : 0); };
+      const cap = document.body.classList.contains('short') ? 300 : 640; // スマホ横は画面が低いので、1ページに入れる量を減らす
       const chunks = [];
       let curC = [], w = 0;
-      groups.forEach((g) => { const gw = weight(g); if (curC.length && w + gw > 640) { chunks.push(curC); curC = []; w = 0; } curC.push(g); w += gw; });
+      groups.forEach((g) => { const gw = weight(g); if (curC.length && w + gw > cap) { chunks.push(curC); curC = []; w = 0; } curC.push(g); w += gw; });
       if (curC.length) chunks.push(curC);
       chunks.forEach((c) => { if (c.length) pages.push(`<div class="${card.className}">${head}<div class="cc-b">${c.map((g) => g.join('')).join('')}</div></div>`); });
       return pages;

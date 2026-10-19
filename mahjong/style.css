@@ -827,3 +827,25 @@ body.rot .sel-bar .slot { max-width: 120px; }
 body.rot .sel-act { min-width: 170px; }
 body.rot .btn.big { font-size: 16px; padding: 10px 14px; min-height: 46px; }
 body.rot .cfm-c { width: 110px; }
+
+/* ---- 危険度の対象タブ: 行を増やさず、操作行(右側)に置く(出た瞬間に牌が小さくならないように) ---- */
+.actions .dtabs { margin: 0; flex-wrap: nowrap; gap: 4px; }
+.actions .dtabs span { font-size: 11px; white-space: nowrap; }
+.actions .dtabs .btn.sm { padding: 3px 8px; font-size: 12px; white-space: nowrap; }
+.actions .dtabs ~ .msg { display: none; }
+/* ---- CPUの手牌を見る: 画面幅に合わせて大きく(7枚×2段)。スマホ横は「👁 相手の手牌」の一覧で見る ---- */
+.hrev { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; }
+.hrev .tile { width: auto !important; height: auto !important; aspect-ratio: 3 / 4; }
+#btn-peek { display: none; }
+body.reveal-on.short #btn-peek { display: inline-flex; }
+body.short .hrev { display: none; }
+.peek { display: grid; gap: 6px; }
+.peek-row { display: flex; align-items: center; gap: 10px; background: #0b241e; border: 1px solid #2f6355; border-radius: 10px; padding: 6px 10px; }
+.peek-n { width: 110px; flex: none; font-size: 14px; display: flex; flex-direction: column; gap: 2px; }
+.peek-t { display: flex; flex-wrap: nowrap; gap: 1px; min-width: 0; }
+.peek-t .tile { width: min(40px, 5.4vw); height: auto; aspect-ratio: 3 / 4; flex: none; }
+body.rot .peek-t .tile { width: 40px; }
+/* ---- 和了結果: 横長の画面では左右2列(左: 手牌とドラ / 右: 役と点数)にして、文字を大きく保つ ---- */
+body.short .win-cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 4px 14px; align-items: start; }
+body.short .win-l { min-width: 0; }
+body.short .win-hand { flex-wrap: wrap; }
