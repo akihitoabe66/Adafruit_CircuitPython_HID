@@ -643,3 +643,29 @@ select.ac { background: #0b1d18; color: #fff; border: 1px solid #3c7a67; border-
 .hand .tile.rec::before { content: '★'; top: -22px; font-size: 18px; line-height: 1; padding: 1px 6px; border-radius: 9px; background: #1d1600; border: 1px solid var(--acc); text-shadow: none; z-index: 3; }
 .hand .tile.rec .mk { bottom: calc(100% + 22px); }
 .hand { padding-top: 24px; }
+
+/* ---- 鳴きの確認: 盤面(捨て牌)を隠さない半透明のカードにする ---- */
+.callq { position: absolute; left: 6px; right: 6px; bottom: calc(100% - 4px); margin: 0; padding: 8px 12px 10px; border-color: #7fb6ff; box-shadow: 0 0 0 3px #7fb6ff44, 0 6px 22px #0008; background: linear-gradient(rgba(22, 56, 128, .74), rgba(12, 32, 84, .74)); text-shadow: 0 1px 3px #000c; z-index: 8; }
+.callq::before { content: 'あなたの番'; position: absolute; top: -13px; left: 14px; background: #3d86ff; color: #fff; font-size: 13px; font-weight: 900; padding: 1px 12px; border-radius: 10px; border: 2px solid #cfe3ff; text-shadow: none; }
+.callq .cq-head { font-size: 17px; }
+.callq .cq-tile .tile { width: 40px; height: 53px; }
+.callq .cq-btns { margin-top: 6px; }
+.callq .cq-btn { min-height: 52px; font-size: 19px !important; padding: 6px 16px !important; }
+.callq .cq-btn.b-call { background: linear-gradient(rgba(90, 150, 240, .92), rgba(40, 90, 190, .92)); }
+.callq .cq-why { margin-top: 4px; font-size: 12px; opacity: .95; }
+@media (max-width: 520px) { .callq { padding: 6px 8px 8px; } .callq .cq-btn { min-height: 40px; } }
+/* CPUの鳴き宣言(紫)と、あなたの鳴き確認(青)で色を分ける */
+.banner[style*="#c48bff"] { background: rgba(70, 24, 110, .72); }
+/* 切り牌ごとの説明(3行まで読めるように) */
+.tipline, .tipline:empty { min-height: 4.3em; max-height: 4.3em; }
+@media (max-width: 520px) { .tipline, .tipline:empty { min-height: 4.3em; max-height: 4.3em; } }
+
+/* 鳴きカードを1行のコンパクトな帯にして、さらに半透明に(捨て牌を見ながら決められるように) */
+.callq { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 6px 12px 8px; background: linear-gradient(rgba(22, 56, 128, .6), rgba(12, 32, 84, .6)); }
+.callq .cq-head { font-size: 16px; flex: 0 1 auto; flex-wrap: nowrap; gap: 8px; }
+.callq .cq-tile .tile { width: 32px; height: 43px; outline-width: 2px; }
+.callq .cq-btns { margin: 0 0 0 auto; flex: 0 0 auto; display: flex; flex-wrap: nowrap; gap: 8px; }
+.callq .cq-btn { min-height: 44px; font-size: 17px !important; padding: 4px 12px !important; }
+.callq .cq-btn .cq-set .tile { width: 24px; height: 32px; }
+.callq .cq-why { display: none; }
+@media (max-width: 520px) { .callq .cq-btns { display: flex; margin: 0; width: 100%; } .callq .cq-btn { flex: 1; min-height: 38px; } .callq .cq-btn.b-pass { grid-column: auto; } }
