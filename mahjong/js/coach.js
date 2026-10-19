@@ -189,6 +189,15 @@
     }
     const trip = c.filter((n) => n >= 3).length + p.melds.filter((m) => m.kind !== 'chi').length;
     if (trip + pairs >= 4 && trip >= 2) out.push({ pri: 4, n: '対々和', t: '刻子・対子が多い手。ポンで進めて<b>対々和(2飜)</b>が狙えます。' });
+    if (menzen) {
+      // 一盃口: 同じ順子を2組
+      for (let t = 0; t < 27; t++) if (t % 9 <= 6 && c[t] >= 2 && c[t + 1] >= 2 && c[t + 2] >= 2) { out.push({ pri: 5, n: '一盃口', t: `${ic(t)}${ic(t + 1)}${ic(t + 2)}が2組。門前でテンパイすれば<b>一盃口(1飜)</b>がつきます(鳴くと消えるので門前で進める)。` }); break; }
+      // 平和: 刻子がなく、字牌も少なく、順子とターツ中心
+      let trips = 0, honorsN = 0;
+      for (let t = 0; t < 34; t++) { if (c[t] >= 3) trips++; if (t >= 27) honorsN += c[t]; }
+      const yakuhaiPair = [27, 28, 29, 30, 31, 32, 33].some((t) => c[t] === 2 && A.isYakuhaiFor(game, p, t));
+      if (!trips && honorsN <= 2 && !yakuhaiPair && !(pairs >= 5)) out.push({ pri: 2, n: '平和', t: '刻子がなく、順子とターツ(連続や飛び石の2枚)が中心の手です。役牌でない雀頭と<b>両面待ち</b>でテンパイすれば<b>平和(1飜)</b>(リーチと重ねやすい)。' });
+    }
     if (menzen) out.push({ pri: 1, n: 'リーチ', t: '門前(鳴かない)でテンパイすれば<b>リーチ(1飜)</b>。役が無くてもリーチなら上がれる、いちばん基本の役です。' });
     const d = dorasInHand(game, p);
     if (d) out.push({ pri: 3, n: 'ドラ', t: `ドラ/赤ドラが<b>${d}枚</b>。1枚ごとに+1飜(ただし役がないと上がれません)。` });
@@ -246,7 +255,7 @@
   /* ---------- 自分の手番のアドバイス ---------- */
   C.selfAdvice = function (game, p, opts, st) {
     const mode = game.mode;
-    const an = A.analyze(game, p, { know: 2 });
+    const an = A.analyze(game, p, { know: 2, deep: true, deepN: 6, budget: 250 });
     const marks = {};
     const cards = [];
     const eff = A.byEff(an.evals);

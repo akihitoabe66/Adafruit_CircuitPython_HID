@@ -849,3 +849,13 @@ body.rot .peek-t .tile { width: 40px; }
 body.short .win-cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 4px 14px; align-items: start; }
 body.short .win-l { min-width: 0; }
 body.short .win-hand { flex-wrap: wrap; }
+
+/* ---- リーチ宣言牌は横向きに倒して河に置く(実際の卓と同じ) ---- */
+.river { grid-template-columns: repeat(6, auto); justify-items: center; }
+.river .tile.rch { width: var(--sh); height: var(--sw); transform: none; margin: 0; outline: none; position: relative; filter: drop-shadow(0 0 3px #ff5b5b) drop-shadow(0 1px 1px #0008); }
+.river .tile.rch img { position: absolute; left: 50%; top: 50%; width: var(--sw); height: var(--sh); max-width: none; transform: translate(-50%, -50%) rotate(90deg); }
+.dq .river { grid-template-columns: repeat(9, auto); }
+
+/* ---- おすすめ牌: ★に加えて、少し持ち上げて目立たせる(練習モードで「切る牌」が一目で分かるように) ---- */
+.hand .tile.rec { transform: translateY(-10px); }
+.hand .tile.rec.picked, .hand .tile.rec.ok:hover { transform: translateY(-16px); }

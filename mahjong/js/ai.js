@@ -97,6 +97,14 @@
   };
 
   /* ---- 受け入れ ---- */
+  const shMemo = new Map();
+  const shanC = (c, f) => {
+    const k = f + ':' + c.join('');
+    let v = shMemo.get(k);
+    if (v === undefined) { v = MJ.shanten(c, f); if (shMemo.size > 60000) shMemo.clear(); shMemo.set(k, v); }
+    return v;
+  };
+  A.shanC = shanC;
   function ukeireOf(c, f, curSh, vis) {
     let n = 0;
     const tiles = [];
@@ -115,12 +123,40 @@
       }
       if (!rel) continue;
       c[t]++;
-      if (MJ.shanten(c, f) < curSh) { n += left; tiles.push(t); }
+      if (shanC(c, f) < curSh) { n += left; tiles.push(t); }
       c[t]--;
     }
     return { n, tiles };
   }
   A.ukeireOf = ukeireOf;
+
+  /* 2手先まで読んだ「受け入れの見込み」: 有効牌を引いた後に、最も良い打牌をしたときの受け入れ枚数を、引ける枚数で重みづけした平均。
+     (1手先の受け入れ枚数だけでは分からない「形の良さ」を数値にする) */
+  A.eff2 = function (c13, f, curSh, vis, ukeire, deadline) {
+    if (curSh <= 0 || !ukeire.tiles.length) return ukeire.n;
+    let sum = 0, wt = 0;
+    for (const t of ukeire.tiles) {
+      if (deadline && Date.now() > deadline) return null; // 時間切れ(読みきれない候補は、ほかの候補の比率で見積もる)
+      const left = 4 - vis[t];
+      if (left <= 0) continue;
+      c13[t]++;
+      let best = 0;
+      for (let x = 0; x < 34; x++) {
+        if (!c13[x]) continue;
+        c13[x]--;
+        if (shanC(c13, f) === curSh - 1) {
+          const u = curSh - 1 === 0
+            ? MJ.waits(c13, f).reduce((a, w) => a + Math.max(0, 4 - vis[w] - (w === t || w === x ? 0 : 0)), 0)
+            : ukeireOf(c13, f, curSh - 1, vis).n;
+          if (u > best) best = u;
+        }
+        c13[x]++;
+      }
+      c13[t]--;
+      sum += left * best; wt += left;
+    }
+    return wt ? sum / wt : ukeire.n;
+  };
 
   const pickTile = (hand, t) => {
     const l = hand.filter((h) => h.t === t);
@@ -161,6 +197,20 @@
     for (const e of evals) if (e.sh < minSh) minSh = e.sh;
     for (const e of evals) {
       if (e.sh === minSh) { c[e.t]--; e.ukeire = ukeireOf(c, f, e.sh, vis); c[e.t]++; }
+    }
+    // 2手先の読み(上位の候補だけ): 受け入れ枚数が同程度でも、形の良い方を選べるようにする
+    if (opt.deep && minSh > 0) {
+      const top = evals.filter((e) => e.sh === minSh).sort((a, b) => b.ukeire.n - a.ukeire.n).slice(0, opt.deepN || 6);
+      let r = 0, rn = 0;
+      const deadline = Date.now() + (opt.budget || 250);
+      for (const e of top) {
+        c[e.t]--; const v = A.eff2(c, f, e.sh, vis, e.ukeire, deadline); c[e.t]++;
+        if (v !== null) { e.eff2 = v; if (e.ukeire.n) { r += v / e.ukeire.n; rn++; } }
+      }
+      const ratio = rn ? r / rn : 1;
+      for (const e of evals) if (e.sh === minSh && e.eff2 === undefined) e.eff2 = e.ukeire.n * ratio * 0.9;
+    }
+    for (const e of evals) {
       e.adj = A.valueAdj(game, p, e.t, c);
       e.genCount = others.filter((q) => q.discardTypes.has(e.t) || A.safeSet(game, q).has(e.t)).length;
       if (opps.length) {
@@ -173,7 +223,7 @@
     }
     return { f, c, vis, evals, minSh, opps, others };
   };
-  A.effScore = (e) => -e.sh * 100 + e.ukeire.n * 1.5 + e.adj; // adj: 大きいほど「切りたい牌」(ドラ・役牌の対子は負=残したい)
+  A.effScore = (e) => -e.sh * 100 + (e.eff2 !== undefined ? (e.ukeire.n + e.eff2) * 0.75 : e.ukeire.n) * 1.5 + e.adj; // adj: 大きいほど「切りたい牌」(ドラ・役牌の対子は負=残したい)
   A.byEff = (evals) => evals.slice().sort((a, b) => A.effScore(b) - A.effScore(a));
   A.bySafety = (evals) => evals.slice().sort((a, b) => (a.danger ? a.danger.score : 0) - (b.danger ? b.danger.score : 0) || A.effScore(b) - A.effScore(a));
 
@@ -218,7 +268,7 @@
   A.chooseSelf = function (game, p, opts) {
     if (opts.tsumo) return { act: 'tsumo' };
     const lv = p.char.level, st = p.char.style;
-    const an = A.analyze(game, p, { know: lv >= 4 ? 2 : 1 });
+    const an = A.analyze(game, p, { know: lv >= 4 ? 2 : 1, deep: lv >= 4, deepN: lv >= 5 ? 6 : 4, budget: 120 });
     const { evals, minSh, opps } = an;
     if (!evals.length) return { act: 'discard', tile: p.drawn || p.hand[p.hand.length - 1] };
 
@@ -244,7 +294,7 @@
       const dn = e.danger ? e.danger.score : 0;
       let s;
       if (fold) s = -dn * 10 - e.sh * 3 + e.ukeire.n * 0.2;
-      else s = -e.sh * 100 + e.ukeire.n * (lv === 1 ? 0.3 : 1.5) + (lv >= 2 ? e.adj : 0) - dn * k * kk * 1.5;
+      else s = -e.sh * 100 + (e.eff2 !== undefined && lv >= 4 ? (e.ukeire.n + e.eff2) * 0.75 : e.ukeire.n) * (lv === 1 ? 0.3 : 1.5) + (lv >= 2 ? e.adj : 0) - dn * k * kk * 1.5;
       return { e, s };
     });
     scored.sort((a, b) => b.s - a.s);
