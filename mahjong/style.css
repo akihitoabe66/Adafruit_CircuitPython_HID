@@ -401,3 +401,35 @@ body.gp-open { overflow: hidden; }
 .gx-grp .tile { position: static; width: 24px; height: 33px; flex: none; }
 .gx-sep { font-weight: 800; color: #ffd35a; }
 .gx-lab { font-size: 12px; opacity: .85; margin-top: 5px; }
+
+/* ---- 鳴きの確認カード ---- */
+.callq { margin: 4px 0 18px; padding: 12px 14px; border: 3px solid #ffd35a; border-radius: 14px; background: linear-gradient(#244f43, #17372f); box-shadow: 0 0 0 3px #ffd35a33, 0 6px 22px #000a; animation: cqpop .25s; }
+@keyframes cqpop { from { transform: translateY(8px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+.cq-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 20px; font-weight: 800; }
+.cq-from { color: #ffe9a0; }
+.cq-msg { color: #fff; }
+.cq-tile .tile, .cq-set .tile { width: 40px; height: 53px; flex: none; position: static; }
+.cq-tile .tile { width: 52px; height: 69px; outline: 3px solid #ffd35a; border-radius: 6px; }
+.cq-btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.cq-btn { display: inline-flex; align-items: center; gap: 8px; font-size: 22px !important; font-weight: 900; padding: 10px 20px !important; min-height: 64px; border-radius: 14px; box-shadow: 0 4px 0 #0007; }
+.cq-btn small { display: block; font-size: 12px; font-weight: 700; opacity: .9; margin-left: 2px; }
+.cq-l { margin-right: 2px; }
+.cq-set { display: inline-flex; gap: 1px; }
+.cq-set .tile { width: 30px; height: 40px; }
+.cq-plus { font-size: 18px; opacity: .85; }
+.cq-new .tile { outline: 2px solid #ffd35a; }
+.cq-why { font-size: 12px; opacity: .8; margin-top: 8px; }
+.actions .b-pass, .cq-btn.b-pass { background: linear-gradient(#ffe08a, #e0a21a); border: 2px solid #fff3c4; color: #2b1a00; }
+.hand .tile.cand { transform: translateY(-18px); outline: 3px solid #5aa6ff; box-shadow: 0 0 14px #5aa6ffcc; z-index: 2; }
+.strip .face.you { object-fit: cover; object-position: 50% 18%; }
+@media (max-width: 520px) {
+  .callq { padding: 8px 10px; margin: 2px 0 14px; }
+  .cq-head { font-size: 15px; gap: 6px; }
+  .cq-tile .tile { width: 34px; height: 45px; }
+  .cq-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+  .cq-btn { font-size: 16px !important; padding: 4px 8px !important; min-height: 46px; gap: 4px; justify-content: center; }
+  .cq-btn.b-pass { grid-column: 1 / -1; }
+  .cq-set .tile { width: 20px; height: 27px; }
+  .cq-plus { font-size: 13px; }
+  .cq-why { display: none; }
+}
