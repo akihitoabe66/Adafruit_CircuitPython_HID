@@ -498,7 +498,8 @@
       const others = game.players.filter((q) => q !== p);
       const rii = others.filter((q) => q.riichi);
       // リーチ者がいなければ「もし全員がリーチしていたら」の仮定で、河(公開情報)だけから危険度を出す
-      const opps = rii.length ? rii : others;
+      if (!rii.length) return; // リーチが入るまでは表示しない(危険な場面から表示)
+      const opps = rii;
       const map = {};
       [...new Set(p.hand.map((h) => h.t))].forEach((t) => { map[t] = opps.map((q) => A.danger1(game, vis, t, q, A.safeSet(game, q), 2)); });
       this.dng = { opps, hyp: !rii.length, map };
