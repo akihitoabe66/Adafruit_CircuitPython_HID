@@ -357,7 +357,7 @@
         const chip = dv0 ? `<span class="dgc ${dv0.cls}${dv0.hyp ? ' hyp' : ''}">${dv0.sym}</span>` : '';
         if (dv0) cls += ` dgt dg-${dv0.cls}`;
         return `<div class="tile${cls}${h.red ? ' aka' : ''}" data-id="${h.id}" data-t="${h.t}">${MJ.tileSVG(h.t)}${chip}${mk}</div>`;
-      }).join('');
+      }).join('') + (p.drawn ? '' : '<div class="tile drawn ph"></div>'); // 引いた牌の場所を常に確保(牌の数が変わっても手牌が左右にずれない)
       let tip = this.picked && adv && adv.info && this.coachActive() ? adv.info[this.picked] || '' : '';
       if (!tip && this.dng && sel) tip = `<span class="dglg">左上の印: <b class="dgl safe">◎</b>ほぼ安全 <b class="dgl ok">○</b>比較的安全 <b class="dgl warn">△</b>注意 <b class="dgl danger">✕</b>危険${this.dng.hyp ? ' <span class="cc-s">(いまはリーチなし。「もし全員がリーチしていたら」の目安)</span>' : ''}</span>`;
       const sum = this.sel && this.coachActive() ? this.summary || '' : '';

@@ -619,3 +619,4 @@ select.ac { background: #0b1d18; color: #fff; border: 1px solid #3c7a67; border-
 .hand .tile.dg-safe { outline: 2px solid #17b25e; outline-offset: -2px; } .hand .tile.dg-danger { outline: 2px solid #e53935; outline-offset: -2px; }
 .dglg { font-size: 13px; }
 .credits h3 { margin: 12px 0 2px; color: var(--acc); font-size: 16px; } .credits p { margin: 2px 0; font-size: 14px; line-height: 1.6; }
+.hand .tile.ph { visibility: hidden; pointer-events: none; }
