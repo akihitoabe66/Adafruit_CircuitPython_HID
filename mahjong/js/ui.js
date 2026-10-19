@@ -279,7 +279,7 @@
       sw = Math.min(sw, desk ? 52 : 40);
       hw = Math.min(hw, desk ? 74 : 66);
       const short = land && H <= 640;
-      if (short) { hw = Math.min(Math.floor((full - 14) / 14.8), 70); sw = Math.min(sw, 26); } // スマホ横: 手牌を横いっぱいに使う。入りきらないぶんは fitHeight が縮める
+      if (short) { hw = Math.min(Math.floor((full - 16) / 15.7), 70); sw = Math.min(sw, 26); } // スマホ横: 手牌を横いっぱいに使う。入りきらないぶんは fitHeight が縮める
       else if (desk || land) {
         const fit = () => gb + 14 + (sw * 2 + 14 + 2.4 * (sw * 1.32 + 2) + 16) + (hw * 1.32 + 24) + 50 + 22;
         while (fit() > H && hw > 22) { hw--; if (sw > hw * 0.55) sw--; }
