@@ -207,7 +207,16 @@
       this.syncAudio();
       this.render(this.game);
     },
-    relayout() { if (this.game) { this.layoutKey = ''; this.render(this.game); } },
+    relayout() { this.applyRot(); if (this.game) { this.layoutKey = ''; this.render(this.game); } },
+    /* 縦持ちのスマホは、タイトルからすべての画面を90°回して横画面で表示する(設定で縦のままにもできる) */
+    applyRot() {
+      const RW = window.innerWidth, RH = window.innerHeight;
+      const rot = RH > RW && this.orient !== 'portrait';
+      document.body.classList.toggle('rot', rot);
+      const rs = document.documentElement.style;
+      rs.setProperty('--vw', RW + 'px'); rs.setProperty('--vh', RH + 'px');
+      return rot;
+    },
     coachActive() { return this.game.mode !== 'free' || this.hintOn; },
 
     /* ---------- レイアウト(画面サイズに合わせて牌の大きさを決める) ---------- */
@@ -218,8 +227,7 @@
       if (!el || el.classList.contains('hidden')) return;
       let W = window.innerWidth, H = window.innerHeight;
       const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-      // 縦持ちのスマホでも横画面レイアウトを90°回して表示する(設定で縦のままにもできる)
-      const rot = H > W && this.orient !== 'portrait';
+      const rot = this.applyRot(); // 回転は #app 全体に掛かる(CSS)。ここでは回転後の大きさで計算するだけ
       const RW = W, RH = H; // 実際の画面サイズ
       if (rot) { W = RH; H = RW; }
       let sw, sh, sc = 1;
@@ -234,10 +242,7 @@
       const ox = Math.round((W - sw * sc) / 2), oy = Math.round((H - sh * sc) / 2);
       el.style.width = sw + 'px';
       el.style.height = sh + 'px';
-      el.style.transform = rot ? `translate(${RW}px, 0) rotate(90deg) translate(${ox}px, ${oy}px) scale(${sc})` : `translate(${ox}px, ${oy}px) scale(${sc})`;
-      document.body.classList.toggle('rot', rot);
-      const rs = document.documentElement.style;
-      rs.setProperty('--vw', RW + 'px'); rs.setProperty('--vh', RH + 'px');
+      el.style.transform = `translate(${ox}px, ${oy}px) scale(${sc})`;
       if (!this.stage || this.stage.w !== sw || this.stage.h !== sh) this.layoutKey = '';
       this.stage = { w: sw, h: sh, sc };
     },
@@ -301,6 +306,7 @@
       $('#ginfo').innerHTML = `<span class="kk">${game.kyokuLabel()}</span><span class="myw">あなたは<b>${WINDS[game.seatWindOf(game.players[0])]}家</b>${game.seatWindOf(game.players[0]) === 0 ? '(親)' : ''}</span><span>${game.length === 'single' ? '1局戦' : '東風戦'}</span><span class="doras">ドラ表示 ${doras}</span><span>残り ${game.live.length}枚</span>${game.kyotaku ? `<span>供託 ${game.kyotaku}</span>` : ''}`;
       $('#table').innerHTML = `<div class="blocks">${[3, 2, 1, 0].map((s) => this.block(game, s)).join('')}</div>`;
       $('#mine').innerHTML = this.mineHTML(game);
+      document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
       this.fitTip();
       if (this.dng) this.hilite(this.picked != null ? ((game.players[0].hand.find((x) => x.id === this.picked) || {}).t) : this.hiType); 
       this.fitHeight();
@@ -627,7 +633,7 @@
     shortLabel(h) {
       const M = [[/どうして/, 'どうして?'], [/安全な牌ランキング/, '安全牌'], [/守備の目線/, '守備'], [/リーチへの警戒/, '警戒'], [/いまはリーチなし/, 'リーチなし'], [/役がありません|形はできている/, '役なし'], [/フリテン/, 'フリテン'], [/リーチ者の捨て牌/, '現物'], [/河を観察/, '河を見る'], [/状況/, '状況'], [/コツ/, 'コツ'], [/狙える役/, '狙う役'], [/打点/, '打点'], [/ロンできます/, 'ロン!'], [/ツモ和了/, 'ツモ!'], [/鳴いた後/, '鳴いた後'], [/ロンされない/, '放銃注意'], [/リーチのチャンス/, 'リーチ!'], [/スジの実例/, 'スジ例'], [/カン/, 'カン'], [/いまの手牌/, '手牌'], [/押す|押し引き/, '押し引き'], [/おすすめ/, 'おすすめ'], [/ポイント/, 'ポイント']];
       for (const [re, l] of M) if (re.test(h)) return l;
-      const t = h.replace(/^[^\p{L}\p{N}]+/u, '').replace(/[:：]\s*$/, '');
+      const t = h.replace(/^[^\p{L}\p{N}]+/u, '').split(/[(（]/)[0].replace(/[:：]\s*$/, '');
       return t.length > 7 ? t.slice(0, 7) : t;
     },
     /* 表示中の内容が枠に収まる最大の文字サイズにする(10〜22px) */

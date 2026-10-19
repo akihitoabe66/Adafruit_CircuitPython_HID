@@ -18,6 +18,7 @@
     mode: 'free', picks: [], length: 'east', game: null, lastCfg: null,
 
     show(id) {
+      MJ.UI.applyRot();
       document.body.classList.toggle('on-menu', id === 'menu');
       document.body.classList.toggle('on-title', id === 'title');
       document.body.classList.toggle('on-game', id === 'game');

@@ -565,8 +565,8 @@ body:not(.desk):not(.land):not(.coach-open) #coach > .cc.on { margin: 0; }
 /* ---- 縦持ちスマホで横画面レイアウトを90°回して表示 ---- */
 body.on-game { background: radial-gradient(ellipse at 50% 50%, #0d2a23 0%, #040d0c 62%, #010405 100%); }
 body.on-game::before { content: ''; position: fixed; inset: 0; z-index: -1; background: repeating-linear-gradient(135deg, rgba(255,255,255,.025) 0 2px, transparent 2px 14px); pointer-events: none; }
-body.on-game.rot #overlay, body.on-game.rot #gloss-sheet, body.on-game.rot #gloss-panel, body.on-game.rot #toast { inset: auto; left: 0; top: 0; width: var(--vh); height: var(--vw); transform-origin: 0 0; transform: translate(var(--vw), 0) rotate(90deg); }
-body.on-game.rot #toast { width: auto; height: auto; }
+body.rot #overlay, body.rot #gloss-sheet, body.rot #gloss-panel, body.rot #toast { inset: auto; left: 0; top: 0; width: var(--vh); height: var(--vw); transform-origin: 0 0; transform: translate(var(--vw), 0) rotate(90deg); }
+body.rot #toast { width: auto; height: auto; }
 select.ac { background: #0b1d18; color: #fff; border: 1px solid #3c7a67; border-radius: 6px; padding: 3px 6px; font-size: 13px; }
 
 /* 結果ダイアログ: 下が切れないように高さに収め、「次へ」は常に表示 */
@@ -691,3 +691,44 @@ body.short .tipline .tile { vertical-align: middle; }
 .ctabs .chip { font: inherit; font-size: 13px; font-weight: 800; line-height: 1.2; padding: 4px 10px; border-radius: 999px; border: 1.5px solid #3c7a67; background: #0f3128; color: var(--ink); cursor: pointer; white-space: nowrap; }
 .ctabs .chip.on { background: var(--acc); border-color: var(--acc); color: #2b1a00; }
 .desk .ctabs .chip { font-size: 14px; padding: 5px 12px; }
+
+/* ---- 縦持ちスマホ: タイトル・ホーム・その他の画面も含めて、アプリ全体を90°回して横画面にする ---- */
+body.rot { overflow: hidden; }
+body.rot #app { position: fixed; left: 0; top: 0; width: var(--vh); height: var(--vw); transform-origin: 0 0; transform: translate(var(--vw), 0) rotate(90deg); overflow-x: hidden; overflow-y: auto; }
+body.rot #menu-bg { inset: auto; left: 0; top: 0; width: var(--vh); height: var(--vw); transform-origin: 0 0; transform: translate(var(--vw), 0) rotate(90deg); background-image: url(img/title.jpg); background-size: cover; background-position: center 30%; animation: none; }
+body.rot #menu-bg::after { background: linear-gradient(180deg, rgba(7, 10, 28, .05) 0%, rgba(7, 10, 28, 0) 38%, rgba(7, 10, 28, .72) 64%, rgba(7, 10, 28, .94) 100%); }
+body.rot.on-title #menu-bg { background-position: center 88%; }
+body.rot.on-title #menu-bg::after { background: linear-gradient(180deg, rgba(7, 10, 28, 0) 75%, rgba(7, 10, 28, .4) 100%); }
+body.rot #screen-title .t-portrait, body.rot #screen-title .footer { display: none; }
+body.rot #screen-title .title-wrap { justify-content: flex-end; align-items: flex-end; padding-top: 0; padding-right: 2%; min-height: calc(var(--vw) - 20px); }
+body.rot #screen-title .start { font-size: 20px; padding: 9px 30px; }
+body.rot .bell { right: 12px; top: 6px; }
+body.rot .menu-wrap { min-height: calc(var(--vw) - 20px); }
+body.rot .menu-spacer { min-height: calc(var(--vw) * .2); }
+body.rot h1.title { font-size: 30px; margin: 0; }
+body.rot .sub { margin: 0 0 8px; font-size: 12px; }
+body.rot .modes { grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 4px; }
+body.rot .mode-card { padding: 8px 10px; }
+body.rot .mode-card p, body.rot .mode-card .badge { display: none; }
+body.rot .mode-card h3 { font-size: 14px; margin: 2px 0 0; }
+body.rot .mode-card .mi { font-size: 22px; }
+body.rot .footer { display: none; }
+
+/* 吹き出しは顔・名前に被らないよう、河の下側(ふだん空いている段)に出す */
+.bubble, .desk .bubble { top: auto; bottom: 8px; }
+/* 鳴きの確認カードは横に広げすぎず、中央に寄せる */
+.callq { left: 50%; right: auto; transform: translateX(-50%); width: min(600px, calc(100% - 28px)); }
+.callq .cq-btns { margin-left: auto; }
+/* 鳴きの確認中は、同じ場所に出る吹き出しを隠す(確認カードに「誰が捨てた」が出ているので) */
+body.calling .bubble { display: none; }
+/* スマホ(回転表示)ではカードをさらにコンパクトに、ボタンは同じ行に */
+body.rot .callq, body.short .callq { padding: 4px 10px 6px; gap: 2px 10px; width: min(560px, calc(100% - 20px)); }
+body.rot .callq .cq-head, body.short .callq .cq-head { font-size: 13px; gap: 6px; }
+body.rot .callq .cq-tile .tile, body.short .callq .cq-tile .tile { width: 24px; height: 32px; }
+body.rot .callq .cq-btns, body.short .callq .cq-btns { width: auto; margin-left: auto; display: flex; flex-wrap: nowrap; gap: 6px; }
+body.rot .callq .cq-btn, body.short .callq .cq-btn { flex: none; min-height: 34px; font-size: 14px !important; padding: 2px 10px !important; }
+body.rot .callq .cq-btn .cq-set .tile, body.short .callq .cq-btn .cq-set .tile { width: 18px; height: 24px; }
+body.rot .callq::before, body.short .callq::before { font-size: 11px; top: -11px; }
+/* 鳴きの確認は、手牌の下(ふだん説明が出る空き場所)に出す: 相手の捨て牌も、持ち上がった自分の牌も隠さない */
+.callq { bottom: 2px; top: auto; }
+.callq::before { top: -12px; }
