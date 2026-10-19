@@ -40,6 +40,45 @@
     return n;
   };
 
+  /* ---------- 「なぜ★の牌で、こちらではないのか」の比較 ---------- */
+  function tileNotes(game, p, c, t) {
+    const n = [];
+    if (game.doraInd.some((d) => MJ.doraOf(d.t) === t)) n.push('ドラ(1枚で+1飜)');
+    if (p.hand.some((h) => h.t === t && h.red)) n.push('赤ドラ(+1飜)');
+    if (c[t] >= 2 && A.isYakuhaiFor(game, p, t)) n.push('役牌の対子(ポンで役になる)');
+    if (t >= 27 && c[t] === 1 && !A.isYakuhaiFor(game, p, t)) n.push('孤立した字牌(使い道が少ない)');
+    if (MJ.isTerminal(t) && c[t] === 1) n.push('端牌(順子を作りにくい)');
+    return n;
+  }
+  function diffWhy(game, p, an, best, e) {
+    const parts = [];
+    const nm = (x) => `${ic(x.t)}${tn(x.t)}`;
+    const lab = (x) => (x.sh === 0 ? '待ち' : '有効牌');
+    if (e.sh > best.sh) {
+      parts.push(`${nm(e)}を切ると<b>シャンテンが戻って</b>(${best.sh === 0 ? 'テンパイ' : best.sh + 'シャンテン'}→${e.sh}シャンテン)、上がりが遠のきます`);
+    } else {
+      const d = best.ukeire.n - e.ukeire.n;
+      if (d > 0) parts.push(`${lab(best)}の比較: ${nm(best)}を切ると<b>${best.ukeire.n}枚</b>(${icons(best.ukeire.tiles, 6)}) / ${nm(e)}を切ると${e.ukeire.n}枚(${icons(e.ukeire.tiles, 6)})。<b>${d}枚多い</b>ほうが上がりやすい`);
+      else if (d < 0) parts.push(`${lab(e)}は${nm(e)}のほうが${-d}枚多いが、ほかの条件(下記)で★を優先`);
+      else parts.push(`${lab(best)}の<b>枚数は同じ</b>(${best.ukeire.n}枚)。ここは枚数では差がつきません`);
+      if (best.sh === 0 && e.sh === 0) {
+        const val = (x) => { const c13 = an.c.slice(); c13[x.t]--; const tv = A.tenpaiValue(game, p, c13, an.f, false); return tv; };
+        const vb = val(best), ve = val(e);
+        const hb = vb && vb.best ? vb.best.res.han : 0, he = ve && ve.best ? ve.best.res.han : 0;
+        if (hb !== he) parts.push(`ダマテンの打点は ${nm(best)}を切る→${hb ? hb + '飜' : '役なし'} / ${nm(e)}を切る→${he ? he + '飜' : '役なし'}`);
+      }
+    }
+    const nb = tileNotes(game, p, an.c, best.t), ne = tileNotes(game, p, an.c, e.t);
+    if (ne.length && !nb.length) parts.push(`${nm(e)}は<b>${ne.join('・')}</b>なので、手に残しておく価値があります`);
+    else if (nb.length && !ne.length) parts.push(`${nm(best)}は${nb.join('・')}なので、先に切る候補です`);
+    if (an.opps.length && best.danger && e.danger) {
+      const ds = Math.round(e.danger.score - best.danger.score);
+      if (Math.abs(ds) >= 2) parts.push(`安全度は ${nm(best)}=${best.danger.tag}(約${Math.round(best.danger.score)}%) / ${nm(e)}=${e.danger.tag}(約${Math.round(e.danger.score)}%)`);
+    }
+    if (best.sh === e.sh && best.ukeire.n === e.ukeire.n && !nb.length && !ne.length) parts.push('どちらを切ってもほぼ互角です。迷ったら、残り枚数が多く残る(見えていない牌が多い)ほうを引きやすく、<b>真ん中に近い牌</b>は残したほうが形に柔軟性があります');
+    return parts;
+  }
+
   /* ---------- 「なぜその牌を切るのか」の考え方 ---------- */
   function whyCard(game, p, an, e, eff) {
     const c = an.c, t = e.t, li = [];
@@ -61,15 +100,12 @@
       else if (MJ.isTerminal(t)) li.push(`<b>なぜ${tn(t)}?</b> 1・9の端の牌は、順子を作れる形が<b>1通りだけ</b>(1なら123、9なら789)。真ん中の牌は最大3通り作れるので、端のほうが価値が低いのです。`);
       else li.push(`<b>なぜ${tn(t)}?</b> ほかの牌と比べて、この牌を残してもつながりが少なく、切ったあとの<b>有効牌が多く残る</b>からです。`);
     }
-    const sec = eff.find((x) => x !== e && x.sh === sh);
-    if (sec && sh >= 0) {
-      const d = e.ukeire.n - sec.ukeire.n;
-      li.push(d > 0 ? `<b>比べると</b>: 次の候補 ${ic(sec.t)}${tn(sec.t)} を切ると有効牌は${sec.ukeire.n}枚。${d}枚少ないぶん、手が進むチャンスが減ります。` : `<b>比べると</b>: 次の候補 ${ic(sec.t)}${tn(sec.t)} と有効牌は同じです。そのときは<b>ドラ・役・安全度</b>で選びます。`);
-    }
+    const others = eff.filter((x) => x !== e).slice(0, 2);
+    others.forEach((x) => { const df = diffWhy(game, p, an, e, x); if (df.length) li.push(`<b>${ic(e.t)}${tn(e.t)} と ${ic(x.t)}${tn(x.t)} の違い</b><br><span class="cc-s">${df.join('。<br>')}。</span>`); });
     if (e.ukeire.n && sh > 0) li.push(`<b>この後</b>: ${icons(e.ukeire.tiles, 6)}のどれかを引くと<b>${sh - 1}シャンテン</b>に進みます。`);
     const yao = c.reduce((n, v, i) => n + (MJ.isYaochu(i) ? v : 0), 0);
     if (MJ.isYaochu(t) && yao <= 5) li.push(`<b>おまけ</b>: 1・9・字牌を減らすと「<b>タンヤオ</b>(1飜)」が付けやすくなります。`);
-    return card('🧠 どうして?(考え方)', `<ul class="cc-ul">${li.slice(0, 5).map((x) => `<li>${x}</li>`).join('')}</ul>`, 'rec');
+    return card('🧠 どうして?(考え方)', `<ul class="cc-ul">${li.slice(0, 6).map((x) => `<li>${x}</li>`).join('')}</ul>`, 'rec');
   }
 
   /* ---------- 打牌の理由 ---------- */
@@ -271,7 +307,9 @@
     const info = {};
     for (const e of an.evals) {
       const txt = `<b>${ic(e.t)} ${tn(e.t)}</b> を切ると: ${e.sh === an.minSh ? '<span class="good">シャンテン維持</span>' : '<span class="bad">シャンテンが戻る</span>'}(${e.sh === 0 ? 'テンパイ' : e.sh + 'シャンテン'}) / 有効牌 ${e.ukeire.n}枚${e.danger ? `<br>危険度: <b>${e.danger.tag}</b>(約${Math.round(e.danger.score)}%) ${e.danger.why}` : e.genCount ? `<br>${e.genCount}人の現物` : ''}`;
-      for (const h of p.hand) if (h.t === e.t) info[h.id] = txt;
+      const cmp = best && e !== best && recId === best.tile.id && !an.opps.length ? diffWhy(game, p, an, best, e) : [];
+      const txt2 = cmp.length ? `${txt}<br><span class="cmp">★${tn(best.t)}ではなくこちらを切らない理由: ${cmp.slice(0, 2).join('。')}</span>` : txt;
+      for (const h of p.hand) if (h.t === e.t) info[h.id] = txt2;
     }
     let summary = '';
     const rec = recId ? p.hand.find((h) => h.id === recId) : null;
