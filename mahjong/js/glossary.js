@@ -238,8 +238,9 @@
         let m, last = 0, frag = null;
         while ((m = RE.exec(text))) {
           const id = TERM.get(m[0]);
-          if (seen.has(id)) continue;
-          seen.add(id);
+          const sk = n.parentElement && n.parentElement.closest('.yakus') ? 't' + id : id; // 役の表は毎行リンクする
+          if (seen.has(sk)) continue;
+          seen.add(sk);
           if (!frag) frag = document.createDocumentFragment();
           if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
           const s = document.createElement('span');

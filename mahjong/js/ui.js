@@ -73,7 +73,7 @@
         }
         const b = e.target.closest('[data-read]');
         if (!b) return;
-        const root = b.dataset.read === 'coach' ? $('#coach') : b.dataset.read === 'drill' ? $('#dq-fb') : b.dataset.read === 'review' ? ($('.modal .rv') || $('.modal')) : $('.modal');
+        const root = b.dataset.read === 'coach' ? $('#coach') : b.dataset.read === 'drill' ? $('#dq-fb') : b.dataset.read === 'page' ? ($('.modal .pm-page.on') || $('.modal')) : b.dataset.read === 'review' ? ($('.modal .rv') || $('.modal')) : $('.modal');
         if (!root) return;
         if (MJ.SFX.speaking()) { MJ.SFX.stopSpeak(); return; }
         if (!MJ.SFX.read(this.textOf(root))) this.toast('この端末には日本語の読み上げ音声がありません');
@@ -677,7 +677,7 @@
     /* ---------- 結果 ---------- */
     overlay(html, opt = {}) {
       const o = $('#overlay');
-      o.innerHTML = `<div class="modal">${html}</div>`;
+      o.innerHTML = opt.raw ? html : `<div class="modal">${html}</div>`;
       o.classList.remove('hidden');
       o.scrollTop = 0;
       if (!opt.plain) { MJ.Gloss.decorate(o); this.addReadFrom(o.querySelector('.modal')); }
@@ -685,6 +685,10 @@
     },
     closeOverlay() { $('#overlay').classList.add('hidden'); $('#overlay').innerHTML = ''; },
 
+    winExplHTML(game, w) {
+      const lines = MJ.Coach.explainScore(w, game);
+      return `<div class="expl-h">📘 点数計算のしくみ(${w.winner.name}の和了)</div><ol class="expl-ol">${lines.map((l) => `<li>${l}</li>`).join('')}</ol>`.replace(/門前清自摸和/g, '門前清自摸和(メンゼンツモ)');
+    },
     winHTML(game, w) {
       const r = w.res;
       const win = w.winner;
@@ -699,14 +703,12 @@
       if (!w.tsumo) pts = `${fmt(w.pay.ron)}点(${w.loser.name}から)`;
       else if (win.seat === game.dealer) pts = `${fmt(w.pay.each)}点オール`;
       else pts = `${fmt(w.pay.fromOther)}・${fmt(w.pay.fromDealer)}点`;
-      const lines = MJ.Coach.explainScore(w, game);
-      const open = game.mode !== 'free' || win.isHuman ? ' open' : '';
       return `<div class="win-head">${win.char.img ? `<img src="${win.char.img}">` : '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): ${w.loser.name}`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || ''}」</div>`}</div></div>
       <div class="win-hand">${concealed}${melds}${winT}</div>
       <div>ドラ表示牌: ${dora}${ura}</div>
-      <table class="yakus">${rows}</table>
+      <table class="yakus">${rows.replace(/門前清自摸和/g, '門前清自摸和(メンゼンツモ)')}</table>
       <div class="score-big">${r.yakuman ? r.limit : `${r.han}飜 ${r.fu}符${r.limit ? ' ' + r.limit : ''}`} → ${pts}</div>
-      <details class="expl"${open}><summary>📘 点数計算のしくみ(クリックで開閉)</summary><ol>${lines.map((l) => `<li>${l}</li>`).join('')}</ol></details>`;
+      `;
     },
 
     /* 上がったとき、役の名前を必ず読み上げる(「リーチ、イッパツ、ツモ、サンショク、ドラ2」) */
@@ -738,33 +740,108 @@
       return `<table class="scores"><tr><th>プレイヤー</th><th>前</th><th>増減</th><th>持ち点</th></tr>${rows}</table>`;
     },
 
+    /* 長い振り返りを、見出し(①②③④)ごとに2つずつのページに分ける */
+    splitReview(html) {
+      const d = document.createElement('div');
+      d.innerHTML = html;
+      const card = d.querySelector('.cc');
+      if (!card) return [];
+      const head = card.querySelector('.cc-h').outerHTML;
+      const body = card.querySelector('.cc-b');
+      const groups = [];
+      [...body.childNodes].forEach((n) => {
+        if (n.nodeType === 1 && n.classList.contains('rv-h')) groups.push([]);
+        if (!groups.length) groups.push([]);
+        groups[groups.length - 1].push(n.outerHTML || n.textContent);
+      });
+      const pages = [];
+      // 見出しごとの大きさ(文字数+図の分)を見積もって、1ページに収まる分だけまとめる
+      const weight = (g) => { const t = document.createElement('div'); t.innerHTML = g.join(''); return t.textContent.length + (t.querySelector('.tl') ? 380 : 0); };
+      const chunks = [];
+      let curC = [], w = 0;
+      groups.forEach((g) => { const gw = weight(g); if (curC.length && w + gw > 640) { chunks.push(curC); curC = []; w = 0; } curC.push(g); w += gw; });
+      if (curC.length) chunks.push(curC);
+      chunks.forEach((c) => { if (c.length) pages.push(`<div class="${card.className}">${head}<div class="cc-b">${c.map((g) => g.join('')).join('')}</div></div>`); });
+      return pages;
+    },
+    /* ページ式のダイアログ(スクロールなしで画面に収める) */
+    pagedModal(pages, onDone, lastLabel) {
+      let cur = 0;
+      this.overlay(`<div class="modal paged"><div class="pm-top"><span class="pm-title"></span><span class="pm-dots">${pages.map(() => '<i></i>').join('')}</span><button class="btn sm rd" data-read="page">🔊 読み上げ</button></div><div class="pm-body">${pages.map((p) => `<div class="pm-page">${p.html}</div>`).join('')}</div><div class="pm-foot"><button class="btn" id="pm-prev">◀ 戻る</button><button class="btn pri" id="pm-next"></button></div></div>`, { plain: true, raw: true });
+      const modal = $('#overlay .modal');
+      const body = modal.querySelector('.pm-body');
+      const els = [...modal.querySelectorAll('.pm-page')];
+      els.forEach((e) => MJ.Gloss.decorate(e));
+      const show = (i) => {
+        cur = Math.max(0, Math.min(pages.length - 1, i));
+        els.forEach((e, k) => { e.classList.toggle('on', k === cur); e.style.zoom = ''; });
+        modal.querySelector('.pm-title').textContent = `${pages[cur].t}  ${cur + 1}/${pages.length}`;
+        modal.querySelectorAll('.pm-dots i').forEach((d, k) => d.classList.toggle('on', k === cur));
+        modal.querySelector('#pm-prev').style.visibility = cur ? 'visible' : 'hidden';
+        modal.querySelector('#pm-next').textContent = cur === pages.length - 1 ? lastLabel : '次へ ▶';
+        const pg = els[cur];
+        for (let n = 0; n < 4; n++) { const k = Math.min(1, (body.clientHeight - 2) / Math.max(1, pg.scrollHeight)); if (k >= 0.999) break; pg.style.zoom = String(Math.max(0.5, (parseFloat(pg.style.zoom) || 1) * k)); }
+        MJ.SFX.stopSpeak();
+      };
+      modal.querySelector('#pm-prev').addEventListener('click', () => show(cur - 1));
+      modal.querySelector('#pm-next').addEventListener('click', () => { if (cur < pages.length - 1) show(cur + 1); else onDone(); });
+      show(0);
+      return { show };
+    },
+
     showResult(game, res) {
       return new Promise((resolve) => {
-        let html;
+        const pages = [];
         if (res.type === 'win') {
-          html = `<h2>${game.kyokuLabel()} 和了</h2>` + res.wins.map((w) => this.winHTML(game, w)).join('<hr>');
-          if (res.loseReview) html += MJ.Coach.loseReview(game, res);
-          else if (res.review) html += MJ.Coach.reviewText(res.review);
+          pages.push({ t: '和了', html: `<h2>${game.kyokuLabel()} 和了</h2>` + res.wins.map((w) => this.winHTML(game, w)).join('<hr>') });
+          pages.push({ t: '点数計算', html: res.wins.map((w) => this.winExplHTML(game, w)).join('<hr>') + this.scoreTable(game, res) });
+          const rv = res.loseReview ? MJ.Coach.loseReview(game, res) : res.review ? MJ.Coach.reviewText(res.review) : '';
+          if (rv) this.splitReview(rv).forEach((h, i, a) => pages.push({ t: `振り返り`, html: h, rv: true }));
         } else {
           const tp = res.tenpai.map((t, i) => `<tr><td>${game.players[i].name}</td><td>${t ? '<b class="good">テンパイ</b>' : 'ノーテン'}</td><td>${res.tenpai[i] ? res.hands[i].concealed.map((h) => MJ.tileHTML(h.t, 't-s')).join('') : ''}</td></tr>`).join('');
-          html = `<h2>${game.kyokuLabel()} 流局</h2><p>山の牌がなくなりました(荒牌平局)。テンパイ者がノーテン者から3000点を受け取ります。</p><table class="scores">${tp}</table>`;
-          if (res.drawReview) html += MJ.Coach.drawReview(game, res);
+          pages.push({ t: '流局', html: `<h2>${game.kyokuLabel()} 流局</h2><p>山の牌がなくなりました(荒牌平局)。テンパイ者がノーテン者から3000点を受け取ります。</p><table class="scores">${tp}</table>${this.scoreTable(game, res)}` });
+          if (res.drawReview) this.splitReview(MJ.Coach.drawReview(game, res)).forEach((h) => pages.push({ t: '流局の振り返り', html: h, rv: true }));
         }
-        html += this.scoreTable(game, res);
         if (res.type === 'win') MJ.SFX.play(res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'win');
         else MJ.SFX.play('drawgame');
         const last = game.length === 'single';
-        html += `<div class="res-foot"><button class="btn pri" id="res-next">${last ? '結果へ' : '次へ'}</button></div>`;
-        const hasRv = !!res.loseReview || !!res.drawReview;
-        html = `<div class="readbar"><button class="btn sm rd" data-read="${hasRv ? 'review' : 'modal'}">🔊 ${hasRv ? '振り返りを読み上げ' : '結果を読み上げ'}</button></div>` + html;
-        this.overlay(html);
+        this.pagedModal(pages, () => { MJ.SFX.stopSpeak(); MJ.Audio.endResult(); this.closeOverlay(); resolve(); }, last ? '結果へ ▶' : '次の局へ ▶');
         if (res.type === 'win') this.announceWin(game, res);
         // 結果画面のBGM: 自分が上がった=win / 自分がマイナス=lose / 流局=draw
         MJ.Audio.playResult(res.type === 'draw' ? 'draw' : res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : '');
-        $('#res-next').addEventListener('click', () => { MJ.SFX.stopSpeak(); MJ.Audio.endResult(); this.closeOverlay(); resolve(); });
         this.render(game);
       });
     },
+
+    /* 上がったとき、役の名前を必ず読み上げる(「リーチ、イッパツ、ツモ、サンショク、ドラ2」) */
+    announceWin(game, res) {
+      if (!MJ.SFX.yakuRead || game.fast) return;
+      const READ = { '門前清自摸和': 'ツモ', '断么九': 'タンヤオ', '平和': 'ピンフ', '一盃口': 'イーペーコー', '二盃口': 'リャンペーコー', '七対子': 'チートイツ', '対々和': 'トイトイ', '三暗刻': 'サンアンコー', '三色同順': 'サンショク', '三色同刻': 'サンショクドウコー', '一気通貫': 'イッツー', '混全帯么九': 'チャンタ', '純全帯么九': 'ジュンチャン', '混一色': 'ホンイツ', '清一色': 'チンイツ', '小三元': 'ショウサンゲン', '大三元': 'ダイサンゲン', '国士無双': 'コクシムソウ', '四暗刻': 'スーアンコー', '嶺上開花': 'リンシャンカイホー', '海底摸月': 'ハイテイ', '河底撈魚': 'ホーテイ', '混老頭': 'ホンロートー', '清老頭': 'チンロートー', '四槓子': 'スーカンツ', '三槓子': 'サンカンツ', '緑一色': 'リューイーソー', '字一色': 'ツーイーソー', '小四喜': 'ショウスーシー', '大四喜': 'ダイスーシー', '九蓮宝燈': 'チューレンポートー', '天和': 'テンホー', '地和': 'チーホー', 'ダブルリーチ': 'ダブルリーチ', 'ダブル立直': 'ダブルリーチ', '立直': 'リーチ', 'リーチ': 'リーチ', '一発': 'イッパツ', '槍槓': 'チャンカン' };
+      const yh = { '白': 'ハク', '發': 'ハツ', '中': 'チュン', '東': 'トン', '南': 'ナン', '西': 'シャー', '北': 'ペー' };
+      const parts = [];
+      res.wins.forEach((w) => {
+        const r = w.res;
+        const names = r.yaku.map((y) => {
+          if (y.n === 'ドラ') return `ドラ${y.h}`;
+          if (y.n === '赤ドラ') return `アカドラ${y.h}`;
+          if (y.n === '裏ドラ') return `ウラドラ${y.h}`;
+          const m = /^役牌[ \s　]*(.*)$/.exec(y.n);
+          if (m) return `ヤクハイ、${yh[m[1]] || m[1]}`;
+          if (/場風|自風/.test(y.n)) { const k = y.n.replace(/[^東南西北]/g, '').slice(-1); return `${/場風/.test(y.n) ? 'バフウ' : 'ジフウ'}、${yh[k] || ''}`; }
+          return READ[y.n] || y.n;
+        });
+        const score = r.yakuman ? `${r.limit}` : `${r.han}ハン、${r.fu}フ${r.limit ? '、' + r.limit : ''}`;
+        const pts = !w.tsumo ? `${w.pay.ron}点` : game.dealer === w.winner.seat ? `${w.pay.each}点オール` : `${w.pay.fromOther}、${w.pay.fromDealer}点`;
+        parts.push(`${w.winner.name}の${w.tsumo ? 'ツモ' : 'ロン'}。${names.join('。')}。${score}。${pts}。`);
+      });
+      setTimeout(() => { if (!document.querySelector('#overlay .modal')) return; MJ.SFX.read(parts.join(' ')); }, 900);
+    },
+
+    scoreTable(game, res) {
+      const rows = game.players.map((p, i) => `<tr><td>${p.name}</td><td>${fmt(res.before[i])}</td><td>${signed(res.delta[i])}</td><td><b>${fmt(res.after[i])}</b></td></tr>`).join('');
+      return `<table class="scores"><tr><th>プレイヤー</th><th>前</th><th>増減</th><th>持ち点</th></tr>${rows}</table>`;
+    },
+
 
     gameEnd(game, final) {
       return new Promise((resolve) => {

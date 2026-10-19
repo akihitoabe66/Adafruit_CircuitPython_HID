@@ -573,12 +573,9 @@
     // 3. 途中経過(相手がリーチ/ダマテンしていた時期のあなたの切り牌。あとから分かった情報で記録)
     const rel = lr.log.filter((e) => e.threats && e.threats.length).slice(-5);
     if (rel.length) {
-      const rows = rel.map((e) => {
-        const thr = e.threats.map((x) => `${x.name}(${x.riichi ? 'リーチ中' : '<b>ダマテン中</b>'}・待ち${icons(x.waits, 6) || '?'})`).join('、');
-        const isLast = e === lr.log[lr.log.length - 1] && e.t === t;
-        return `<li>${e.turn}回目: ${ic(e.t)}<b>${tn(e.t)}</b>(${e.tag || '—'}・いちばん危ない相手に対して約${e.score}%)${isLast ? ' ← <b class="bad">この牌でロン</b>' : ''}<br><span class="cc-s">　相手の状況: ${thr}</span>${e.safest && e.safest.t !== e.t ? `<br><span class="cc-s">　安全だった牌: ${ic(e.safest.t)}${tn(e.safest.t)}(${e.safest.tag}・約${e.safest.score}%)</span>` : ''}${e.worse ? `<br><span class="cc-s">　⚠ この牌で手が後退(${e.shBest}→${e.shAfter}シャンテン)</span>` : ''}</li>`;
-      }).join('');
-      sec.push(`<div class="rv-h">③ 途中経過: 相手がテンパイしていた間のあなたの切り牌</div>${C.timeline(lr.log, { full: true, lastHit: true })}<p class="cc-s">(相手の手は対局中は見えません。終わってから分かった情報で記録しています)</p><ul class="cc-ul">${rows}</ul>`);
+      const alt = rel.filter((e) => e.safest && e.safest.t !== e.t && e.score >= 4).slice(-3).map((e) => `${e.turn}回目に${ic(e.t)}${tn(e.t)}を切った場面では、<b>${ic(e.safest.t)}${tn(e.safest.t)}(${e.safest.tag})</b>のほうが安全でした`);
+      const wor = rel.filter((e) => e.worse).map((e) => `${e.turn}回目(${ic(e.t)}${tn(e.t)})で手が後退`);
+      sec.push(`<div class="rv-h">③ 途中経過: 相手がテンパイしていた間のあなたの切り牌</div><p class="cc-s">(相手の手は対局中は見えません。終わってから分かった情報で記録しています)</p>${C.timeline(rel, { full: true, lastHit: true })}${alt.length ? `<ul class="cc-ul">${alt.map((x) => `<li>${x}</li>`).join('')}</ul>` : ''}${wor.length ? `<p class="cc-s">⚠ ${wor.join(' / ')}</p>` : ''}`);
     } else {
       sec.push('<div class="rv-h">③ 途中経過</div><p class="cc-s">ロンされる直前までテンパイの形が整っていなかったか、直前にテンパイしたようです。こういうときは、<b>終盤(山が少ない)や、鳴きの後</b>に特に気をつけましょう。</p>');
     }
