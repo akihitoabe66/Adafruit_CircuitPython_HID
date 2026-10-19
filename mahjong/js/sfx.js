@@ -92,6 +92,14 @@
       const score = (v) => (male.test(v.name) ? 0 : 4) + (female.test(v.name) ? 2 : 0) + (hq.test(v.name) ? 1 : 0);
       return vs.slice().sort((a, b) => score(b) - score(a)).slice(0, 6);
     },
+    /* 声の表示名: 「Ayumi - Japanese (Japan)」→「Ayumi(女性)」、「Google 日本語」はそのまま */
+    voiceLabel(v) {
+      const female = /kyoko|o-?ren|haruka|nanami|ayumi|sayaka|mizuki|female|woman|girl/i;
+      const male = /otoya|ichiro|hattori|takumi|keita|ken\b|male(?!.*female)|man\b/i;
+      let n = v.name.replace(/^Microsoft\s+/i, '').replace(/\s*[-–]\s*(Japanese|Japan|日本語).*$/i, '').replace(/\s*\((Japanese|Japan)[^)]*\)\s*$/i, '').trim() || v.name;
+      const g = female.test(v.name) ? '女性' : male.test(v.name) ? '男性' : '';
+      return g ? `${n}・${g}` : n;
+    },
     femaleVoice() {
       const list = S.voiceList();
       return list.find((v) => v.voiceURI === S.readVoice) || list[0] || null;

@@ -96,7 +96,7 @@
       const list = MJ.SFX.voiceList(), cur = MJ.SFX.femaleVoice();
       document.querySelectorAll('.vp-list').forEach((box, bi) => {
         if (!list.length) { box.innerHTML = '<span class="cc-s">この端末では選べる声がありません</span>'; return; }
-        box.innerHTML = list.map((v, i) => `<label><input type="radio" class="vpr" name="rv${bi}" value="${v.voiceURI}"${cur && cur.voiceURI === v.voiceURI ? ' checked' : ''}> 声${i + 1}<small>${v.name.replace(/^(Microsoft|Google)\s*/i, '').replace(/\s*\(.*\)$/, '').slice(0, 14)}</small></label>`).join('');
+        box.innerHTML = list.map((v, i) => `<label><input type="radio" class="vpr" name="rv${bi}" value="${v.voiceURI}"${cur && cur.voiceURI === v.voiceURI ? ' checked' : ''}> 声${i + 1}<small>${MJ.SFX.voiceLabel(v)}</small></label>`).join('');
       });
     },
     /* 「ここから読む」ボタンを、読み上げ対象の各ブロックに付ける */
