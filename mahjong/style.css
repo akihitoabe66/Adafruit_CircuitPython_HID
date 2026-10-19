@@ -669,3 +669,7 @@ select.ac { background: #0b1d18; color: #fff; border: 1px solid #3c7a67; border-
 .callq .cq-btn .cq-set .tile { width: 24px; height: 32px; }
 .callq .cq-why { display: none; }
 @media (max-width: 520px) { .callq .cq-btns { display: flex; margin: 0; width: 100%; } .callq .cq-btn { flex: 1; min-height: 38px; } .callq .cq-btn.b-pass { grid-column: auto; } }
+
+/* 手牌の下=短い要約 / 右パネル=詳しい比較(内容が重ならないように) */
+#coach .tileinfo { height: auto; min-height: 4.6em; max-height: 9.5em; overflow: hidden; }
+.tipline .cmp { color: #ffe9a0; }

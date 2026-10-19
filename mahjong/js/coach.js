@@ -50,6 +50,22 @@
     if (MJ.isTerminal(t) && c[t] === 1) n.push('端牌(順子を作りにくい)');
     return n;
   }
+  /* 手牌の下に出す短い比較(詳しい版は右の解説パネル) */
+  function diffShort(game, p, an, best, e) {
+    const bits = [];
+    if (e.sh > best.sh) bits.push('シャンテンが戻る');
+    else {
+      const d = best.ukeire.n - e.ukeire.n;
+      if (d > 0) bits.push(`有効牌が${d}枚少ない`);
+      else if (d < 0) bits.push(`有効牌は${-d}枚多い`);
+      else bits.push('有効牌は同数');
+    }
+    const nb = tileNotes(game, p, an.c, best.t), ne = tileNotes(game, p, an.c, e.t);
+    if (ne.length && !nb.length) bits.push(`${tn(e.t)}は${ne[0]}`);
+    else if (nb.length && !ne.length) bits.push(`${tn(best.t)}は${nb[0]}`);
+    return bits.join(' / ');
+  }
+
   function diffWhy(game, p, an, best, e) {
     const parts = [];
     const nm = (x) => `${ic(x.t)}${tn(x.t)}`;
@@ -304,12 +320,13 @@
       if (an.opps.length) for (const e of an.evals) for (const h of p.hand) if (h.t === e.t) marks[h.id] = { txt: sh(e.danger.tag), cls: e.danger.cls };
     }
     if (opts.riichi.length) for (const h of p.hand) if (opts.riichi.includes(h.t)) marks[h.id] = Object.assign({}, marks[h.id], { riichi: true });
-    const info = {};
+    const info = {}, infoLong = {};
     for (const e of an.evals) {
       const txt = `<b>${ic(e.t)} ${tn(e.t)}</b> を切ると: ${e.sh === an.minSh ? '<span class="good">シャンテン維持</span>' : '<span class="bad">シャンテンが戻る</span>'}(${e.sh === 0 ? 'テンパイ' : e.sh + 'シャンテン'}) / 有効牌 ${e.ukeire.n}枚${e.danger ? `<br>危険度: <b>${e.danger.tag}</b>(約${Math.round(e.danger.score)}%) ${e.danger.why}` : e.genCount ? `<br>${e.genCount}人の現物` : ''}`;
       const cmp = best && e !== best && recId === best.tile.id && !an.opps.length ? diffWhy(game, p, an, best, e) : [];
       const txt2 = cmp.length ? `${txt}<br><span class="cmp">★${tn(best.t)}ではなくこちらを切らない理由: ${cmp.slice(0, 2).join('。')}</span>` : txt;
-      for (const h of p.hand) if (h.t === e.t) info[h.id] = txt2;
+      const txtS = cmp.length ? `${txt}<br><span class="cmp">★${tn(best.t)}との差: ${diffShort(game, p, an, best, e)}</span>` : txt;
+      for (const h of p.hand) if (h.t === e.t) { info[h.id] = txtS; infoLong[h.id] = txt2; }
     }
     let summary = '';
     const rec = recId ? p.hand.find((h) => h.id === recId) : null;
@@ -321,7 +338,7 @@
       if (sf && sf.t !== rec.t) summary += ` / 🛡安全:${tn(sf.t)}(${sf.danger.tag})`;
     }
     if (opts.riichi.length) summary = '✨リーチできます! ' + summary;
-    return { html: cards.filter(Boolean).join(''), marks, recId, info, summary };
+    return { html: cards.filter(Boolean).join(''), marks, recId, info, infoLong, summary };
   };
 
   /* ---------- 守備モード ---------- */

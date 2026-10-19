@@ -486,7 +486,7 @@
       const el = $('#tipline');
       if (el) el.innerHTML = t;
       const ti = $('#tileinfo');
-      if (ti) { ti.style.display = 'block'; ti.innerHTML = t; }
+      if (ti) { ti.style.display = 'block'; ti.innerHTML = (this.adv.infoLong && this.adv.infoLong[id]) || t; }
     },
 
     /* ---------- 危険度の見える化(◎○△✕・★・色)/ 河のスジ・現物マップ ---------- */
