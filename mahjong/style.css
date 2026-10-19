@@ -254,8 +254,8 @@ details.expl li { margin: 6px 0; line-height: 1.7; }
 .land .blk { min-height: calc(var(--sh) * 2.4 + var(--sw) * 2 + 36px); }
 
 /* ---------- ホーム画面 ---------- */
-#menu-bg { position: fixed; inset: 0; z-index: -1; display: none; background: #070a1c url(img/title.jpg) center 30% / cover no-repeat; }
-body.on-menu #menu-bg { display: block; }
+#menu-bg { position: fixed; inset: 0; z-index: -1; display: block; opacity: 0; pointer-events: none; transition: opacity .3s; background: #070a1c url(img/title.jpg) center 30% / cover no-repeat; }
+body.on-menu #menu-bg { opacity: 1; }
 #menu-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7, 10, 28, .05) 0%, rgba(7, 10, 28, .0) 38%, rgba(7, 10, 28, .72) 64%, rgba(7, 10, 28, .94) 100%); }
 body.on-menu { background: transparent; }
 @media (orientation: portrait) {
@@ -299,7 +299,7 @@ h1.title { font-size: clamp(30px, 7vw, 56px); margin: 4px 0 2px; letter-spacing:
 
 
 /* ---------- タイトル画面 ---------- */
-body.on-title #menu-bg { display: block; }
+body.on-title #menu-bg { opacity: 1; }
 body.on-title { background: transparent; }
 body.on-title #menu-bg::after { background: linear-gradient(180deg, rgba(7, 10, 28, 0) 0%, rgba(7, 10, 28, 0) 52%, rgba(7, 10, 28, .75) 68%, rgba(7, 10, 28, .96) 76%, rgba(7, 10, 28, .96) 100%); }
 @media (orientation: portrait) { body.on-title #menu-bg { background-size: auto 74%; } }

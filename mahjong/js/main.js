@@ -165,5 +165,27 @@
       document.querySelector('#q-yes').addEventListener('click', () => App.toMenu());
     });
   }
+  /* 画像の先読み: タイトル/ホームの背景 → キャラ → 自分のアイコン → 牌 の順に、起動直後から裏で読み込んでおく(画面切替で真っ黒にならない) */
+  MJ.preloaded = [];
+  function preload() {
+    const urls = ['img/title.jpg', 'img/title_p.jpg'];
+    for (let i = 1; i <= 16; i++) urls.push(`img/chars/${String(i).padStart(2, '0')}.jpg`);
+    for (let i = 1; i <= 18; i++) urls.push(`img/you/${String(i).padStart(2, '0')}.jpg`);
+    for (let i = 0; i < 34; i++) urls.push(`img/tiles/${i}.png`);
+    let k = 0;
+    const next = () => {
+      // 同時に4枚ずつ読む
+      for (let n = 0; n < 4 && k < urls.length; n++, k++) {
+        const im = new Image();
+        im.decoding = 'async';
+        im.onload = im.onerror = () => { if (k < urls.length) next(); };
+        im.src = urls[k];
+        if (im.decode) im.decode().catch(() => {});
+        MJ.preloaded.push(im);
+      }
+    };
+    next();
+  }
   init();
+  preload();
 })();
