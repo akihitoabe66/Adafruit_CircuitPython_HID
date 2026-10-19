@@ -59,7 +59,7 @@
 
   <!-- 練習問題 -->
   <section id="screen-drill" class="screen hidden">
-    <div class="back-row"><button class="btn ghost sm" id="drill-back">← 戻る</button><h2 id="drill-title" style="margin:0">📝 練習問題</h2><span id="drill-score" class="dscore"></span></div>
+    <div class="back-row"><button class="btn ghost sm" id="drill-back">← 戻る</button><h2 id="drill-title" style="margin:0">📝 練習問題</h2><span id="drill-score" class="dscore"></span><button class="btn sm" data-open-gloss title="用語辞典" style="margin-left:auto">📚 用語</button></div>
     <div id="drill-home"></div>
     <div id="drill-quiz" class="hidden dq">
       <div id="dq-sit" class="dq-sit"></div>
@@ -87,6 +87,7 @@
       <div class="gtools">
         <button class="btn sm" id="btn-hint">💡 ヒント</button>
         <button class="btn sm" id="btn-coach">🎓 解説</button>
+        <button class="btn sm" data-open-gloss title="用語辞典">📚</button>
         <details class="gset"><summary class="btn sm">⚙ 設定</summary>
           <div class="gsetp">
             <label><input type="checkbox" id="opt-reveal"> CPUの手牌を見る</label>
@@ -121,6 +122,7 @@
 <script src="js/game.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/sfx.js"></script>
+<script src="js/glossary.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/drill.js"></script>
 <script src="js/drillui.js"></script>

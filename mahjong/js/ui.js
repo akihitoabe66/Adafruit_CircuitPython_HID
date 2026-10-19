@@ -319,6 +319,7 @@
       else body = `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
       if (this.sel && this.sel.type === 'self' && this.coachActive()) body = '<div class="tileinfo" id="tileinfo"></div>' + body;
       el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><button class="btn sm rd" data-read="coach">🔊 読み上げ</button></div>${body}`;
+      MJ.Gloss.decorate(el);
     },
 
     /* ---------- 演出 ---------- */
@@ -353,6 +354,7 @@
       o.innerHTML = `<div class="modal">${html}</div>`;
       o.classList.remove('hidden');
       o.scrollTop = 0;
+      MJ.Gloss.decorate(o);
       return o;
     },
     closeOverlay() { $('#overlay').classList.add('hidden'); $('#overlay').innerHTML = ''; },

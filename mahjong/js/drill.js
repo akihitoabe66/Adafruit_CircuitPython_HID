@@ -544,6 +544,142 @@
     return null;
   }
 
+  /* ====================================================================
+     7) 押すか引くか (リーチ者に対する押し引き)
+     ==================================================================== */
+  const PUSH_LABEL = { push: '押す(攻める)', mawashi: '回し打ち', fold: 'オリる' };
+  const r100 = (x) => Math.round(x / 100) * 100;
+  function genPush() {
+    const target = pick(['push', 'mawashi', 'fold']);
+    for (let tries = 0; tries < 700; tries++) {
+      const pool = new Pool();
+      const rs = 1 + rnd(3);
+      const dora = randTile(pool, 1);
+      const hand = makeHand(pool, { replace: rnd(4), honorP: 0.08 });
+      if (!hand) continue;
+      const rivers = [[], [], [], []];
+      for (let s = 1; s <= 3; s++) rivers[s] = randRiver(pool, (s === rs ? 9 : 8) + rnd(5));
+      const dealer = rnd(4);
+      const g = mock({ hand, doraInd: [dora], rivers, riichiIdx: { [rs]: rivers[rs].length - 1 - rnd(2) }, chars: MJ.shuffle(MJ.CHARS.slice()).slice(0, 4), dealer });
+      const an = A.analyze(g, g.players[0], { know: 2 });
+      if (!an.opps.length || an.minSh < 0 || an.minSh > 3) continue;
+      const push = A.byEff(an.evals.filter((e) => e.sh === an.minSh))[0];
+      const fold = A.bySafety(an.evals)[0];
+      const sh = an.minSh;
+      const dng = push.danger.score;
+      // 和了率の目安
+      let left = 0;
+      let value = 0, valueTxt = '';
+      const doraN = hand.filter((h) => h.red).length + hand.filter((h) => g.doraInd.some((d) => MJ.doraOf(d.t) === h.t)).length;
+      const oppDealer = rs === dealer;
+      const meDealer = dealer === 0;
+      if (sh === 0) {
+        const c = an.c.slice(); c[push.t]--;
+        const info = A.tenpaiValue(g, g.players[0], c, 0, true);
+        if (!info || !info.best) continue;
+        left = info.left;
+        const r = info.best.res;
+        value = meDealer ? c100(r.basic * 6) : c100(r.basic * 4);
+        valueTxt = `リーチした場合 ${r.han}飜${r.fu}符 = <b>約${value}点</b>`;
+      } else {
+        left = push.ukeire.n;
+        const han = 1 + doraN;
+        const b = MJ.basicPoints(han, 30);
+        value = meDealer ? c100(b * 6) : c100(b * 4);
+        valueTxt = `役+ドラ${doraN}枚で約${han}飜 → 目安 <b>約${value}点</b>`;
+      }
+      const win = sh === 0 ? Math.min(70, left * 5.5) : sh === 1 ? Math.min(35, left * 0.9) : sh === 2 ? Math.min(15, left * 0.3) : 3;
+      const risk = sh === 0 ? 1.2 : sh === 1 ? 2.2 : 3.2;
+      const lossBase = oppDealer ? 7700 : 5200;
+      const loss = (dng / 100) * lossBase * risk;
+      const ev = (win / 100) * value - loss;
+      const ans = ev > 400 ? 'push' : ev > -250 ? 'mawashi' : 'fold';
+      if (tries < 500 && ans !== target) continue;
+      const shTxt = ['テンパイ(聴牌)', '1シャンテン', '2シャンテン', '3シャンテン'][sh];
+      const opp = g.players[rs];
+      const oppWind = ['東', '南', '西', '北'][g.seatWindOf(opp)];
+      const info = `<ul class="cc-ul"><li>あなたの手: <b>${shTxt}</b>(${sh === 0 ? '待ち残り' : '有効牌'} <b>${left}枚</b>)</li><li>${valueTxt}${oppDealer ? '' : ''}</li><li>押す場合に切る牌 ${ic(push.t)} ${tn(push.t)}: <b>${push.danger.tag}</b>(放銃率 約${Math.round(dng)}%)</li></ul>`;
+      return {
+        cat: 'push', kind: 'choice', title: '押す? 引く?(押し引き)', hand, g, an, rs,
+        sit: sitHTML(g, `<b>${opp.name}</b>(${oppWind}家${oppDealer ? '・親' : ''})がリーチ中`),
+        prompt: `あなたは14枚の手牌です。${opp.name}のリーチに対して、<b>押す・回し打ち・オリる</b>のどれにしますか?<br><span class="cc-s">${PUSH_LABEL.push}=手を進める牌を切って勝負 / ${PUSH_LABEL.mawashi}=安全寄りに受けつつ進める / ${PUSH_LABEL.fold}=手を崩して安全牌だけ切る</span>`,
+        options: ['push', 'mawashi', 'fold'].map((id) => ({ id, html: PUSH_LABEL[id] })),
+        grade(id) {
+          const okk = id === ans;
+          const adj = (id === 'mawashi' || ans === 'mawashi');
+          const why = {
+            push: `期待値がプラス(約${r100(ev)}点)。待ちが良く(または点が高く)、放銃の危険に見合うので<b>押し</b>ます。`,
+            mawashi: `期待値は±0付近(約${r100(ev)}点)。無理に突っ込まず、<b>危険度の低い牌</b>を選びつつ手を進める「回し打ち」が無難です。`,
+            fold: `期待値がマイナス(約${r100(ev)}点)。放銃すると大きな失点になるので、<b>${ic(fold.t)} ${tn(fold.t)}</b>(${fold.danger.tag})など安全牌でオリるのが得です。`,
+          }[ans];
+          return {
+            r: okk ? 'ok' : adj ? 'near' : 'ng',
+            html: `<p>おすすめは <b>${PUSH_LABEL[ans]}</b>。</p><p>${why}</p>${info}<div class="cc-s">計算の目安: 和了率 約${Math.round(win)}% × 打点 − 放銃率 約${Math.round(dng)}% × 失点${lossBase}点${oppDealer ? '(相手が親なので高め)' : ''} × 先の危険補正${risk} ≒ <b>${r100(ev)}点</b>。この数字はあくまで目安で、点差・局面(順位や残り局)でも判断は変わります。</div><div class="cc cc-help"><div class="cc-b"><b>押し引きの目安</b>: ①テンパイなら基本は押す(特に高打点・良い待ち) ②1シャンテンは「安全な牌で進められるか」 ③2シャンテン以上や安い手は基本オリ ④相手が親ならより慎重に。</div></div>`,
+          };
+        },
+      };
+    }
+    return null;
+  }
+
+  /* ====================================================================
+     8) リーチか ダマか
+     ==================================================================== */
+  function genRiichi() {
+    const target = pick(['riichi', 'dama']);
+    for (let tries = 0; tries < 800; tries++) {
+      const pool = new Pool();
+      const c = randomComplete({ honorP: 0.12, honorPair: 0.2 });
+      const ts = flat(c);
+      const cnt = new Array(34).fill(0);
+      ts.forEach((t) => cnt[t]++);
+      if (cnt.some((n) => n > 4)) continue;
+      ts.splice(rnd(14), 1);
+      const hand = pool.takeMany(ts);
+      if (!hand) continue;
+      sortTiles(hand);
+      const counts = MJ.toCounts(hand);
+      const ws = MJ.waits(counts.slice(), 0);
+      if (!ws.length || ws.length > 3) continue;
+      const dora = randTile(pool, 1);
+      const dealer = rnd(4);
+      const rivers = [[], randRiver(pool, 4 + rnd(4)), randRiver(pool, 4 + rnd(4)), randRiver(pool, 4 + rnd(4))];
+      const aka = hand.filter((h) => h.red).length;
+      const rows = ws.map((w) => {
+        const cc = counts.slice(); cc[w]++;
+        const res = MJ.evaluate({ counts: cc, melds: [], winTile: w, tsumo: false, riichi: false, ippatsu: false, roundWind: 0, seatWind: (0 - dealer + 4) % 4, dora: [MJ.doraOf(dora.t)], ura: [], aka });
+        return { w, res, left: pool.left(w) };
+      });
+      const left = rows.reduce((a, r) => a + r.left, 0);
+      if (left === 0) continue;
+      const noYaku = rows.some((r) => !r.res);
+      const hanD = noYaku ? 0 : Math.min(...rows.map((r) => r.res.han));
+      let ans, why;
+      if (noYaku) { ans = 'riichi'; why = 'ダマだと<b>役がなく、上がれない待ち</b>があります。リーチをかけて「リーチ」という役をつけましょう。'; }
+      else if (hanD >= 3) { ans = 'dama'; why = `ダマでもすでに<b>${hanD}飜</b>以上あり、打点は十分。リーチすると警戒されて出上がりが減るので、<b>ダマ(ヤミテン)</b>がおすすめです。`; }
+      else if (hanD === 2) {
+        if (left >= 5) { ans = 'dama'; why = `ダマで<b>${hanD}飜</b>、待ちも${left}枚と多い。出上がりしやすいので<b>ダマ</b>で十分です。`; }
+        else { ans = 'riichi'; why = `ダマで${hanD}飜ですが待ちが${left}枚と少なめ。出上がりに期待しにくいので、<b>リーチ</b>でツモ・裏ドラ・一発の上乗せを狙います。`; }
+      } else { ans = 'riichi'; why = `ダマだと<b>${hanD}飜</b>で安い。リーチをかけると+1飜(裏ドラ・一発も)で、手が大きく伸びます。<b>リーチ</b>が基本です。`; }
+      if (tries < 600 && ans !== target) continue;
+      const g = mock({ hand, doraInd: [dora], rivers, dealer, chars: MJ.shuffle(MJ.CHARS.slice()).slice(0, 4) });
+      const tbl = rows.map((r) => `<li>${ic(r.w)} (あと${r.left}枚): ${r.res ? r.res.yaku.filter((y) => !y.dora).map((y) => y.n).join('・') + (r.res.yaku.some((y) => y.dora) ? '+ドラ' : '') + ` = <b>${r.res.han}飜${r.res.fu}符</b>` : '<span class="bad">役なし(ダマだと上がれない)</span>'}</li>`).join('');
+      return {
+        cat: 'riichi', kind: 'choice', title: 'リーチ? ダマ?', hand, g,
+        sit: sitHTML(g, '全員ノーリーチ・あなたはテンパイ'), prompt: `13枚で<b>門前テンパイ</b>しました。<b>リーチ</b>をかけますか? それとも黙って(<b>ダマ・ヤミテン</b>)上がりを待ちますか?<br><span class="cc-s">待ち: ${typesIcons(ws)}(場にあと${left}枚)</span>`,
+        options: [{ id: 'riichi', html: 'リーチ' }, { id: 'dama', html: 'ダマ(ヤミテン)' }],
+        grade(id) {
+          const okk = id === ans;
+          return {
+            r: okk ? 'ok' : (hanD === 2 ? 'near' : 'ng'),
+            html: `<p>おすすめは <b>${ans === 'riichi' ? 'リーチ' : 'ダマ'}</b>。</p><p>${why}</p><ul class="cc-ul">${tbl}</ul><div class="cc cc-help"><div class="cc-b"><b>目安</b>: 役なし→リーチ ／ ダマで3飜以上→ダマ ／ 2飜は待ちの枚数しだい(5枚以上ならダマ) ／ 1飜→リーチ。リーチは打点が上がる代わりに、<b>手が固定され、他家に警戒され、1,000点を供託</b>します。実戦では点差や形(愚形かどうか)でも変わる目安です。</div></div>`,
+          };
+        },
+      };
+    }
+    return null;
+  }
+
   /* ---------- カテゴリ一覧 ---------- */
   MJ.DRILLS = [
     { id: 'eff', icon: '✂️', name: '何を切る?(牌効率)', level: '入門', desc: '14枚の手牌から、テンパイに近づく牌を選びます。有効牌の数と、切る順番の基本が身につきます。', gen: genEff },
@@ -552,7 +688,9 @@
     { id: 'call', icon: '🔔', name: '鳴く?見送る?', level: '入門〜中級', desc: 'ポン・チーできる場面で、役がつくか・手が進むかを見て、鳴くか見送るかを判断します。', gen: genCall },
     { id: 'wait', icon: '👀', name: '待ちを当てよう', level: '入門', desc: 'テンパイ形から上がり牌(待ち)を探します。両面・カンチャン・シャンポンなど待ちの形が分かります。', gen: genWait },
     { id: 'score', icon: '🧮', name: '点数計算ドリル', level: '入門〜中級', desc: '飜数・符・点数を、ランダムな上がり形で練習。答え合わせで計算のしくみが一手ずつ分かります。', gen: () => genScore() },
+    { id: 'push', icon: '⚖️', name: '押すか引くか', level: '中級', desc: '相手がリーチ。自分の手の進み具合・打点・危険度を比べて「押す・回し打ち・オリる」を判断します。', gen: genPush },
+    { id: 'riichi', icon: '🔥', name: 'リーチかダマか', level: '中級', desc: 'テンパイしたとき、リーチをかけるか黙って待つか。役・打点・待ちの枚数から判断します。', gen: genRiichi },
   ];
   MJ.DRILL_THEMES = THEMES;
-  MJ.Drill = { Pool, mock, genEff, genDef, genCall, genYaku, genWait, genScore };
+  MJ.Drill = { Pool, mock, genEff, genDef, genCall, genYaku, genWait, genScore, genPush, genRiichi };
 })(typeof window !== 'undefined' ? window : globalThis);

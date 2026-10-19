@@ -78,9 +78,10 @@
       $('#drill-score').textContent = this.scoreText();
       $('#dq-sit').innerHTML = q.sit;
       $('#dq-prompt').innerHTML = q.prompt;
+      MJ.Gloss.decorate($('#dq-prompt'));
       // 場 (CPUの河)
       let board = '';
-      if (q.g && (q.cat === 'def' || q.cat === 'eff')) {
+      if (q.g && (q.cat === 'def' || q.cat === 'eff' || q.cat === 'push')) {
         board = '<div class="dblocks">' + [1, 2, 3].map((s) => {
           const p = q.g.players[s];
           const river = p.discards.map((d) => MJ.tileHTML(d.tile.t, d.riichi ? 'rch' : '', '', d.tile.red)).join('');
@@ -159,6 +160,7 @@
       const fb = $('#dq-fb');
       fb.className = `dq-fb ${good ? 'good' : r.r === 'near' ? 'warn' : 'bad'}`;
       fb.innerHTML = `<div class="dq-fh">${head}</div><div id="dq-exp">${r.html}</div><div class="dq-fa"><button class="btn sm rd" data-read="drill">🔊 読み上げ</button><button class="btn pri" id="dq-next">次の問題 ▶</button></div>`;
+      MJ.Gloss.decorate(fb);
       $('#dq-actions').classList.add('hidden');
       fb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     },
