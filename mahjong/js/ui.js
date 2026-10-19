@@ -35,7 +35,7 @@
         const tl = e.target.closest('.hand .tile[data-id]');
         if (tl) this.showInfo(+tl.dataset.id);
       });
-      $('#btn-coach').addEventListener('click', () => document.body.classList.toggle('coach-open'));
+      $('#btn-coach').addEventListener('click', () => { document.body.classList.toggle('coach-open'); this.fitCoachText($('#coach')); });
       window.addEventListener('resize', () => this.relayout());
       window.addEventListener('orientationchange', () => setTimeout(() => this.relayout(), 250));
       $('#opt-reveal').addEventListener('change', (e) => { this.reveal = e.target.checked; if (this.game) this.render(this.game); });
@@ -62,6 +62,18 @@
         if (!root) return;
         if (MJ.SFX.speaking()) { MJ.SFX.stopSpeak(); return; }
         if (!MJ.SFX.read(this.textOf(root))) this.toast('この端末には日本語の読み上げ音声がありません');
+      });
+      document.addEventListener('click', (e) => {
+        // 縦画面: 解説パネルをタップで大きく開く/閉じる
+        const cp = e.target.closest('#coach');
+        if (cp && !document.body.classList.contains('desk') && !document.body.classList.contains('land') && !e.target.closest('button, .gl, [data-pj], .rf')) {
+          document.body.classList.toggle('coach-open');
+          this.fitCoachText($('#coach'));
+          return;
+        }
+        const g = e.target.closest('#coach [data-pg]'), j = e.target.closest('#coach [data-pj]');
+        if (g) this.goCoachPage(+g.dataset.pg);
+        else if (j) this.goCoachPage(0, +j.dataset.pj);
       });
       this.syncAudio();
       $('#btn-hint').addEventListener('click', () => {
@@ -134,7 +146,7 @@
     textOf(root, from) {
       const c = root.cloneNode(true);
       if (from) { const k = [...root.children].indexOf(from); for (let n = 0; n < k; n++) c.children[0].remove(); }
-      c.querySelectorAll('.ch, .rd, button, table.scores, summary, script, style').forEach((n) => n.remove());
+      c.querySelectorAll('.ch, .rd, button, table.scores, .ctabs, summary, script, style').forEach((n) => n.remove());
       // 牌の絵は「名前」を読むが、すぐ後ろに同じ名前の文字がある場合は重複して読まない。牌が4つ以上並ぶ所は最初の3つまで
       c.querySelectorAll('img').forEach((i) => i.replaceWith(document.createTextNode(i.alt ? `\u0001${i.alt}\u0002` : '')));
       c.querySelectorAll('li, .cc, .cc-h, tr, p, div').forEach((n) => n.append('。'));
@@ -168,10 +180,36 @@
     coachActive() { return this.game.mode !== 'free' || this.hintOn; },
 
     /* ---------- レイアウト(画面サイズに合わせて牌の大きさを決める) ---------- */
-    layout() {
-      const T = $('#table');
+    /* 対局画面を「ステージ」として扱う: PC/タブレット横=16:9を基準に拡大縮小、スマホ縦=9:16〜9:19.5、
+       スマホ横=16:9〜19.5:9。比率が合わない分は黒帯(暗い背景)にして、画面内にスクロールなしで収める */
+    fitStage() {
+      const el = $('#screen-game');
+      if (!el || el.classList.contains('hidden')) return;
       const W = window.innerWidth, H = window.innerHeight;
-      const desk = W >= 1000 && H >= 600;
+      const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+      let sw, sh, sc = 1;
+      if (W >= H) {
+        const asp = clamp(W / H, 16 / 9, 19.5 / 9);
+        if (H >= 600) { sh = 720; sw = Math.round(720 * asp); sc = Math.min(W / sw, H / sh); }
+        else if (W / H >= asp) { sh = H; sw = Math.round(H * asp); } else { sw = W; sh = Math.round(W / asp); }
+      } else {
+        const asp = clamp(W / H, 9 / 19.5, 9 / 16);
+        if (W / H > asp) { sh = H; sw = Math.round(H * asp); } else { sw = W; sh = Math.round(W / asp); }
+      }
+      const ox = Math.round((W - sw * sc) / 2), oy = Math.round((H - sh * sc) / 2);
+      el.style.width = sw + 'px';
+      el.style.height = sh + 'px';
+      el.style.transform = `translate(${ox}px, ${oy}px) scale(${sc})`;
+      if (!this.stage || this.stage.w !== sw || this.stage.h !== sh) this.layoutKey = '';
+      this.stage = { w: sw, h: sh, sc };
+    },
+
+    layout() {
+      this.fitStage();
+      const st = this.stage;
+      if (!st) return;
+      const W = st.w, H = st.h;
+      const desk = W >= 1000 && H >= 560;
       const land = !desk && W > H;
       const body = document.body;
       body.classList.toggle('desk', desk);
@@ -189,16 +227,32 @@
       const bw = (inner - 5 * (n - 1)) / n;
       let sw = Math.floor((bw - 14) / 6.05);
       let hw = Math.floor((full - 14) / 14.3);
-      sw = Math.min(sw, desk ? 42 : 40);
-      hw = Math.min(hw, desk ? 60 : 66);
-      if (land) {
+      sw = Math.min(sw, desk ? 52 : 40);
+      hw = Math.min(hw, desk ? 74 : 66);
+      if (desk || land) {
         const fit = () => gb + 14 + (sw * 2 + 14 + 2.4 * (sw * 1.32 + 2) + 16) + (hw * 1.32 + 24) + 50 + 22;
         while (fit() > H && hw > 22) { hw--; if (sw > hw * 0.55) sw--; }
       }
+      this.setSizes(sw, hw);
+    },
+    setSizes(sw, hw) {
+      this.sizes = { sw, hw };
       const r = document.documentElement.style;
       r.setProperty('--sw', sw + 'px');
       r.setProperty('--sh', Math.round(sw * 1.32) + 'px');
       r.setProperty('--hw', hw + 'px');
+    },
+    /* 描画後に実測して、はみ出していたら牌を少しずつ小さくする(スクロールを出さないため) */
+    fitHeight() {
+      const gm = $('.gmain'), gl = $('.gleft');
+      if (!gm || !gl || !this.sizes) return;
+      let { sw, hw } = this.sizes, n = 0;
+      const room = () => (document.body.classList.contains('desk') || document.body.classList.contains('land') ? gm.clientHeight : gm.clientHeight - 90);
+      while (gl.scrollHeight > room() && n++ < 14 && (sw > 16 || hw > 18)) {
+        if (hw > 18) hw--;
+        if (sw > hw * 0.6 || sw > 16) sw--;
+        this.setSizes(sw, hw);
+      }
     },
 
     /* ---------- 描画 ---------- */
@@ -209,6 +263,7 @@
       $('#ginfo').innerHTML = `<span class="kk">${game.kyokuLabel()}</span><span>${game.length === 'single' ? '1局戦' : '東風戦'}</span><span class="doras">ドラ表示 ${doras}</span><span>残り ${game.live.length}枚</span>${game.kyotaku ? `<span>供託 ${game.kyotaku}</span>` : ''}`;
       $('#table').innerHTML = `<div class="blocks">${[3, 2, 1, 0].map((s) => this.block(game, s)).join('')}</div>`;
       $('#mine').innerHTML = this.mineHTML(game);
+      this.fitHeight();
     },
 
     meldHTML(m) {
@@ -415,9 +470,41 @@
       }
       else body = `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
       if (this.sel && this.sel.type === 'self' && this.coachActive()) body = '<div class="tileinfo" id="tileinfo"></div>' + body;
-      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><button class="btn sm rd" data-read="coach">🔊 読み上げ</button></div>${body}`;
+      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><button class="btn sm rd" data-read="coach">🔊 読み上げ</button></div><div class="ctabs"></div>${body}`;
+      this.pageCoach(el);
       MJ.Gloss.decorate(el);
       this.addReadFrom(el);
+      this.fitCoachText(el);
+    },
+
+    /* 助言カードは1枚ずつ表示(◀▶で切り替え)。スクロールなしで枠に収める */
+    pageCoach(el) {
+      const cards = [...el.querySelectorAll(':scope > .cc')];
+      const tabs = el.querySelector('.ctabs');
+      if (cards.length <= 1) { cards.forEach((c) => c.classList.add('on')); if (tabs) tabs.remove(); this.fitCoachText(el); return; }
+      const hd = (c) => ((c.querySelector('.cc-h') || {}).textContent || '').trim();
+      const key = cards.length + '|' + hd(cards[0]);
+      if (key !== this.coachKey) {
+        this.coachKey = key;
+        const r = cards.findIndex((c) => /★|おすすめ/.test(hd(c)));
+        this.coachPage = r >= 0 ? r : 0;
+      }
+      const i = Math.max(0, Math.min(this.coachPage || 0, cards.length - 1));
+      cards.forEach((c, j) => c.classList.toggle('on', j === i));
+      tabs.innerHTML = `<button class="btn sm pg" data-pg="-1" aria-label="前へ">◀</button><span class="pgs">${cards.map((c, j) => `<i data-pj="${j}" class="${j === i ? 'on' : ''}"></i>`).join('')}</span><span class="pgt">${i + 1}/${cards.length}</span><button class="btn sm pg" data-pg="1" aria-label="次へ">▶</button>`;
+      this.fitCoachText(el);
+    },
+    fitCoachText(el) {
+      el.style.fontSize = '';
+      let px = 14;
+      while (el.scrollHeight > el.clientHeight + 1 && px > 10) { px -= 0.5; el.style.fontSize = px + 'px'; }
+    },
+    goCoachPage(d, abs) {
+      const el = $('#coach');
+      const n = el.querySelectorAll(':scope > .cc').length;
+      this.coachPage = abs != null ? abs : (((this.coachPage || 0) + d) % n + n) % n;
+      this.pageCoach(el);
+      MJ.Gloss.decorate(el);
     },
 
     /* ---------- 演出 ---------- */

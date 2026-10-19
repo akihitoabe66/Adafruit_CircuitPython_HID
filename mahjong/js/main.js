@@ -20,8 +20,10 @@
     show(id) {
       document.body.classList.toggle('on-menu', id === 'menu');
       document.body.classList.toggle('on-title', id === 'title');
+      document.body.classList.toggle('on-game', id === 'game');
       if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : 'home');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
+      if (id === 'game') MJ.UI.fitStage();
       window.scrollTo(0, 0);
     },
 
