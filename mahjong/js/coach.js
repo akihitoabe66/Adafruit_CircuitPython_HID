@@ -216,6 +216,33 @@
     return ws;
   };
 
+  /* 「丸暗記したい7つの形」: 手牌の中の形に名前を付けて、残す/切るの理由を説明する(入門・中級) */
+  function formsCard(game, p, an, best, eff, recId) {
+    const F = MJ.Forms;
+    if (!F || !best) return null;
+    const found = F.detect(an.c).slice(0, 3);
+    const recT = recId ? (p.hand.find((h) => h.id === recId) || {}).t : best.t;
+    const c13 = an.c.slice();
+    if (recT != null) c13[recT]--;
+    const items = [];
+    for (const d of found) {
+      const info = F.byId(d.id);
+      let act;
+      if (d.id === 'sand') act = `真ん中の${ic(d.cut)}${tn(d.cut)}を切る形です${recT === d.cut ? '(★の判断と同じ)' : ''}。`;
+      else if (d.id === 'three') {
+        const cand = [...new Set(d.tiles)].map((t) => eff.find((e) => e.t === t)).filter(Boolean).sort((a, b) => A.effScore(b) - A.effScore(a))[0];
+        act = cand ? `1枚切って3枚にします。受け入れが多くなるのは${ic(cand.t)}${tn(cand.t)}を切る形です${recT === cand.t ? '(★の判断と同じ)' : ''}。` : '1枚切って3枚にします。';
+      } else act = 'この形は<b>崩さず残す</b>のが基本です。';
+      items.push(`<li><b>${info.name}</b> ${F.iconsOf(d.tiles)}<br>${info.one}${act}<div class="cc-s">${info.why}</div></li>`);
+    }
+    if (an.minSh <= 1 && p.melds.length === 0 && recT != null && F.isKanzen(c13)) {
+      const info = F.byId('kanzen');
+      items.push(`<li><b>${info.name}</b>(★を切ったあと)<br>${info.one}<div class="cc-s">${info.why}</div></li>`);
+    }
+    if (!items.length) return null;
+    return card('🧩 手牌の中の「形の名前」', `<ul class="cc-ul">${items.join('')}</ul><div class="cc-s">形を名前で覚えると、迷ったときの判断が速くなります(麻雀ノート「丸暗記したい7つの形」)。</div>`);
+  }
+
   /* ---------- 自分の手番のアドバイス ---------- */
   C.selfAdvice = function (game, p, opts, st) {
     const mode = game.mode;
@@ -338,6 +365,10 @@
       if (sf && sf.t !== rec.t) summary += ` / 🛡安全:${tn(sf.t)}(${sf.danger.tag})`;
     }
     if (opts.riichi.length) summary = '✨リーチできます! ' + summary;
+    if ((mode === 'beginner' || mode === 'inter') && !opts.tsumo) {
+      const fc = formsCard(game, p, an, best, eff, recId);
+      if (fc) cards.push(fc);
+    }
     return { html: cards.filter(Boolean).join(''), marks, recId, info, infoLong, summary };
   };
 
