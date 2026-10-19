@@ -31,7 +31,7 @@
       $('#menu-modes').innerHTML = MODE_CARDS.map((m) => `<button class="mode-card" data-mode="${m.id}"><div class="mi">${m.icon}</div><h3>${MJ.Coach.MODES[m.id].name}</h3><p>${m.desc}</p><span class="badge">${m.badge}</span></button>`).join('') +
         `<button class="mode-card" data-mode="notes"><div class="mi">📖</div><h3>麻雀ノート</h3><p>役の一覧・点数計算のしかた・点数早見表・スジ/カベの見方・鳴きのルールをまとめて確認。</p><span class="badge">読み物</span></button>` +
         `<button class="mode-card" data-open-gloss><div class="mi">📚</div><h3>用語辞典</h3><p>専門用語の意味を検索。「チートイ」「ニコニコ」など地域・世代で違う<b>俗称</b>も載っています。</p><span class="badge">検索できます</span></button>` +
-        `<button class="mode-card" data-open-credits><div class="mi">ℹ️</div><h3>クレジット・ライセンス</h3><p>使用している音声・BGM・画像の出典と、このゲームの仕組み(CPUはルールベース)についての説明。</p><span class="badge">権利表記</span></button>`;
+        `<button class="mode-card" data-open-credits><div class="mi">ℹ️</div><h3>クレジット・ライセンス</h3><p>使用している音声・BGM・画像の出典とライセンス表記。</p><span class="badge">権利表記</span></button>`;
       $('#menu-modes').addEventListener('click', (e) => {
         const b = e.target.closest('[data-mode]');
         if (!b) return;
@@ -133,17 +133,15 @@
   function showCredits() {
     MJ.UI.overlay(`<h2>ℹ️ クレジット・ライセンス</h2>
       <div class="credits">
-      <h3>このゲームの仕組み</h3>
-      <p>CPUの打牌・アドバイス・危険度の表示・キャラのセリフは、<b>あらかじめ作ったルールと乱数</b>で動いています(機械学習のAIではありません)。シャンテン数・牌効率・現物/スジ/カベの計算は、麻雀の定石に基づく目安です。</p>
-      <h3>音声</h3>
-      <p>掛け声(ポン・ロンなど)は、Open JTalk と音響モデル「Mei」(MMDAgent Example Characters)で作成した音声です。<b>CC BY 3.0</b> のライセンスに基づき、クレジットを表記します: Mei (MMDAgent Example) © Nagoya Institute of Technology, CC BY 3.0。読み上げは、お使いの端末の音声合成機能です。</p>
-      <h3>BGM・効果音</h3>
-      <p>BGMは制作者が用意した楽曲を使用しています。効果音はブラウザ上で合成しています。</p>
+      <h3>音声(掛け声)</h3>
+      <p>pyopenjtalk(Open JTalk)で生成。音響モデル: Mei (MMDAgent Example Characters) — <b>CC BY 3.0</b></p>
+      <h3>BGM</h3>
+      <p>制作者が用意した楽曲を使用しています。</p>
       <h3>画像</h3>
-      <p>麻雀牌・タイトル・キャラクター画像は制作者が用意(または生成)したものです。キャラクターは既存作品の人物をもじったパロディで、<b>公開・配布する場合は、権利者の許諾の確認(またはオリジナル画像への差し替え)が必要</b>です。</p>
+      <p>麻雀牌・タイトル・キャラクター画像は制作者が用意(または生成)したものです。キャラクターは既存作品の人物をもじったパロディです。公開・配布する場合は、権利者の許諾の確認(またはオリジナル画像への差し替え)が必要です。</p>
       <h3>注意</h3>
-      <p>点数・符の計算や危険度は学習用の目安です。実際のルール(店・地域・アプリ)によって異なる場合があります。ギャンブルを目的としたものではありません。</p>
-      </div><div class="res-foot"><button class="btn pri" id="cr-close">閉じる</button></div>`);
+      <p>点数・符の計算や危険度は、学習用の目安です。実際のルール(店・地域・アプリ)によって異なる場合があります。</p>
+      </div><div class="res-foot"><button class="btn pri" id="cr-close">閉じる</button></div>`, { plain: true });
     document.querySelector('#cr-close').addEventListener('click', () => MJ.UI.closeOverlay());
   }
 

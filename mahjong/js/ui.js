@@ -675,13 +675,12 @@
     },
 
     /* ---------- 結果 ---------- */
-    overlay(html) {
+    overlay(html, opt = {}) {
       const o = $('#overlay');
       o.innerHTML = `<div class="modal">${html}</div>`;
       o.classList.remove('hidden');
       o.scrollTop = 0;
-      MJ.Gloss.decorate(o);
-      this.addReadFrom(o.querySelector('.modal'));
+      if (!opt.plain) { MJ.Gloss.decorate(o); this.addReadFrom(o.querySelector('.modal')); }
       return o;
     },
     closeOverlay() { $('#overlay').classList.add('hidden'); $('#overlay').innerHTML = ''; },
