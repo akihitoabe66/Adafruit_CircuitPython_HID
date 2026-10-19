@@ -261,7 +261,7 @@
       if (this.game !== game) return;
       this.layout();
       const doras = game.doraInd.map((d) => MJ.tileHTML(d.t, '', '', d.red)).join('') + game.doraAll.slice(game.doraInd.length).map(() => MJ.backHTML()).join('');
-      $('#ginfo').innerHTML = `<span class="kk">${game.kyokuLabel()}</span><span>${game.length === 'single' ? '1局戦' : '東風戦'}</span><span class="doras">ドラ表示 ${doras}</span><span>残り ${game.live.length}枚</span>${game.kyotaku ? `<span>供託 ${game.kyotaku}</span>` : ''}`;
+      $('#ginfo').innerHTML = `<span class="kk">${game.kyokuLabel()}</span><span class="myw">あなたは<b>${WINDS[game.seatWindOf(game.players[0])]}家</b>${game.seatWindOf(game.players[0]) === 0 ? '(親)' : ''}</span><span>${game.length === 'single' ? '1局戦' : '東風戦'}</span><span class="doras">ドラ表示 ${doras}</span><span>残り ${game.live.length}枚</span>${game.kyotaku ? `<span>供託 ${game.kyotaku}</span>` : ''}`;
       $('#table').innerHTML = `<div class="blocks">${[3, 2, 1, 0].map((s) => this.block(game, s)).join('')}</div>`;
       $('#mine').innerHTML = this.mineHTML(game);
       this.fitHeight();
@@ -282,7 +282,8 @@
       const b = this.bubbles[s];
       const bub = b && b.until > Date.now() ? `<div class="bubble${b.shown ? ' still' : ''}">${b.text}</div>` : '';
       if (b) b.shown = true; // 再描画のたびにアニメーションをやり直さない(ちらつき防止)
-      const face = ch.img ? `<img class="face${s === 0 ? ' you' : ''}" src="${ch.img}" alt="">` : '<div class="face me">🀄</div>';
+      const face0 = ch.img ? `<img class="face${s === 0 ? ' you' : ''}" src="${ch.img}" alt="">` : '<div class="face me">🀄</div>';
+      const face = `<div class="fwrap">${face0}<span class="fw${w === 0 ? ' dl' : ''}" title="${WINDS[w]}家${w === 0 ? '(親)' : ''}">${WINDS[w]}</span></div>`;
       const chips = `<span class="chip ${w === 0 ? 'dealer' : ''}">${WINDS[w]}${w === 0 ? '親' : ''}</span>${p.riichi ? '<span class="chip r">リーチ</span>' : ''}${ch.level ? `<span class="chip lv">${MJ.LEVEL_JP[ch.level]}</span>` : ''}`;
       const melds = p.melds.length ? `<div class="melds">${p.melds.map((m) => this.meldHTML(m)).join('')}</div>` : '';
       const river = p.discards.map((d) => MJ.tileHTML(d.tile.t, `${d.called ? 'called' : ''}${d.riichi ? ' rch' : ''}${game.lastDiscard && game.lastDiscard.d === d && !d.called ? ' hl' : ''}`, '', d.tile.red)).join('');

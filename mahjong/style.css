@@ -542,3 +542,15 @@ body:not(.desk):not(.land):not(.coach-open) #coach > .cc.on { margin: 0; }
 .tipline, .tipline:empty { min-height: 3.1em; max-height: 3.1em; overflow: hidden; }
 #coach .tileinfo { height: 4.6em; min-height: 0; max-height: 4.6em; overflow: hidden; }
 @media (max-width: 520px) { .tipline, .tipline:empty { min-height: 2.9em; max-height: 2.9em; } }
+
+/* 席の風(東南西北)バッジ */
+.fwrap { position: relative; flex: none; display: block; }
+.fw { position: absolute; left: -5px; top: -5px; width: 1.75em; height: 1.75em; border-radius: 50%; background: #10231e; border: 2px solid #ffd35a; color: #ffd35a; font-weight: 900; font-size: 15px; display: grid; place-items: center; z-index: 3; box-shadow: 0 2px 5px #0009; }
+.fw.dl { background: #c8262d; border-color: #fff; color: #fff; }
+.desk .fw { font-size: 18px; }
+.myw { background: #0b241e; border: 1px solid #3c7a67; border-radius: 8px; padding: 1px 9px; color: var(--ink); }
+.myw b { color: var(--acc); font-size: 1.1em; }
+/* 鳴きカードが盤面の下に隠れないように */
+#table { overflow: hidden; }
+#mine { position: relative; z-index: 5; }
+.callq { background: linear-gradient(#244f43, #17372f); opacity: 1; }
