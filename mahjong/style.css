@@ -1,3 +1,4 @@
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 :root {
   --bg: #0d1f1a;
   --panel: #14302a;
@@ -747,3 +748,17 @@ body:not(.desk) #coach .cx { display: inline-flex; }
 .hand .tile.aka::after { display: none; }
 .doras2 { display: inline-flex; align-items: center; gap: 2px; color: #ffe9a0; }
 .doras2 .tile { width: 22px; height: 29px; }
+
+/* ---- スマホ横(回転表示を含む): 縦のむだを減らして、手牌を大きく ---- */
+.short .gbar { margin-bottom: 2px; gap: 3px 6px; }
+.short .gbar .btn.sm { font-size: 12px; padding: 4px 9px; }
+.short .gbar .gt { display: none; }
+.short .ginfo { font-size: 12px; gap: 2px 10px; }
+.short .ginfo .kk { font-size: 15px; }
+.short .actrow { min-height: 30px; margin-top: 2px; }
+.short .sumline { font-size: 12px; padding: 3px 8px; }
+.short .actions .btn { font-size: 14px; padding: 5px 12px; }
+body.short .tipline, body.short .tipline:empty { min-height: 2.7em; max-height: 2.7em; }
+/* iPhoneの閉じる(×)や…ボタンが重なる左の角を避ける(回転表示時) */
+body.rot.short #screen-game .gbar { padding-left: 76px; }
+body.rot.short .actrow, body.rot.short .tipline { padding-left: 76px; }

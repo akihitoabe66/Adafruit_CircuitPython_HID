@@ -278,7 +278,9 @@
       let hw = Math.floor((full - 14) / 14.3);
       sw = Math.min(sw, desk ? 52 : 40);
       hw = Math.min(hw, desk ? 74 : 66);
-      if (desk || land) {
+      const short = land && H <= 640;
+      if (short) { hw = Math.min(Math.floor((full - 14) / 14.8), 70); sw = Math.min(sw, 26); } // スマホ横: 手牌を横いっぱいに使う。入りきらないぶんは fitHeight が縮める
+      else if (desk || land) {
         const fit = () => gb + 14 + (sw * 2 + 14 + 2.4 * (sw * 1.32 + 2) + 16) + (hw * 1.32 + 24) + 50 + 22;
         while (fit() > H && hw > 22) { hw--; if (sw > hw * 0.55) sw--; }
       }
@@ -297,9 +299,12 @@
       if (!gm || !gl || !this.sizes) return;
       let { sw, hw } = this.sizes, n = 0;
       const room = () => (document.body.classList.contains('desk') || document.body.classList.contains('land') ? gm.clientHeight : gm.clientHeight - 90);
-      while (gl.scrollHeight > room() && n++ < 14 && (sw > 16 || hw > 18)) {
+      const short = document.body.classList.contains('short');
+      const swMin = short ? 18 : 16;
+      while (gl.scrollHeight > room() && n++ < 60 && (sw > swMin || hw > 18)) {
         if (hw > 18) hw--;
-        if (sw > hw * 0.6 || sw > 16) sw--;
+        // 手牌を優先して大きく保つ: 河の牌は2回に1回だけ縮める(下限あり)
+        if (short ? (n % 2 === 0 && sw > swMin) : (sw > hw * 0.6 || sw > 16)) sw--;
         this.setSizes(sw, hw);
       }
     },
@@ -823,7 +828,12 @@
         modal.querySelector('#pm-prev').style.visibility = cur ? 'visible' : 'hidden';
         modal.querySelector('#pm-next').textContent = cur === pages.length - 1 ? lastLabel : '次へ ▶';
         const pg = els[cur];
-        for (let n = 0; n < 4; n++) { const k = Math.min(1, (body.clientHeight - 2) / Math.max(1, pg.scrollHeight)); if (k >= 0.999) break; pg.style.zoom = String(Math.max(0.5, (parseFloat(pg.style.zoom) || 1) * k)); }
+        // 枠に収まるまで文字サイズを下げる(iPhoneのSafariでも確実に効くよう zoom ではなく font-size で調整)
+        pg.style.fontSize = '';
+        let fpx = parseFloat(getComputedStyle(pg).fontSize) || 16;
+        const fover = () => pg.scrollHeight > body.clientHeight + 1;
+        while (fover() && fpx > 9) { fpx -= 0.5; pg.style.fontSize = fpx + 'px'; }
+        if (fover()) { pg.style.zoom = String(Math.max(0.55, (body.clientHeight - 2) / Math.max(1, pg.scrollHeight))); }
         MJ.SFX.stopSpeak();
       };
       modal.querySelector('#pm-prev').addEventListener('click', () => show(cur - 1));
