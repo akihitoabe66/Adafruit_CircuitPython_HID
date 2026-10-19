@@ -652,17 +652,20 @@
         } else {
           const tp = res.tenpai.map((t, i) => `<tr><td>${game.players[i].name}</td><td>${t ? '<b class="good">テンパイ</b>' : 'ノーテン'}</td><td>${res.tenpai[i] ? res.hands[i].concealed.map((h) => MJ.tileHTML(h.t, 't-s')).join('') : ''}</td></tr>`).join('');
           html = `<h2>${game.kyokuLabel()} 流局</h2><p>山の牌がなくなりました(荒牌平局)。テンパイ者がノーテン者から3000点を受け取ります。</p><table class="scores">${tp}</table>`;
+          if (res.drawReview) html += MJ.Coach.drawReview(game, res);
         }
         html += this.scoreTable(game, res);
         if (res.type === 'win') MJ.SFX.play(res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'win');
         else MJ.SFX.play('drawgame');
         const last = game.length === 'single';
         html += `<div class="res-foot"><button class="btn pri" id="res-next">${last ? '結果へ' : '次へ'}</button></div>`;
-        const hasRv = !!res.loseReview;
+        const hasRv = !!res.loseReview || !!res.drawReview;
         html = `<div class="readbar"><button class="btn sm rd" data-read="${hasRv ? 'review' : 'modal'}">🔊 ${hasRv ? '振り返りを読み上げ' : '結果を読み上げ'}</button></div>` + html;
         this.overlay(html);
         if (res.type === 'win') this.announceWin(game, res);
-        $('#res-next').addEventListener('click', () => { MJ.SFX.stopSpeak(); this.closeOverlay(); resolve(); });
+        // 結果画面のBGM: 自分が上がった=win / 自分がマイナス=lose / 流局=draw
+        MJ.Audio.playResult(res.type === 'draw' ? 'draw' : res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : '');
+        $('#res-next').addEventListener('click', () => { MJ.SFX.stopSpeak(); MJ.Audio.endResult(); this.closeOverlay(); resolve(); });
         this.render(game);
       });
     },

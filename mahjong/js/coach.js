@@ -495,7 +495,7 @@
     sec.push(`<div class="rv-h">① 何が起きたか</div><p><b>放銃(ほうじゅう)</b>=あなたが切った牌で、他の人に<b>ロン</b>されること。今回は<b>${W.name}</b>${many}に、あなたが切った${ic(t)}<b>${tn(t)}</b>で上がられました。</p><p>${W.name}は${W.riichi ? '<b>リーチ</b>をかけていて' : '<b>リーチなし(ダマテン=黙ってテンパイ)</b>で'}${W.melds.length ? `、${W.melds.length}回鳴いて(ポン・チー・カン)` : ''}、${wn ? `<b>${wn}</b>待ち` : ''}で${ic(t)}を待っていました。${W.dealer ? '(親だったので点数が1.5倍です)' : ''}</p>`);
     // 2. なぜ当たったか
     const why = [];
-    if (dg.tag) why.push(`切る前の危険度: <b>${dg.tag}</b>(約${Math.round(dg.score || 0)}%)。${dg.why || ''}`);
+    if (dg.tag) why.push(`${W.name}に対する、切る前の危険度: <b>${dg.tag}</b>(約${Math.round(dg.score || 0)}%)。${dg.why || ''}`);
     if (tag === 'スジ' || tag === 'スジ・カベ') {
       if (W.wait && W.wait !== 'ryanmen') why.push(`<b>スジは「両面待ち」にしか効きません。</b>今回は${WAITN[W.wait] || ''}待ちだったので、スジでも当たってしまいました。スジは「安全」ではなく「比較的安全」です。`);
     } else if (/字牌/.test(tag)) {
@@ -509,21 +509,59 @@
     if (W.melds.length) why.push(`${W.name}は<b>鳴いていました</b>。鳴いた人は手が進んでいるサインです。何を鳴いたか(同じ色ばかり=染め手、役牌)を見て警戒しましょう。`);
     if (!W.riichi && !W.melds.length) why.push('リーチも鳴きもない<b>ダマテン</b>は、外から見えません。河(捨て牌)が急に変わったり、ドラや真ん中の牌が切られなくなったときは要注意です。');
     sec.push(`<div class="rv-h">② なぜ当たったのか</div><ul class="cc-ul">${why.map((x) => `<li>${x}</li>`).join('')}</ul>`);
-    // 3. 途中経過
-    if (lr.log.length) {
-      const rows = lr.log.map((e, i) => `<li>${i + 1}回目: ${ic(e.t)}<b>${tn(e.t)}</b>(${e.tag}・約${e.score}%)${i === lr.log.length - 1 ? ' ← <b class="bad">この牌でロン</b>' : ''}${e.safest && e.safest.t !== e.t ? `<br><span class="cc-s">　安全な牌があった: ${ic(e.safest.t)}${tn(e.safest.t)}(${e.safest.tag})</span>` : ''}</li>`).join('');
-      sec.push(`<div class="rv-h">③ リーチ後のあなたの切り牌(途中経過)</div><ul class="cc-ul">${rows}</ul>`);
+    // 3. 途中経過(相手がリーチ/ダマテンしていた時期のあなたの切り牌。あとから分かった情報で記録)
+    const rel = lr.log.filter((e) => e.threats && e.threats.length).slice(-5);
+    if (rel.length) {
+      const rows = rel.map((e) => {
+        const thr = e.threats.map((x) => `${x.name}(${x.riichi ? 'リーチ中' : '<b>ダマテン中</b>'}・待ち${icons(x.waits, 6) || '?'})`).join('、');
+        const isLast = e === lr.log[lr.log.length - 1] && e.t === t;
+        return `<li>${e.turn}回目: ${ic(e.t)}<b>${tn(e.t)}</b>(${e.tag || '—'}・いちばん危ない相手に対して約${e.score}%)${isLast ? ' ← <b class="bad">この牌でロン</b>' : ''}<br><span class="cc-s">　相手の状況: ${thr}</span>${e.safest && e.safest.t !== e.t ? `<br><span class="cc-s">　安全だった牌: ${ic(e.safest.t)}${tn(e.safest.t)}(${e.safest.tag}・約${e.safest.score}%)</span>` : ''}${e.worse ? `<br><span class="cc-s">　⚠ この牌で手が後退(${e.shBest}→${e.shAfter}シャンテン)</span>` : ''}</li>`;
+      }).join('');
+      sec.push(`<div class="rv-h">③ 途中経過: 相手がテンパイしていた間のあなたの切り牌</div><p class="cc-s">(相手の手は対局中は見えません。終わってから分かった情報で記録しています)</p><ul class="cc-ul">${rows}</ul>`);
+    } else {
+      sec.push('<div class="rv-h">③ 途中経過</div><p class="cc-s">ロンされる直前までテンパイの形が整っていなかったか、直前にテンパイしたようです。こういうときは、<b>終盤(山が少ない)や、鳴きの後</b>に特に気をつけましょう。</p>');
     }
     // 4. 次はこうしよう
     const tips = [];
     const last = lr.log[lr.log.length - 1];
-    if (last && last.safest && last.safest.t !== t) tips.push(`今回は<b>${ic(last.safest.t)}${tn(last.safest.t)}(${last.safest.tag})</b>を切れば、当たりませんでした。リーチを受けたら、まず<b>安全な牌を探してから</b>切りましょう。`);
+    if (last && last.t === t && last.safest && last.safest.t !== t) tips.push(`今回は<b>${ic(last.safest.t)}${tn(last.safest.t)}(${last.safest.tag})</b>を切れば、当たりませんでした。相手のリーチ・鳴き・ダマテンの気配があるときは、まず<b>安全な牌を探してから</b>切りましょう。`);
     else if (lr.safer && lr.safer.length) tips.push(`手牌には<b>${lr.safer.map((s) => `${ic(s.t)}${tn(s.t)}(${s.tag})`).join('、')}</b>というより安全な牌がありました。`);
     if (W.riichi) tips.push('リーチを受けたときの探し方: <b>①現物(その人が捨てた牌)→ ②スジ → ③場に多く出た字牌</b> の順。どれも無いときは、手が良くなければ安全牌を持っておく(オリる)のが基本です。');
     else tips.push('リーチがなくても、<b>鳴いた人</b>・<b>ドラを大事に持っている人</b>・<b>同じ色ばかり切る人</b>には警戒。切る前に、その牌が相手の河の「スジ」や「現物」に近いか見る習慣をつけましょう。');
     tips.push('どうしても押すなら、<b>自分がテンパイ(またはイーシャンテン)で、打点が高い</b>ときだけ。そうでなければ守るほうが失点を防げます。');
     sec.push(`<div class="rv-h">④ 次はこうしよう</div><ul class="cc-ul">${tips.map((x) => `<li>${x}</li>`).join('')}</ul>`);
     return `<div class="cc bad rv"><div class="cc-h">🔎 振り返り: なぜロンされたのか(放銃)</div><div class="cc-b">${sec.join('')}</div></div>`;
+  };
+
+  /* ---------- 流局の振り返り(終盤: 山が残り16枚=あと4回引けるころからの記録) ---------- */
+  C.drawReview = function (game, res) {
+    const dr = res.drawReview;
+    if (!dr) return '';
+    const names = dr.names;
+    const sec = [];
+    const myTp = dr.tenpai[0];
+    const others = names.map((n, i) => ({ n, i })).filter((x) => x.i !== 0 && dr.tenpai[x.i]);
+    const d0 = res.delta[0];
+    sec.push(`<div class="rv-h">① 流局の結果</div><p>山の牌がなくなって<b>流局</b>しました。あなたは<b>${myTp ? 'テンパイ' : 'ノーテン'}</b>${others.length ? `、テンパイしていたのは${others.map((x) => `<b>${x.n}</b>(待ち${icons(dr.waits[x.i], 6)})`).join('、')}` : '、ほかにテンパイの人はいませんでした'}。</p><p class="cc-s"><b>ノーテン罰符</b>=流局のとき、テンパイの人がノーテンの人から合計3000点を受け取るルール。あなたは<b>${d0 > 0 ? '+' : ''}${d0}点</b>でした。</p>`);
+    const late = dr.log.filter((e) => e.live <= 16).slice(-5);
+    if (late.length) {
+      const rows = late.map((e) => {
+        const thr = e.threats.length ? e.threats.map((x) => `${x.name}(${x.riichi ? 'リーチ中' : '<b>ダマテン中</b>'}・待ち${icons(x.waits, 6) || '?'})`).join('、') : '誰もテンパイしていない(ように見えた)';
+        const hit = e.threats.some((x) => x.hit);
+        return `<li>残り${e.live}枚: ${ic(e.t)}<b>${tn(e.t)}</b>${e.tag ? `(${e.tag}・危険度 約${e.score}%)` : ''}${hit ? ' <b class="bad">⚠ 実は相手の当たり牌でした(ロンされませんでしたが、運が良かっただけ)</b>' : ''}<br><span class="cc-s">　相手の状況: ${thr}</span>${e.safest && e.safest.t !== e.t && e.score >= 6 ? `<br><span class="cc-s">　安全だった牌: ${ic(e.safest.t)}${tn(e.safest.t)}(${e.safest.tag}・約${e.safest.score}%)</span>` : ''}${e.worse ? `<br><span class="cc-s">　⚠ この牌で手が後退(${e.shBest}→${e.shAfter}シャンテン)</span>` : ''}</li>`;
+      }).join('');
+      sec.push(`<div class="rv-h">② 終盤のあなたの切り牌(山が残り16枚=あと4回引けるころから)</div><ul class="cc-ul">${rows}</ul>`);
+    }
+    const worse = dr.log.filter((e) => e.worse).slice(-3);
+    if (worse.length) sec.push(`<div class="rv-h">③ 手が崩れた場面</div><ul class="cc-ul">${worse.map((e) => `<li>${e.turn}回目に ${ic(e.t)}<b>${tn(e.t)}</b>を切って、<b>${e.shBest}シャンテン→${e.shAfter}シャンテン</b>に戻りました。形を残す(または役につながる)牌を切るほうが、テンパイに近づけました。</li>`).join('')}</ul>`);
+    const tips = [];
+    if (!myTp) tips.push('ノーテンだと流局で点を失います。<b>終盤は「テンパイを取る」</b>ことを意識して、受け入れの広い形(両面)を残しましょう。');
+    if (late.some((e) => e.threats.some((x) => x.hit))) tips.push('当たり牌を切ってしまった場面がありました。終盤は<b>相手の河・鳴き・リーチ</b>を見て、スジ・現物から切るのが基本です。');
+    if (late.some((e) => e.safest && e.safest.t !== e.t && e.score >= 6)) tips.push('相手がテンパイ気配のとき、<b>安全な牌があるのに危ない牌を切った</b>場面がありました。上の「安全だった牌」を次は選びましょう。');
+    if (worse.length) tips.push('<b>役を作るとき</b>は、切った牌で形が崩れないか(シャンテン数が戻らないか)を、切る前に確認しましょう。');
+    tips.push('流局間際は、<b>自分がテンパイできるか</b>と<b>相手がテンパイしていそうか</b>を天秤にかけて、押すか守るかを決めます。');
+    sec.push(`<div class="rv-h">④ 次はこうしよう</div><ul class="cc-ul">${tips.map((x) => `<li>${x}</li>`).join('')}</ul>`);
+    return `<div class="cc rec rv"><div class="cc-h">🔎 流局の振り返り</div><div class="cc-b">${sec.join('')}</div></div>`;
   };
 
   C.TAG_HELP = TAG_HELP;

@@ -17,7 +17,7 @@
       if (!el && typeof Audio !== 'undefined') {
         el = new Audio();
         el.preload = 'auto';
-        el.addEventListener('ended', () => { if (A.scene === 'game') A._playGame(); });
+        el.addEventListener('ended', () => { if (A.scene === 'game' && !A.resultOn) A._playGame(); });
       }
       return el;
     },
@@ -49,6 +49,17 @@
       const pool = GAME.filter((s) => s !== last);
       last = pool[Math.floor(Math.random() * pool.length)];
       A._load(last, false);
+    },
+    /* 結果画面の専用BGM: 'win'(自分の和了) / 'lose'(マイナス) / 'draw'(流局)。閉じると対局BGMに戻る */
+    playResult(kind) {
+      if (!A.on || !['win', 'lose', 'draw'].includes(kind)) return;
+      A.resultOn = true;
+      A._load(`audio/result_${kind}.mp3`, true);
+    },
+    endResult() {
+      if (!A.resultOn) return;
+      A.resultOn = false;
+      if (A.scene === 'game') A._playGame();
     },
     /* シーン切替: 'home' | 'game' */
     setScene(scene) {

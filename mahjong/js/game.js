@@ -277,16 +277,47 @@
     }
 
     recordHumanReview(p, tile) {
-      const opps = this.players.filter((q) => q !== p && q.riichi);
-      if (!opps.length) { this.humanReview = null; return; }
-      const an = MJ.AI.analyze(this, p);
-      const e = an.evals.find((x) => x.t === tile.t);
-      if (!e || !e.danger) { this.humanReview = null; return; }
-      const safer = MJ.AI.bySafety(an.evals).filter((x) => x.t !== tile.t && x.danger.score < e.danger.score).slice(0, 2);
-      this.humanReview = { t: tile.t, danger: e.danger, safer: safer.map((x) => ({ t: x.t, tag: x.danger.tag })), opps: opps.map((q) => q.name), seq: this.seq + 1 };
-      // 途中経過(リーチ後の自分の打牌を記録して、放銃したときに振り返れるようにする)
-      const best = MJ.AI.bySafety(an.evals)[0];
-      this.humanLog.push({ t: tile.t, tag: e.danger.tag, score: Math.round(e.danger.score), opps: opps.map((q) => q.name), safest: best ? { t: best.t, tag: best.danger.tag } : null });
+      const others = this.players.filter((q) => q !== p);
+      const opps = others.filter((q) => q.riichi);
+      // ---- 従来: リーチ者がいるときの放銃用データ ----
+      this.humanReview = null;
+      if (opps.length) {
+        const an = MJ.AI.analyze(this, p);
+        const e = an.evals.find((x) => x.t === tile.t);
+        if (e && e.danger) {
+          const safer = MJ.AI.bySafety(an.evals).filter((x) => x.t !== tile.t && x.danger.score < e.danger.score).slice(0, 2);
+          this.humanReview = { t: tile.t, danger: e.danger, safer: safer.map((x) => ({ t: x.t, tag: x.danger.tag })), opps: opps.map((q) => q.name), seq: this.seq + 1 };
+        }
+      }
+      // ---- 振り返り用の記録(リーチなしでも、相手がテンパイ(ダマテン)していたら記録する。後から分かる情報) ----
+      try {
+        const A = MJ.AI;
+        const threats = others.map((q) => {
+          const ct = MJ.toCounts(q.hand), f = q.melds.length;
+          const tp = MJ.shanten(ct, f) === 0;
+          return { q, tp, waits: tp ? MJ.waits(ct, f) : [] };
+        }).filter((x) => x.q.riichi || x.tp);
+        const vis = A.visible(this, p);
+        const score = (t) => threats.reduce((sum, x) => sum + A.danger1(this, vis, t, x.q, A.safeSet(this, x.q), 2).score, 0);
+        const worstTag = (t) => { let w = null; threats.forEach((x) => { const d = A.danger1(this, vis, t, x.q, A.safeSet(this, x.q), 2); if (!w || d.score > w.score) w = d; }); return w; };
+        const types = [...new Set(p.hand.map((h) => h.t))];
+        let safest = null;
+        if (threats.length) {
+          types.filter((t) => t !== tile.t).forEach((t) => { const sc = score(t); if (!safest || sc < safest.score) safest = { t, score: Math.round(sc) }; });
+          if (safest) safest.tag = worstTag(safest.t).tag;
+        }
+        const c0 = MJ.toCounts(p.hand), f0 = p.melds.length;
+        let best = 99;
+        types.forEach((t) => { c0[t]--; best = Math.min(best, MJ.shanten(c0, f0)); c0[t]++; });
+        c0[tile.t]--;
+        const shAfter = MJ.shanten(c0, f0);
+        const wt = threats.length ? worstTag(tile.t) : null;
+        this.humanLog.push({
+          t: tile.t, live: this.live.length, turn: this.humanLog.length + 1,
+          threats: threats.map((x) => ({ name: x.q.name, riichi: !!x.q.riichi, waits: x.waits.slice(), hit: x.waits.includes(tile.t) })),
+          tag: wt ? wt.tag : '', score: wt ? Math.round(score(tile.t)) : 0, safest, shAfter, shBest: best, worse: shAfter > best,
+        });
+      } catch (e) { /* 記録に失敗しても対局は続ける */ }
     }
 
     /* ---------- 他家の反応 ---------- */
@@ -485,7 +516,8 @@
       const before = this.players.map((p) => p.score);
       this.players.forEach((p, i) => { p.score += delta[i]; });
       const result = { type: 'draw', delta, before, after: this.players.map((p) => p.score), tenpai, dealerTenpai: tenpai[this.dealer],
-        hands: this.players.map((p) => this.handView(p, null, false)) };
+        hands: this.players.map((p) => this.handView(p, null, false)),
+        drawReview: this.players.some((p) => p.isHuman) ? { log: (this.humanLog || []).slice(), tenpai: tenpai.slice(), names: this.players.map((p) => p.name), waits: this.players.map((p) => (MJ.shanten(MJ.toCounts(p.hand), p.melds.length) === 0 ? MJ.waits(MJ.toCounts(p.hand), p.melds.length) : [])) } : null };
       if (this.ui) await this.ui.showResult(this, result);
       return result;
     }
