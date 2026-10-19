@@ -13,6 +13,7 @@
     readVol: load('mj_readvol', 0.8),
     readVoice: load('mj_readvoice', ''),
     callVol: load('mj_callvol', 0.3),
+    yakuRead: load('mj_yakuread', true),
 
     getCtx() { return ctx; },
 
@@ -27,6 +28,7 @@
     },
     setOn(v) { S.on = v; save('mj_sfx', v); },
     setVoice(v) { S.voiceOn = v; save('mj_voice', v); if (!v && G.speechSynthesis) G.speechSynthesis.cancel(); },
+    setYakuRead(v) { S.yakuRead = v; save('mj_yakuread', v); },
     setCallVol(v) { S.callVol = v; save('mj_callvol', v); },
     setReadVol(v) { S.readVol = v; save('mj_readvol', v); },
     setVol(v) { S.vol = v; save('mj_sfxvol2', v); if (master) master.gain.value = v; },

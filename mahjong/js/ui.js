@@ -59,7 +59,7 @@
         }
         const b = e.target.closest('[data-read]');
         if (!b) return;
-        const root = b.dataset.read === 'coach' ? $('#coach') : b.dataset.read === 'drill' ? $('#dq-fb') : $('.modal');
+        const root = b.dataset.read === 'coach' ? $('#coach') : b.dataset.read === 'drill' ? $('#dq-fb') : b.dataset.read === 'review' ? ($('.modal .rv') || $('.modal')) : $('.modal');
         if (!root) return;
         if (MJ.SFX.speaking()) { MJ.SFX.stopSpeak(); return; }
         if (!MJ.SFX.read(this.textOf(root))) this.toast('この端末には日本語の読み上げ音声がありません');
@@ -101,6 +101,7 @@
       else if (k === 'svol') MJ.SFX.setVol(v);
       else if (k === 'voice') MJ.SFX.setVoice(v);
       else if (k === 'banter') MJ.Banter.setOn(v);
+      else if (k === 'yakuread') MJ.SFX.setYakuRead(v);
       else if (k === 'orient') { this.orient = v; try { localStorage.setItem('mj_orient', v); } catch (e) { /* ignore */ } this.relayout(); }
       else if (k === 'cvol') { MJ.SFX.setCallVol(v); if (e.type === 'change') MJ.SFX.voice('ポン', { char: { id: 1 } }); }
       else if (k === 'rvol') { MJ.SFX.setReadVol(v); if (e.type === 'change') this.sampleRead(); }
@@ -126,7 +127,7 @@
     },
     sampleRead() { if (!MJ.SFX.speaking()) MJ.SFX.read('この大きさで読み上げます。'); },
     syncAudio(except) {
-      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, banter: MJ.Banter.on, orient: this.orient, rvol: MJ.SFX.readVol, cvol: MJ.SFX.callVol };
+      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, banter: MJ.Banter.on, yakuread: MJ.SFX.yakuRead, orient: this.orient, rvol: MJ.SFX.readVol, cvol: MJ.SFX.callVol };
       const bell = $('#bell');
       if (bell) {
         bell.setAttribute('aria-pressed', String(MJ.Audio.on));
@@ -604,12 +605,36 @@
       else pts = `${fmt(w.pay.fromOther)}・${fmt(w.pay.fromDealer)}点`;
       const lines = MJ.Coach.explainScore(w, game);
       const open = game.mode !== 'free' || win.isHuman ? ' open' : '';
-      return `<div class="win-head">${win.char.img ? `<img src="${win.char.img}">` : '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃: ${w.loser.name}`}</div></div></div>
+      return `<div class="win-head">${win.char.img ? `<img src="${win.char.img}">` : '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): ${w.loser.name}`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || ''}」</div>`}</div></div>
       <div class="win-hand">${concealed}${melds}${winT}</div>
       <div>ドラ表示牌: ${dora}${ura}</div>
       <table class="yakus">${rows}</table>
       <div class="score-big">${r.yakuman ? r.limit : `${r.han}飜 ${r.fu}符${r.limit ? ' ' + r.limit : ''}`} → ${pts}</div>
       <details class="expl"${open}><summary>📘 点数計算のしくみ(クリックで開閉)</summary><ol>${lines.map((l) => `<li>${l}</li>`).join('')}</ol></details>`;
+    },
+
+    /* 上がったとき、役の名前を必ず読み上げる(「リーチ、イッパツ、ツモ、サンショク、ドラ2」) */
+    announceWin(game, res) {
+      if (!MJ.SFX.yakuRead || game.fast) return;
+      const READ = { '門前清自摸和': 'ツモ', '断么九': 'タンヤオ', '平和': 'ピンフ', '一盃口': 'イーペーコー', '二盃口': 'リャンペーコー', '七対子': 'チートイツ', '対々和': 'トイトイ', '三暗刻': 'サンアンコー', '三色同順': 'サンショク', '三色同刻': 'サンショクドウコー', '一気通貫': 'イッツー', '混全帯么九': 'チャンタ', '純全帯么九': 'ジュンチャン', '混一色': 'ホンイツ', '清一色': 'チンイツ', '小三元': 'ショウサンゲン', '大三元': 'ダイサンゲン', '国士無双': 'コクシムソウ', '四暗刻': 'スーアンコー', '嶺上開花': 'リンシャンカイホー', '海底摸月': 'ハイテイ', '河底撈魚': 'ホーテイ', '混老頭': 'ホンロートー', '清老頭': 'チンロートー', '四槓子': 'スーカンツ', '三槓子': 'サンカンツ', '緑一色': 'リューイーソー', '字一色': 'ツーイーソー', '小四喜': 'ショウスーシー', '大四喜': 'ダイスーシー', '九蓮宝燈': 'チューレンポートー', '天和': 'テンホー', '地和': 'チーホー', 'ダブルリーチ': 'ダブルリーチ', 'ダブル立直': 'ダブルリーチ', '立直': 'リーチ', 'リーチ': 'リーチ', '一発': 'イッパツ', '槍槓': 'チャンカン' };
+      const yh = { '白': 'ハク', '發': 'ハツ', '中': 'チュン', '東': 'トン', '南': 'ナン', '西': 'シャー', '北': 'ペー' };
+      const parts = [];
+      res.wins.forEach((w) => {
+        const r = w.res;
+        const names = r.yaku.map((y) => {
+          if (y.n === 'ドラ') return `ドラ${y.h}`;
+          if (y.n === '赤ドラ') return `アカドラ${y.h}`;
+          if (y.n === '裏ドラ') return `ウラドラ${y.h}`;
+          const m = /^役牌[ \s　]*(.*)$/.exec(y.n);
+          if (m) return `ヤクハイ、${yh[m[1]] || m[1]}`;
+          if (/場風|自風/.test(y.n)) { const k = y.n.replace(/[^東南西北]/g, '').slice(-1); return `${/場風/.test(y.n) ? 'バフウ' : 'ジフウ'}、${yh[k] || ''}`; }
+          return READ[y.n] || y.n;
+        });
+        const score = r.yakuman ? `${r.limit}` : `${r.han}ハン、${r.fu}フ${r.limit ? '、' + r.limit : ''}`;
+        const pts = !w.tsumo ? `${w.pay.ron}点` : game.dealer === w.winner.seat ? `${w.pay.each}点オール` : `${w.pay.fromOther}、${w.pay.fromDealer}点`;
+        parts.push(`${w.winner.name}の${w.tsumo ? 'ツモ' : 'ロン'}。${names.join('。')}。${score}。${pts}。`);
+      });
+      setTimeout(() => { if (!document.querySelector('#overlay .modal')) return; MJ.SFX.read(parts.join(' ')); }, 900);
     },
 
     scoreTable(game, res) {
@@ -622,8 +647,8 @@
         let html;
         if (res.type === 'win') {
           html = `<h2>${game.kyokuLabel()} 和了</h2>` + res.wins.map((w) => this.winHTML(game, w)).join('<hr>');
-          if (res.review) html += MJ.Coach.reviewText(res.review);
-          else if (res.wins.some((w) => w.loser && w.loser.isHuman) && game.mode !== 'free') html += '<div class="cc bad"><div class="cc-h">🔎 放銃の振り返り</div><div class="cc-b">リーチ者がいない状況での放銃でした。ドラ・役牌・真ん中の牌が当たりやすいので、他家の鳴きや河(捨て牌)もよく観察しましょう。</div></div>';
+          if (res.loseReview) html += MJ.Coach.loseReview(game, res);
+          else if (res.review) html += MJ.Coach.reviewText(res.review);
         } else {
           const tp = res.tenpai.map((t, i) => `<tr><td>${game.players[i].name}</td><td>${t ? '<b class="good">テンパイ</b>' : 'ノーテン'}</td><td>${res.tenpai[i] ? res.hands[i].concealed.map((h) => MJ.tileHTML(h.t, 't-s')).join('') : ''}</td></tr>`).join('');
           html = `<h2>${game.kyokuLabel()} 流局</h2><p>山の牌がなくなりました(荒牌平局)。テンパイ者がノーテン者から3000点を受け取ります。</p><table class="scores">${tp}</table>`;
@@ -632,10 +657,12 @@
         if (res.type === 'win') MJ.SFX.play(res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'win');
         else MJ.SFX.play('drawgame');
         const last = game.length === 'single';
-        html += `<div style="text-align:right"><button class="btn pri" id="res-next">${last ? '結果へ' : '次へ'}</button></div>`;
-        html = `<div class="readbar"><button class="btn sm rd" data-read="modal">🔊 結果を読み上げ</button></div>` + html;
+        html += `<div class="res-foot"><button class="btn pri" id="res-next">${last ? '結果へ' : '次へ'}</button></div>`;
+        const hasRv = !!res.loseReview;
+        html = `<div class="readbar"><button class="btn sm rd" data-read="${hasRv ? 'review' : 'modal'}">🔊 ${hasRv ? '振り返りを読み上げ' : '結果を読み上げ'}</button></div>` + html;
         this.overlay(html);
-        $('#res-next').addEventListener('click', () => { this.closeOverlay(); resolve(); });
+        if (res.type === 'win') this.announceWin(game, res);
+        $('#res-next').addEventListener('click', () => { MJ.SFX.stopSpeak(); this.closeOverlay(); resolve(); });
         this.render(game);
       });
     },

@@ -76,6 +76,7 @@
       this.seq = 0;
       this.lastDiscard = null;
       this.humanReview = null;
+      this.humanLog = [];
       for (const p of this.players) {
         p.hand = this.live.splice(0, 13);
         p.melds = [];
@@ -283,6 +284,9 @@
       if (!e || !e.danger) { this.humanReview = null; return; }
       const safer = MJ.AI.bySafety(an.evals).filter((x) => x.t !== tile.t && x.danger.score < e.danger.score).slice(0, 2);
       this.humanReview = { t: tile.t, danger: e.danger, safer: safer.map((x) => ({ t: x.t, tag: x.danger.tag })), opps: opps.map((q) => q.name), seq: this.seq + 1 };
+      // 途中経過(リーチ後の自分の打牌を記録して、放銃したときに振り返れるようにする)
+      const best = MJ.AI.bySafety(an.evals)[0];
+      this.humanLog.push({ t: tile.t, tag: e.danger.tag, score: Math.round(e.danger.score), opps: opps.map((q) => q.name), safest: best ? { t: best.t, tag: best.danger.tag } : null });
     }
 
     /* ---------- 他家の反応 ---------- */
@@ -449,7 +453,18 @@
       }
       if (!from.isHuman) this.speak(from, 'lose');
       const review = from.isHuman && this.humanReview && this.humanReview.t === tile.t ? this.humanReview : null;
-      return this.finishWin(wins, delta, { review });
+      let loseReview = null;
+      if (from.isHuman) {
+        const w0 = wins[0];
+        let dg = null;
+        try { dg = MJ.AI.danger1(this, MJ.AI.visible(this, from), tile.t, w0.winner, MJ.AI.safeSet(this, w0.winner), 2); } catch (e) { dg = null; }
+        loseReview = {
+          t: tile.t, tile, danger: review ? review.danger : dg, safer: review ? review.safer : [], log: (this.humanLog || []).slice(),
+          dora: this.doraInd.some((d) => MJ.doraOf(d.t) === tile.t), red: !!tile.red,
+          winners: wins.map((w) => ({ name: w.winner.name, wait: w.res.wait, kind: w.res.kind, riichi: w.winner.riichi, dealer: w.winner.seat === this.dealer, han: w.res.han, yaku: w.res.yaku.map((y) => y.n), melds: w.winner.melds.map((m) => ({ kind: m.kind, t: m.t })), river: w.winner.discards.map((d) => d.tile.t), yakuhai: MJ.AI.isYakuhaiFor(this, w.winner, tile.t) })),
+        };
+      }
+      return this.finishWin(wins, delta, { review, loseReview });
     }
 
     finishWin(wins, delta, extra = {}) {

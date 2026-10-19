@@ -568,3 +568,16 @@ body.on-game::before { content: ''; position: fixed; inset: 0; z-index: -1; back
 body.on-game.rot #overlay, body.on-game.rot #gloss-sheet, body.on-game.rot #gloss-panel, body.on-game.rot #toast { inset: auto; left: 0; top: 0; width: var(--vh); height: var(--vw); transform-origin: 0 0; transform: translate(var(--vw), 0) rotate(90deg); }
 body.on-game.rot #toast { width: auto; height: auto; }
 select.ac { background: #0b1d18; color: #fff; border: 1px solid #3c7a67; border-radius: 6px; padding: 3px 6px; font-size: 13px; }
+
+/* 結果ダイアログ: 下が切れないように高さに収め、「次へ」は常に表示 */
+#overlay { display: grid; place-items: center; padding: 8px; }
+#overlay .modal { max-height: 100%; overflow-y: auto; margin: 0 auto; scrollbar-width: thin; scrollbar-color: #3c7a67 transparent; display: block; }
+#overlay .modal::-webkit-scrollbar { display: block; width: 6px; }
+#overlay .modal::-webkit-scrollbar-thumb { background: #3c7a67; border-radius: 3px; }
+#overlay::-webkit-scrollbar { display: none; }
+.res-foot { position: sticky; bottom: -16px; margin: 8px -16px -16px; padding: 10px 16px; text-align: right; background: linear-gradient(transparent, #11302a 35%); z-index: 4; }
+.brag { margin-top: 6px; background: #fff; color: #222; border-radius: 12px; padding: 6px 12px; font-weight: 800; font-size: 15px; position: relative; display: inline-block; }
+.brag::before { content: ''; position: absolute; left: -7px; top: 10px; border: 7px solid transparent; border-left: 0; border-right-color: #fff; }
+.rv .rv-h { font-weight: 900; color: #ffd35a; margin: 10px 0 2px; }
+.rv p { margin: 3px 0; }
+.cc.bad.rv, .cc.bad.rv .cc-b { color: var(--ink); } .rv .rv-h { color: #ffd35a; }

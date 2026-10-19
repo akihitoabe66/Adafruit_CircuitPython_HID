@@ -480,6 +480,52 @@
     return `<div class="cc bad"><div class="cc-h">🔎 放銃の振り返り</div><div class="cc-b">あなたが切った${ic(review.t)}${tn(review.t)}は<b>${review.danger.tag}</b>(危険度 約${Math.round(review.danger.score)}%)でした。${sf}<div class="cc-s">${review.danger.why}</div>リーチ者がいる時は「現物 → スジ → 字牌」の順に安全な牌を探す習慣をつけましょう。</div></div>`;
   };
 
+  /* ---------- 放銃(ロンされた)の詳しい振り返り ---------- */
+  const WAITN = { ryanmen: '両面', kanchan: 'カンチャン(嵌張)', penchan: 'ペンチャン(辺張)', shanpon: 'シャンポン(双碰)', tanki: 'タンキ(単騎)' };
+  C.loseReview = function (game, res) {
+    const lr = res.loseReview;
+    if (!lr) return C.reviewText(res.review);
+    const t = lr.t, W = lr.winners[0];
+    const many = lr.winners.length > 1 ? `(ほか${lr.winners.length - 1}人も同時にロン)` : '';
+    const wn = W.kind === 'chiitoi' ? '七対子のタンキ(単騎)' : W.kind === 'kokushi' || (W.yaku || []).some((y) => /国士/.test(y)) ? '国士無双' : (WAITN[W.wait] || '').replace(/\(.*\)/, '');
+    const dg = lr.danger || {};
+    const tag = (dg.tag || '').replace(/\(.*\)/, '');
+    const sec = [];
+    // 1. 何が起きたか
+    sec.push(`<div class="rv-h">① 何が起きたか</div><p><b>放銃(ほうじゅう)</b>=あなたが切った牌で、他の人に<b>ロン</b>されること。今回は<b>${W.name}</b>${many}に、あなたが切った${ic(t)}<b>${tn(t)}</b>で上がられました。</p><p>${W.name}は${W.riichi ? '<b>リーチ</b>をかけていて' : '<b>リーチなし(ダマテン=黙ってテンパイ)</b>で'}${W.melds.length ? `、${W.melds.length}回鳴いて(ポン・チー・カン)` : ''}、${wn ? `<b>${wn}</b>待ち` : ''}で${ic(t)}を待っていました。${W.dealer ? '(親だったので点数が1.5倍です)' : ''}</p>`);
+    // 2. なぜ当たったか
+    const why = [];
+    if (dg.tag) why.push(`切る前の危険度: <b>${dg.tag}</b>(約${Math.round(dg.score || 0)}%)。${dg.why || ''}`);
+    if (tag === 'スジ' || tag === 'スジ・カベ') {
+      if (W.wait && W.wait !== 'ryanmen') why.push(`<b>スジは「両面待ち」にしか効きません。</b>今回は${WAITN[W.wait] || ''}待ちだったので、スジでも当たってしまいました。スジは「安全」ではなく「比較的安全」です。`);
+    } else if (/字牌/.test(tag)) {
+      why.push('字牌は両面待ちがありませんが、<b>シャンポン・タンキ待ち</b>には当たります。場に出ている枚数が少ない字牌ほど危険です。');
+    } else if (/無スジ|半スジ/.test(tag)) {
+      why.push('手がかりのない牌(<b>無スジ</b>)でした。特に<b>4・5・6</b>の真ん中の数牌は、両面待ちに一番当たりやすい牌です。');
+    }
+    if (lr.dora) why.push('<b>ドラ</b>でした。ドラは相手が持っていると高い手になるので、切るときは特に慎重に。');
+    else if (lr.red) why.push('<b>赤ドラ</b>でした。持っている人は手が高いので、手放すときは慎重に。');
+    if (W.yakuhai) why.push(`${tn(t)}は${W.name}の<b>役牌</b>でした。役牌は持たれていることが多いので、相手が鳴いているときは特に注意。`);
+    if (W.melds.length) why.push(`${W.name}は<b>鳴いていました</b>。鳴いた人は手が進んでいるサインです。何を鳴いたか(同じ色ばかり=染め手、役牌)を見て警戒しましょう。`);
+    if (!W.riichi && !W.melds.length) why.push('リーチも鳴きもない<b>ダマテン</b>は、外から見えません。河(捨て牌)が急に変わったり、ドラや真ん中の牌が切られなくなったときは要注意です。');
+    sec.push(`<div class="rv-h">② なぜ当たったのか</div><ul class="cc-ul">${why.map((x) => `<li>${x}</li>`).join('')}</ul>`);
+    // 3. 途中経過
+    if (lr.log.length) {
+      const rows = lr.log.map((e, i) => `<li>${i + 1}回目: ${ic(e.t)}<b>${tn(e.t)}</b>(${e.tag}・約${e.score}%)${i === lr.log.length - 1 ? ' ← <b class="bad">この牌でロン</b>' : ''}${e.safest && e.safest.t !== e.t ? `<br><span class="cc-s">　安全な牌があった: ${ic(e.safest.t)}${tn(e.safest.t)}(${e.safest.tag})</span>` : ''}</li>`).join('');
+      sec.push(`<div class="rv-h">③ リーチ後のあなたの切り牌(途中経過)</div><ul class="cc-ul">${rows}</ul>`);
+    }
+    // 4. 次はこうしよう
+    const tips = [];
+    const last = lr.log[lr.log.length - 1];
+    if (last && last.safest && last.safest.t !== t) tips.push(`今回は<b>${ic(last.safest.t)}${tn(last.safest.t)}(${last.safest.tag})</b>を切れば、当たりませんでした。リーチを受けたら、まず<b>安全な牌を探してから</b>切りましょう。`);
+    else if (lr.safer && lr.safer.length) tips.push(`手牌には<b>${lr.safer.map((s) => `${ic(s.t)}${tn(s.t)}(${s.tag})`).join('、')}</b>というより安全な牌がありました。`);
+    if (W.riichi) tips.push('リーチを受けたときの探し方: <b>①現物(その人が捨てた牌)→ ②スジ → ③場に多く出た字牌</b> の順。どれも無いときは、手が良くなければ安全牌を持っておく(オリる)のが基本です。');
+    else tips.push('リーチがなくても、<b>鳴いた人</b>・<b>ドラを大事に持っている人</b>・<b>同じ色ばかり切る人</b>には警戒。切る前に、その牌が相手の河の「スジ」や「現物」に近いか見る習慣をつけましょう。');
+    tips.push('どうしても押すなら、<b>自分がテンパイ(またはイーシャンテン)で、打点が高い</b>ときだけ。そうでなければ守るほうが失点を防げます。');
+    sec.push(`<div class="rv-h">④ 次はこうしよう</div><ul class="cc-ul">${tips.map((x) => `<li>${x}</li>`).join('')}</ul>`);
+    return `<div class="cc bad rv"><div class="cc-h">🔎 振り返り: なぜロンされたのか(放銃)</div><div class="cc-b">${sec.join('')}</div></div>`;
+  };
+
   C.TAG_HELP = TAG_HELP;
   C.reasonFor = reasonFor;
 })(typeof window !== 'undefined' ? window : globalThis);
