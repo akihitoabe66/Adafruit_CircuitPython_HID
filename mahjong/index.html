@@ -44,7 +44,7 @@
       <div class="modes" id="menu-modes"></div>
       <div id="menu-stats" class="footer"></div>
       <div class="footer credits">掛け声の音声: HTS Voice "Mei" (MMDAgent Project Team / Nagoya Institute of Technology, CC BY 3.0) を Open JTalk で合成。キャラごとに音の高さと速さを変えています。</div>
-      <div class="footer">4人・25000点持ち・赤ドラあり・喰いタンあり・東風戦(東1〜4局)または1局戦。CPUは5段階の強さ(入門〜達人)。</div>
+      <div class="footer" id="menu-rules"></div>
     </div>
   </section>
 
@@ -53,10 +53,12 @@
     <div class="back-row"><button class="btn ghost sm" id="sel-back">← メニュー</button><h2 id="sel-title" style="margin:0"></h2><button class="btn pri sel-start" id="sel-start-top" disabled style="margin-left:auto">対局開始</button></div>
     <p class="sub" id="sel-desc"></p>
     <div class="opts">
-      <label>対局 <select id="sel-length"><option value="east">東風戦(東1〜4局)</option><option value="single">1局だけ(練習向き)</option></select></label>
+      <label>対局 <select id="sel-length"><option value="east">東風戦(東1〜4局)</option><option value="south">東南戦(東・南 計8局)</option><option value="single">1局だけ(練習向き)</option></select></label>
+      <button class="btn sm" id="sel-rules">⚙ ルール設定</button>
       <button class="btn sm" id="sel-reco">おすすめの相手</button>
       <button class="btn sm" id="sel-rand">ランダム</button>
     </div>
+    <p class="sub" id="sel-rule-sum" style="margin:2px 0 6px"></p>
     <div class="sel-bar" id="sel-bar"></div>
     <div class="char-detail" id="char-detail">対戦相手を3人選んでください(クリックで選択/解除)。</div>
     <div class="chars" id="chars"></div>

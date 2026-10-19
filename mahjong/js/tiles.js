@@ -17,7 +17,19 @@
     if (ind <= 30) return ind === 30 ? 27 : ind + 1;
     return ind === 33 ? 31 : ind + 1;
   };
-  MJ.isRedId = (id) => id === 16 || id === 52 || id === 88;
+  /* ---- ルール設定(ブラウザに保存。対局開始時の値が使われる) ---- */
+  MJ.RULE_DEFAULTS = { length: 'east', kuitan: true, aka: 3, ippatsu: true, ura: true, tobi: true, doubleRon: true, kuikae: false, kazoe: true, start: 25000 };
+  MJ.RULES = Object.assign({}, MJ.RULE_DEFAULTS);
+  MJ.loadRules = () => {
+    try { Object.assign(MJ.RULES, JSON.parse(localStorage.getItem('mj_rules') || '{}')); } catch (e) { /* ignore */ }
+    return MJ.RULES;
+  };
+  MJ.saveRules = () => { try { localStorage.setItem('mj_rules', JSON.stringify(MJ.RULES)); } catch (e) { /* ignore */ } };
+  MJ.rulesSummary = () => {
+    const R = MJ.RULES;
+    return [{ east: '東風戦', south: '東南戦', single: '1局戦' }[R.length] || '東風戦', R.kuitan ? '喰いタンあり' : '喰いタンなし', R.aka ? '赤' + R.aka : '赤なし', R.ippatsu ? '一発あり' : '一発なし', R.ura ? '裏ドラあり' : '裏ドラなし', R.start + '点持ち'].join('・');
+  };
+  MJ.isRedId = (id) => MJ.RULES.aka > 0 && (id === 16 || id === 52 || id === 88);
 
   MJ.shuffle = (a) => {
     for (let i = a.length - 1; i > 0; i--) {

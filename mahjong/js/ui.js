@@ -314,7 +314,7 @@
       if (this.game !== game) return;
       this.layout();
       const doras = game.doraInd.map((d) => MJ.tileHTML(d.t, '', '', d.red)).join('') + game.doraAll.slice(game.doraInd.length).map(() => MJ.backHTML()).join('');
-      $('#ginfo').innerHTML = `<span class="kk">${game.kyokuLabel()}</span><span class="myw">あなたは<b>${WINDS[game.seatWindOf(game.players[0])]}家</b>${game.seatWindOf(game.players[0]) === 0 ? '(親)' : ''}</span><span>${game.length === 'single' ? '1局戦' : '東風戦'}</span><span class="doras">ドラ表示 ${doras}</span><span class="doras2">→ ドラ ${game.doraInd.map((d) => MJ.tileHTML(MJ.doraOf(d.t))).join('')}</span><span>残り ${game.live.length}枚</span>${game.kyotaku ? `<span>供託 ${game.kyotaku}</span>` : ''}`;
+      $('#ginfo').innerHTML = `<span class="kk">${game.kyokuLabel()}</span><span class="myw">あなたは<b>${WINDS[game.seatWindOf(game.players[0])]}家</b>${game.seatWindOf(game.players[0]) === 0 ? '(親)' : ''}</span><span>${{ single: '1局戦', south: '東南戦' }[game.length] || '東風戦'}</span><span class="doras">ドラ表示 ${doras}</span><span class="doras2">→ ドラ ${game.doraInd.map((d) => MJ.tileHTML(MJ.doraOf(d.t))).join('')}</span><span>残り ${game.live.length}枚</span>${game.kyotaku ? `<span>供託 ${game.kyotaku}</span>` : ''}`;
       $('#table').innerHTML = `<div class="blocks">${[3, 2, 1, 0].map((s) => this.block(game, s)).join('')}</div>`;
       $('#mine').innerHTML = this.mineHTML(game);
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
@@ -745,7 +745,7 @@
       const winT = w.winTile ? `<span class="gap"></span>${MJ.tileHTML(w.winTile.t, 't-m hl', '', w.winTile.red)}` : '';
       const melds = v.melds.map((m) => `<span class="gap"></span>` + m.tiles.map((h, i) => (m.kind === 'ankan' && (i === 0 || i === 3) ? MJ.backHTML('t-m') : MJ.tileHTML(h.t, 't-m', '', h.red))).join('')).join('');
       const dora = game.doraInd.map((d) => MJ.tileHTML(d.t, 't-m', '', d.red)).join('');
-      const ura = w.ura.length ? '　裏ドラ表示牌: ' + w.ura.map((d) => MJ.tileHTML(d.t, 't-m', '', d.red)).join('') : '';
+      const ura = w.ura.length && MJ.RULES.ura ? '　裏ドラ表示牌: ' + w.ura.map((d) => MJ.tileHTML(d.t, 't-m', '', d.red)).join('') : '';
       const rows = r.yaku.map((y) => `<tr><td>${y.n}</td><td>${r.yakuman ? '役満' : y.h + '飜'}</td></tr>`).join('');
       let pts;
       if (!w.tsumo) pts = `${fmt(w.pay.ron)}点(${w.loser.name}から)`;

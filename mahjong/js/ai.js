@@ -183,7 +183,7 @@
     let yao = 0;
     for (let t = 0; t < 34; t++) if (MJ.isYaochu(t)) yao += c2[t];
     const meldYao = melds.some((m) => (m.kind === 'chi' ? m.t % 9 === 0 || m.t % 9 === 6 : MJ.isYaochu(m.t)));
-    if (!meldYao && yao <= 1) return { ok: true, why: 'タンヤオ(断么九)で役になる形' };
+    if (!meldYao && yao <= 1 && MJ.RULES.kuitan) return { ok: true, why: 'タンヤオ(断么九)で役になる形' };
     // 混一色/清一色
     const suitCnt = [0, 0, 0], hon = [];
     for (let t = 0; t < 27; t++) suitCnt[(t / 9) | 0] += c2[t];

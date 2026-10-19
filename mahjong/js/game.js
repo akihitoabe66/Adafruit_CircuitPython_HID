@@ -10,11 +10,11 @@
       this.ui = cfg.ui || null;
       this.fast = !!cfg.fast;
       this.mode = cfg.mode || 'free';
-      this.length = cfg.length || 'east'; // 'east' | 'single'
+      this.length = cfg.length || MJ.RULES.length || 'east'; // 'east' | 'south' | 'single'
       const me = { id: 0, name: 'あなた', short: 'あなた', level: 0, style: 'balanced', img: `img/you/${String(1 + Math.floor(Math.random() * 18)).padStart(2, '0')}.jpg`, lines: {} };
       const chars = [me].concat(cfg.chars);
       this.players = chars.map((ch, i) => ({
-        seat: i, char: ch, name: ch.short, isHuman: i === 0 && !cfg.allCpu, score: 25000,
+        seat: i, char: ch, name: ch.short, isHuman: i === 0 && !cfg.allCpu, score: MJ.RULES.start || 25000,
         hand: [], melds: [], discards: [], discardTypes: new Set(),
       }));
       if (cfg.allCpu) this.players[0].char = Object.assign({}, MJ.CHARS[cfg.cpuLevelSeat0 || 0], { level: cfg.cpuLevel || 3 });
@@ -47,10 +47,12 @@
           renchan = r.wins.some((w) => w.winner.seat === this.dealer);
           this.honba = renchan ? this.honba + 1 : 0;
         }
-        let end = this.players.some((p) => p.score < 0) || this.handCount >= 16;
+        let end = (MJ.RULES.tobi && this.players.some((p) => p.score < 0)) || this.handCount >= 32;
         if (this.length === 'single') end = true;
         if (!renchan) { this.dealer = (this.dealer + 1) % 4; this.kyoku++; }
         if (this.length === 'east' && this.kyoku >= 4) end = true;
+        if (this.length === 'south' && this.kyoku >= 8) end = true;
+        this.roundWind = Math.min(1, Math.floor(this.kyoku / 4));
         if (end) {
           const order = this.players.slice().sort((a, b) => b.score - a.score || a.seat - b.seat);
           const final = { order, results: order.map((p, i) => ({ p, rank: i + 1 })) };
@@ -60,7 +62,7 @@
       }
     }
 
-    kyokuLabel() { return `${MJ.windName(this.roundWind)}${this.kyoku + 1}局${this.honba ? ' ' + this.honba + '本場' : ''}`; }
+    kyokuLabel() { return `${MJ.windName(this.roundWind)}${(this.kyoku % 4) + 1}局${this.honba ? ' ' + this.honba + '本場' : ''}`; }
 
     setupHand() {
       const wall = MJ.buildWall();
@@ -381,7 +383,7 @@
         decs.push({ q, d, o });
       }
       const rons = decs.filter((x) => x.d.act === 'ron');
-      if (rons.length) return { type: 'ron', result: await this.winRon(p, tile, rons.map((x) => x.q)) };
+      if (rons.length) { const rq = rons.map((x) => x.q); return { type: 'ron', result: await this.winRon(p, tile, MJ.RULES.doubleRon ? rq : [rq[0]]) }; }
 
       // リーチ成立
       if (p.riichiPending) {
@@ -417,7 +419,7 @@
       if (kind === 'pon') {
         const ts = take(t, 2);
         meld = { kind: 'pon', t, tiles: ts.concat([tile]), from: p.seat, called: tile };
-        q.kuikae = [t];
+        q.kuikae = MJ.RULES.kuikae ? [] : [t];
       } else if (kind === 'kan') {
         const ts = take(t, 3);
         meld = { kind: 'minkan', t, tiles: ts.concat([tile]), from: p.seat, called: tile };
@@ -427,7 +429,7 @@
         const opt = o.chi.find((x) => x.use[0] === use[0] && x.use[1] === use[1]);
         const ts = take(use[0], 1).concat(take(use[1], 1));
         meld = { kind: 'chi', t: Math.min(use[0], use[1], t), tiles: ts.concat([tile]), from: p.seat, called: tile };
-        q.kuikae = opt ? opt.forbid : [t];
+        q.kuikae = MJ.RULES.kuikae ? [] : (opt ? opt.forbid : [t]);
       }
       this.lastDiscard.d.called = true;
       q.melds.push(meld);

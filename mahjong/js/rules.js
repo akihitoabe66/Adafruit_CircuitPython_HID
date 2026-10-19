@@ -107,7 +107,7 @@
 
   /* ---------- 点数 ---------- */
   MJ.basicPoints = (han, fu) => {
-    if (han >= 13) return 8000;
+    if (han >= 13) return MJ.RULES.kazoe ? 8000 : 6000;
     if (han >= 11) return 6000;
     if (han >= 8) return 4000;
     if (han >= 6) return 3000;
@@ -165,7 +165,7 @@
     let d = 0;
     for (const t of ctx.dora || []) d += all[t];
     if (d) { yaku.push({ n: 'ドラ', h: d, dora: true }); han += d; }
-    if (ctx.riichi) {
+    if (ctx.riichi && MJ.RULES.ura) {
       let u = 0;
       for (const t of ctx.ura || []) u += all[t];
       if (u) { yaku.push({ n: '裏ドラ', h: u, dora: true }); han += u; }
@@ -178,7 +178,7 @@
   /* 共通(役牌・タンヤオ・染め手など) */
   function commonYaku(ctx, all, menzen, y) {
     if (ctx.riichi) y.push({ n: 'リーチ', h: 1 });
-    if (ctx.ippatsu) y.push({ n: '一発', h: 1 });
+    if (ctx.ippatsu && MJ.RULES.ippatsu) y.push({ n: '一発', h: 1 });
     if (ctx.tsumo && menzen) y.push({ n: '門前清自摸和', h: 1 });
     if (ctx.haitei) y.push({ n: '海底摸月', h: 1 });
     if (ctx.houtei) y.push({ n: '河底撈魚', h: 1 });
@@ -191,7 +191,7 @@
       if (MJ.isYaochu(t)) hasYao = true; else onlyYao = false;
       if (t >= 27) honors += all[t]; else suits.add((t / 9) | 0);
     }
-    if (!hasYao) y.push({ n: 'タンヤオ', h: 1 });
+    if (!hasYao && (menzen || MJ.RULES.kuitan)) y.push({ n: 'タンヤオ', h: 1 });
     if (suits.size === 1) {
       if (honors) y.push({ n: '混一色', h: menzen ? 3 : 2 });
       else y.push({ n: '清一色', h: menzen ? 6 : 5 });

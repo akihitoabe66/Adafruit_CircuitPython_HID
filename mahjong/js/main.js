@@ -32,17 +32,21 @@
       $('#menu-modes').innerHTML = MODE_CARDS.map((m) => `<button class="mode-card" data-mode="${m.id}"><div class="mi">${m.icon}</div><h3>${MJ.Coach.MODES[m.id].name}</h3><p>${m.desc}</p><span class="badge">${m.badge}</span></button>`).join('') +
         `<button class="mode-card" data-mode="notes"><div class="mi">📖</div><h3>麻雀ノート</h3><p>役の一覧・点数計算のしかた・点数早見表・スジ/カベの見方・鳴きのルールをまとめて確認。</p><span class="badge">読み物</span></button>` +
         `<button class="mode-card" data-open-gloss><div class="mi">📚</div><h3>用語辞典</h3><p>専門用語の意味を検索。「チートイ」「ニコニコ」など地域・世代で違う<b>俗称</b>も載っています。</p><span class="badge">検索できます</span></button>` +
+        `<button class="mode-card" data-open-rules><div class="mi">⚙️</div><h3>ルール設定</h3><p>喰いタン・赤ドラ・一発・裏ドラ・飛び・東南戦などを自分好みに変更。</p><span class="badge">喰いタンなど</span></button>` +
         `<button class="mode-card" data-open-credits><div class="mi">ℹ️</div><h3>クレジット・ライセンス</h3><p>使用している音声・BGM・画像の出典とライセンス表記。</p><span class="badge">権利表記</span></button>`;
       $('#menu-modes').addEventListener('click', (e) => {
         const b = e.target.closest('[data-mode]');
         if (!b) return;
         if (b.dataset.mode === 'notes') this.openNotes(); else if (b.dataset.mode === 'drill') MJ.DrillUI.open(); else this.openSelect(b.dataset.mode);
       });
+      this.showRuleLine();
       try {
         const st = JSON.parse(localStorage.getItem('mj_stats') || 'null');
         if (st && st.games) $('#menu-stats').innerHTML = `対局成績: ${st.games}戦 / 1位 ${st.ranks[0]}回・2位 ${st.ranks[1]}回・3位 ${st.ranks[2]}回・4位 ${st.ranks[3]}回`;
       } catch (e) { /* ignore */ }
     },
+
+    showRuleLine() { const el = $('#menu-rules'); if (el) el.textContent = '4人対戦・' + MJ.rulesSummary() + '(「ルール設定」で変更できます)。CPUは5段階の強さ(入門〜達人)。'; },
 
     /* ---- 相手選択 ---- */
     openSelect(mode) {
@@ -51,6 +55,8 @@
       const m = MJ.Coach.MODES[mode];
       $('#sel-title').textContent = m.name;
       $('#sel-desc').textContent = m.desc;
+      $('#sel-length').value = MJ.RULES.length;
+      $('#sel-rule-sum').textContent = 'ルール: ' + MJ.rulesSummary();
       this.renderChars();
       this.show('select');
     },
@@ -79,7 +85,8 @@
     start() {
       if (this.picks.length !== 3) return;
       const chars = this.picks.map((id) => MJ.CHARS.find((c) => c.id === id));
-      this.lastCfg = { mode: this.mode, picks: this.picks.slice(), length: $('#sel-length').value };
+      MJ.RULES.length = $('#sel-length').value; MJ.saveRules();
+      this.lastCfg = { mode: this.mode, picks: this.picks.slice(), length: MJ.RULES.length };
       this.launch(this.lastCfg);
     },
     launch(cfg) {
@@ -131,6 +138,39 @@
     },
   });
 
+  /* ルール設定: 変更はすぐ保存され、次の対局から使われる */
+  function showRules() {
+    const R = MJ.RULES;
+    const sel = (k, opts) => `<select data-rk="${k}">${opts.map(([v, l]) => `<option value="${v}"${String(R[k]) === String(v) ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
+    const tog = (k, on, off) => `<select data-rk="${k}" data-bool="1"><option value="1"${R[k] ? ' selected' : ''}>${on}</option><option value="0"${R[k] ? '' : ' selected'}>${off}</option></select>`;
+    const row = (name, ctl, note) => `<div class="rl-row"><div class="rl-h"><b>${name}</b>${ctl}</div><div class="rl-n">${note}</div></div>`;
+    MJ.UI.overlay(`<h2>⚙ ルール設定</h2><div class="rl-grid">
+      ${row('対局の長さ', sel('length', [['east', '東風戦(東1〜4局)'], ['south', '東南戦(計8局)'], ['single', '1局だけ']]), '1局だけは練習向き。')}
+      ${row('喰いタン', tog('kuitan', 'あり', 'なし'), 'ありなら、鳴いた手でも<b>タンヤオ</b>が成立。')}
+      ${row('赤ドラ', sel('aka', [[3, '3枚(5萬・5筒・5索)'], [0, 'なし']]), '赤い5は持つだけで1飜。')}
+      ${row('一発', tog('ippatsu', 'あり', 'なし'), 'リーチ後、1巡以内の和了で+1飜。')}
+      ${row('裏ドラ', tog('ura', 'あり', 'なし'), 'リーチ和了で、裏のドラ表示牌をめくる。')}
+      ${row('飛び(ハコテン)', tog('tobi', '終了する', '続ける'), '持ち点が0未満になったらゲーム終了。')}
+      ${row('ダブロン', tog('doubleRon', 'あり', 'なし(頭ハネ)'), '同じ牌で複数人がロンできるとき、全員の和了を認めるか。')}
+      ${row('喰い替え', tog('kuikae', '許可', '禁止'), '鳴いた直後に、鳴いた牌と同じ(近い)牌を切ること。')}
+      ${row('数え役満', tog('kazoe', 'あり', 'なし(三倍満止まり)'), '13飜以上を役満として扱うか。')}
+      ${row('持ち点', sel('start', [[25000, '25,000点'], [30000, '30,000点'], [35000, '35,000点']]), '開始時の持ち点。')}
+    </div><div class="res-foot"><button class="btn" id="rl-reset">初期値に戻す</button><button class="btn pri" id="rl-close">閉じる</button></div>`, { plain: true });
+    const root = document.querySelector('#overlay');
+    root.querySelectorAll('[data-rk]').forEach((el) => el.addEventListener('change', () => {
+      const k = el.dataset.rk;
+      R[k] = el.dataset.bool ? el.value === '1' : (k === 'length' ? el.value : +el.value);
+      MJ.saveRules();
+    }));
+    root.querySelector('#rl-reset').addEventListener('click', () => { Object.assign(R, MJ.RULE_DEFAULTS); MJ.saveRules(); MJ.UI.closeOverlay(); showRules(); });
+    root.querySelector('#rl-close').addEventListener('click', () => {
+      MJ.UI.closeOverlay();
+      MJ.App.showRuleLine();
+      const sum = document.querySelector('#sel-rule-sum'); if (sum) sum.textContent = 'ルール: ' + MJ.rulesSummary();
+      const sl = document.querySelector('#sel-length'); if (sl) sl.value = R.length;
+    });
+  }
+
   function showCredits() {
     MJ.UI.overlay(`<h2>ℹ️ クレジット・ライセンス</h2>
       <div class="credits">
@@ -148,7 +188,9 @@
 
   function init() {
     MJ.Gloss.init();
-    document.addEventListener('click', (e) => { if (e.target.closest('[data-open-credits]')) showCredits(); });
+    MJ.loadRules();
+    document.addEventListener('click', (e) => { if (e.target.closest('[data-open-credits]')) showCredits(); else if (e.target.closest('[data-open-rules]') || e.target.closest('#sel-rules')) showRules(); });
+    $('#sel-length').addEventListener('change', () => { MJ.RULES.length = $('#sel-length').value; MJ.saveRules(); $('#sel-rule-sum').textContent = 'ルール: ' + MJ.rulesSummary(); });
     MJ.UI.init();
     MJ.DrillUI.init();
     // 最初の操作でBGMを開始。iPhoneは pointerdown/touchstart では許可されないため、指を離した時(touchend/click)でも毎回試す
