@@ -393,3 +393,11 @@ body.gp-open { overflow: hidden; }
 .gp-hit { font-size: 12px; font-weight: 800; color: #05241a; background: #ffd35a; border-radius: 999px; padding: 1px 8px; }
 .gp-c { margin-left: auto; font-size: 11px; opacity: .6; }
 .gp-d { padding: 0 12px 10px; font-size: 14px; line-height: 1.65; }
+
+.gx { margin: 8px 0; display: grid; gap: 8px; }
+.gx-row { background: #0b1d18; border: 1px solid #2c6a58; border-radius: 10px; padding: 8px; }
+.gx-tiles { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.gx-grp { display: inline-flex; gap: 1px; }
+.gx-grp .tile { position: static; width: 24px; height: 33px; flex: none; }
+.gx-sep { font-weight: 800; color: #ffd35a; }
+.gx-lab { font-size: 12px; opacity: .85; margin-top: 5px; }
