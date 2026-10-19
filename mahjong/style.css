@@ -538,3 +538,7 @@ body:not(.desk):not(.land):not(.coach-open) #coach > .cc.on { margin: 0; }
 @keyframes cutin { 0% { transform: translateX(-100%); opacity: 0; } 12% { transform: none; opacity: 1; } 85% { transform: none; opacity: 1; } 100% { transform: translateX(40px); opacity: 0; } }
 @media (max-width: 520px) { .cutin img { width: 64px; height: 64px; } .cutin .ct { font-size: 18px; } }
 .bubble.still { animation: none; }
+/* 牌にカーソルを乗せて説明が変わっても、手牌の位置がずれないよう高さを固定 */
+.tipline, .tipline:empty { min-height: 3.1em; max-height: 3.1em; overflow: hidden; }
+#coach .tileinfo { height: 4.6em; min-height: 0; max-height: 4.6em; overflow: hidden; }
+@media (max-width: 520px) { .tipline, .tipline:empty { min-height: 2.9em; max-height: 2.9em; } }
