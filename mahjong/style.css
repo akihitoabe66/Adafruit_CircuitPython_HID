@@ -777,3 +777,7 @@ body.rot.short .actrow, body.rot.short .tipline { padding-left: 76px; }
 body.rot .rl-row { padding: 3px 8px; }
 body.rot .rl-n { font-size: 10.5px; }
 body.rot #overlay h2 { font-size: 16px; margin: 0 0 4px; }
+/* スマホ横: 手牌下の説明は高さをpx固定(文字を縮めても枠が縮まないように)し、牌アイコンも小さく */
+body.short .tipline, body.short .tipline:empty { min-height: 36px; max-height: 36px; line-height: 1.3; }
+body.short .tipline .tile { width: 12px; height: 16px; }
+body.short .tipline .tile img { width: 100%; height: 100%; }
