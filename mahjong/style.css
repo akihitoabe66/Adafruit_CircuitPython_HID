@@ -487,3 +487,7 @@ body:not(.desk):not(.land) #btn-coach { display: inline-block; }
 .desk #coach > .cc.on, body:not(.desk):not(.land) #coach > .cc.on { flex: 1 0 auto; overflow: visible; margin-bottom: 8px; }
 .desk #coach > .cc.on:last-of-type, .desk #coach > .cc.on:last-child { margin-bottom: 0; }
 #coach > .cc.on { margin-bottom: 8px; }
+
+/* 河の置き場所をうっすら表示 */
+.river .gh { width: var(--sw); height: var(--sh); border-radius: 3px; background: rgba(0, 0, 0, .16); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05), inset 0 2px 4px rgba(0, 0, 0, .25); pointer-events: none; }
+.blk { background-image: radial-gradient(circle at 50% 100%, rgba(255, 255, 255, .035), transparent 60%); }
