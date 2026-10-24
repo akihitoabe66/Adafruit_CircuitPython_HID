@@ -108,8 +108,8 @@
       $('#drill-quiz').classList.toggle('has-board', !!board);
       // 手牌
       const melds = q.melds && q.melds.length ? `<div class="melds" style="justify-content:center;margin-bottom:6px">${q.melds.map((m) => MJ.UI.meldHTML(m)).join('')}</div>` : '';
-      const tiles = q.hand.map((h, i) => `<div class="tile ok" data-i="${i}">${MJ.tileSVG(h.t)}</div>`).join('');
-      const win = q.win ? `<div class="tile drawn hl" style="outline:3px solid var(--acc)">${MJ.tileSVG(q.win.t)}</div>` : '';
+      const tiles = q.hand.map((h, i) => `<div class="tile ok" data-i="${i}">${MJ.tileSVG(h.t, h.red)}</div>`).join('');
+      const win = q.win ? `<div class="tile drawn hl" style="outline:3px solid var(--acc)">${MJ.tileSVG(q.win.t, q.win.red)}</div>` : '';
       $('#dq-hand').innerHTML = `${melds}<div class="hand">${tiles.replace(/ ok"/g, q.kind === 'tile' ? ' ok"' : '"')}${win}</div>`;
       // 選択肢
       if (q.kind === 'choice') {

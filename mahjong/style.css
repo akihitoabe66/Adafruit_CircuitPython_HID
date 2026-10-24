@@ -895,10 +895,11 @@ body.short .actions .b-riichi { font-size: 18px; padding: 8px 18px; min-height: 
 .dr-d { font-size: 16px; font-weight: 900; } .dr-d.up { color: #6be39a; } .dr-d.dn { color: #ff8a80; }
 .dr-h { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; margin-top: 4px; }
 .dr-note { font-size: 14px; margin: 8px 0 4px; }
-body.short .dr-big { font-size: 40px; } body.short .dr-face { max-width: 64px; } body.short .dr-sub { margin: 0 0 4px; }
-body.short .dr-h { display: none; }
+/* 論理サイズは常にスマホ横と同じ(926×428前後)なので、いつもコンパクトに */
+.dr-big { font-size: 46px; } .dr-face { max-width: 84px; } .dr-sub { margin: 0 0 4px; }
+.dr-h .tile { width: 20px; height: 27px; }
 .dr-t { font-size: 14px; color: var(--mute); }
-body.short .dr-note, body.short .dr-tbl { display: none; }
+.dr-note, .dr-tbl { display: none; }
 /* リーチボタンが出ても手牌がずれないよう、操作ボタンの行は常に同じ高さを確保する */
 .actions { min-height: 52px; align-items: center; }
 body.short .actions { min-height: 48px; }
@@ -1084,3 +1085,21 @@ body.pad-on #side-in .pf, body.pad-on #overlay .pf { z-index: 12; }
 /* 河(盤面)と選択肢がある問題は、選択肢を盤面の下に1列で並べる */
 #drill-quiz.has-board .dq-opts { top: 276px; height: 62px; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 58px; }
 #drill-quiz.has-board .dq-opt { font-size: 16px; }
+
+/* 赤ドラは牌の絵そのものが赤い字になったので、赤い点の印は出さない */
+.tile.aka::after { display: none !important; }
+.hand .tile .bg.ak { display: none; }
+
+
+/* ===== 文字・牌を読みやすい大きさに(Switch / テレビ / PC): 画面に合わせて拡大 ===== */
+#overlay { padding: 0; overflow: hidden; display: block; }
+#overlay .ovi { position: absolute; left: 0; top: 0; transform-origin: 0 0; display: grid; place-items: center; grid-template-rows: minmax(0, 1fr); padding: 8px; box-sizing: border-box; }
+#overlay .ovi > .modal { max-height: 100%; }
+/* 解説の引き出し: 設計サイズ 400×428 を画面に合わせて拡大 */
+body.tbl #coach { position: absolute; right: 0; top: var(--oy, 0px); bottom: auto; left: auto; width: 400px; height: 428px; max-height: none; transform-origin: 100% 0; transform: translateX(105%) scale(var(--S, 1)); border-radius: 14px 0 0 14px; }
+body.tbl.coach-open #coach { transform: scale(var(--S, 1)); }
+/* メニュー・選択・ノートなどの普通の画面も、読める大きさに */
+#screen-title, #screen-menu, #screen-select, #screen-notes { zoom: var(--Z, 1); }
+.gp-box { zoom: var(--Z, 1); }
+/* 解説・ヒントの中の牌の絵を大きく */
+#coach .tile.t-xs, #tipline .tile.t-xs, .dq-fb .tile.t-xs, #overlay .tile.t-xs { width: 1.45em; height: 1.98em; margin: 0 1px; vertical-align: -0.5em; }

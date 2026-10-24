@@ -54,7 +54,7 @@
       $('#btn-danger').addEventListener('click', () => this.setDanger(!this.dangerOn));
       $('#btn-tl').addEventListener('click', () => this.showTimeline());
       $('#btn-coach').addEventListener('click', () => { document.body.classList.toggle('coach-open'); this.fitCoachText($('#coach')); });
-      window.addEventListener('resize', () => this.relayout());
+      window.addEventListener('resize', () => { this.relayout(); this.fitOverlay(); });
       window.addEventListener('orientationchange', () => setTimeout(() => this.relayout(), 250));
       $('#opt-reveal').addEventListener('change', (e) => { this.reveal = e.target.checked; document.body.classList.toggle('reveal-on', this.reveal); if (this.game) this.render(this.game); });
       $('#btn-peek').addEventListener('click', () => this.showPeek());
@@ -227,6 +227,12 @@
       document.body.classList.toggle('rot', rot);
       const rs = document.documentElement.style;
       rs.setProperty('--vw', RW + 'px'); rs.setProperty('--vh', RH + 'px');
+      // 文字・牌を読みやすい大きさに保つための拡大率(スマホ横=1、720pで約1.5、1080pで約2.3)
+      const Wl = rot ? RH : RW, Hl = rot ? RW : RH;
+      this.S2 = Math.max(1, Math.min(2.6, Math.min(Hl / 428, Wl / 832)));
+      rs.setProperty('--S', this.S2.toFixed(3));
+      rs.setProperty('--Z', Math.max(1, Math.min(2.2, Hl / 520)).toFixed(3));
+      rs.setProperty('--oy', Math.max(0, Math.round((Hl - 428 * this.S2) / 2)) + 'px');
       return rot;
     },
     coachActive() { return this.game.mode !== 'free' || this.hintOn; },
@@ -322,7 +328,7 @@
       const a = (((rot + (o.side ? 90 : 0)) % 360) + 360) % 360;
       const flat = a % 180 === 0;
       const bw = flat ? w : h, bh = flat ? h : w;
-      return `<div class="tile st${o.cls ? ' ' + o.cls : ''}${o.red ? ' aka' : ''}" style="width:${bw}px;height:${bh}px" data-t="${t}"><img src="img/tiles/${t}.png" alt="" draggable="false" style="width:${w}px;height:${h}px;transform:translate(-50%,-50%) rotate(${a}deg)"></div>`;
+      return `<div class="tile st${o.cls ? ' ' + o.cls : ''}${o.red ? ' aka' : ''}" style="width:${bw}px;height:${bh}px" data-t="${t}"><img src="${MJ.tileSrc(t, o.red)}" alt="" draggable="false" style="width:${w}px;height:${h}px;transform:translate(-50%,-50%) rotate(${a}deg)"></div>`;
     },
     tableHTML(game) {
       const doras = game.doraInd.map((d) => MJ.tileHTML(d.t, '', '', d.red)).join('') + game.doraAll.slice(game.doraInd.length).map(() => MJ.backHTML()).join('');
@@ -392,7 +398,7 @@
         if (dv0) cls += ` dgt dg-${dv0.cls}`;
         const isDora = game.doraInd.some((d) => MJ.doraOf(d.t) === h.t);
         const badge = `${isDora ? '<span class="bg dr">ドラ</span>' : ''}${h.red ? '<span class="bg ak">赤</span>' : ''}`;
-        return `<div class="tile${cls}${h.red ? ' aka' : ''}${isDora ? ' isdora' : ''}" data-id="${h.id}" data-t="${h.t}">${MJ.tileSVG(h.t)}${chip}${mk}${badge}</div>`;
+        return `<div class="tile${cls}${h.red ? ' aka' : ''}${isDora ? ' isdora' : ''}" data-id="${h.id}" data-t="${h.t}">${MJ.tileSVG(h.t, h.red)}${chip}${mk}${badge}</div>`;
       }).join('') + (p.drawn ? '' : '<div class="tile drawn ph"></div>'); // 引いた牌の場所を常に確保(牌の数が変わっても手牌が左右にずれない)
       let tip = this.picked && adv && adv.info && this.coachActive() ? adv.info[this.picked] || '' : '';
       if (!tip && this.dng && sel) tip = this.dangerSym ? `<span class="dglg">左上の印: <b class="dgl safe">◎</b>ほぼ安全 <b class="dgl ok">○</b>比較的安全 <b class="dgl warn">△</b>注意 <b class="dgl danger">✕</b>危険${this.dng.hyp ? ' <span class="cc-s">(いまはリーチなし。「もし全員がリーチしていたら」の目安)</span>' : ''}</span>` : `<span class="dglg">左上の印: <b class="dgl safe">現物</b>100%安全 <b class="dgl safe">スジ</b>安全 <b class="dgl ok">半スジ</b>少し安全 <b class="dgl warn">無スジ</b>注意 ${this.dng.hyp ? ' <span class="cc-s">(いまはリーチなし。「もし全員がリーチしていたら」の目安)</span>' : ''}</span>`;
@@ -795,11 +801,23 @@
     /* ---------- 結果 ---------- */
     overlay(html, opt = {}) {
       const o = $('#overlay');
-      o.innerHTML = opt.raw ? html : `<div class="modal">${html}</div>`;
       o.classList.remove('hidden');
+      o.innerHTML = `<div class="ovi">${opt.raw ? html : `<div class="modal">${html}</div>`}</div>`;
+      this.fitOverlay();
       o.scrollTop = 0;
       if (!opt.plain) { MJ.Gloss.decorate(o); this.addReadFrom(o.querySelector('.modal')); }
       return o;
+    },
+    /* ダイアログも、画面の大きさに合わせて文字・牌ごと拡大する(論理サイズ=スマホ横の 926×428 前後) */
+    fitOverlay() {
+      const o = $('#overlay');
+      const ovi = o && o.querySelector('.ovi');
+      if (!ovi || o.classList.contains('hidden')) return;
+      const S = this.S2 || 1;
+      ovi.style.width = o.clientWidth / S + 'px';
+      ovi.style.height = o.clientHeight / S + 'px';
+      ovi.style.transform = `scale(${S})`;
+      this.ovH = o.clientHeight / S;
     },
     closeOverlay() { $('#overlay').classList.add('hidden'); $('#overlay').innerHTML = ''; },
 
@@ -852,7 +870,7 @@
       // 見出しごとの大きさ(文字数+図の分)を見積もって、1ページに収まる分だけまとめる
       const wOf = (html) => { const t = document.createElement('div'); t.innerHTML = html; return t.textContent.length + (t.querySelector('.tl') ? 300 : 0) + (t.querySelectorAll('.tile,svg').length ? 12 : 0); };
       const weight = (g) => g.reduce((s, h) => s + wOf(h), 0);
-      const cap = document.body.classList.contains('short') ? 230 : 560; // スマホ横は画面が低いので、1ページに入れる量を減らす(文字を小さくしないため)
+      const cap = 230; // スマホ横は画面が低いので、1ページに入れる量を減らす(文字を小さくしないため)
       // 1つの見出しが長すぎるときは、中の段落・箇条書きの項目ごとに分けて、続きのページに回す
       const exploded = [];
       groups.forEach((g) => {

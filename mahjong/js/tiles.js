@@ -85,11 +85,13 @@
     return P.map(([x, y, c, h]) => stick(x, y, h || 20, c)).join('');
   }
 
-  MJ.tileSVG = (t) => `<img src="img/tiles/${t}.png" alt="${MJ.tileName(t)}" draggable="false">`;
+  /* 赤ドラは、文字が赤い専用の牌の絵(r4/r13/r22)を使う */
+  MJ.tileSrc = (t, red) => (red && (t === 4 || t === 13 || t === 22) ? `img/tiles/r${t}.png` : `img/tiles/${t}.png`);
+  MJ.tileSVG = (t, red) => `<img src="${MJ.tileSrc(t, red)}" alt="${MJ.tileName(t)}${red ? '(赤)' : ''}" draggable="false">`;
 
   /* HTML文字列 (cls: 追加クラス) */
   MJ.tileHTML = (t, cls = '', attrs = '', red = false) =>
-    `<div class="tile ${cls}${red ? ' aka' : ''}" data-t="${t}" ${attrs} title="${MJ.tileName(t)}">${MJ.tileSVG(t)}</div>`;
+    `<div class="tile ${cls}${red ? ' aka' : ''}" data-t="${t}" ${attrs} title="${MJ.tileName(t)}">${MJ.tileSVG(t, red)}</div>`;
   MJ.backHTML = (cls = '') => `<div class="tile back ${cls}"></div>`;
   /* 文章中に出す小さな牌 */
   MJ.icon = (t) => `<span class="tile t-xs">${MJ.tileSVG(t)}</span>`;
