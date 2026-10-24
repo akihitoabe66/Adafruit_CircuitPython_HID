@@ -999,7 +999,8 @@ body.tbl .river .tile.hl { outline: 3px solid #6ff0b0; outline-offset: -2px; box
 .say img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; object-position: 50% 20%; border: 2px solid #fff; flex: none; box-shadow: 0 2px 8px #0008; }
 .say .sb2 { background: rgba(255, 255, 255, .9); color: #111; border-radius: 10px; padding: 5px 10px; font-size: 14px; font-weight: 700; line-height: 1.35; box-shadow: 0 2px 8px #0006; }
 .say .sb2 small { display: block; font-size: 12px; color: #555; font-weight: 800; }
-.say.sy0 { left: 290px; top: 296px; } .say.sy1 { left: 520px; top: 70px; } .say.sy2 { left: 446px; top: 34px; } .say.sy3 { left: 72px; top: 36px; }
+.say { max-width: 240px; }
+.say.sy0 { left: 290px; top: 296px; } .say.sy1 { left: 470px; top: 104px; } .say.sy2 { left: 446px; top: 30px; } .say.sy3 { left: 72px; top: 36px; }
 @keyframes sayin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 body.calling .say { display: none; }
 .shout { position: absolute; width: 330px; height: 120px; animation: sayin .15s ease-out; }
