@@ -102,16 +102,27 @@
         else if (j) this.goCoachPage(0, +j.dataset.pj);
       });
       this.syncAudio();
-      $('#btn-hint').addEventListener('click', () => {
-        this.hintOn = !this.hintOn;
-        const s = this.sel;
-        if (this.hintOn && s) {
-          if (s.type === 'self') { this.adv = MJ.Coach.selfAdvice(this.game, s.p, s.opts, s.st); this.coachHtml = this.adv.html; }
+      $('#btn-hint').addEventListener('click', () => this.toggleHint());
+      document.addEventListener('click', (e) => { if (e.target.closest('[data-hintoggle]')) this.toggleHint(); });
+    },
+
+    /* フリー対戦のヒント(★・解説・危険度)を、入れたり消したりする */
+    toggleHint() {
+      this.hintOn = !this.hintOn;
+      const s = this.sel;
+      if (this.hintOn) {
+        if (s) {
+          if (s.type === 'self') { this.adv = MJ.Coach.selfAdvice(this.game, s.p, s.opts, s.st); this.coachHtml = this.adv.html; this.summary = this.adv.summary || ''; }
           else this.coachHtml = MJ.Coach.reactAdvice(this.game, s.p, s.o);
-          this.render(this.game);
         }
-        this.refreshCoach();
-      });
+      } else { this.adv = null; this.coachHtml = ''; this.summary = ''; this.picked = null; }
+      this.syncHintBtn();
+      if (this.game) this.render(this.game);
+      this.refreshCoach();
+    },
+    syncHintBtn() {
+      const b = $('#btn-hint');
+      if (b) { b.textContent = `💡 ヒント: ${this.hintOn ? 'オン' : 'オフ'}`; b.classList.toggle('on', !!this.hintOn); }
     },
 
     sfx(name) { MJ.SFX.play(name); },
@@ -194,6 +205,7 @@
       this.game = game;
       this.sel = null; this.bubbles = {}; this.adv = null; this.picked = null; this.riichiMode = false; this.reactHtml = '';
       this.hintOn = game.mode !== 'free';
+      this.syncHintBtn();
       // 危険度の表示(◎○△✕・★): 入門・捨て牌・中級は初期ON、フリー対戦は初期OFF(設定で切替、モードごとに記憶)
       try { const v = localStorage.getItem('mj_danger_' + game.mode); this.dangerOn = v === null ? game.mode !== 'free' : JSON.parse(v); } catch (e) { this.dangerOn = game.mode !== 'free'; }
       this.dng = null; this.dngTab = 'all'; this.hiType = null;
@@ -660,17 +672,17 @@
       if (!g) return;
       const m = MJ.Coach.MODES[g.mode];
       let body;
-      if (!this.coachActive()) body = '<div class="cc"><div class="cc-b">💡「ヒント」ボタンでアドバイスを表示できます。</div></div>';
+      if (!this.coachActive()) body = '<div class="cc"><div class="cc-h">💡 ヒントはオフです</div><div class="cc-b">ヒントをオンにすると、おすすめの捨て牌(★)と解説が出ます。<br><button class="btn pri" data-hintoggle>💡 ヒントをオンにする</button></div></div>';
       else if (this.coachHtml) {
         // 「この局のポイント」は最初の1巡だけ先頭に出し、その後は最後のページに回す
         const tip = this.tipHtml || '';
         body = g.players[0].discards.length < 1 ? tip + this.coachHtml : this.coachHtml + tip;
       }
       else body = `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
-      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><span class="chb"><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}`;
+      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><span class="chb">${g.mode === 'free' && this.coachActive() ? '<button class="btn sm" data-hintoggle>💡 ヒントをオフ</button>' : ''}<button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}`;
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
-      this.addReadFrom(el);
+      if (this.coachActive()) this.addReadFrom(el);
       this.fitCoachText(el);
       // 牌画像などが後から読み込まれて高さが変わっても、枠からはみ出さないよう再調整する
       if (!el._ld) { el._ld = 1; el.addEventListener('load', () => this.growFont(el), true); }
