@@ -25,6 +25,9 @@
         const tl = e.target.closest('.hand .tile[data-id]');
         if (tl) this.onTile(+tl.dataset.id);
       });
+      $('#sd-act').addEventListener('click', (e) => { const b = e.target.closest('button[data-act]'); if (b && !b.disabled) this.onAction(b); });
+      $('#btn-tools').addEventListener('click', () => $('#sd-tools').classList.toggle('hidden'));
+      document.addEventListener('click', (e) => { if (!e.target.closest('#sd-tools, #btn-tools')) $('#sd-tools').classList.add('hidden'); });
       const hl = (ids) => M.querySelectorAll('.hand .tile[data-id]').forEach((tl) => tl.classList.toggle('cand', ids.includes(tl.dataset.id)));
       const allIds = () => [...M.querySelectorAll('.cq-btn[data-ids]')].flatMap((b) => b.dataset.ids.split(','));
       M.addEventListener('click', (e) => {
@@ -220,7 +223,7 @@
     /* 縦持ちのスマホは、タイトルからすべての画面を90°回して横画面で表示する(設定で縦のままにもできる) */
     applyRot() {
       const RW = window.innerWidth, RH = window.innerHeight;
-      const rot = RH > RW && this.orient !== 'portrait';
+      const rot = RH > RW; // 縦持ちは常に横画面(90°回転)で表示する
       document.body.classList.toggle('rot', rot);
       const rs = document.documentElement.style;
       rs.setProperty('--vw', RW + 'px'); rs.setProperty('--vh', RH + 'px');
@@ -256,38 +259,26 @@
       this.stage = { w: sw, h: sh, sc };
     },
 
+    /* 盤面は設計座標(720×428)に固定し、ステージの大きさに合わせて拡大縮小する。右端に 112 幅のボタン列 */
     layout() {
       this.fitStage();
       const st = this.stage;
       if (!st) return;
       const W = st.w, H = st.h;
-      const desk = W >= 1000 && H >= 560;
-      const land = !desk && W > H;
       const body = document.body;
-      body.classList.toggle('desk', desk);
-      body.classList.toggle('land', land);
-      body.classList.toggle('short', land && H <= 640);
-      const gl = $('.gleft');
-      const full = gl ? gl.clientWidth : 0;
-      if (!full) return;
-      const gb = $('.gbar').offsetHeight;
-      const key = [W, H, full, gb].join('x');
+      body.classList.remove('desk');
+      body.classList.add('land', 'tbl');
+      body.classList.toggle('short', H <= 640);
+      const S = Math.min(H / 428, W / 832);
+      this.S = S;
+      const key = [W, H].join('x');
       if (key === this.layoutKey) return;
       this.layoutKey = key;
-      const n = desk || land ? 4 : 2;
-      const inner = full - 16;
-      const bw = (inner - 5 * (n - 1)) / n;
-      let sw = Math.floor((bw - 14) / 6.05);
-      let hw = Math.floor((full - 14) / 14.3);
-      sw = Math.min(sw, desk ? 52 : 40);
-      hw = Math.min(hw, desk ? 74 : 66);
-      const short = land && H <= 640;
-      if (short) { hw = Math.min(Math.floor((full - 16) / 16.1), 70); sw = Math.min(sw, 26); } // スマホ横: 手牌を横いっぱいに使う。入りきらないぶんは fitHeight が縮める
-      else if (desk || land) {
-        const fit = () => gb + 14 + (sw * 2 + 14 + 2.4 * (sw * 1.32 + 2) + 16) + (hw * 1.32 + 24) + 50 + 22;
-        while (fit() > H && hw > 22) { hw--; if (sw > hw * 0.55) sw--; }
-      }
-      this.setSizes(sw, hw);
+      const ox = Math.round((W - 112 * S - 720 * S) / 2), oy = Math.round((H - 428 * S) / 2);
+      $('#sc').style.transform = `translate(${ox}px, ${oy}px) scale(${S})`;
+      $('#side').style.width = Math.round(112 * S) + 'px';
+      $('#side-in').style.transform = `translateY(${oy}px) scale(${S})`;
+      this.setSizes(26, 44);
     },
     setSizes(sw, hw) {
       this.sizes = { sw, hw };
@@ -296,34 +287,19 @@
       r.setProperty('--sh', Math.round(sw * 1.32) + 'px');
       r.setProperty('--hw', hw + 'px');
     },
-    /* 描画後に実測して、はみ出していたら牌を少しずつ小さくする(スクロールを出さないため) */
-    fitHeight() {
-      const gm = $('.gmain'), gl = $('.gleft');
-      if (!gm || !gl || !this.sizes) return;
-      let { sw, hw } = this.sizes, n = 0;
-      const room = () => (document.body.classList.contains('desk') || document.body.classList.contains('land') ? gm.clientHeight : gm.clientHeight - 90);
-      const short = document.body.classList.contains('short');
-      const swMin = short ? 18 : 16;
-      while (gl.scrollHeight > room() && n++ < 60 && (sw > swMin || hw > 18)) {
-        if (hw > 18) hw--;
-        // 手牌を優先して大きく保つ: 河の牌は2回に1回だけ縮める(下限あり)
-        if (short ? (n % 2 === 0 && sw > swMin) : (sw > hw * 0.6 || sw > 16)) sw--;
-        this.setSizes(sw, hw);
-      }
-    },
+    fitHeight() {},
 
     /* ---------- 描画 ---------- */
     render(game) {
       if (this.game !== game) return;
       this.layout();
-      const doras = game.doraInd.map((d) => MJ.tileHTML(d.t, '', '', d.red)).join('') + game.doraAll.slice(game.doraInd.length).map(() => MJ.backHTML()).join('');
-      $('#ginfo').innerHTML = `<span class="kk">${game.kyokuLabel()}</span><span class="myw">あなたは<b>${WINDS[game.seatWindOf(game.players[0])]}家</b>${game.seatWindOf(game.players[0]) === 0 ? '(親)' : ''}</span><span>${{ single: '1局戦', south: '東南戦' }[game.length] || '東風戦'}</span><span class="doras">ドラ表示 ${doras}</span><span class="doras2">→ ドラ ${game.doraInd.map((d) => MJ.tileHTML(MJ.doraOf(d.t))).join('')}</span><span>残り ${game.live.length}枚</span>${game.kyotaku ? `<span>供託 ${game.kyotaku}</span>` : ''}`;
-      $('#table').innerHTML = `<div class="blocks">${[3, 2, 1, 0].map((s) => this.block(game, s)).join('')}</div>`;
+      $('#table').innerHTML = this.tableHTML(game);
       $('#mine').innerHTML = this.mineHTML(game);
+      $('#sd-act').innerHTML = this.sideHTML(game);
+      $('#sd-info').innerHTML = `<b>${game.kyokuLabel()}</b><span>${{ single: '1局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`;
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
       this.fitTip();
-      if (this.dng) this.hilite(this.picked != null ? ((game.players[0].hand.find((x) => x.id === this.picked) || {}).t) : this.hiType); 
-      this.fitHeight();
+      if (this.dng) this.hilite(this.picked != null ? ((game.players[0].hand.find((x) => x.id === this.picked) || {}).t) : this.hiType);
     },
 
     meldHTML(m) {
@@ -334,22 +310,52 @@
       return `<div class="meld">${tiles.join('')}</div>`;
     },
 
+    /* ---------- 卓(設計座標 720×428)---------- */
+    /* 牌を、席の向き rot(0/90/180/-90)に合わせて置く。called=鳴いた牌(さらに横向き) */
+    seatTile(t, rot, w, h, o = {}) {
+      const a = (((rot + (o.side ? 90 : 0)) % 360) + 360) % 360;
+      const flat = a % 180 === 0;
+      const bw = flat ? w : h, bh = flat ? h : w;
+      return `<div class="tile st${o.cls ? ' ' + o.cls : ''}${o.red ? ' aka' : ''}" style="width:${bw}px;height:${bh}px" data-t="${t}"><img src="img/tiles/${t}.png" alt="" draggable="false" style="width:${w}px;height:${h}px;transform:translate(-50%,-50%) rotate(${a}deg)"></div>`;
+    },
+    tableHTML(game) {
+      const doras = game.doraInd.map((d) => MJ.tileHTML(d.t, '', '', d.red)).join('') + game.doraAll.slice(game.doraInd.length).map(() => MJ.backHTML()).join('');
+      const dora2 = game.doraInd.map((d) => MJ.tileHTML(MJ.doraOf(d.t))).join('');
+      const sub = [game.kyotaku ? `供託${game.kyotaku}` : ''].filter(Boolean).join(' ');
+      const ctr = `<div class="ctr"><div class="k">${game.kyokuLabel()}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.live.length}<small>枚</small></div><div class="dr">${doras}<span class="ar">→</span>${dora2}</div></div>`;
+      return ctr + [0, 1, 2, 3].map((s) => this.block(game, s)).join('');
+    },
     block(game, s) {
       const p = game.players[s];
-      const ch = p.char;
+      const ch = p.char || {};
       const w = game.seatWindOf(p);
-      const b = this.bubbles[s];
-      const bub = b && b.until > Date.now() ? `<div class="bubble${b.shown ? ' still' : ''}">${b.text}</div>` : '';
-      if (b) b.shown = true; // 再描画のたびにアニメーションをやり直さない(ちらつき防止)
-      const face0 = ch.img ? `<img class="face${s === 0 ? ' you' : ''}" src="${ch.img}" alt="">` : '<div class="face me">🀄</div>';
-      const face = face0;
-      const chips = `${p.riichi ? '<span class="chip r">リーチ</span>' : ''}${ch.level ? `<span class="chip lv">${MJ.LEVEL_JP[ch.level]}</span>` : ''}`;
-      const melds = p.melds.length ? `<div class="melds">${p.melds.map((m) => this.meldHTML(m)).join('')}</div>` : '';
-      const river = p.discards.map((d) => MJ.tileHTML(d.tile.t, `${d.called ? 'called' : ''}${d.riichi ? ' rch' : ''}${game.lastDiscard && game.lastDiscard.d === d && !d.called ? ' hl' : ''}`, '', d.tile.red)).join('');
-      // まだ牌が置かれていない場所に、うっすら枠(影)を出す
-      const ghosts = '<div class="gh"></div>'.repeat(Math.max(0, (document.body.classList.contains('desk') ? 24 : 12) - p.discards.length));
-      const rev = this.reveal && s !== 0 ? `<div class="hrev">${p.hand.map((h) => MJ.tileHTML(h.t, '', '', h.red)).join('')}</div>` : '';
-      return `<div class="blk${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}" data-seat="${s}">${bub}<div class="strip">${face}<div class="meta"><div class="wb${w === 0 ? ' dl' : ''}"><b>${WINDS[w]}</b>${w === 0 ? '<span>親</span>' : '<span>子</span>'}</div><div class="nm">${p.name}</div><div class="sc">${fmt(p.score)}</div><div class="chips">${chips}</div></div></div>${melds}<div class="river">${river}${ghosts}</div>${rev}</div>`;
+      const ROT = [0, -90, 180, 90][s];
+      // 河: 6枚ずつ。1段目が中央側、新しい段ほど席の手前。リーチ牌は横向き(横幅ぶん隣を押し出す)
+      let rows = '';
+      for (let i = 0; i < p.discards.length; i += 6) {
+        rows += `<div class="rrow">${p.discards.slice(i, i + 6).map((d) => MJ.tileHTML(d.tile.t, `${d.called ? 'called' : ''}${d.riichi ? ' rch' : ''}${game.lastDiscard && game.lastDiscard.d === d && !d.called ? ' hl' : ''}`, '', d.tile.red)).join('')}</div>`;
+      }
+      const river = `<div class="river r${s}">${rows}</div>`;
+      // 伏せた(または見える)手牌を席の縁に並べる
+      let hand = '';
+      if (s !== 0) {
+        const n = p.hand.length;
+        const sorted = p.hand.slice().sort((a, b) => a.t - b.t || a.id - b.id);
+        for (let i = 0; i < n; i++) {
+          if (this.reveal) {
+            const x = s === 2 ? 228 + i * 22 : s === 1 ? 688 : 6, y = s === 2 ? 3 : 30 + i * 20;
+            hand += `<div class="ab" style="left:${x}px;top:${y}px">${this.seatTile(sorted[i].t, s === 2 ? 0 : ROT, 22, 30, { red: sorted[i].red })}</div>`;
+          } else {
+            const x = s === 2 ? 240 + i * 17 : s === 1 ? 690 : 6, y = s === 2 ? 4 : 30 + i * 17;
+            hand += s === 2 ? `<div class="bk" style="left:${x}px;top:${y}px;width:16px;height:24px"></div>` : `<div class="bk" style="left:${x}px;top:${y}px;width:24px;height:16px"></div>`;
+          }
+        }
+      }
+      // 公開した面子(席の手前)。鳴いた牌は横向き
+      const mt = s === 0 ? [30, 40] : [22, 30];
+      const melds = p.melds.length ? `<div class="melds m${s}">${p.melds.map((m) => `<div class="mg">${m.tiles.map((h, i) => (m.kind === 'ankan' && (i === 0 || i === 3) ? this.seatTile(h.t, ROT, mt[0], mt[1], { cls: 'bkt' }).replace(/<img[^>]*>/, '') : this.seatTile(h.t, ROT, mt[0], mt[1], { side: h === m.called, red: h.red }))).join('')}</div>`).join('')}</div>` : '';
+      const plq = `<div class="plq p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}</div>`;
+      return `<div class="blk" data-seat="${s}">${river}${hand}${melds}${plq}</div>`;
     },
 
     mineHTML(game) {
@@ -387,7 +393,9 @@
       const sum = this.sel && this.coachActive() ? this.summary || '' : '';
       const card = cand ? this.callCard(game, rs, cand) : '';
       const dtabs = sel && this.dng && this.dng.opps.length >= 2 ? `<div class="dtabs"><span>危険度の対象:</span><button class="btn sm${this.dngTab === 'all' ? ' on' : ''}" data-dtab="all">全員</button>${this.dng.opps.map((q, i) => `<button class="btn sm${this.dngTab === i ? ' on' : ''}" data-dtab="${i}">${q.name}</button>`).join('')}</div>` : '';
-      return `${card}<div class="hand${this.riichiMode ? ' riichi-mode' : ''}" id="hand">${tiles}</div><div class="tipline" id="tipline">${tip}</div><div class="actrow"><div class="sumline">${sum}</div><div class="actions">${dtabs}${this.actionsHTML(game)}</div></div>`;
+      const msg = sel ? this.msgText(sel) : '';
+      const tipHtml = `${msg ? `<div class="tmsg">${msg}</div>` : ''}${tip}`;
+      return `${card}<div class="hand${this.riichiMode ? ' riichi-mode' : ''}" id="hand">${tiles}</div><div class="tipline" id="tipline">${tipHtml}</div>${dtabs}`;
     },
 
     /* スマホ横: CPUの手牌は、盤面の中に小さく出さず、大きな一覧で見せる(盤面や自分の牌が小さくならない) */
@@ -451,6 +459,22 @@
       return true;
     },
 
+    msgText(s) {
+      const o = s.opts;
+      return !s.p.riichi && o.riichi.length && !this.riichiMode ? '<b class="rch-hint">テンパイ!リーチできます</b>' : s.p.riichi ? 'リーチ中: ツモ切りです' : s.st.afterCall ? '1枚切ります(暗い牌は食い替え禁止)' : this.riichiMode ? '赤枠の牌でリーチ成立' : this.oneClick ? '切る牌をタップ' : '牌を選んで「捨てる」';
+    },
+    /* 右端の縦ボタン列(いつも同じ並びで、押せないものは灰色) */
+    sideHTML(game) {
+      const s = this.sel;
+      const self = s && s.type === 'self' ? s : null;
+      const o = self ? self.opts : null;
+      const B = (cls, act, label, on, extra = '') => `<button class="btn sb act ${cls}${on ? ' on' : ''}" data-act="${act}" ${on ? '' : 'disabled'} ${extra}>${label}</button>`;
+      const kans = self ? [...o.ankan.map((t) => ['ankan', t]), ...o.kakan.map((t) => ['kakan', t])] : [];
+      const kan = kans.length ? `<div class="sb-row">${kans.map(([k, t]) => B('b-call', k, kans.length > 1 ? `カン${MJ.tileName(t)}` : 'カン', true, `data-t="${t}"`)).join('')}</div>` : B('b-call', 'kan', 'カン', false);
+      const canDis = !!(self && this.picked != null);
+      return `${o && o.tsumo ? B('b-tsumo', 'tsumo', 'ツモ!', true) : B('b-tsumo', 'tsumo', 'ツモ', false)}${o && o.riichi.length ? B('b-riichi', 'riichi', this.riichiMode ? 'リーチ取消' : '🔥リーチ', true) : B('b-riichi', 'riichi', 'リーチ', false)}${kan}${B('b-call', 'pon', 'ポン', false)}${B('b-call', 'chi', 'チー', false)}${B('b-dis', 'discard', this.riichiMode ? 'リーチ打牌' : '捨てる', canDis)}`;
+    },
+
     actionsHTML(game) {
       const s = this.sel;
       if (!s) return '<span class="msg">…</span>';
@@ -493,6 +517,7 @@
       const a = b.dataset.act;
       if (s.type === 'self') {
         if (a === 'riichi') { this.riichiMode = !this.riichiMode; this.picked = null; this.render(this.game); return; }
+        if (a === 'discard') { const h = s.p.hand.find((x) => x.id === this.picked); if (h && this.allowed(s, h)) this.finish({ act: this.riichiMode ? 'riichi' : 'discard', tile: h }); return; }
         if (a === 'tsumo') return this.finish({ act: 'tsumo' });
         if (a === 'ankan' || a === 'kakan') return this.finish({ act: a, t: +b.dataset.t });
       } else {
@@ -715,18 +740,29 @@
     /* ---------- 演出 ---------- */
     banner(game, p, text) {
       const col = text === 'リーチ' ? '#ff5b8a' : text === 'ロン' || text === 'ツモ' ? '#ff7b5a' : '#c48bff';
-      const fx = $('#fx');
       const SFXN = { 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' };
       MJ.SFX.play(SFXN[text]);
       MJ.SFX.voice(text, p);
-      const face = p.char && p.char.img ? `<img class="bface" src="${p.char.img}" alt="">` : '';
-      fx.innerHTML = `<div class="banner" style="--c:${col}">${face}${text}<small>${p.name}</small></div>`;
-      return new Promise((r) => setTimeout(() => { fx.innerHTML = ''; r(); }, game.fast ? 0 : 1000));
+      const face = p.char && p.char.img ? `<img src="${p.char.img}" alt="">` : '';
+      // 顔は、鳴き・リーチ・和了のこの瞬間にだけ、その席のそばに大きく出す
+      const host = $('#says');
+      host.querySelectorAll('.shout').forEach((x) => x.remove());
+      const el = document.createElement('div');
+      el.className = `shout sh${p.seat}`;
+      el.style.setProperty('--c', col);
+      el.innerHTML = `${face}<div class="sw">${text}</div><small>${p.name}</small>`;
+      host.appendChild(el);
+      return new Promise((r) => setTimeout(() => { el.remove(); r(); }, game.fast ? 0 : 1000));
     },
     speak(game, p, text) {
-      this.bubbles[p.seat] = { text, until: Date.now() + 3600 };
-      this.render(game);
-      setTimeout(() => { if (this.game === game) this.render(game); }, 3700);
+      // セリフは、話しているキャラの顔と吹き出しを、その席のそばに短く出す
+      const host = $('#says');
+      host.querySelectorAll(`.say.sy${p.seat}`).forEach((x) => x.remove());
+      const el = document.createElement('div');
+      el.className = `say sy${p.seat}`;
+      el.innerHTML = `${p.char && p.char.img ? `<img src="${p.char.img}" alt="">` : ''}<div class="sb2"><small>${p.name}</small>${text}</div>`;
+      host.appendChild(el);
+      setTimeout(() => el.remove(), 3600);
     },
     /* 顔のカットイン(特別なセリフ) */
     cutin(game, p, text) {

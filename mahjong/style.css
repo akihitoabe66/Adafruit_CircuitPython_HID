@@ -902,3 +902,113 @@ body.short .dr-note, body.short .dr-tbl { display: none; }
 /* リーチボタンが出ても手牌がずれないよう、操作ボタンの行は常に同じ高さを確保する */
 .actions { min-height: 52px; align-items: center; }
 body.short .actions { min-height: 48px; }
+
+/* =====================================================================
+   卓レイアウト(本物の麻雀卓のように、席ごとに河を回転して置く)
+   設計座標は 720×428。#sc 全体を画面に合わせて拡大縮小する(ui.js の layout)
+   ===================================================================== */
+body.tbl #screen-game:not(.hidden) { display: block; padding: 0; background: radial-gradient(ellipse at 42% 46%, #14855c 0, #0d6246 55%, #08402e 100%); }
+#sc { position: absolute; left: 0; top: 0; width: 720px; height: 428px; transform-origin: 0 0; }
+#table, #mine, #says { position: absolute; left: 0; top: 0; width: 720px; height: 428px; pointer-events: none; }
+#mine > * { pointer-events: auto; }
+#says { z-index: 30; }
+.blk { display: contents; }
+.ctr { position: absolute; left: 282px; top: 148px; width: 156px; height: 88px; background: #0b2a22; border: 2px solid #7fb0c0; border-radius: 6px; text-align: center; overflow: hidden; color: #f2f0e6; }
+.ctr .k { font-size: 15px; font-weight: 900; margin-top: 3px; line-height: 1.15; }
+.ctr .k small { font-size: 12px; margin-left: 6px; color: var(--acc); }
+.ctr .n { font-size: 32px; font-weight: 900; color: #ffe45a; line-height: 1; margin: 2px 0 3px; }
+.ctr .n small { font-size: 13px; color: #fff; margin: 0 3px; }
+.ctr .dr { display: flex; gap: 2px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.ctr .dr .tile { width: 17px; height: 23px; border-radius: 2px; filter: none; box-shadow: 0 1px 0 #8f8a6c; }
+.ctr .dr .tile.back { box-shadow: 0 1px 0 #0a3b2c; }
+.ctr .ar { font-size: 12px; color: #fff; margin: 0 2px; }
+/* 河: 1段目が中央側。席の向きに合わせて回転 */
+body.tbl .river { position: absolute; display: block; width: 156px; height: 105px; transform-origin: 78px 52px; margin: 0; padding: 0; min-height: 0; }
+.river.r0 { left: 282px; top: 246px; }
+.river.r1 { left: 476px; top: 163px; transform: rotate(-90deg); }
+.river.r2 { left: 282px; top: 38px; transform: rotate(180deg); }
+.river.r3 { left: 88px; top: 163px; transform: rotate(90deg); }
+.rrow { display: flex; align-items: flex-end; height: 35px; width: max-content; }
+body.tbl .river .tile { width: 26px; height: 34px; flex: none; margin: 0; }
+body.tbl .river .tile.rch { width: 34px; height: 26px; }
+body.tbl .river .tile.hl { outline: 3px solid #6ff0b0; outline-offset: -2px; box-shadow: 0 0 8px #6ff0b0; }
+/* 席の縁の手牌(伏せ牌) */
+.bk { position: absolute; background: linear-gradient(#27a07a, #14684e); border-radius: 2px; box-shadow: 0 1px 0 #0a3b2c; }
+.ab { position: absolute; }
+.tile.st { position: relative; overflow: hidden; filter: drop-shadow(0 1px 1px #0008); }
+.tile.st img { position: absolute; left: 50%; top: 50%; max-width: none; }
+.tile.st.bkt { background: linear-gradient(#27a07a, #14684e); }
+/* 公開した面子 */
+.melds { position: absolute; display: flex; gap: 8px; margin: 0; flex-wrap: nowrap; justify-content: flex-start; }
+.melds .mg { display: flex; align-items: flex-end; gap: 1px; background: none; padding: 0; }
+.melds.m0 { right: 8px; top: 372px; align-items: flex-end; }
+.melds.m2 { left: 560px; top: 36px; }
+.melds.m1, .melds.m3 { flex-direction: column; gap: 6px; }
+.melds.m1 { left: 610px; top: 36px; } .melds.m3 { left: 72px; top: 36px; }
+.melds.m1 .mg, .melds.m3 .mg { flex-direction: column; align-items: flex-start; }
+/* 点数札 */
+.plq { position: absolute; display: flex; align-items: center; justify-content: center; gap: 6px; width: 200px; height: 24px; border-radius: 5px; background: linear-gradient(#1f4a5c, #10303d); border: 1px solid #7fb0c0; font-weight: 800; font-size: 14px; white-space: nowrap; color: #f2f0e6; overflow: hidden; }
+.plq .wd { background: #2a4a7a; border-radius: 3px; padding: 0 5px; font-size: 13px; }
+.plq .wd.dl { background: #c0301c; }
+.plq i { font-style: normal; color: #ffd35a; }
+.plq em { font-style: normal; background: #e53935; color: #fff; border-radius: 3px; padding: 0 4px; font-size: 12px; }
+.plq.act { box-shadow: 0 0 0 2px #ffd35a, 0 0 10px #ffd35a; }
+.plq.p0 { left: 516px; top: 326px; }
+.plq.p1 { left: 560px; top: 183px; width: 190px; transform: rotate(-90deg); }
+.plq.p2 { left: 512px; top: 6px; }
+.plq.p3 { left: -43px; top: 183px; width: 190px; transform: rotate(90deg); }
+/* 手牌・ヒント・鳴きカード */
+#mine .hand { position: absolute; left: 20px; top: 354px; width: 700px; height: 64px; padding: 0; min-height: 0; justify-content: flex-start; gap: 1px; margin: 0; align-items: flex-end; }
+#mine .tipline { position: absolute; left: 8px; top: 295px; width: 268px; height: 58px; margin: 0; background: #06231cc4; border: 1px solid #2f6355; border-radius: 8px; padding: 3px 7px; font-size: 13px; line-height: 1.3; overflow: hidden; min-height: 0; max-height: none; }
+#mine .tipline:empty { display: none; }
+#mine .tmsg { color: #ffd35a; font-weight: 800; font-size: 13px; }
+#mine .dtabs { position: absolute; left: 8px; top: 4px; width: 226px; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin: 0; }
+#mine .dtabs span { font-size: 12px; }
+#mine .callq { position: absolute; left: 20px; right: 20px; top: auto; bottom: 70px; width: max-content; max-width: 680px; margin: 0 auto; z-index: 8; }
+.hand .tile .bg { font-size: 11px; }
+.hand .tile .mk { font-size: 12px; max-width: 52px; }
+.dgc.tg { font-size: 12px; }
+/* 右端の縦ボタン列 */
+#side { position: absolute; right: 0; top: 0; height: 100%; background: linear-gradient(#2c3330, #171c1a); border-left: 2px solid #000; z-index: 20; }
+#side-in { position: absolute; left: 0; top: 0; width: 112px; height: 428px; transform-origin: 0 0; }
+#side-in .sb { position: absolute; left: 6px; width: 100px; margin: 0; border-radius: 10px; font-weight: 900; text-align: center; padding: 0; }
+#side-in .sm-menu { top: 6px; height: 30px; font-size: 14px; background: linear-gradient(#ff9a4d, #d4560f); border: 2px solid #0006; color: #fff; }
+#side-in .sm-sub { height: 28px; font-size: 14px; background: linear-gradient(#ff9a4d, #d4560f); border: 2px solid #0006; color: #fff; }
+#btn-coach { top: 366px; } #btn-tools { top: 396px; }
+.sd-info { position: absolute; left: 0; top: 40px; width: 112px; text-align: center; font-size: 17px; line-height: 1.25; }
+.sd-info b { display: block; font-weight: 900; } .sd-info span { display: block; font-weight: 700; font-size: 14px; color: var(--mute); }
+.sd-act { position: absolute; left: 6px; top: 82px; width: 100px; display: flex; flex-direction: column; gap: 4px; }
+#side-in .sd-act .act { position: static; left: auto; width: 100px; height: 40px; font-size: 19px; border: 2px solid #0006; color: #8a918e; background: linear-gradient(#4a504d, #2c312f); line-height: 1; white-space: nowrap; }
+#side-in .sd-act .act:disabled { opacity: 1; cursor: default; }
+.sd-act .act.on { color: #fff; }
+.sd-act .act.b-tsumo.on { background: linear-gradient(#ff7b5a, #d8381e); }
+.sd-act .act.b-riichi.on { background: linear-gradient(#ff5b8a, #c0245a); border-color: #ffd35a; box-shadow: 0 0 0 2px #ffd35a, 0 0 14px 3px #ff5b8a; animation: rchpulse 1s ease-in-out infinite; }
+.sd-act .act.b-call.on { background: linear-gradient(#5aa6ff, #2a63c9); }
+.sd-act .act.b-dis.on { background: linear-gradient(#ffcf5a, #c9890e); color: #2b1a00; }
+.sb-row { display: flex; gap: 4px; }
+.sb-row .act { width: 48px; font-size: 14px; }
+/* ツール(設定など)の小窓 */
+.sd-tools { position: absolute; left: -196px; top: 150px; width: 190px; display: flex; flex-direction: column; gap: 6px; padding: 8px; background: #14302af2; border: 1px solid #3c7a67; border-radius: 10px; z-index: 40; box-shadow: 0 6px 24px #000a; }
+.sd-tools.hidden { display: none; }
+.sd-tools .btn { width: 100%; justify-content: center; font-size: 14px; padding: 6px 8px; }
+.sd-tools .gt { font-weight: 800; color: var(--acc); font-size: 14px; text-align: center; }
+.sd-tools .gset { position: static; }
+.sd-tools .gsetp { position: fixed; right: auto; left: -318px; top: 6px; bottom: auto; transform: none; margin: 0; width: 300px; max-height: 416px; overflow-y: auto; z-index: 41; }
+/* 顔と吹き出し(話すとき・鳴くときだけ出る) */
+.say { position: absolute; display: flex; align-items: flex-end; gap: 6px; max-width: 250px; animation: sayin .18s ease-out; }
+.say img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; object-position: 50% 20%; border: 2px solid #fff; flex: none; box-shadow: 0 2px 8px #0008; }
+.say .sb2 { background: rgba(255, 255, 255, .9); color: #111; border-radius: 10px; padding: 5px 10px; font-size: 14px; font-weight: 700; line-height: 1.35; box-shadow: 0 2px 8px #0006; }
+.say .sb2 small { display: block; font-size: 12px; color: #555; font-weight: 800; }
+.say.sy0 { left: 290px; top: 296px; } .say.sy1 { left: 520px; top: 70px; } .say.sy2 { left: 446px; top: 34px; } .say.sy3 { left: 72px; top: 36px; }
+@keyframes sayin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+body.calling .say { display: none; }
+.shout { position: absolute; width: 330px; height: 120px; animation: sayin .15s ease-out; }
+.shout img { width: 150px; height: 74px; object-fit: cover; border-radius: 50% 50% 8px 8px; display: block; filter: drop-shadow(0 4px 6px #000a); }
+.shout .sw { position: absolute; left: 96px; top: 30px; font-size: 64px; font-weight: 900; color: var(--c, #5a66ff); -webkit-text-stroke: 3px #fff; paint-order: stroke fill; text-shadow: 0 4px 0 #0007, 0 0 12px #000; letter-spacing: .04em; font-style: italic; white-space: nowrap; }
+.shout small { position: absolute; left: 4px; top: 78px; font-size: 13px; font-weight: 800; color: #fff; text-shadow: 0 1px 3px #000; }
+.shout.sh0 { left: 200px; top: 226px; } .shout.sh1 { left: 380px; top: 84px; } .shout.sh2 { left: 200px; top: 20px; } .shout.sh3 { left: 20px; top: 84px; }
+body.tbl #table { border: 0; background: none; box-shadow: none; padding: 0; border-radius: 0; overflow: visible; margin: 0; flex: none; }
+.plq.p0 { top: 300px; }
+.sd-tools .gsetp { width: 330px; left: -348px; }
+.gsetp label.vol:has([data-audio=orient]) { display: none; }
+.plq.p2 { left: 536px; width: 180px; }
