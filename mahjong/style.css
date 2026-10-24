@@ -1096,10 +1096,12 @@ body.pad-on #side-in .pf, body.pad-on #overlay .pf { z-index: 12; }
 #overlay .ovi { position: absolute; left: 0; top: 0; transform-origin: 0 0; display: grid; place-items: center; grid-template-rows: minmax(0, 1fr); padding: 8px; box-sizing: border-box; }
 #overlay .ovi > .modal { max-height: 100%; }
 /* 解説の引き出し: 設計サイズ 400×428 を画面に合わせて拡大 */
-body.tbl #coach { position: absolute; right: 0; top: var(--oy, 0px); bottom: auto; left: auto; width: 400px; height: 428px; max-height: none; transform-origin: 100% 0; transform: translateX(105%) scale(var(--S, 1)); border-radius: 14px 0 0 14px; }
-body.tbl.coach-open #coach { transform: scale(var(--S, 1)); }
+body.tbl #coach { position: absolute; right: 0; top: var(--oy, 0px); bottom: auto; left: auto; width: 400px; height: 428px; max-height: none; transform-origin: 100% 0; transform: scale(var(--S, 1)) translateX(105%); border-radius: 14px 0 0 14px; pointer-events: none; }
+body.tbl.coach-open #coach { transform: scale(var(--S, 1)); pointer-events: auto; }
 /* メニュー・選択・ノートなどの普通の画面も、読める大きさに */
 #screen-title, #screen-menu, #screen-select, #screen-notes { zoom: var(--Z, 1); }
 .gp-box { zoom: var(--Z, 1); }
 /* 解説・ヒントの中の牌の絵を大きく */
 #coach .tile.t-xs, #tipline .tile.t-xs, .dq-fb .tile.t-xs, #overlay .tile.t-xs { width: 1.45em; height: 1.98em; margin: 0 1px; vertical-align: -0.5em; }
+/* 演出・お知らせが、右の操作ボタンや手牌の上に重なっても、クリックを邪魔しない */
+.cutin, #fx, #says, .say, .shout, #toast { pointer-events: none; }
