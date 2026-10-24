@@ -21,7 +21,7 @@
       MJ.UI.applyRot();
       document.body.classList.toggle('on-menu', id === 'menu');
       document.body.classList.toggle('on-title', id === 'title');
-      document.body.classList.toggle('on-game', id === 'game');
+      document.body.classList.toggle('on-game', id === 'game' || id === 'drill');
       if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : 'home');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       if (id === 'game') MJ.UI.fitStage();

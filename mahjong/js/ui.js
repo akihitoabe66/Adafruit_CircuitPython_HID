@@ -234,9 +234,8 @@
     /* ---------- レイアウト(画面サイズに合わせて牌の大きさを決める) ---------- */
     /* 対局画面を「ステージ」として扱う: PC/タブレット横=16:9を基準に拡大縮小、スマホ縦=9:16〜9:19.5、
        スマホ横=16:9〜19.5:9。比率が合わない分は黒帯(暗い背景)にして、画面内にスクロールなしで収める */
-    fitStage() {
-      const el = $('#screen-game');
-      if (!el || el.classList.contains('hidden')) return;
+    /* ステージの大きさを決めて el に適用する(対局・練習問題で共通) */
+    stageFor(el) {
       let W = window.innerWidth, H = window.innerHeight;
       const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
       const rot = this.applyRot(); // 回転は #app 全体に掛かる(CSS)。ここでは回転後の大きさで計算するだけ
@@ -255,8 +254,14 @@
       el.style.width = sw + 'px';
       el.style.height = sh + 'px';
       el.style.transform = `translate(${ox}px, ${oy}px) scale(${sc})`;
-      if (!this.stage || this.stage.w !== sw || this.stage.h !== sh) this.layoutKey = '';
-      this.stage = { w: sw, h: sh, sc };
+      return { w: sw, h: sh, sc };
+    },
+    fitStage() {
+      const el = $('#screen-game');
+      if (!el || el.classList.contains('hidden')) return;
+      const st = this.stageFor(el);
+      if (!this.stage || this.stage.w !== st.w || this.stage.h !== st.h) this.layoutKey = '';
+      this.stage = st;
     },
 
     /* 盤面は設計座標(720×428)に固定し、ステージの大きさに合わせて拡大縮小する。右端に 112 幅のボタン列 */

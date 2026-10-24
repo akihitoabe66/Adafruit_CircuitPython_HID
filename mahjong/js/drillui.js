@@ -11,19 +11,26 @@
     open() {
       MJ.App.show('drill');
       this.cat = null;
+      this.layout();
       this.renderHome();
     },
 
     layout() {
       const el = $('#screen-drill');
-      const W = el.clientWidth || window.innerWidth;
-      const wide = window.innerWidth >= 700;
-      const hw = Math.max(20, Math.min(62, Math.floor((W - 12) / 14.4)));
-      const bw = wide ? (W - 24) / 3 : W - 12;
-      const sw = Math.max(18, Math.min(34, Math.floor((bw - 22) / 9.2)));
-      el.style.setProperty('--hw', hw + 'px');
-      el.style.setProperty('--sw', sw + 'px');
-      el.style.setProperty('--sh', Math.round(sw * 1.32) + 'px');
+      if (!el || el.classList.contains('hidden')) return;
+      const st = MJ.UI.stageFor(el);
+      const S = Math.min(st.h / 428, st.w / 832);
+      $('#dr').style.transform = `translate(${Math.round((st.w - 832 * S) / 2)}px, ${Math.round((st.h - 428 * S) / 2)}px) scale(${S})`;
+      el.style.setProperty('--hw', '44px');
+      el.style.setProperty('--sw', '24px');
+      el.style.setProperty('--sh', '32px');
+    },
+    /* 枠からはみ出す文は、少しずつ小さくして収める(下限12px) */
+    fitBox(el, max, min) {
+      if (!el) return;
+      let px = max;
+      el.style.fontSize = px + 'px';
+      while (el.scrollHeight > el.clientHeight + 1 && px > min) { px -= 0.5; el.style.fontSize = px + 'px'; }
     },
 
     renderHome() {
@@ -38,7 +45,15 @@
         return `<button class="mode-card dcat" data-cat="${d.id}"><div class="mi">${d.icon}</div><h3>${d.name}</h3><p>${d.desc}</p><span class="badge">${d.level}</span>${s.n ? `<span class="badge" style="margin-left:6px">${s.ok}/${s.n}問 正解(${rate}%)</span>` : ''}</button>`;
       }).join('');
       const themes = Object.entries(MJ.DRILL_THEMES).map(([k, v]) => `<button class="btn sm dtheme" data-theme="${k}">${v.name}</button>`).join('');
-      $('#drill-home').innerHTML = `<p class="sub">問題は毎回ランダムに作られるので、何度でも違うパターンで練習できます。答え合わせでは、理由と考え方をその場で解説します。</p><div class="modes">${cards}</div><div class="ds-theme"><b>🛡 守備のテーマを選んで練習:</b> ${themes}<span class="cc-s">(選ぶと、そのテーマの問題だけが出ます)</span></div>`;
+      const short = (t) => t.split('。')[0] + '。';
+      const cards2 = MJ.DRILLS.map((x) => {
+        const s = st[x.id] || { n: 0, ok: 0 };
+        const rate = s.n ? Math.round((s.ok / s.n) * 100) : null;
+        return `<button class="mode-card dcat" data-cat="${x.id}"><div class="mi">${x.icon}</div><h3>${x.name}</h3><p>${short(x.desc)}</p><span class="badge">${x.level}${s.n ? ` ・ ${s.ok}/${s.n}問(${rate}%)` : ''}</span></button>`;
+      }).join('');
+      $('#drill-home').innerHTML = `<div class="dh-grid">${cards2}</div><div class="ds-theme"><b>🛡 守備のテーマ別:</b> ${themes}</div>`;
+      this.layout();
+      if (MJ.Pad) MJ.Pad.refocus();
     },
 
     start(cat, theme) {
@@ -79,6 +94,7 @@
       $('#dq-sit').innerHTML = q.sit;
       $('#dq-prompt').innerHTML = q.prompt;
       MJ.Gloss.decorate($('#dq-prompt'));
+      this.fitBox($('#dq-sit'), 13, 11); this.fitBox($('#dq-prompt'), 15, 12);
       // 場 (CPUの河)
       let board = '';
       if (q.g && (q.cat === 'def' || q.cat === 'eff' || q.cat === 'push')) {
@@ -89,6 +105,7 @@
         }).join('') + '</div>';
       }
       $('#dq-board').innerHTML = board;
+      $('#drill-quiz').classList.toggle('has-board', !!board);
       // 手牌
       const melds = q.melds && q.melds.length ? `<div class="melds" style="justify-content:center;margin-bottom:6px">${q.melds.map((m) => MJ.UI.meldHTML(m)).join('')}</div>` : '';
       const tiles = q.hand.map((h, i) => `<div class="tile ok" data-i="${i}">${MJ.tileSVG(h.t)}</div>`).join('');
@@ -105,6 +122,7 @@
         b.textContent = 'この牌を切る';
         $('#dq-actions').classList.remove('hidden');
       }
+      if (MJ.Pad) { MJ.Pad.cur = null; MJ.Pad.desc = null; MJ.Pad.refocus(); }
     },
 
     pickTile(i) {
@@ -157,13 +175,75 @@
       MJ.SFX.play(good ? 'ok' : r.r === 'near' ? 'select' : 'ng');
       $('#drill-score').textContent = this.scoreText();
       const head = good ? '⭕ 正解!' : r.r === 'near' ? '△ おしい!' : '❌ ちがいます';
+      this.showFb(head, good ? 'good' : r.r === 'near' ? 'warn' : 'bad', r.html);
+    },
+
+    /* 答え合わせ: 1画面に収め、長いときはページ送りにする(スクロールしない) */
+    showFb(head, cls, html) {
       const fb = $('#dq-fb');
-      fb.className = `dq-fb ${good ? 'good' : r.r === 'near' ? 'warn' : 'bad'}`;
-      fb.innerHTML = `<div class="dq-fh">${head}</div><div id="dq-exp">${r.html}</div><div class="dq-fa"><button class="btn sm rd" data-read="drill">🔊 読み上げ</button><button class="btn pri" id="dq-next">次の問題 ▶</button></div>`;
-      MJ.Gloss.decorate(fb);
-      MJ.UI.addReadFrom($('#dq-exp'));
+      fb.className = `dq-fb ${cls}`;
+      fb.innerHTML = `<div class="dq-fh"><span>${head}</span><span class="pg"></span><button class="btn sm rd" data-read="drill">🔊 読み上げ</button></div><div class="dq-body" id="dq-exp"></div><div class="dq-fa"><button class="btn" id="dq-prev">◀ 戻る</button><button class="btn" id="dq-nextp">つづき ▶</button><button class="btn pri" id="dq-next">次の問題 ▶</button></div>`;
       $('#dq-actions').classList.add('hidden');
-      fb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const body = $('#dq-exp');
+      // 用語の下線や読み上げボタンを先に付けてから、高さを測る(後から付けると行が高くなってはみ出す)
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      MJ.Gloss.decorate(tmp);
+      MJ.UI.addReadFrom(tmp);
+      html = tmp.innerHTML;
+      let pages = [];
+      const build = (px) => {
+        body.innerHTML = '';
+        body.style.fontSize = px + 'px';
+        pages = [];
+        const wrap = document.createElement('div');
+        wrap.innerHTML = html;
+        let nodes = [...wrap.children];
+        if (!nodes.length) { const p = document.createElement('p'); p.innerHTML = html; nodes = [p]; }
+        const newPage = () => { const pg = document.createElement('div'); pg.className = 'dqp'; body.appendChild(pg); pages.forEach((x) => x.classList.remove('on')); pg.classList.add('on'); pages.push(pg); return pg; };
+        const fits = (pg) => pg.scrollHeight <= body.clientHeight + 1;
+        let cur = newPage();
+        let ok = true;
+        const add = (n) => {
+          cur.appendChild(n);
+          if (fits(cur)) return;
+          if (cur.children.length > 1) { cur.removeChild(n); cur = newPage(); cur.appendChild(n); if (fits(cur)) return; }
+          // 1つの塊が大きすぎる: 箇条書きは項目ごとに分ける
+          if (/^(UL|OL)$/.test(n.tagName) && n.children.length > 1) {
+            const items = [...n.children]; n.innerHTML = '';
+            items.forEach((li) => {
+              n.appendChild(li);
+              if (!fits(cur) && n.children.length > 1) { n.removeChild(li); cur = newPage(); const n2 = n.cloneNode(false); n2.appendChild(li); cur.appendChild(n2); n = n2; }
+            });
+            if (fits(cur)) return;
+          }
+          ok = false;
+        };
+        nodes.forEach(add);
+        return ok;
+      };
+      const settle = (keep) => {
+        let px = 15;
+        while (!build(px) && px > 13) px -= 1;
+        pages.forEach((x) => { if (x.scrollHeight > body.clientHeight + 1) x.style.overflowY = 'auto'; });
+        this.fbPages = pages;
+        this.fbShow(keep || 0);
+      };
+      settle(0);
+      // 牌の絵が読み込まれて行の高さが変わっても、はみ出さないように組み直す
+      let tmr = null;
+      body.addEventListener('load', () => { clearTimeout(tmr); tmr = setTimeout(() => settle(this.fbI), 60); }, true);
+    },
+    fbShow(i) {
+      const pages = this.fbPages || [];
+      this.fbI = Math.max(0, Math.min(pages.length - 1, i));
+      pages.forEach((p, k) => { p.classList.toggle('on', k === this.fbI); if (k === this.fbI) { p.style.maxHeight = ''; if (p.style.overflowY === 'auto') p.style.maxHeight = $('#dq-exp').clientHeight + 'px'; } });
+      const pg = document.querySelector('#dq-fb .pg');
+      if (pg) pg.textContent = pages.length > 1 ? `${this.fbI + 1}/${pages.length}` : '';
+      const pv = $('#dq-prev'), nx = $('#dq-nextp');
+      if (pv) pv.style.display = pages.length > 1 && this.fbI > 0 ? '' : 'none';
+      if (nx) nx.style.display = pages.length > 1 && this.fbI < pages.length - 1 ? '' : 'none';
+      if (MJ.Pad && MJ.Pad.on) { MJ.Pad.cur = null; MJ.Pad.desc = null; MJ.Pad.refocus(); }
     },
 
     init() {
@@ -179,7 +259,7 @@
       });
       $('#dq-opts').addEventListener('click', (e) => { const b = e.target.closest('.dq-opt'); if (b && !b.disabled) this.answerChoice(b.dataset.id); });
       $('#dq-ok').addEventListener('click', () => this.answerTile());
-      $('#dq-fb').addEventListener('click', (e) => { if (e.target.closest('#dq-next')) this.next(); });
+      $('#dq-fb').addEventListener('click', (e) => { if (e.target.closest('#dq-next')) this.next(); else if (e.target.closest('#dq-nextp')) this.fbShow(this.fbI + 1); else if (e.target.closest('#dq-prev')) this.fbShow(this.fbI - 1); });
       $('#drill-back').addEventListener('click', () => { if (this.cat && !$('#drill-quiz').classList.contains('hidden')) { this.cat = null; this.renderHome(); } else MJ.App.show('menu'); });
       window.addEventListener('resize', () => { if (!$('#screen-drill').classList.contains('hidden')) this.layout(); });
     },

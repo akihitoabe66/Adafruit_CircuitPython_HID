@@ -4,7 +4,7 @@
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
   const $ = (s, r = document) => r.querySelector(s);
-  const FOCUSABLE = 'button, [data-act], .hand .tile[data-id], summary, input, select, a[href], .mode-card, [data-mode], .char, [data-pj], [data-pg], [data-readfrom], [data-dtab], [data-open-gloss], [data-open-credits], .gl, [tabindex]';
+  const FOCUSABLE = 'button, [data-act], .hand .tile[data-id], #dq-hand .hand .tile.ok[data-i], summary, input, select, a[href], .mode-card, [data-mode], .char, [data-pj], [data-pg], [data-readfrom], [data-dtab], [data-open-gloss], [data-open-credits], .gl, [tabindex]';
   const P = (MJ.Pad = { on: false, cur: null, desc: null });
 
   const rectOf = (el) => el.getBoundingClientRect();
@@ -42,6 +42,7 @@
   const descOf = (el) => {
     if (!el) return null;
     if (el.matches('.hand .tile[data-id]')) return `.hand .tile[data-id="${el.dataset.id}"]`;
+    if (el.matches('#dq-hand .tile[data-i]')) return `#dq-hand .tile[data-i="${el.dataset.i}"]`;
     if (el.dataset && el.dataset.ids) return `[data-ids="${el.dataset.ids}"]`;
     if (el.dataset && el.dataset.act) return `[data-act="${el.dataset.act}"]${el.dataset.t ? `[data-t="${el.dataset.t}"]` : ''}`;
     if (el.id) return `#${el.id}`;
@@ -65,6 +66,19 @@
       if (cq && visible(cq)) return cq;
       const t = $('.hand .tile.rec') || $('.hand .tile.drawn:not(.ph)') || [...document.querySelectorAll('.hand .tile[data-id]')].pop();
       if (t && visible(t)) return t;
+    }
+    // 練習問題: 答え合わせなら「次の問題」、選択式なら最初の選択肢、牌を選ぶ問題なら手牌の真ん中
+    if (!$('#screen-drill').classList.contains('hidden') && !$('#drill-quiz').classList.contains('hidden')) {
+      const nx = $('#dq-fb:not(.hidden) #dq-next');
+      if (nx && visible(nx)) return nx;
+      const op = $('.dq-opt:not([disabled])');
+      if (op && visible(op)) return op;
+      const ts = [...document.querySelectorAll('#dq-hand .tile.ok')].filter(visible);
+      if (ts.length) return ts[Math.floor(ts.length / 2)];
+    }
+    if (!$('#screen-drill').classList.contains('hidden') && !$('#drill-home').classList.contains('hidden')) {
+      const dc = $('#drill-home .dcat');
+      if (dc && visible(dc)) return dc;
     }
     const all = items();
     const pref = all.find((e) => e.matches('#cfm-go, #pm-next, .btn.pri, .btn.start, [data-mode]')) || all[0];
