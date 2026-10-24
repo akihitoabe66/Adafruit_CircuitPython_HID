@@ -300,6 +300,7 @@
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
       this.fitTip();
       if (this.dng) this.hilite(this.picked != null ? ((game.players[0].hand.find((x) => x.id === this.picked) || {}).t) : this.hiType);
+      if (MJ.Pad) MJ.Pad.refocus();
     },
 
     meldHTML(m) {
