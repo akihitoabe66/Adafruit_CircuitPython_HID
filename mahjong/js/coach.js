@@ -340,6 +340,20 @@
       cards.push(...interCards(game, p, an, opts, best, eff, valueText, riichiCard, defenseWarn));
     }
 
+    // リーチ者がいて、手が遠い/危険な牌しか効率に合わない場合は、★を安全牌(オリ)に切り替える(★と助言が食い違わないように)
+    if (mode !== 'defense' && an.opps.length && best && best.danger && an.minSh > 0) {
+      const safe = A.bySafety(an.evals)[0];
+      const dn = best.danger.score;
+      const fold = safe && safe.t !== best.t && dn >= 8 && (an.minSh >= 2 || dorasInHand(game, p) < 2);
+      if (fold) {
+        recId = safe.tile.id;
+        const names = an.opps.map((q) => q.name).join('・');
+        const fcard = card('★ 今はオリ(安全牌)がおすすめ', `<b>${names}</b>がリーチ中で、手は${an.minSh}シャンテン。効率なら${ic(best.t)}ですが<b>${best.danger.tag}</b>(放銃の危険 約${Math.round(dn)}%)。<br>★は<b>${ic(safe.t)} ${tn(safe.t)}</b>(${safe.danger.tag}・約${Math.round(safe.danger.score)}%)にしました。<br><span class="cc-s">${safe.danger.why}</span>`, 'rec');
+        cards.unshift(fcard);
+        for (let i = 1; i < cards.length; i++) if (typeof cards[i] === 'string') cards[i] = cards[i].replace('★ おすすめの捨て牌', '参考: 効率だけで選ぶなら').replace('★ 効率のおすすめ', '参考: 効率だけで選ぶなら');
+      }
+    }
+
     // フリテン警告
     if (an.minSh === 0 && mode !== 'defense' && best) {
       const bt = eff.find((e) => e.sh === 0);
