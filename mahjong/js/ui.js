@@ -678,8 +678,54 @@
     },
 
     /* 助言カードは、枠に収まる枚数だけまとめて表示(◀▶で次のまとまりへ)。文字は枠いっぱいまで大きくする */
+    /* 1枚のカードが枠に収まらないときは、文字を小さくせず、続きのカードに分ける */
+    splitLongCards(el, cards) {
+      const tabs0 = el.querySelector('.ctabs');
+      if (tabs0) tabs0.style.display = 'none';
+      el.style.paddingBottom = '50px'; // タブ1行ぶんの高さを空けて測る
+      el.style.fontSize = '15px';
+      const only = (c) => { el.querySelectorAll(':scope > .cc').forEach((x) => x.classList.remove('on')); c.classList.add('on'); };
+      const over = () => el.scrollHeight > el.clientHeight + 1;
+      const out = [];
+      cards.forEach((c) => {
+        only(c);
+        const body = c.querySelector('.cc-b');
+        if (!over() || !body) { out.push(c); return; }
+        const units = [];
+        let run = [];
+        const flush = (br) => { if (run.length) { run.br = br; units.push(run); run = []; } };
+        [...body.childNodes].forEach((n) => {
+          if (n.nodeName === 'BR') flush(true);
+          else if (n.nodeType === 1 && /^(UL|OL)$/.test(n.tagName) && n.children.length > 1) { flush(true); [...n.children].forEach((li) => { const l2 = n.cloneNode(false); l2.appendChild(li); units.push([l2]); }); } else if (n.nodeType === 1 && /^(UL|OL|DIV|P|TABLE)$/.test(n.tagName)) { flush(true); units.push([n]); } else run.push(n);
+        });
+        flush(false);
+        if (units.length < 2) { out.push(c); return; }
+        const head = c.querySelector('.cc-h');
+        const mk = () => { const n = c.cloneNode(false); n.className = c.className; n.dataset.cont = '1'; n.innerHTML = (head ? head.outerHTML.replace('</div>', ' <small>(つづき)</small></div>') : '') + '<div class="cc-b"></div>'; return n; };
+        body.innerHTML = '';
+        let cur = c, curBody = body, count = 0;
+        const pages = [c];
+        units.forEach((u) => {
+          const add = (b) => { u.forEach((n) => b.appendChild(n)); if (u.br) b.appendChild(document.createElement('br')); };
+          add(curBody); count++;
+          only(cur);
+          if (over() && count > 1) {
+            // この塊は次のカードへ
+            const moved = [...curBody.childNodes].slice(-(u.length + (u.br ? 1 : 0)));
+            const nx = mk(); cur.after(nx); const nb = nx.querySelector('.cc-b');
+            moved.forEach((n) => nb.appendChild(n));
+            cur = nx; curBody = nb; count = 1; pages.push(nx);
+          }
+        });
+        pages.forEach((p) => out.push(p));
+      });
+      if (tabs0) tabs0.style.display = '';
+      el.style.paddingBottom = '';
+      return out;
+    },
     pageCoach(el) {
       let cards = [...el.querySelectorAll(':scope > .cc')];
+      cards = this.splitLongCards(el, cards);
       const tabs = el.querySelector('.ctabs');
       // 最初の1巡は「この局のポイント」の次に「おすすめ」を並べる
       const h0 = ((cards[0] && cards[0].querySelector('.cc-h')) || {}).textContent || '';
@@ -695,7 +741,7 @@
       const show = (from, g) => cards.forEach((c, j) => c.classList.toggle('on', j >= from && j < from + g));
       const fits = (px) => { el.style.fontSize = px + 'px'; return el.scrollHeight <= el.clientHeight + 1; };
       const choose = (from) => {
-        for (let g = cards.length - from; g >= 1; g--) { show(from, g); if (fits(g === 1 ? 10 : 15)) return g; }
+        for (let g = cards.length - from; g >= 1; g--) { show(from, g); if (fits(g === 1 ? 13 : 15)) return g; }
         show(from, 1); return 1;
       };
       let g = choose(i);
@@ -705,7 +751,9 @@
       this.coachStar = false;
       this.coachPage = i; this.coachG = g;
       this.growFont(el);
-      tabs.innerHTML = cards.map((c, j) => `<button class="chip${j >= i && j < i + g ? ' on' : ''}" data-pj="${j}" title="${hd(c).replace(/"/g, '')}">${this.shortLabel(hd(c))}</button>`).join('');
+      tabs.innerHTML = cards.length > 7
+        ? `<button class="chip" data-pg="-1">◀ 前へ</button><span class="chip on">${i + 1}/${cards.length} ${this.shortLabel(hd(cards[i]))}</span><button class="chip" data-pg="1">次へ ▶</button>`
+        : cards.map((c, j) => `<button class="chip${j >= i && j < i + g ? ' on' : ''}" data-pj="${j}" title="${hd(c).replace(/"/g, '')}">${this.shortLabel(hd(c))}${c.dataset.cont ? '(続)' : ''}</button>`).join('');
     },
     /* カードの見出しから、ボタン用のひとこと(短い名前)を作る */
     shortLabel(h) {
@@ -805,7 +853,7 @@
       o.innerHTML = `<div class="ovi">${opt.raw ? html : `<div class="modal">${html}</div>`}</div>`;
       this.fitOverlay();
       o.scrollTop = 0;
-      if (!opt.plain) { MJ.Gloss.decorate(o); this.addReadFrom(o.querySelector('.modal')); }
+      if (!opt.plain) { MJ.Gloss.decorate(o); if (opt.read) this.addReadFrom(o.querySelector('.modal')); } // 「ここから読み上げ」▶は、読み上げが役立つ所(opt.read)だけに付ける
       return o;
     },
     /* ダイアログも、画面の大きさに合わせて文字・牌ごと拡大する(論理サイズ=スマホ横の 926×428 前後) */

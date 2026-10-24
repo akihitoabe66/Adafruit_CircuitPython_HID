@@ -52,7 +52,7 @@ button { font: inherit; cursor: pointer; }
   background: linear-gradient(160deg, var(--panel2), var(--panel)); border: 1px solid #2c5a4e; border-radius: 14px;
   padding: 14px 14px 12px; text-align: left; color: var(--ink); transition: transform .12s, border-color .12s;
 }
-.mode-card:hover { transform: translateY(-3px); border-color: var(--acc); }
+@media (hover: hover) and (pointer: fine) { .mode-card:hover { transform: translateY(-3px); border-color: var(--acc); } }
 .mode-card .mi { font-size: 30px; }
 .mode-card h3 { margin: 4px 0; font-size: 18px; }
 .mode-card p { margin: 0; color: var(--mute); font-size: 13.5px; line-height: 1.55; }
@@ -60,9 +60,9 @@ button { font: inherit; cursor: pointer; }
 .btn {
   background: #2a5b4d; color: var(--ink); border: 1px solid #3c7a67; border-radius: 10px; padding: 9px 16px; font-weight: 700;
 }
-.btn:hover { background: #347061; }
+@media (hover: hover) and (pointer: fine) { .btn:hover { background: #347061; } }
 .btn.pri { background: linear-gradient(#ffd45f, #f0a81e); color: #3b2800; border-color: #ffe38f; }
-.btn.pri:hover { filter: brightness(1.08); }
+@media (hover: hover) and (pointer: fine) { .btn.pri:hover { filter: brightness(1.08); } }
 .btn.ghost { background: transparent; }
 .btn.sm { padding: 5px 10px; font-size: 13px; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
@@ -144,7 +144,8 @@ button { font: inherit; cursor: pointer; }
 .hand { display: flex; gap: 1px; justify-content: center; align-items: flex-end; flex-wrap: nowrap; padding-top: 16px; min-height: calc(var(--hw) * 1.32 + 24px); }
 .hand .tile { cursor: default; transition: transform .1s; width: var(--hw); height: calc(var(--hw) * 1.32); border-radius: 12%/8%; }
 .hand .tile.ok { cursor: pointer; }
-.hand .tile.ok:hover, .hand .tile.picked { transform: translateY(-9px); }
+.hand .tile.picked { transform: translateY(-9px); }
+@media (hover: hover) and (pointer: fine) { .hand .tile.ok:hover { transform: translateY(-9px); } }
 .hand .tile.drawn { margin-left: calc(var(--hw) * .3); }
 .hand .tile.dis { filter: brightness(.55) saturate(.6); }
 .hand .tile.rec::before { content: '★'; position: absolute; top: -16px; left: 50%; transform: translateX(-50%); color: var(--acc); font-size: 14px; text-shadow: 0 1px 2px #000; }
@@ -858,7 +859,8 @@ body.short .win-hand { flex-wrap: wrap; }
 
 /* ---- おすすめ牌: ★に加えて、少し持ち上げて目立たせる(練習モードで「切る牌」が一目で分かるように) ---- */
 .hand .tile.rec { transform: translateY(-10px); }
-.hand .tile.rec.picked, .hand .tile.rec.ok:hover { transform: translateY(-16px); }
+.hand .tile.rec.picked { transform: translateY(-16px); }
+@media (hover: hover) and (pointer: fine) { .hand .tile.rec.ok:hover { transform: translateY(-16px); } }
 
 /* 危険度の印を言葉で表示(現物・スジ・半スジ・無スジ) */
 .dgc.tg { font-size: max(8px, calc(var(--hw) * .24)); padding: 0 3px; white-space: nowrap; height: auto; min-height: calc(var(--hw) * .34); }
