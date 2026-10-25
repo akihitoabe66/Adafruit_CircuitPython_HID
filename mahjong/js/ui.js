@@ -53,7 +53,7 @@
       });
       $('#btn-danger').addEventListener('click', () => this.setDanger(!this.dangerOn));
       $('#btn-tl').addEventListener('click', () => this.showTimeline());
-      $('#btn-coach').addEventListener('click', () => { document.body.classList.toggle('coach-open'); this.fitCoachText($('#coach')); });
+      $('#btn-coach').addEventListener('click', () => { const on = document.body.classList.toggle('coach-open'); $('#btn-coach').textContent = on ? '✕ 閉じる' : '🎓 解説'; this.fitCoachText($('#coach')); });
       window.addEventListener('resize', () => { this.relayout(); this.fitOverlay(); });
       window.addEventListener('orientationchange', () => setTimeout(() => this.relayout(), 250));
       $('#opt-reveal').addEventListener('change', (e) => { this.reveal = e.target.checked; document.body.classList.toggle('reveal-on', this.reveal); if (this.game) this.render(this.game); });
@@ -88,7 +88,7 @@
         if (document.body.classList.contains('coach-open')) {
           const inDrawer = e.target.closest('#coach');
           const isDrawer = !document.body.classList.contains('desk');
-          if (isDrawer && (e.target.closest('[data-coachclose]') || (!inDrawer && !e.target.closest('#btn-coach, .gl, #overlay, #gloss-sheet, #gloss-panel')))) { document.body.classList.remove('coach-open'); return; }
+          if (isDrawer && (e.target.closest('[data-coachclose]') || (!inDrawer && !e.target.closest('#btn-coach, .gl, #overlay, #gloss-sheet, #gloss-panel, #mine, #side')))) { document.body.classList.remove('coach-open'); return; }
         }
         // 縦画面: 解説パネルをタップで大きく開く/閉じる
         const cp = e.target.closest('#coach');
@@ -301,6 +301,7 @@
       this.layoutKey = key;
       const ox = Math.round((W - 112 * S - 720 * S) / 2), oy = Math.round((H - 428 * S) / 2);
       $('#sc').style.transform = `translate(${ox}px, ${oy}px) scale(${S})`;
+      document.documentElement.style.setProperty('--ox', ox + 'px');
       $('#side').style.width = Math.round(112 * S) + 'px';
       $('#side-in').style.transform = `translateY(${oy}px) scale(${S})`;
       this.setSizes(26, 44);
@@ -778,7 +779,7 @@
     },
     /* 表示中の内容が枠に収まる最大の文字サイズにする(10〜22px) */
     growFont(el) {
-      let px = 17;
+      let px = document.body.classList.contains('tbl') ? 22 : 17; // 広いパネルでは大きく
       el.classList.remove('tight'); el.style.overflowY = '';
       el.style.fontSize = px + 'px';
       const over = () => el.scrollHeight > el.clientHeight + 1;

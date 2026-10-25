@@ -1118,3 +1118,14 @@ body.on-title:not(.title-ready) #menu-bg { opacity: 0; }
 body.on-title #menu-bg { transition: opacity .5s; }
 #screen-title .title-wrap, #screen-title .bell { opacity: 0; transition: opacity .5s; }
 body.title-ready #screen-title .title-wrap, body.title-ready #screen-title .bell { opacity: 1; }
+
+/* ===== 解説: 手牌にかぶらない高さで、横に広いパネル(上から降りてくる) ===== */
+body.tbl #coach { position: absolute; left: var(--ox, 0px); top: var(--oy, 0px); right: auto; bottom: auto; width: 716px; height: 292px; max-height: none; transform-origin: 0 0; transform: scale(var(--S, 1)) translateY(-112%); border-radius: 0 0 14px 14px; padding: 8px 12px; pointer-events: none; z-index: 40; box-shadow: none; }
+body.tbl.coach-open #coach { transform: scale(var(--S, 1)); pointer-events: auto; box-shadow: 0 8px 30px #000c; }
+body.tbl #coach .ch { margin-bottom: 4px; }
+body.tbl #coach .ctabs { margin-bottom: 4px; }
+/* 右端の「解説」「ツール」ボタン: 大きく目立つように */
+#side-in #btn-coach { top: 318px; height: 52px; font-size: 22px; line-height: 1; background: linear-gradient(#5aa6ff, #2a63c9); border: 3px solid #cfe3ff; color: #fff; box-shadow: 0 0 14px 2px #5aa6ff99; }
+#side-in #btn-tools { top: 376px; height: 44px; font-size: 18px; }
+body.coach-open #side-in #btn-coach { background: linear-gradient(#ff9a4d, #d4560f); border-color: #ffe0c0; box-shadow: 0 0 14px 2px #ff9a4d99; font-size: 17px; }
+body.tbl #coach, body.tbl.short #coach, body.land.short #coach { padding: 8px 14px 8px; }
