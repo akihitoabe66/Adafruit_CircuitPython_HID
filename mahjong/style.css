@@ -1108,5 +1108,8 @@ body.tbl.coach-open #coach { transform: scale(var(--S, 1)); pointer-events: auto
 /* 演出・お知らせが、右の操作ボタンや手牌の上に重なっても、クリックを邪魔しない */
 .cutin, #fx, #says, .say, .shout, #toast { pointer-events: none; }
 
-/* タイトルの「ゲーム開始」: 今の位置から、ボタンの高さの半分ほど上へ */
-#screen-title .title-wrap { padding-bottom: 36px; }
+/* タイトルの「ゲーム開始」: 画面中央より、ボタンの高さの約0.3倍だけ上(フリーザの頭に少しかかる位置) */
+body #screen-title .title-wrap { justify-content: center; align-items: center; padding: 0; min-height: calc(100vh - 20px); }
+body.rot #screen-title .title-wrap { min-height: calc(var(--vw) - 20px); padding: 0; justify-content: center; align-items: center; }
+body #screen-title .start { font-size: 26px; padding: 14px 64px; position: relative; top: -0.75em; box-shadow: 0 10px 34px #000b, 0 0 40px #ffcc4dcc; }
+@media (min-height: 600px) { body:not(.rot) #screen-title .start { font-size: 34px; padding: 20px 90px; } }
