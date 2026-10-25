@@ -11,6 +11,7 @@
     voiceOn: load('mj_voice', true),
     vol: load('mj_sfxvol2', 0.8),
     readVol: load('mj_readvol', 0.8),
+    readRate: load('mj_readrate', 1),
     readVoice: load('mj_readvoice', ''),
     callVol: load('mj_callvol', 0.3),
     yakuRead: load('mj_yakuread', true),
@@ -31,6 +32,7 @@
     setYakuRead(v) { S.yakuRead = v; save('mj_yakuread', v); },
     setCallVol(v) { S.callVol = v; save('mj_callvol', v); },
     setReadVol(v) { S.readVol = v; save('mj_readvol', v); },
+    setReadRate(v) { S.readRate = v; save('mj_readrate', v); },
     setVol(v) { S.vol = v; save('mj_sfxvol2', v); if (master) master.gain.value = v; },
 
     /* ---- 部品 ---- */
@@ -120,6 +122,7 @@
     read(text) {
       const syn = G.speechSynthesis;
       if (!syn || !S.hasJaVoice()) return false;
+      if (MJ.Yomi) text = MJ.Yomi.fix(text); // 麻雀用語・牌の名前を正しい読みに直す
       syn.cancel();
       const id = (S._readId = (S._readId || 0) + 1);
       const parts = [];
@@ -143,7 +146,7 @@
         const q = /[?]$/.test(t) || /でしょうか|ですか$/.test(t);
         // 文ごとに少しずつ高さと速さをゆらす
         u.pitch = base + (head ? 0.06 : 0) + (q ? 0.1 : 0);
-        u.rate = head ? 0.95 : 1.0;
+        u.rate = (head ? 0.95 : 1.0) * (S.readRate || 1);
         u.volume = S.readVol;
         const next = () => { if (S._readId !== id) return; const gap = head ? 380 : parts[i].end ? 220 : 90; setTimeout(() => speakAt(i + 1), gap); };
         u.onend = next;

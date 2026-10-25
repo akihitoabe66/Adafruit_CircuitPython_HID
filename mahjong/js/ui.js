@@ -142,6 +142,7 @@
       else if (k === 'orient') { this.orient = v; try { localStorage.setItem('mj_orient', v); } catch (e) { /* ignore */ } this.relayout(); }
       else if (k === 'cvol') { MJ.SFX.setCallVol(v); if (e.type === 'change') MJ.SFX.voice('ポン', { char: { id: 1 } }); }
       else if (k === 'rvol') { MJ.SFX.setReadVol(v); if (e.type === 'change') this.sampleRead(); }
+      else if (k === 'rrate') { MJ.SFX.setReadRate(v); if (e.type === 'change') this.sampleRead(); }
       this.syncAudio(c);
     },
     /* 読み上げ音量を変えたとき、短い見本を読んで確かめられるようにする */
@@ -162,9 +163,9 @@
         k.insertAdjacentHTML('afterbegin', '<button class="rf rd" data-readfrom title="ここから読み上げ" aria-label="ここから読み上げ">▶</button>');
       });
     },
-    sampleRead() { if (!MJ.SFX.speaking()) MJ.SFX.read('この大きさで読み上げます。'); },
+    sampleRead() { MJ.SFX.stopSpeak(); MJ.SFX.read('この速さと大きさで読み上げます。白は、ハク。'); },
     syncAudio(except) {
-      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, banter: MJ.Banter.on, yakuread: MJ.SFX.yakuRead, danger: !!this.dangerOn, orient: this.orient, rvol: MJ.SFX.readVol, cvol: MJ.SFX.callVol };
+      const val = { bgm: MJ.Audio.on, vol: MJ.Audio.volume, sfx: MJ.SFX.on, svol: MJ.SFX.vol, voice: MJ.SFX.voiceOn, banter: MJ.Banter.on, yakuread: MJ.SFX.yakuRead, danger: !!this.dangerOn, orient: this.orient, rvol: MJ.SFX.readVol, rrate: MJ.SFX.readRate, cvol: MJ.SFX.callVol };
       const bell = $('#bell');
       if (bell) {
         bell.setAttribute('aria-pressed', String(MJ.Audio.on));
@@ -197,6 +198,7 @@
       t = t.replace(/\u0001([^\u0002]+)\u0002\s*(\1)/g, '$1'); // 牌の絵+同じ名前の文字
       t = t.replace(/((?:\u0001[^\u0002]+\u0002[\s、,・]*){3})(?:\u0001[^\u0002]+\u0002[\s、,・]*)+/g, '$1など'); // 長い牌の並び
       t = t.replace(/[\u0001\u0002]/g, '');
+      if (MJ.Yomi) t = MJ.Yomi.fix(t); // 用語・牌の名前の正しい読み(「牌→パイ」などの置き換えより先に)
       map.forEach(([r, s]) => { t = t.replace(r, s); });
       return t.replace(/\s+/g, ' ').replace(/。(\s*。)+/g, '。').trim();
     },
