@@ -288,5 +288,7 @@
     if (im.complete) once();
     setTimeout(once, 4000);
   })();
+  // 起動直後(タイトルの間)に、ホーム曲を最優先で取り寄せる
+  if (MJ.warmAudio) MJ.warmAudio(['audio/home.mp3']);
   preload();
 })();

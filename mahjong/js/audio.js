@@ -8,6 +8,15 @@
   const GAME = ['audio/game1.mp3', 'audio/game2.mp3', 'audio/game3.mp3'];
   let el = null, gain = null, wired = false, last = null;
 
+  /* 曲を先に取り寄せておく(押してから数秒待たされないように)。順番: ホーム → 対局曲 → 結果曲 */
+  const warmed = new Set();
+  const warm = (src) => {
+    if (warmed.has(src) || typeof fetch === 'undefined') return Promise.resolve();
+    warmed.add(src);
+    return fetch(src).then((r) => r.blob()).catch(() => { warmed.delete(src); });
+  };
+  MJ.warmAudio = (list) => list.reduce((p, s) => p.then(() => warm(s)), Promise.resolve());
+
   const A = (MJ.Audio = {
     on: load('mj_bgm', true),
     volume: load('mj_bgmvol', 0.12),
@@ -46,9 +55,12 @@
       if (p && p.catch) p.catch(() => { /* 操作前は再生できない。次の操作で resume() */ });
     },
     _playGame() {
-      const pool = GAME.filter((s) => s !== last);
+      // 取り寄せ済みの曲を優先して選ぶ(なければ通常どおり)
+      const ready = GAME.filter((s) => s !== last && warmed.has(s));
+      const pool = ready.length ? ready : GAME.filter((s) => s !== last);
       last = pool[Math.floor(Math.random() * pool.length)];
       A._load(last, false);
+      MJ.warmAudio([...GAME, 'audio/result_win.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3']);
     },
     /* 結果画面の専用BGM: 'win'(自分の和了) / 'lose'(マイナス) / 'draw'(流局)。閉じると対局BGMに戻る */
     playResult(kind) {
@@ -66,6 +78,7 @@
       const changed = A.scene !== scene || !el || el.paused;
       A.scene = scene;
       if (scene === 'title' || !A.on) { A.stop(); return; }
+      if (scene === 'home') MJ.warmAudio([...GAME]); // ホームの間に対局曲を取り寄せる
       if (scene === 'home') { if (changed || (el && !el.src.endsWith(HOME))) A._load(HOME, true); }
       else if (changed && !(el && el.src && GAME.some((s) => el.src.endsWith(s)) && !el.paused)) A._playGame();
     },

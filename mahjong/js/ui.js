@@ -1036,9 +1036,9 @@
           if (/場風|自風/.test(y.n)) { const k = y.n.replace(/[^東南西北]/g, '').slice(-1); return `${/場風/.test(y.n) ? 'バフウ' : 'ジフウ'}、${yh[k] || ''}`; }
           return READ[y.n] || y.n;
         });
-        const score = r.yakuman ? `${r.limit}` : `${r.han}ハン、${r.fu}フ${r.limit ? '、' + r.limit : ''}`;
+        const score = ''; // 飜・符・満貫などの名前は読まず、点数だけ読む
         const pts = !w.tsumo ? `${w.pay.ron}点` : game.dealer === w.winner.seat ? `${w.pay.each}点オール` : `${w.pay.fromOther}、${w.pay.fromDealer}点`;
-        parts.push(`${w.winner.name}の${w.tsumo ? 'ツモ' : 'ロン'}。${names.join('。')}。${score}。${pts}。`);
+        parts.push(`${w.winner.name}の${w.tsumo ? 'ツモ' : 'ロン'}。${names.join('。')}。${score ? score + '。' : ''}${pts}。`);
       });
       setTimeout(() => { if (!document.querySelector('#overlay .modal')) return; MJ.SFX.read(parts.join(' ')); }, 1100);
     },
