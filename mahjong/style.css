@@ -1108,8 +1108,13 @@ body.tbl.coach-open #coach { transform: scale(var(--S, 1)); pointer-events: auto
 /* 演出・お知らせが、右の操作ボタンや手牌の上に重なっても、クリックを邪魔しない */
 .cutin, #fx, #says, .say, .shout, #toast { pointer-events: none; }
 
-/* タイトルの「ゲーム開始」: 画面中央より、ボタンの高さの約0.3倍だけ上(フリーザの頭に少しかかる位置) */
-body #screen-title .title-wrap { justify-content: center; align-items: center; padding: 0; min-height: calc(100vh - 20px); }
-body.rot #screen-title .title-wrap { min-height: calc(var(--vw) - 20px); padding: 0; justify-content: center; align-items: center; }
-body #screen-title .start { font-size: 26px; padding: 14px 64px; position: relative; top: -0.75em; box-shadow: 0 10px 34px #000b, 0 0 40px #ffcc4dcc; }
-@media (min-height: 600px) { body:not(.rot) #screen-title .start { font-size: 34px; padding: 20px 90px; } }
+/* タイトルの「ゲーム開始」: 背景画像の同じ場所(フリーザの頭に少しかかる位置)に置く。位置は main.js の placeStart が計算する */
+#screen-title .title-wrap { padding: 0; min-height: 0; }
+#screen-title .start { position: fixed; margin: 0; font-size: calc(40px * var(--ts, .66)); padding: calc(21px * var(--ts, .66)) calc(97px * var(--ts, .66)); box-shadow: 0 10px 34px #000b, 0 0 40px #ffcc4dcc; white-space: nowrap; }
+body #screen-title .title-wrap, body.rot #screen-title .title-wrap { padding: 0; min-height: 0; }
+body #screen-title .start { font-size: calc(40px * var(--ts, .66)); padding: calc(21px * var(--ts, .66)) calc(97px * var(--ts, .66)); top: auto; }
+/* 背景とボタンは、画像が読み込めてから一緒に出す */
+body.on-title:not(.title-ready) #menu-bg { opacity: 0; }
+body.on-title #menu-bg { transition: opacity .5s; }
+#screen-title .title-wrap, #screen-title .bell { opacity: 0; transition: opacity .5s; }
+body.title-ready #screen-title .title-wrap, body.title-ready #screen-title .bell { opacity: 1; }

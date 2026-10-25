@@ -260,5 +260,33 @@
     next();
   }
   init();
+  /* タイトル: 背景画像が読み込めてから、ボタンと一緒に出す。ボタンは画像の同じ場所(フリーザの頭に少しかかる位置)に置く */
+  const IMG_W = 1408, IMG_H = 768, BTN_FX = 0.5, BTN_FY = 0.528;
+  function placeStart() {
+    const b = $('#btn-start');
+    if (!b) return;
+    const rot = window.innerHeight > window.innerWidth && !(MJ.UI && MJ.UI.orient === 'portrait');
+    const W = rot ? window.innerHeight : window.innerWidth, H = rot ? window.innerWidth : window.innerHeight;
+    const s = Math.max(W / IMG_W, H / IMG_H);
+    const iw = IMG_W * s, ih = IMG_H * s;
+    const ox = (W - iw) / 2, oy = (H - ih) * 0.88; // 背景は「cover・横中央・縦88%」で表示している
+    b.style.setProperty('--ts', s.toFixed(3));
+    b.style.left = Math.round(ox + iw * BTN_FX - b.offsetWidth / 2) + 'px';
+    b.style.top = Math.round(oy + ih * BTN_FY - b.offsetHeight / 2) + 'px';
+  }
+  MJ.placeStart = placeStart;
+  window.addEventListener('resize', placeStart);
+  window.addEventListener('orientationchange', () => setTimeout(placeStart, 250));
+  (function titleReady() {
+    const done = () => { placeStart(); document.body.classList.add('title-ready'); };
+    placeStart();
+    const im = new Image();
+    let fired = false;
+    const once = () => { if (!fired) { fired = true; done(); } };
+    im.onload = once; im.onerror = once;
+    im.src = 'img/title.jpg';
+    if (im.complete) once();
+    setTimeout(once, 4000);
+  })();
   preload();
 })();
