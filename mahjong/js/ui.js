@@ -88,7 +88,7 @@
         if (document.body.classList.contains('coach-open')) {
           const inDrawer = e.target.closest('#coach');
           const isDrawer = !document.body.classList.contains('desk');
-          if (isDrawer && (e.target.closest('[data-coachclose]') || (!inDrawer && !e.target.closest('#btn-coach, .gl, #overlay, #gloss-sheet, #gloss-panel, #mine, #side')))) { document.body.classList.remove('coach-open'); return; }
+          if (isDrawer && (e.target.closest('[data-coachclose]') || (!inDrawer && !e.target.closest('#btn-coach, .gl, #overlay, #gloss-sheet, #gloss-panel, #mine, #side') && !(e.composedPath ? e.composedPath() : []).some((n) => n && (n.id === 'mine' || n.id === 'side'))))) { document.body.classList.remove('coach-open'); return; }
         }
         // 縦画面: 解説パネルをタップで大きく開く/閉じる
         const cp = e.target.closest('#coach');
@@ -102,6 +102,8 @@
         else if (j) this.goCoachPage(0, +j.dataset.pj);
       });
       this.syncAudio();
+      // 解説ボタンの文字は、窓がどの方法で開閉されても(外をタッチ・✕・ボタン)、実際の状態に合わせる
+      new MutationObserver(() => { const b = $('#btn-coach'); if (b) b.textContent = document.body.classList.contains('coach-open') ? '✕ 閉じる' : '🎓 解説'; }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
       $('#btn-hint').addEventListener('click', () => this.toggleHint());
       document.addEventListener('click', (e) => { if (e.target.closest('[data-hintoggle]')) this.toggleHint(); });
     },
@@ -698,7 +700,7 @@
       const tabs0 = el.querySelector('.ctabs');
       if (tabs0) tabs0.style.display = 'none';
       el.style.paddingBottom = '50px'; // タブ1行ぶんの高さを空けて測る
-      el.style.fontSize = '15px';
+      el.style.fontSize = document.body.classList.contains('tbl') ? '20px' : '15px';
       const only = (c) => { el.querySelectorAll(':scope > .cc').forEach((x) => x.classList.remove('on')); c.classList.add('on'); };
       const over = () => el.scrollHeight > el.clientHeight + 1;
       const out = [];
@@ -756,7 +758,7 @@
       const show = (from, g) => cards.forEach((c, j) => c.classList.toggle('on', j >= from && j < from + g));
       const fits = (px) => { el.style.fontSize = px + 'px'; return el.scrollHeight <= el.clientHeight + 1; };
       const choose = (from) => {
-        for (let g = cards.length - from; g >= 1; g--) { show(from, g); if (fits(g === 1 ? 13 : 15)) return g; }
+        for (let g = cards.length - from; g >= 1; g--) { show(from, g); if (fits(document.body.classList.contains('tbl') ? (g === 1 ? 18 : 20) : (g === 1 ? 13 : 15))) return g; }
         show(from, 1); return 1;
       };
       let g = choose(i);
@@ -779,7 +781,7 @@
     },
     /* 表示中の内容が枠に収まる最大の文字サイズにする(10〜22px) */
     growFont(el) {
-      let px = document.body.classList.contains('tbl') ? 22 : 17; // 広いパネルでは大きく
+      let px = document.body.classList.contains('tbl') ? 30 : 17; // 広いパネルでは大きく
       el.classList.remove('tight'); el.style.overflowY = '';
       el.style.fontSize = px + 'px';
       const over = () => el.scrollHeight > el.clientHeight + 1;
