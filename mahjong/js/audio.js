@@ -9,11 +9,16 @@
   let el = null, gain = null, wired = false, last = null;
 
   /* 曲を先に取り寄せておく(押してから数秒待たされないように)。順番: ホーム → 対局曲 → 結果曲 */
-  const warmed = new Set();
+  /* 取り寄せた曲は Blob(端末内のデータ)にして、再生はそこから行う。ネットを通さないので、押した瞬間に鳴る */
+  const warmed = new Set(), blobs = {}, pending = {};
   const warm = (src) => {
-    if (warmed.has(src) || typeof fetch === 'undefined') return Promise.resolve();
-    warmed.add(src);
-    return fetch(src).then((r) => r.blob()).catch(() => { warmed.delete(src); });
+    if (blobs[src] || typeof fetch === 'undefined' || typeof URL === 'undefined') return Promise.resolve();
+    if (pending[src]) return pending[src];
+    pending[src] = fetch(src).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); })
+      .then((b) => { blobs[src] = URL.createObjectURL(b); warmed.add(src); })
+      .catch(() => { /* 取り寄せに失敗したら、通常どおりネットから再生する */ })
+      .then(() => { delete pending[src]; });
+    return pending[src];
   };
   MJ.warmAudio = (list) => list.reduce((p, s) => p.then(() => warm(s)), Promise.resolve());
 
@@ -48,7 +53,9 @@
       const a = A._el();
       if (!a) return;
       a.loop = loop;
-      if (!a.src.endsWith(src)) a.src = src;
+      if (a.dataset.track !== src) { a.src = blobs[src] || src; a.dataset.track = src; }
+      // 取り寄せ中なら、終わった時点で端末内のデータに切り替える(再生位置はそのまま)
+      if (!blobs[src] && pending[src]) pending[src].then(() => { if (blobs[src] && a.dataset.track === src && a.src.indexOf('blob:') !== 0 && a.currentTime < 1) { const t = a.currentTime, ps = !a.paused; a.src = blobs[src]; a.currentTime = t; if (ps) a.play().catch(() => {}); } });
       A._wire();
       A._apply();
       const p = a.play();
@@ -79,8 +86,8 @@
       A.scene = scene;
       if (scene === 'title' || !A.on) { A.stop(); return; }
       if (scene === 'home') MJ.warmAudio([...GAME]); // ホームの間に対局曲を取り寄せる
-      if (scene === 'home') { if (changed || (el && !el.src.endsWith(HOME))) A._load(HOME, true); }
-      else if (changed && !(el && el.src && GAME.some((s) => el.src.endsWith(s)) && !el.paused)) A._playGame();
+      if (scene === 'home') { if (changed || (el && el.dataset.track !== HOME)) A._load(HOME, true); }
+      else if (changed && !(el && el.dataset.track && GAME.includes(el.dataset.track) && !el.paused)) A._playGame();
     },
     resume() {
       if (!A.on || A.scene === 'title') return;
