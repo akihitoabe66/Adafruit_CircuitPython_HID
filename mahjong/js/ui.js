@@ -487,7 +487,7 @@
 
     msgText(s) {
       const o = s.opts;
-      return !s.p.riichi && o.riichi.length && !this.riichiMode ? '<b class="rch-hint">テンパイ!リーチできます</b>' : s.p.riichi ? 'リーチ中: ツモ切りです' : s.st.afterCall ? '1枚切ります(暗い牌は食い替え禁止)' : this.riichiMode ? '赤枠の牌でリーチ成立' : this.oneClick ? '切る牌をタップ' : '牌を選んで「捨てる」';
+      return !s.p.riichi && o.riichi.length && !this.riichiMode ? '<b class="rch-hint">テンパイ!リーチできます</b>' : s.p.riichi ? 'リーチ中: ツモ切りです' : s.st.afterCall ? '1枚切ります(暗い牌は食い替え禁止)' : this.riichiMode ? '赤枠の牌でリーチ成立' : this.oneClick ? '切る牌をタップ' : '牌を選んで、もう一度タッチで捨てる';
     },
     /* 右端の縦ボタン列(いつも同じ並びで、押せないものは灰色) */
     sideHTML(game) {
@@ -498,7 +498,7 @@
       const kans = self ? [...o.ankan.map((t) => ['ankan', t]), ...o.kakan.map((t) => ['kakan', t])] : [];
       const kan = kans.length ? `<div class="sb-row">${kans.map(([k, t]) => B('b-call', k, kans.length > 1 ? `カン${MJ.tileName(t)}` : 'カン', true, `data-t="${t}"`)).join('')}</div>` : B('b-call', 'kan', 'カン', false);
       const canDis = !!(self && this.picked != null);
-      return `${o && o.tsumo ? B('b-tsumo', 'tsumo', 'ツモ!', true) : B('b-tsumo', 'tsumo', 'ツモ', false)}${o && o.riichi.length ? B('b-riichi', 'riichi', this.riichiMode ? 'リーチ取消' : '🔥リーチ', true) : B('b-riichi', 'riichi', 'リーチ', false)}${kan}${B('b-call', 'pon', 'ポン', false)}${B('b-call', 'chi', 'チー', false)}${B('b-dis', 'discard', this.riichiMode ? 'リーチ打牌' : '捨てる', canDis)}`;
+      return `${o && o.tsumo ? B('b-tsumo', 'tsumo', 'ツモ!', true) : B('b-tsumo', 'tsumo', 'ツモ', false)}${o && o.riichi.length ? B('b-riichi', 'riichi', this.riichiMode ? 'リーチ取消' : '🔥リーチ', true) : B('b-riichi', 'riichi', 'リーチ', false)}${kan}${B('b-call', 'pon', 'ポン', false)}${B('b-call', 'chi', 'チー', false)}`;
     },
 
     actionsHTML(game) {
