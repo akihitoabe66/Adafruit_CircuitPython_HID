@@ -1,0 +1,12 @@
+{
+  "name": "mahjong-gamblers-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "麻雀・ギャンブラーズ の Android / Fire TV 用ラッパー(Capacitor)",
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/app": "^6.0.1",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  }
+}

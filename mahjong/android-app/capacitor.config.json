@@ -1,0 +1,8 @@
+{
+  "appId": "jp.mahjong.gamblers",
+  "appName": "麻雀・ギャンブラーズ",
+  "webDir": "www",
+  "backgroundColor": "#020608",
+  "android": { "allowMixedContent": false },
+  "server": { "androidScheme": "https" }
+}
