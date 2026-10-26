@@ -24,7 +24,7 @@
 
   const A = (MJ.Audio = {
     on: load('mj_bgm', true),
-    volume: load('mj_bgmvol', 0.12),
+    volume: Math.min(0.3, load('mj_bgmvol', 0.1)), // 音量の最大を小さくした(以前の約2段階ぶんが標準)
     scene: 'title',
 
     _el() {
