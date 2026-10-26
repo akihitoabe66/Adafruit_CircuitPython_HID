@@ -58,3 +58,22 @@ body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 #drill-quiz .dq-prompt { top: 116px; height: 70px; font-size: 24px; }
 #drill-quiz .dq-actions { right: 8px; top: 300px; width: 150px; }
 #drill-quiz .dq-actions .btn { width: 150px; font-size: 20px; padding: 12px 4px; }
+
+/* 鳴きの選択: 大きなボタンに、押すキー(A / B)を表示する */
+.cq-head { font-size: 26px; }
+.cq-btn { font-size: 30px !important; min-height: 76px; padding: 8px 26px !important; gap: 14px; }
+.cq-btn.b-pass { font-size: 30px !important; }
+.cq-btns .cq-btn:not(.b-pass):first-child::before, .cq-btn.b-pass::before {
+  content: "A"; display: inline-grid; place-items: center; width: 1.2em; height: 1.2em; border-radius: 50%;
+  background: #1b1b12; color: #f2c230; font-size: .85em; font-weight: 900; flex: none;
+}
+.cq-btn.b-pass::before { content: "B"; }
+.cq-set .tile { width: 36px; height: 48px; }
+.cq-tile .tile { width: 56px; height: 74px; }
+/* ツール(細かい設定)は出さない */
+#btn-tools { display: none !important; }
+.cq-btns { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cq-btn { font-size: 26px !important; min-height: 64px; padding: 4px 14px !important; justify-content: center; }
+.cq-btn.b-pass { grid-column: 1 / -1; font-size: 26px !important; }
+.cq-set .tile { width: 30px; height: 40px; }
+.cq-head { font-size: 22px; }

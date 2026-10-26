@@ -530,7 +530,7 @@
         btns.push(`<button class="btn b-call cq-btn" data-act="${x.kind}" data-ids="${x.ids.join(',')}"${extra}><span class="cq-l">${label[x.kind]}</span>${set(x.types)}</button>`);
       });
       const canCall = o.ron || cand.opts.length;
-      btns.push(`<button class="btn b-pass cq-btn" data-act="pass">${canCall ? 'パス<small>鳴かない</small>' : 'OK'}</button>`);
+      btns.push(`<button class="btn b-pass cq-btn" data-act="pass">${canCall ? '見送る' : 'OK'}</button>`);
       let msg;
       if (o.ron) msg = `ロンできます!`;
       else if (cand.opts.length) msg = `${cand.opts.map((x) => label[x.kind]).filter((v, i, a) => a.indexOf(v) === i).join('・')}できます。どうしますか?`;
