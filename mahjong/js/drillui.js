@@ -92,6 +92,7 @@
       $('#drill-title').textContent = `${this.cat.icon} ${q.title}`;
       $('#drill-score').textContent = this.scoreText();
       $('#dq-sit').innerHTML = q.sit;
+      MJ.Gloss.decorate($('#dq-sit'));
       $('#dq-prompt').innerHTML = q.prompt;
       MJ.Gloss.decorate($('#dq-prompt'));
       this.fitBox($('#dq-sit'), 13, 11); this.fitBox($('#dq-prompt'), 15, 12);
@@ -182,7 +183,7 @@
     showFb(head, cls, html) {
       const fb = $('#dq-fb');
       fb.className = `dq-fb ${cls}`;
-      fb.innerHTML = `<div class="dq-fh"><span>${head}</span><span class="pg"></span><button class="btn sm rd" data-read="drill">🔊 読み上げ</button></div><div class="dq-body" id="dq-exp"></div><div class="dq-fa"><button class="btn" id="dq-prev">◀ 戻る</button><button class="btn" id="dq-nextp">つづき ▶</button><button class="btn pri" id="dq-next">次の問題 ▶</button></div>`;
+      fb.innerHTML = `<div class="dq-fh"><span>${head}</span><span class="pg"></span><button class="btn sm rd" data-read="drill">🔊 読み上げ</button></div><div class="dq-body" id="dq-exp"></div><div class="dq-fa"><button class="btn pri" id="dq-next">次の問題 ▶</button></div><button class="pm-arrow l" id="dq-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="dq-nextp" aria-label="次へ">▶</button>`;
       $('#dq-actions').classList.add('hidden');
       const body = $('#dq-exp');
       // 用語の下線や読み上げボタンを先に付けてから、高さを測る(後から付けると行が高くなってはみ出す)
@@ -241,8 +242,8 @@
       const pg = document.querySelector('#dq-fb .pg');
       if (pg) pg.textContent = pages.length > 1 ? `${this.fbI + 1}/${pages.length}` : '';
       const pv = $('#dq-prev'), nx = $('#dq-nextp');
-      if (pv) pv.style.display = pages.length > 1 && this.fbI > 0 ? '' : 'none';
-      if (nx) nx.style.display = pages.length > 1 && this.fbI < pages.length - 1 ? '' : 'none';
+      if (pv) { pv.style.display = pages.length > 1 ? '' : 'none'; pv.classList.toggle('off', this.fbI <= 0); }
+      if (nx) { nx.style.display = pages.length > 1 ? '' : 'none'; nx.classList.toggle('off', this.fbI >= pages.length - 1); }
       if (MJ.Pad && MJ.Pad.on) { MJ.Pad.cur = null; MJ.Pad.desc = null; MJ.Pad.refocus(); }
     },
 

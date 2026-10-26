@@ -4,7 +4,7 @@
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
   const $ = (s, r = document) => r.querySelector(s);
-  const FOCUSABLE = 'button, [data-act], .hand .tile[data-id], #dq-hand .hand .tile.ok[data-i], summary, input, select, a[href], .mode-card, [data-mode], .char, [data-pj], [data-pg], [data-readfrom], [data-dtab], [data-open-gloss], [data-open-credits], .gl, [tabindex]';
+  const FOCUSABLE = 'button, [data-act], .hand .tile[data-id], .pm-arrow, #dq-hand .hand .tile.ok[data-i], summary, input, select, a[href], .mode-card, [data-mode], .char, [data-pj], [data-pg], [data-readfrom], [data-dtab], [data-open-gloss], [data-open-credits], .gl, [tabindex]';
   const P = (MJ.Pad = { on: false, cur: null, desc: null });
 
   const rectOf = (el) => el.getBoundingClientRect();
@@ -84,7 +84,7 @@
       if (dc && visible(dc)) return dc;
     }
     const all = items();
-    const pref = all.find((e) => e.matches('#cfm-go, #pm-next, .btn.pri, .btn.start, [data-mode]')) || all[0];
+    const pref = all.find((e) => e.matches('#cfm-go, #pm-done, #pm-next, .btn.pri, .btn.start, [data-mode]')) || all[0];
     return pref || null;
   };
   P.refocus = () => {

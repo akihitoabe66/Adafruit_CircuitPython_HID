@@ -1203,3 +1203,16 @@ body.tbl .sd-tools .gsetp { width: 560px; left: -580px; top: 4px; max-height: no
 /* 流局ページ: 手牌は出さず、顔と点数だけでコンパクトに(スクロールなし) */
 .dr-h, .dr-note, .dr-tbl { display: none !important; }
 .dr-big { font-size: 40px; margin-top: 2px; } .dr-face { max-width: 72px; } .dr-n { font-size: 14px; } .dr-s { font-size: 13px; } .dr-d { font-size: 15px; }
+
+/* ダイアログの前へ・次へは、左右の端の縦長の矢印(解説と同じ形)。右下は「次の問題」「次の局へ」だけ */
+.modal.paged, #dq-fb { position: relative; }
+.pm-arrow { position: absolute; top: 0; bottom: 0; width: 52px; border: 0; margin: 0; padding: 0; color: #fff; font-size: 38px; font-weight: 900; display: grid; place-items: center; z-index: 6; cursor: pointer; }
+.pm-arrow.l { left: 0; background: linear-gradient(90deg, #3d86ffdd, #2a63c966); border-radius: 14px 0 0 14px; }
+.pm-arrow.r { right: 0; background: linear-gradient(270deg, #3d86ffdd, #2a63c966); border-radius: 0 14px 14px 0; }
+.pm-arrow.off { opacity: .2; pointer-events: none; }
+#overlay .modal.paged { padding-left: 64px; padding-right: 64px; }
+#dq-fb { padding-left: 64px; padding-right: 64px; }
+.pm-foot { justify-content: flex-end; }
+/* 流局の大きな文字が、下の文と重ならないように */
+.dr-big { line-height: 1.25; margin-bottom: 8px; padding-top: 4px; text-shadow: 0 3px 0 #0008; }
+.dr-sub { margin-top: 6px; }

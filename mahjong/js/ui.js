@@ -1032,7 +1032,7 @@
     /* ページ式のダイアログ(スクロールなしで画面に収める) */
     pagedModal(pages, onDone, lastLabel) {
       let cur = 0;
-      this.overlay(`<div class="modal paged"><div class="pm-top"><span class="pm-title"></span><span class="pm-dots">${pages.map(() => '<i></i>').join('')}</span></div><div class="pm-body">${pages.map((p) => `<div class="pm-page">${p.html}</div>`).join('')}</div><div class="pm-foot"><button class="btn" id="pm-prev">◀ 戻る</button><button class="btn" id="pm-skip">⏭ スキップ</button><button class="btn pri" id="pm-next"></button></div></div>`, { plain: true, raw: true });
+      this.overlay(`<div class="modal paged"><div class="pm-top"><span class="pm-title"></span><span class="pm-dots">${pages.map(() => '<i></i>').join('')}</span></div><div class="pm-body">${pages.map((p) => `<div class="pm-page">${p.html}</div>`).join('')}</div><div class="pm-foot"><button class="btn" id="pm-skip">⏭ スキップ</button><button class="btn pri" id="pm-done"></button></div><button class="pm-arrow l" id="pm-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="pm-next" aria-label="次へ">▶</button></div>`, { plain: true, raw: true });
       const modal = $('#overlay .modal');
       const body = modal.querySelector('.pm-body');
       const els = [...modal.querySelectorAll('.pm-page')];
@@ -1042,9 +1042,10 @@
         els.forEach((e, k) => { e.classList.toggle('on', k === cur); e.style.zoom = ''; });
         modal.querySelector('.pm-title').textContent = `${pages[cur].t}  ${cur + 1}/${pages.length}`;
         modal.querySelectorAll('.pm-dots i').forEach((d, k) => d.classList.toggle('on', k === cur));
-        modal.querySelector('#pm-prev').style.visibility = cur ? 'visible' : 'hidden';
+        modal.querySelector('#pm-prev').classList.toggle('off', cur === 0);
         modal.querySelector('#pm-skip').style.visibility = pages.length > 1 && cur < pages.length - 1 ? 'visible' : 'hidden';
-        modal.querySelector('#pm-next').textContent = cur === pages.length - 1 ? lastLabel : '次へ ▶';
+        modal.querySelector('#pm-next').classList.toggle('off', cur >= pages.length - 1);
+        const dn = modal.querySelector('#pm-done'); dn.textContent = lastLabel; dn.style.visibility = cur === pages.length - 1 ? 'visible' : 'hidden';
         const pg = els[cur];
         // 枠に収まるまで文字サイズを下げる(iPhoneのSafariでも確実に効くよう zoom ではなく font-size で調整)
         pg.style.fontSize = '';
@@ -1057,7 +1058,8 @@
       };
       modal.querySelector('#pm-prev').addEventListener('click', () => show(cur - 1));
       modal.querySelector('#pm-skip').addEventListener('click', () => { MJ.SFX.stopSpeak(); onDone(); }); // 残りのページを飛ばして、次へ進む
-      modal.querySelector('#pm-next').addEventListener('click', () => { if (cur < pages.length - 1) show(cur + 1); else onDone(); });
+      modal.querySelector('#pm-next').addEventListener('click', () => { if (cur < pages.length - 1) show(cur + 1); });
+      modal.querySelector('#pm-done').addEventListener('click', () => onDone());
       show(0);
       return { show };
     },
