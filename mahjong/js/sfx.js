@@ -91,7 +91,8 @@
        端末にない場合はブラウザ既定の日本語音声を使う */
     /* 日本語の音声の一覧(女性らしい声・高品質な声を先に) */
     voiceList() {
-      const vs = G.speechSynthesis ? G.speechSynthesis.getVoices().filter((v) => /^ja/i.test(v.lang)) : [];
+      // 「Google 日本語」は選択肢に出さない
+      const vs = G.speechSynthesis ? G.speechSynthesis.getVoices().filter((v) => /^ja/i.test(v.lang) && !/google/i.test(v.name)) : [];
       const female = /kyoko|o-?ren|haruka|nanami|ayumi|sayaka|mizuki|female|woman|girl/i;
       const male = /otoya|ichiro|hattori|takumi|keita|ken\b|male(?!.*female)|man\b/i;
       const hq = /enhanced|premium|natural|online|neural|google/i;
