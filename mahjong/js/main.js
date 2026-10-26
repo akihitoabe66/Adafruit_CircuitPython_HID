@@ -26,6 +26,7 @@
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       if (id === 'game') MJ.UI.fitStage();
       if (id === 'menu') App.fitMenu();
+      if (id === 'title') App.fitTitle();
       window.scrollTo(0, 0);
     },
 
@@ -37,22 +38,39 @@
       const S = Math.min(st.h / 428, st.w / 832);
       $('#mn').style.transform = `translate(${Math.round((st.w - 832 * S) / 2)}px, ${Math.round((st.h - 428 * S) / 2)}px) scale(${S})`;
     },
+    fitTitle() {
+      const el = $('#screen-title');
+      if (!el || el.classList.contains('hidden')) return;
+      const st = MJ.UI.stageFor(el);
+      const S = Math.min(st.h / 428, st.w / 832);
+      $('#tt').style.transform = `translate(${Math.round((st.w - 832 * S) / 2)}px, ${Math.round((st.h - 428 * S) / 2)}px) scale(${S})`;
+    },
+    /* ホーム: 3つの大きなボタン(麻雀を打つ / クイズ / せってい)。先生(サポート)は「打つ」の横で入り切りできる */
     buildMenu() {
-      $('#menu-modes').innerHTML = MODE_CARDS.map((m) => `<button class="mode-card" data-mode="${m.id}"><div class="mi">${m.icon}</div><h3>${MJ.Coach.MODES[m.id].name}</h3><p>${m.desc}</p><span class="badge">${m.badge}</span></button>`).join('') +
-        `<button class="mode-card" data-mode="notes"><div class="mi">📖</div><h3>麻雀ノート</h3><p>役の一覧・点数計算のしかた・点数早見表・スジ/カベの見方・鳴きのルールをまとめて確認。</p><span class="badge">読み物</span></button>` +
-        `<button class="mode-card" data-open-gloss><div class="mi">📚</div><h3>用語辞典</h3><p>専門用語の意味を検索。「チートイ」「ニコニコ」など地域・世代で違う<b>俗称</b>も載っています。</p><span class="badge">検索できます</span></button>` +
-        `<button class="mode-card" data-open-rules><div class="mi">⚙️</div><h3>ルール設定</h3><p>喰いタン・赤ドラ・一発・裏ドラ・飛び・東南戦などを自分好みに変更。</p><span class="badge">喰いタンなど</span></button>` +
-        `<button class="mode-card" data-open-credits><div class="mi">ℹ️</div><h3>クレジット</h3><p>使用している音声・BGM・画像の出典とライセンス表記。</p><span class="badge">権利表記</span></button>`;
-      $('#menu-modes').addEventListener('click', (e) => {
-        const b = e.target.closest('[data-mode]');
-        if (!b) return;
-        if (b.dataset.mode === 'notes') this.openNotes(); else if (b.dataset.mode === 'drill') MJ.DrillUI.open(); else this.openSelect(b.dataset.mode);
+      this.support = (() => { try { return localStorage.getItem('mj_support') !== '0'; } catch (e) { return true; } })();
+      this.syncSupport();
+      $('#hm-play').addEventListener('click', () => this.startAuto());
+      $('#hm-sup').addEventListener('click', () => {
+        this.support = !this.support;
+        try { localStorage.setItem('mj_support', this.support ? '1' : '0'); } catch (e) { /* ignore */ }
+        this.syncSupport();
       });
-      this.showRuleLine();
-      try {
-        const st = JSON.parse(localStorage.getItem('mj_stats') || 'null');
-        if (st && st.games) $('#menu-stats').innerHTML = `対局成績: ${st.games}戦 / 1位 ${st.ranks[0]}回・2位 ${st.ranks[1]}回・3位 ${st.ranks[2]}回・4位 ${st.ranks[3]}回`;
-      } catch (e) { /* ignore */ }
+      $('#hm-quiz').addEventListener('click', () => { MJ.DrillUI.open(); MJ.DrillUI.start('eff'); });
+      $('#hm-set').addEventListener('click', () => showSettings());
+      this.buildStatsOnly();
+    },
+    syncSupport() {
+      const b = $('#hm-sup');
+      b.classList.toggle('off', !this.support);
+      b.innerHTML = `先生 <b>${this.support ? 'あり' : 'なし'}</b>`;
+    },
+    /* 相手は自動で決める(やさしい相手から3人) */
+    startAuto() {
+      const easy = MJ.CHARS.filter((c) => c.level <= 2).map((c) => c.id);
+      this.picks = MJ.shuffle(easy).slice(0, 3);
+      MJ.RULES.length = 'east'; MJ.saveRules();
+      this.lastCfg = { mode: this.support ? 'beginner' : 'free', picks: this.picks.slice(), length: 'east' };
+      this.launch(this.lastCfg);
     },
 
     showRuleLine() { const el = $('#menu-rules'); if (el) el.textContent = '4人対戦・' + MJ.rulesSummary() + '(「ルール設定」で変更できます)。CPUは5段階の強さ(入門〜達人)。'; },
@@ -140,7 +158,7 @@
     buildStatsOnly() {
       try {
         const st = JSON.parse(localStorage.getItem('mj_stats') || 'null');
-        if (st && st.games) $('#menu-stats').innerHTML = `対局成績: ${st.games}戦 / 1位 ${st.ranks[0]}回・2位 ${st.ranks[1]}回・3位 ${st.ranks[2]}回・4位 ${st.ranks[3]}回`;
+        if (st && st.games && $('#menu-stats')) $('#menu-stats').innerHTML = `対局成績: ${st.games}戦 / 1位 ${st.ranks[0]}回・2位 ${st.ranks[1]}回・3位 ${st.ranks[2]}回・4位 ${st.ranks[3]}回`;
       } catch (e) { /* ignore */ }
     },
 
@@ -206,13 +224,43 @@
     document.querySelector('#cr-close').addEventListener('click', () => MJ.UI.closeOverlay());
   }
 
+  /* せってい: 音・ノート・用語辞典・ルール・クレジットへの入口(大きなボタン) */
+  const AUDIO_HTML = `<div class="audioset">
+        <label><input type="checkbox" class="ac" data-audio="bgm"> BGM</label>
+        <label class="vol">BGM音量 <input type="range" class="ac" data-audio="vol" min="0" max="0.3" step="0.01"></label>
+        <label><input type="checkbox" class="ac" data-audio="sfx"> 効果音</label>
+        <label class="vol">効果音の音量 <input type="range" class="ac" data-audio="svol" min="0" max="1" step="0.05"></label>
+        <label><input type="checkbox" class="ac" data-audio="voice"> 掛け声(ロン・ポン等)</label>
+        <label class="vol">掛け声の音量 <input type="range" class="ac" data-audio="cvol" min="0.05" max="1" step="0.05"></label>
+        <label><input type="checkbox" class="ac" data-audio="yakuread"> 上がったとき役を自動で読み上げ</label>
+        <label class="vol">読み上げの音量 <input type="range" class="ac" data-audio="rvol" min="0.1" max="1" step="0.05"></label>
+        <label class="vol">読み上げの速さ <input type="range" class="ac" data-audio="rrate" min="0.6" max="1.6" step="0.05"></label>
+      </div>`;
+  function showSettings() {
+    MJ.UI.overlay(`<h2>⚙ せってい</h2><div class="st-list">
+      <button class="btn big" id="st-audio">🔊 音の大きさ</button>
+      <button class="btn big" id="st-notes">📖 麻雀ノート</button>
+      <button class="btn big" data-open-gloss>📚 用語辞典</button>
+      <button class="btn big" data-open-rules>⚙ ルール</button>
+      <button class="btn big" data-open-credits>ℹ クレジット</button>
+    </div><div class="res-foot"><button class="btn pri big" id="st-close">もどる</button></div>`, { plain: true });
+    const o = document.querySelector('#overlay');
+    o.querySelector('#st-close').addEventListener('click', () => MJ.UI.closeOverlay());
+    o.querySelector('#st-notes').addEventListener('click', () => { MJ.UI.closeOverlay(); MJ.App.openNotes(); });
+    o.querySelector('#st-audio').addEventListener('click', () => {
+      MJ.UI.overlay(`<h2>🔊 音の大きさ</h2>${AUDIO_HTML}<div class="res-foot"><button class="btn pri big" id="au-close">もどる</button></div>`, { plain: true });
+      MJ.UI.syncAudio();
+      document.querySelector('#au-close').addEventListener('click', () => showSettings());
+    });
+  }
+
   function init() {
     MJ.Gloss.init();
     MJ.loadRules();
     document.addEventListener('click', (e) => { if (e.target.closest('[data-open-credits]')) showCredits(); else if (e.target.closest('[data-open-rules]') || e.target.closest('#sel-rules')) showRules(); });
     $('#sel-length').addEventListener('change', () => { MJ.RULES.length = $('#sel-length').value; MJ.saveRules(); $('#sel-rule-sum').textContent = 'ルール: ' + MJ.rulesSummary(); });
     MJ.UI.init();
-    window.addEventListener('resize', () => App.fitMenu());
+    window.addEventListener('resize', () => { App.fitMenu(); App.fitTitle(); });
     MJ.DrillUI.init();
     // 最初の操作でBGMを開始。iPhoneは pointerdown/touchstart では許可されないため、指を離した時(touchend/click)でも毎回試す
     let spk = false;
@@ -250,7 +298,7 @@
   /* 画像の先読み: タイトル/ホームの背景 → キャラ → 自分のアイコン → 牌 の順に、起動直後から裏で読み込んでおく(画面切替で真っ黒にならない) */
   MJ.preloaded = [];
   function preload() {
-    const urls = ['img/title.jpg', 'img/title_p.jpg'];
+    const urls = [];
     for (let i = 1; i <= 16; i++) urls.push(`img/chars/${String(i).padStart(2, '0')}.jpg`);
     for (let i = 1; i <= 18; i++) urls.push(`img/you/${String(i).padStart(2, '0')}.jpg`);
     for (let i = 0; i < 34; i++) urls.push(`img/tiles/${i}.png`);
@@ -270,20 +318,7 @@
     next();
   }
   init();
-  /* タイトル: 背景画像が読み込めてから、ボタンと一緒に出す。ボタンは画像の同じ場所(フリーザの頭に少しかかる位置)に置く */
-  const IMG_W = 1408, IMG_H = 768, BTN_FX = 0.5, BTN_FY = 0.528;
-  function placeStart() {
-    const b = $('#btn-start');
-    if (!b) return;
-    const rot = window.innerHeight > window.innerWidth && !(MJ.UI && MJ.UI.orient === 'portrait');
-    const W = rot ? window.innerHeight : window.innerWidth, H = rot ? window.innerWidth : window.innerHeight;
-    const s = Math.max(W / IMG_W, H / IMG_H);
-    const iw = IMG_W * s, ih = IMG_H * s;
-    const ox = (W - iw) / 2, oy = (H - ih) * 0.88; // 背景は「cover・横中央・縦88%」で表示している
-    b.style.setProperty('--ts', s.toFixed(3));
-    b.style.left = Math.round(ox + iw * BTN_FX - b.offsetWidth / 2) + 'px';
-    b.style.top = Math.round(oy + ih * BTN_FY - b.offsetHeight / 2) + 'px';
-  }
+  function placeStart() { App.fitTitle(); }
   MJ.placeStart = placeStart;
   window.addEventListener('resize', placeStart);
   window.addEventListener('orientationchange', () => setTimeout(placeStart, 250));
@@ -294,7 +329,7 @@
     let fired = false;
     const once = () => { if (!fired) { fired = true; done(); } };
     im.onload = once; im.onerror = once;
-    im.src = 'img/title.jpg';
+    im.src = 'img/tiles/31.png';
     if (im.complete) once();
     setTimeout(once, 4000);
   })();

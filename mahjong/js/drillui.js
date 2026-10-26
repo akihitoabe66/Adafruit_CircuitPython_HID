@@ -261,7 +261,7 @@
       $('#dq-opts').addEventListener('click', (e) => { const b = e.target.closest('.dq-opt'); if (b && !b.disabled) this.answerChoice(b.dataset.id); });
       $('#dq-ok').addEventListener('click', () => this.answerTile());
       $('#dq-fb').addEventListener('click', (e) => { if (e.target.closest('#dq-next')) this.next(); else if (e.target.closest('#dq-nextp')) this.fbShow(this.fbI + 1); else if (e.target.closest('#dq-prev')) this.fbShow(this.fbI - 1); });
-      $('#drill-back').addEventListener('click', () => { if (this.cat && !$('#drill-quiz').classList.contains('hidden')) { this.cat = null; this.renderHome(); } else MJ.App.show('menu'); });
+      $('#drill-back').addEventListener('click', () => { MJ.App.show('menu'); });
       window.addEventListener('resize', () => { if (!$('#screen-drill').classList.contains('hidden')) this.layout(); });
     },
   });

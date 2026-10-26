@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>麻雀・ギャンブラーズ</title>
+<title>年配向け 超操作シンプル麻雀</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="simple.css">
 </head>
 <body>
 <div id="menu-bg"></div>
@@ -13,41 +14,26 @@
   <!-- タイトル -->
   <section id="screen-title" class="screen">
     <button id="bell" class="bell" type="button" aria-pressed="true"><span class="bi">🔔</span><span class="bt">BGM ON</span></button>
-    <div class="title-wrap">
-      <h1 class="title t-portrait">麻雀・ギャンブラーズ</h1>
-      <button id="btn-start" class="btn pri start" type="button">ゲーム開始</button>
-      <div class="footer">画面右上の 🔔 でBGMのON/OFFを切り替えられます</div>
+    <div id="tt">
+      <div class="tt-fan"><img src="img/tiles/32.png" alt=""><img src="img/tiles/27.png" alt=""><img src="img/tiles/33.png" alt=""></div>
+      <div class="tt-sub">年配向け</div>
+      <h1 class="tt-main">超操作シンプル麻雀</h1>
+      <button id="btn-start" class="tt-go" type="button"><span class="kb">A</span>はじめる</button>
     </div>
   </section>
 
-  <!-- メニュー -->
+  <!-- ホーム(3ボタン) -->
   <section id="screen-menu" class="screen hidden">
    <div id="mn">
-    <details class="gset menu-gset"><summary class="btn sm">🔊 音の設定</summary>
-      <div class="gsetp"><div class="audioset">
-        <label><input type="checkbox" class="ac" data-audio="bgm"> BGM</label>
-        <label class="vol">BGM音量 <input type="range" class="ac" data-audio="vol" min="0" max="0.3" step="0.01"></label>
-        <label><input type="checkbox" class="ac" data-audio="sfx"> 効果音</label>
-        <label class="vol">効果音の音量 <input type="range" class="ac" data-audio="svol" min="0" max="1" step="0.05"></label>
-        <label><input type="checkbox" class="ac" data-audio="voice"> 掛け声(ロン・ポン等)</label>
-        <label><input type="checkbox" class="ac" data-audio="banter"> キャラのセリフ(吹き出し)</label>
-        <label><input type="checkbox" class="ac" data-audio="yakuread"> 上がったとき役を自動で読み上げ</label>
-        <label class="vol">スマホ縦持ちの表示 <select class="ac" data-audio="orient"><option value="auto">横画面で表示(90°回転)</option><option value="portrait">縦画面のまま</option></select></label>
-        <label class="vol">掛け声の音量 <input type="range" class="ac" data-audio="cvol" min="0.05" max="1" step="0.05"></label>
-        <label class="vol">読み上げの音量 <input type="range" class="ac" data-audio="rvol" min="0.1" max="1" step="0.05"></label>
-        <label class="vol">読み上げの速さ <input type="range" class="ac" data-audio="rrate" min="0.6" max="1.6" step="0.05"></label>
-        <div class="vpick"><div class="vp-t">読み上げの声</div><div class="vp-list"></div></div>
-      </div></div>
-    </details>
-    <div class="menu-wrap">
-      <div class="menu-spacer"></div>
-      <h1 class="title">麻雀・ギャンブラーズ</h1>
-      <p class="sub">対戦しながら「役づくり」「捨て牌」「点数計算」が身につく4人麻雀</p>
-      <div class="modes" id="menu-modes"></div>
-      <div id="menu-stats" class="footer"></div>
-      <div class="footer credits">掛け声の音声: HTS Voice "Mei" (MMDAgent Project Team / Nagoya Institute of Technology, CC BY 3.0) を Open JTalk で合成。キャラごとに音の高さと速さを変えています。</div>
-      <div class="footer" id="menu-rules"></div>
+    <div class="hm-head">どれにしますか?</div>
+    <div class="hm-row">
+      <button class="hm-btn" id="hm-play" type="button"><img src="img/tiles/33.png" alt="">麻雀を打つ</button>
+      <button class="hm-sup" id="hm-sup" type="button"></button>
     </div>
+    <button class="hm-btn" id="hm-quiz" type="button"><img src="img/tiles/14.png" alt="">何を捨てる?クイズ</button>
+    <button class="hm-btn" id="hm-set" type="button"><span class="gear">⚙</span>せってい</button>
+    <div id="menu-stats" class="hm-stats"></div>
+    <div class="hm-hint"><span><i>▲▼◀▶</i> えらぶ</span><span><i>A</i> きめる</span></div>
    </div>
   </section>
 
