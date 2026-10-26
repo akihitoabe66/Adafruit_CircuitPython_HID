@@ -1,0 +1,12 @@
+{
+  "name": "chukyu-mahjong-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "中級を目指す麻雀 の Android / Fire TV 用ラッパー(Capacitor)",
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/app": "^6.0.1",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  }
+}

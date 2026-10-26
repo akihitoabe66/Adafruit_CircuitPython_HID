@@ -1,0 +1,8 @@
+{
+  "appId": "jp.mahjong.chukyu",
+  "appName": "中級を目指す麻雀",
+  "webDir": "www",
+  "backgroundColor": "#020608",
+  "android": { "allowMixedContent": false },
+  "server": { "androidScheme": "https" }
+}
