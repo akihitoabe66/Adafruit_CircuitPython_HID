@@ -1166,3 +1166,11 @@ body.on-menu { overflow: hidden; }
 #screen-menu .menu-wrap::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 46px; background: linear-gradient(0deg, #000d, #0000); pointer-events: none; }
 #screen-menu .menu-wrap > * { z-index: 1; }
 #screen-menu .modes { z-index: 2; }
+
+/* 閉じている解説の窓は、画面の上にはみ出して残らないよう、完全に隠す */
+body.tbl #coach { visibility: hidden; opacity: 0; transition: transform .2s, opacity .2s, visibility 0s .2s; transform: scale(var(--S, 1)) translateY(-135%); }
+body.tbl.coach-open #coach { visibility: visible; opacity: 1; transition: transform .2s, opacity .2s; transform: scale(var(--S, 1)); }
+body.tbl #coach .ctabs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px; }
+body.tbl #coach .ctabs .chip { font-size: 15px; padding: 3px 11px; }
+body.tbl #coach .ctabs .chip small { font-size: 12px; margin-left: 5px; opacity: .8; }
+body.tbl #coach { box-sizing: border-box; width: 720px; }

@@ -298,10 +298,11 @@
       body.classList.toggle('short', H <= 640);
       const S = Math.min(H / 428, W / 832);
       this.S = S;
+      const ox = Math.round((W - 112 * S - 720 * S) / 2), oy = Math.round((H - 428 * S) / 2);
+      document.documentElement.style.setProperty('--S', S.toFixed(4)); document.documentElement.style.setProperty('--oy', oy + 'px'); // 解説の窓は、対局画面の設計座標に合わせる
       const key = [W, H].join('x');
       if (key === this.layoutKey) return;
       this.layoutKey = key;
-      const ox = Math.round((W - 112 * S - 720 * S) / 2), oy = Math.round((H - 428 * S) / 2);
       $('#sc').style.transform = `translate(${ox}px, ${oy}px) scale(${S})`;
       document.documentElement.style.setProperty('--ox', ox + 'px');
       $('#side').style.width = Math.round(112 * S) + 'px';
@@ -699,7 +700,7 @@
     splitLongCards(el, cards) {
       const tabs0 = el.querySelector('.ctabs');
       if (tabs0) tabs0.style.display = 'none';
-      el.style.paddingBottom = '50px'; // タブ1行ぶんの高さを空けて測る
+      el.style.paddingBottom = '84px'; // ボタンの2行ぶんの高さを空けて測る
       el.style.fontSize = document.body.classList.contains('tbl') ? '20px' : '15px';
       const only = (c) => { el.querySelectorAll(':scope > .cc').forEach((x) => x.classList.remove('on')); c.classList.add('on'); };
       const over = () => el.scrollHeight > el.clientHeight + 1;
@@ -768,9 +769,15 @@
       this.coachStar = false;
       this.coachPage = i; this.coachG = g;
       this.growFont(el);
-      tabs.innerHTML = cards.length > 7
-        ? `<span class="chip on">${i + 1}/${cards.length} ${this.shortLabel(hd(cards[i]))}</span>`
-        : cards.map((c, j) => `<button class="chip${j >= i && j < i + g ? ' on' : ''}" data-pj="${j}" title="${hd(c).replace(/"/g, '')}">${this.shortLabel(hd(c))}${c.dataset.cont ? '(続)' : ''}</button>`).join('');
+      // 名前つきのボタン(おすすめ・どうして?…)。続きのページは、元のカードのボタンにまとめる
+      const starts = [];
+      cards.forEach((c, j) => { if (!c.dataset.cont || !starts.length) starts.push(j); });
+      tabs.innerHTML = starts.map((s, k) => {
+        const e = k + 1 < starts.length ? starts[k + 1] : cards.length;
+        const on = i >= s && i < e;
+        const cnt = e - s > 1 ? `<small>${on ? i - s + 1 : 1}/${e - s}</small>` : '';
+        return `<button class="chip${on ? ' on' : ''}" data-pj="${s}" title="${hd(cards[s]).replace(/"/g, '')}">${this.shortLabel(hd(cards[s]))}${cnt}</button>`;
+      }).join('');
       const nl = el.querySelector('.cnav.l'), nr = el.querySelector('.cnav.r');
       if (nl) nl.classList.toggle('off', i <= 0);
       if (nr) nr.classList.toggle('off', i + g >= cards.length);
