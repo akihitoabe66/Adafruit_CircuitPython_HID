@@ -84,7 +84,7 @@
       if (dc && visible(dc)) return dc;
     }
     const all = items();
-    const pref = all.find((e) => e.matches('#cfm-go, #pm-done, #pm-next, .btn.pri, .btn.start, [data-mode]')) || all[0];
+    const pref = all.find((e) => e.matches('#btn-start, #hm-play, #cfm-go, #pm-done, #pm-next, .btn.pri, .btn.start, [data-mode]')) || all[0];
     return pref || null;
   };
   P.refocus = () => {
@@ -137,7 +137,7 @@
     const U = MJ.UI;
     const click = (sel) => { const e = $(sel); if (e && !e.disabled && visible(e)) { e.click(); return true; } return false; };
     switch (name) {
-      case 'a': if (P.cur && P.cur.isConnected) { P.cur.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); } else setCur(pickDefault()); break;
+      case 'a': if (P.cur && P.cur.isConnected) { if (U && U.sel && U.sel.type === 'self' && P.cur.matches('.hand .tile[data-id]')) U.picked = +P.cur.dataset.id; /* パッドでは、牌にカーソルを合わせてAで、すぐ捨てる */ P.cur.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); } else setCur(pickDefault()); break;
       case 'b': {
         const ov = $('#overlay');
         if (ov && !ov.classList.contains('hidden')) {
@@ -162,7 +162,7 @@
     }
   };
   const act = (name) => {
-    if (!P.on) { P.on = true; document.body.classList.add('pad-on'); setCur(pickDefault()); return; } // 最初の1回はカーソルを出すだけ
+    if (!P.on) { P.on = true; document.body.classList.add('pad-on'); setCur(pickDefault()); if (name !== 'a') return; } // 最初の1回: カーソルを出す(方向キーはそれだけ。Aはそのまま決定する)
     if (P.cur && !(P.cur.isConnected && visible(P.cur) && inScope(P.cur))) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; setCur(pickDefault()); }
     if (name === 'left') move(-1, 0); else if (name === 'right') move(1, 0); else if (name === 'up') move(0, -1); else if (name === 'down') move(0, 1);
     else press(name);
@@ -176,7 +176,7 @@
     let n = KEYS[e.key];
     if (!n && (e.key === ' ' && P.on)) n = 'a';
     if (!n) return;
-    if (!P.on && (n === 'a' || n === 'b')) return; // マウス操作中の Enter などは普通に動かす
+    if (!P.on && (n === 'a' || n === 'b') && /^(BUTTON|INPUT|SELECT|SUMMARY|A)$/.test((document.activeElement || {}).tagName || '')) return; // ボタンにフォーカスがあるときの Enter は、ブラウザに任せる
     e.preventDefault();
     act(n);
   }, true);

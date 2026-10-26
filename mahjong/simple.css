@@ -38,3 +38,13 @@ body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 /* せってい(ダイアログ内の大きなボタン) */
 .st-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0; }
 .st-list .btn { width: 100%; font-size: 22px; padding: 22px 12px; }
+
+/* 対局画面: 文字を大きく(設計座標で16px以上) */
+.plq { font-size: 17px; height: 28px; }
+.plq .wd { font-size: 16px; } .plq em { font-size: 14px; }
+.ctr .k { font-size: 18px; } .ctr .k small { font-size: 14px; }
+.ctr .n small { font-size: 15px; }
+#side-in .sm-menu, #side-in .sm-sub { height: 34px; font-size: 17px; }
+.sd-info { font-size: 19px; } .sd-info b { font-size: 20px; } .sd-info span { font-size: 16px; }
+#mine .tipline { width: 340px; font-size: 16px; line-height: 1.3; }
+#mine .tmsg { font-size: 16px; }
