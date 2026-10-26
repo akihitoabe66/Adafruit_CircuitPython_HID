@@ -1187,3 +1187,13 @@ body.tbl #coach { box-sizing: border-box; width: 720px; }
 /* 伏せた牌(背面)は、青い麻雀牌の色にする */
 .bk, .tile.back, .tile.st.bkt { background: linear-gradient(#4a8fe0, #2457a8); border-top: 2px solid #8ec0ff; box-shadow: 0 1px 0 #12326a, 0 2px 2px #0006; }
 .bk { border-radius: 2px; }
+
+/* 設定パネル: 2列にして、スクロールなしで全部が見えるようにする */
+.gsetp .audioset { grid-template-columns: 1fr 1fr; gap: 6px 22px; align-items: center; }
+.gsetp .audioset .vpick { grid-column: 1 / -1; }
+.gsetp .vp-list { grid-template-columns: repeat(3, auto); gap: 4px 18px; justify-content: start; }
+.gsetp .vp-list small { font-size: 13px; opacity: .75; margin-left: 4px; }
+.gsetp { max-height: none; overflow: visible; }
+.gsetp .vol input[type=range] { width: 120px; }
+#screen-menu .menu-gset .gsetp { right: 0; left: auto; top: 112%; max-height: none; overflow: visible; width: max-content; max-width: 800px; }
+body.tbl .sd-tools .gsetp { width: 560px; left: -580px; top: 4px; max-height: none; overflow: visible; }

@@ -100,11 +100,8 @@
     },
     /* 声の表示名: 「Ayumi - Japanese (Japan)」→「Ayumi(女性)」、「Google 日本語」はそのまま */
     voiceLabel(v) {
-      const female = /kyoko|o-?ren|haruka|nanami|ayumi|sayaka|mizuki|female|woman|girl/i;
-      const male = /otoya|ichiro|hattori|takumi|keita|ken\b|male(?!.*female)|man\b/i;
-      let n = v.name.replace(/^Microsoft\s+/i, '').replace(/\s*[-–]\s*(Japanese|Japan|日本語).*$/i, '').replace(/\s*\((Japanese|Japan)[^)]*\)\s*$/i, '').trim() || v.name;
-      const g = female.test(v.name) ? '女性' : male.test(v.name) ? '男性' : '';
-      return g ? `${n}・${g}` : n;
+      // 名前から性別を決めつけない(端末の声の名前だけを、分かりやすく短くして出す)
+      return v.name.replace(/^Microsoft\s+/i, '').replace(/\s*[-–]\s*(Japanese|Japan|日本語).*$/i, '').replace(/\s*\((Japanese|Japan)[^)]*\)\s*$/i, '').trim() || v.name;
     },
     femaleVoice() {
       const list = S.voiceList();
