@@ -1219,3 +1219,27 @@ body.tbl .sd-tools .gsetp { width: 560px; left: -580px; top: 4px; max-height: no
 
 /* 対局の準備中は、盤面を出さない(前の対局の牌が一瞬見えないように) */
 body.dealing #sc, body.dealing #side-in .sd-act { visibility: hidden; }
+
+/* 毎日スタンプ */
+.menu-stamp { position: absolute; top: 8px; right: 150px; z-index: 5; }
+@media (orientation: landscape) and (max-height: 560px) { .menu-stamp { right: 215px; top: 6px; } }
+.dy h2 { margin: 0 0 2px; font-size: 20px; }
+.dy-h { margin: 0 0 6px; color: var(--mute); font-size: 14px; }
+.dy-body { display: flex; gap: 14px; align-items: flex-start; }
+.dy-cal { flex: 1 1 52%; background: #0003; border-radius: 10px; padding: 6px 8px; }
+.dy-m { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+.dy-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font-size: 12px; }
+.dy-g u { text-decoration: none; color: var(--mute); font-size: 11px; }
+.dy-g i { font-style: normal; height: 22px; line-height: 22px; border-radius: 50%; }
+.dy-g i.td { outline: 2px solid var(--acc); }
+.dy-g i.st b { display: inline-block; width: 22px; height: 22px; border-radius: 50%; border: 2px solid #e5484d; color: #e5484d; font-size: 11px; line-height: 18px; transform: rotate(-12deg); }
+.dy-sk { flex: 1 1 48%; background: #0003; border-radius: 10px; padding: 6px 8px; }
+.dy-sk ul { list-style: none; margin: 0; padding: 0; font-size: 13px; line-height: 1.55; }
+.dy-sk li small { float: right; color: var(--mute); }
+.dy-sk li.ok { color: var(--good); } .dy-sk li .ck { display: inline-block; width: 1.3em; }
+.dy-n { font-size: 11px; color: var(--mute); margin-top: 3px; }
+.dy-info { margin: 6px 0; font-size: 14px; }
+.dy-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dy-foot label { font-size: 13px; display: flex; gap: 5px; align-items: center; }
+.dy-foot .sp { flex: 1; }
+.dy-stamp { margin: 0 0 4px; color: #ff9aa0; }

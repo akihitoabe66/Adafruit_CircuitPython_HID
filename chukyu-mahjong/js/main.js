@@ -25,7 +25,7 @@
       if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : 'home');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       if (id === 'game') MJ.UI.fitStage();
-      if (id === 'menu') App.fitMenu();
+      if (id === 'menu') { App.fitMenu(); if (MJ.Daily) setTimeout(() => { if (!$('#screen-menu').classList.contains('hidden')) MJ.Daily.autoShow(); }, 300); }
       window.scrollTo(0, 0);
     },
 
@@ -225,6 +225,7 @@
     }, true);
     App.buildMenu();
     $('#btn-start').addEventListener('click', () => { MJ.SFX.unlock(); MJ.SFX.play('start'); App.show('menu'); });
+    $('#btn-stamp').addEventListener('click', () => MJ.Daily.open());
     $('#bell').addEventListener('click', () => MJ.Audio.setOn(!MJ.Audio.on) || MJ.UI.syncAudio());
     App.show('title');
     $('#chars').addEventListener('click', (e) => { const b = e.target.closest('.char'); if (b) App.pickChar(+b.dataset.id); });

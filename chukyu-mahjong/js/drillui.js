@@ -56,7 +56,15 @@
       if (MJ.Pad) MJ.Pad.refocus();
     },
 
-    start(cat, theme) {
+    /* 毎日スタンプの1問: 「何を切る?」を1問だけ出す。答えるとスタンプが押される */
+    openDaily() {
+      MJ.App.show('drill');
+      this.layout();
+      this.start('eff', null, true);
+    },
+
+    start(cat, theme, daily) {
+      this.daily = !!daily;
       this.cat = MJ.DRILLS.find((d) => d.id === cat);
       this.theme = theme || null;
       this.ses = { n: 0, ok: 0, streak: 0, best: 0 };
@@ -175,15 +183,20 @@
       save(st);
       MJ.SFX.play(good ? 'ok' : r.r === 'near' ? 'select' : 'ng');
       $('#drill-score').textContent = this.scoreText();
+      let stampMsg = '';
+      if (this.daily) {
+        this.daily = false;
+        if (MJ.Daily.stamp()) stampMsg = `<p class="dy-stamp">📅 <b>今日のスタンプを押しました!</b>(連続 ${MJ.Daily.streak()}日)</p>`;
+      }
       const head = good ? '⭕ 正解!' : r.r === 'near' ? '△ おしい!' : '❌ ちがいます';
-      this.showFb(head, good ? 'good' : r.r === 'near' ? 'warn' : 'bad', r.html);
+      this.showFb(head, good ? 'good' : r.r === 'near' ? 'warn' : 'bad', stampMsg + r.html, !!stampMsg);
     },
 
     /* 答え合わせ: 1画面に収め、長いときはページ送りにする(スクロールしない) */
-    showFb(head, cls, html) {
+    showFb(head, cls, html, withGame) {
       const fb = $('#dq-fb');
       fb.className = `dq-fb ${cls}`;
-      fb.innerHTML = `<div class="dq-fh"><span>${head}</span><span class="pg"></span><button class="btn sm rd" data-read="drill">🔊 読み上げ</button></div><div class="dq-body" id="dq-exp"></div><div class="dq-fa"><button class="btn pri" id="dq-next">次の問題 ▶</button></div><button class="pm-arrow l" id="dq-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="dq-nextp" aria-label="次へ">▶</button>`;
+      fb.innerHTML = `<div class="dq-fh"><span>${head}</span><span class="pg"></span><button class="btn sm rd" data-read="drill">🔊 読み上げ</button></div><div class="dq-body" id="dq-exp"></div><div class="dq-fa">${withGame ? '<button class="btn" id="dq-game">🎴 対局へ</button>' : ''}<button class="btn pri" id="dq-next">次の問題 ▶</button></div><button class="pm-arrow l" id="dq-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="dq-nextp" aria-label="次へ">▶</button>`;
       $('#dq-actions').classList.add('hidden');
       const body = $('#dq-exp');
       // 用語の下線や読み上げボタンを先に付けてから、高さを測る(後から付けると行が高くなってはみ出す)
@@ -260,7 +273,7 @@
       });
       $('#dq-opts').addEventListener('click', (e) => { const b = e.target.closest('.dq-opt'); if (b && !b.disabled) this.answerChoice(b.dataset.id); });
       $('#dq-ok').addEventListener('click', () => this.answerTile());
-      $('#dq-fb').addEventListener('click', (e) => { if (e.target.closest('#dq-next')) this.next(); else if (e.target.closest('#dq-nextp')) this.fbShow(this.fbI + 1); else if (e.target.closest('#dq-prev')) this.fbShow(this.fbI - 1); });
+      $('#dq-fb').addEventListener('click', (e) => { if (e.target.closest('#dq-game')) MJ.App.openSelect('inter'); else if (e.target.closest('#dq-next')) this.next(); else if (e.target.closest('#dq-nextp')) this.fbShow(this.fbI + 1); else if (e.target.closest('#dq-prev')) this.fbShow(this.fbI - 1); });
       $('#drill-back').addEventListener('click', () => { if (this.cat && !$('#drill-quiz').classList.contains('hidden')) { this.cat = null; this.renderHome(); } else MJ.App.show('menu'); });
       window.addEventListener('resize', () => { if (!$('#screen-drill').classList.contains('hidden')) this.layout(); });
     },
