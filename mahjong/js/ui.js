@@ -684,7 +684,7 @@
         body = g.players[0].discards.length < 1 ? tip + this.coachHtml : this.coachHtml + tip;
       }
       else body = `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
-      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><span class="chb">${g.mode === 'free' && this.coachActive() ? '<button class="btn sm" data-hintoggle>💡 ヒントをオフ</button>' : ''}<button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}`;
+      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><span class="chb">${g.mode === 'free' && this.coachActive() ? '<button class="btn sm" data-hintoggle>💡 ヒントをオフ</button>' : ''}<button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
       if (this.coachActive()) this.addReadFrom(el);
@@ -749,7 +749,7 @@
       const sIdx = cards.findIndex((c) => /★|おすすめ/.test(((c.querySelector('.cc-h') || {}).textContent || '')));
       if (/ポイント/.test(h0) && this.game.players[0].discards.length < 1 && sIdx > 1) { cards[0].after(cards[sIdx]); cards = [...el.querySelectorAll(':scope > .cc')]; }
       this.coachCards = cards.length;
-      if (cards.length <= 1) { cards.forEach((c) => c.classList.add('on')); if (tabs) tabs.remove(); this.growFont(el); return; }
+      if (cards.length <= 1) { cards.forEach((c) => c.classList.add('on')); if (tabs) tabs.remove(); el.querySelectorAll('.cnav').forEach((n) => n.classList.add('off')); this.growFont(el); return; }
       const hd = (c) => ((c.querySelector('.cc-h') || {}).textContent || '').trim();
       const key = cards.length + '|' + hd(cards[0]);
       const star = cards.findIndex((c) => /★|おすすめ/.test(hd(c)));
@@ -769,8 +769,11 @@
       this.coachPage = i; this.coachG = g;
       this.growFont(el);
       tabs.innerHTML = cards.length > 7
-        ? `<button class="chip" data-pg="-1">◀ 前へ</button><span class="chip on">${i + 1}/${cards.length} ${this.shortLabel(hd(cards[i]))}</span><button class="chip" data-pg="1">次へ ▶</button>`
+        ? `<span class="chip on">${i + 1}/${cards.length} ${this.shortLabel(hd(cards[i]))}</span>`
         : cards.map((c, j) => `<button class="chip${j >= i && j < i + g ? ' on' : ''}" data-pj="${j}" title="${hd(c).replace(/"/g, '')}">${this.shortLabel(hd(c))}${c.dataset.cont ? '(続)' : ''}</button>`).join('');
+      const nl = el.querySelector('.cnav.l'), nr = el.querySelector('.cnav.r');
+      if (nl) nl.classList.toggle('off', i <= 0);
+      if (nr) nr.classList.toggle('off', i + g >= cards.length);
     },
     /* カードの見出しから、ボタン用のひとこと(短い名前)を作る */
     shortLabel(h) {
@@ -808,7 +811,7 @@
       const el = $('#coach');
       const n = this.coachCards || 1, g = this.coachG || 1;
       if (abs != null) this.coachPage = abs;
-      else { let nx = (this.coachPage || 0) + d * g; if (nx >= n) nx = 0; if (nx < 0) nx = Math.max(0, n - g); this.coachPage = nx; }
+      else { let nx = (this.coachPage || 0) + d * g; if (nx >= n) nx = n - g > 0 ? Math.max(0, this.coachPage || 0) : 0; if (nx < 0) nx = 0; this.coachPage = nx; }
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
       this.growFont(el);

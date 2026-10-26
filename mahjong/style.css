@@ -1128,4 +1128,12 @@ body.tbl #coach .ctabs { margin-bottom: 4px; }
 #side-in #btn-coach { top: 318px; height: 52px; font-size: 22px; line-height: 1; background: linear-gradient(#5aa6ff, #2a63c9); border: 3px solid #cfe3ff; color: #fff; box-shadow: 0 0 14px 2px #5aa6ff99; }
 #side-in #btn-tools { top: 376px; height: 44px; font-size: 18px; }
 body.coach-open #side-in #btn-coach { background: linear-gradient(#ff9a4d, #d4560f); border-color: #ffe0c0; box-shadow: 0 0 14px 2px #ff9a4d99; font-size: 17px; }
-body.tbl #coach, body.tbl.short #coach, body.land.short #coach { padding: 8px 14px 8px; }
+body.tbl #coach, body.tbl.short #coach, body.land.short #coach { padding: 8px 64px 8px; }
+
+/* 解説の左右の大きな矢印(前へ・次へ): 窓の端の縦長の帯全体が押せる */
+body.tbl #coach { padding-left: 64px; padding-right: 64px; }
+#coach .cnav { position: absolute; top: 0; bottom: 0; width: 52px; border: 0; margin: 0; padding: 0; color: #fff; font-size: 38px; font-weight: 900; display: grid; place-items: center; z-index: 5; cursor: pointer; }
+#coach .cnav.l { left: 0; background: linear-gradient(90deg, #3d86ffdd, #2a63c966); border-radius: 0 0 0 14px; }
+#coach .cnav.r { right: 0; background: linear-gradient(270deg, #3d86ffdd, #2a63c966); border-radius: 0 0 14px 0; }
+#coach .cnav.off { opacity: .22; pointer-events: none; }
+body:not(.tbl) #coach .cnav { display: none; }
