@@ -8,7 +8,7 @@
     { id: 'free', icon: '🎴', badge: 'ヒントON/OFF可', desc: '好きな相手3人と自由に対戦。慣れたらヒントを消して実戦練習。' },
     { id: 'beginner', icon: '🌱', badge: '初心者おすすめ', desc: '手牌を一緒に見ながら、シャンテン・おすすめ打牌・狙える役・鳴いて良いかを教えてくれます。ロンされないための注意も。' },
     { id: 'defense', icon: '🛡', badge: '捨て牌に特化', desc: '現物・スジ・カベ・字牌など安全牌の決め方を、実際の対戦で牌ごとの危険度を見ながら練習。' },
-    { id: 'inter', icon: '🧠', badge: '中級のコツ', desc: '押し引き・打点・待ちの良し悪し・リーチかダマかなど、一歩進んだ判断を解説。' },
+    { id: 'inter', icon: '🏯', badge: '課題麻雀', desc: '「タンヤオで上がれ」「ピンフで上がれ」など課題つきで対局。中級の判断も解説。' },
     { id: 'drill', icon: '📝', badge: '何パターンでも', desc: '何切る・狙える役・守備・鳴き判断・待ち当て・点数計算を、毎回ランダムな問題で練習。答え合わせで理由を解説します。' },
   ];
   /* モードごとのおすすめ対戦相手 (CHARSのid) */
@@ -46,7 +46,7 @@
       $('#menu-modes').addEventListener('click', (e) => {
         const b = e.target.closest('[data-mode]');
         if (!b) return;
-        if (b.dataset.mode === 'notes') this.openNotes(); else if (b.dataset.mode === 'drill') MJ.DrillUI.open(); else this.openSelect(b.dataset.mode);
+        if (b.dataset.mode === 'notes') this.openNotes(); else if (b.dataset.mode === 'drill') MJ.DrillUI.open(); else if (b.dataset.mode === 'inter') MJ.Dojo.open(); else this.openSelect(b.dataset.mode);
       });
       this.showRuleLine();
       try {
@@ -60,10 +60,12 @@
     /* ---- 相手選択 ---- */
     openSelect(mode) {
       this.mode = mode;
+      if (mode !== 'inter') this.mission = null;
       this.picks = [];
       const m = MJ.Coach.MODES[mode];
       $('#sel-title').textContent = m.name;
-      $('#sel-desc').textContent = m.desc;
+      const ms = MJ.Dojo.get(this.mission);
+      $('#sel-desc').textContent = mode === 'inter' && ms ? `🎯 課題: ${ms.name} ― ${ms.tip}` : m.desc;
       $('#sel-length').value = MJ.RULES.length;
       $('#sel-rule-sum').textContent = 'ルール: ' + MJ.rulesSummary();
       this.renderChars();
@@ -106,13 +108,13 @@
       if (this.picks.length !== 3) return;
       const chars = this.picks.map((id) => MJ.CHARS.find((c) => c.id === id));
       MJ.RULES.length = $('#sel-length').value; MJ.saveRules();
-      this.lastCfg = { mode: this.mode, picks: this.picks.slice(), length: MJ.RULES.length };
+      this.lastCfg = { mode: this.mode, picks: this.picks.slice(), length: MJ.RULES.length, mission: this.mode === 'inter' ? this.mission : null };
       this.launch(this.lastCfg);
     },
     launch(cfg) {
       this.stopGame();
       const chars = cfg.picks.map((id) => MJ.CHARS.find((c) => c.id === id));
-      const game = new MJ.Game({ chars, mode: cfg.mode, length: cfg.length, ui: MJ.UI });
+      const game = new MJ.Game({ chars, mode: cfg.mode, length: cfg.length, mission: cfg.mission, ui: MJ.UI });
       this.game = game;
       MJ.UI.attach(game);
       MJ.SFX.unlock();

@@ -10,6 +10,7 @@
       this.ui = cfg.ui || null;
       this.fast = !!cfg.fast;
       this.mode = cfg.mode || 'free';
+      this.mission = cfg.mission && MJ.Dojo ? MJ.Dojo.get(cfg.mission) : null; // 課題麻雀の課題
       this.length = cfg.length || MJ.RULES.length || 'east'; // 'east' | 'south' | 'single'
       const me = { id: 0, name: 'あなた', short: 'あなた', level: 0, style: 'balanced', img: `img/you/${String(1 + Math.floor(Math.random() * 18)).padStart(2, '0')}.jpg`, lines: {} };
       const chars = [me].concat(cfg.chars);
@@ -53,6 +54,7 @@
         if (this.length === 'east' && this.kyoku >= 4) end = true;
         if (this.length === 'south' && this.kyoku >= 8) end = true;
         this.roundWind = Math.min(1, Math.floor(this.kyoku / 4));
+        if (this.mission) { MJ.Dojo.step(this, r); if (this.missionOver) end = true; }
         if (end) {
           const order = this.players.slice().sort((a, b) => b.score - a.score || a.seat - b.seat);
           const final = { order, results: order.map((p, i) => ({ p, rank: i + 1 })) };
@@ -254,6 +256,7 @@
 
     async doDiscard(p, tile, riichi) {
       if (p.isHuman) this.recordHumanReview(p, tile);
+      if (p.isHuman && MJ.Mistakes) { try { MJ.Mistakes.check(this, p, tile); } catch (e) { /* ignore */ } }
       const i = p.hand.indexOf(tile);
       p.hand.splice(i, 1);
       p.drawn = null;

@@ -126,6 +126,41 @@
   /* 場の説明 */
   const sitHTML = (g, extra) => `<span class="chip dealer">東1局</span> あなたは<b>${WINDS[g.seatWindOf(g.players[0])]}家</b>${g.dealer === 0 ? '(親)' : '(子)'}　ドラ表示牌 ${g.doraInd.map((d) => ic(d.t)).join('')}${extra ? '　' + extra : ''}`;
 
+  /* 「何を切る?」の問題を組み立てる(ランダム問題と、対局中のミスの再出題で共通) */
+  function effQuestion(hand, g, an, rank, best, title) {
+    return {
+      cat: 'eff', kind: 'tile', title: title || '何を切る?(牌効率)', hand, g, an, rank, best,
+      sit: sitHTML(g, `<b>${an.minSh}シャンテン</b>の形`), prompt: '14枚の手牌から、<b>1枚切る</b>なら何を切りますか?(目標: テンパイに近づく牌を残す)',
+      grade(tile) {
+        const e = an.evals.find((x) => x.t === tile.t);
+        const ok = e.sh === best.sh && e.ukeire.n >= best.ukeire.n - 1;
+        const near = !ok && e.sh === best.sh;
+        const top = rank.slice(0, 4).map((x) => `<li>${x === best ? '★' : ''}${ic(x.t)} ${tn(x.t)} → ${x.sh === an.minSh ? `有効牌 <b>${x.ukeire.n}枚</b>` : `シャンテンが戻る(${x.sh}シャンテン)`}${x.t === tile.t ? ' ←あなたの選択' : ''}</li>`).join('');
+        const why = MJ.Coach.reasonFor(g, g.players[0], an, best);
+        return {
+          r: ok ? 'ok' : near ? 'near' : 'ng',
+          html: `<p>おすすめは <b>${ic(best.t)} ${tn(best.t)}</b>。${why}。</p><ul class="cc-ul">${top}</ul><div class="cc-s">有効牌=引くとシャンテン数が進む牌の残り枚数。同じシャンテンなら<b>有効牌が多い</b>方を選びます。孤立した字牌・端牌→ターツ(形)の弱い方、の順に切るのが基本です。</div>`,
+        };
+      },
+    };
+  }
+
+  /* 対局中のミス(保存した局面)から作る。局面は {hand:牌種14, dora, rivers:[牌種の列×4], dealer} */
+  function genEffFrom(snap) {
+    const pool = new Pool();
+    const dora = pool.take(snap.dora);
+    const hand = pool.takeMany(snap.hand);
+    if (!hand) return null;
+    sortTiles(hand);
+    const rivers = snap.rivers.map((r) => r.map((t) => pool.take(t)).filter(Boolean));
+    const g = mock({ hand, doraInd: dora ? [dora] : [], rivers, dealer: snap.dealer || 0, chars: MJ.shuffle(MJ.CHARS.slice()).slice(0, 4) });
+    const an = A.analyze(g, g.players[0], { know: 2 });
+    const rank = A.byEff(an.evals);
+    const best = rank[0];
+    if (!best) return null;
+    return effQuestion(hand, g, an, rank, best, '前の対局の場面: 何を切る?');
+  }
+
   /* ====================================================================
      1) 何切る (牌効率)
      ==================================================================== */
@@ -143,21 +178,7 @@
       const best = rank[0];
       const second = rank.find((e) => A.effScore(e) < A.effScore(best) - 0.01);
       if (!second || A.effScore(best) - A.effScore(second) < 4) continue;
-      return {
-        cat: 'eff', kind: 'tile', title: '何を切る?(牌効率)', hand, g, an, rank, best,
-        sit: sitHTML(g, `<b>${an.minSh}シャンテン</b>の形`), prompt: '14枚の手牌から、<b>1枚切る</b>なら何を切りますか?(目標: テンパイに近づく牌を残す)',
-        grade(tile) {
-          const e = an.evals.find((x) => x.t === tile.t);
-          const ok = e.sh === best.sh && e.ukeire.n >= best.ukeire.n - 1;
-          const near = !ok && e.sh === best.sh;
-          const top = rank.slice(0, 4).map((x) => `<li>${x === best ? '★' : ''}${ic(x.t)} ${tn(x.t)} → ${x.sh === an.minSh ? `有効牌 <b>${x.ukeire.n}枚</b>` : `シャンテンが戻る(${x.sh}シャンテン)`}${x.t === tile.t ? ' ←あなたの選択' : ''}</li>`).join('');
-          const why = MJ.Coach.reasonFor(g, g.players[0], an, best);
-          return {
-            r: ok ? 'ok' : near ? 'near' : 'ng',
-            html: `<p>おすすめは <b>${ic(best.t)} ${tn(best.t)}</b>。${why}。</p><ul class="cc-ul">${top}</ul><div class="cc-s">有効牌=引くとシャンテン数が進む牌の残り枚数。同じシャンテンなら<b>有効牌が多い</b>方を選びます。孤立した字牌・端牌→ターツ(形)の弱い方、の順に切るのが基本です。</div>`,
-          };
-        },
-      };
+      return effQuestion(hand, g, an, rank, best);
     }
     return null;
   }
@@ -692,5 +713,5 @@
     { id: 'riichi', icon: '🔥', name: 'リーチかダマか', level: '中級', desc: 'テンパイしたとき、リーチをかけるか黙って待つか。役・打点・待ちの枚数から判断します。', gen: genRiichi },
   ];
   MJ.DRILL_THEMES = THEMES;
-  MJ.Drill = { Pool, mock, genEff, genDef, genCall, genYaku, genWait, genScore, genPush, genRiichi };
+  MJ.Drill = { Pool, mock, genEff, genEffFrom, genDef, genCall, genYaku, genWait, genScore, genPush, genRiichi };
 })(typeof window !== 'undefined' ? window : globalThis);

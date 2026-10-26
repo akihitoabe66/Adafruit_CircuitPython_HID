@@ -81,6 +81,7 @@
       setTimeout(() => {
         this.layout();
         let q = null;
+        if (this.daily && this.cat.id === 'eff' && MJ.Mistakes) q = MJ.Mistakes.gen();
         for (let i = 0; i < 5 && !q; i++) q = this.theme && this.cat.id === 'def' ? MJ.Drill.genDef(this.theme) : this.cat.gen();
         if (!q) { $('#dq-sit').textContent = '問題を作れませんでした。もう一度お試しください。'; return; }
         this.q = q;
@@ -183,6 +184,7 @@
       save(st);
       MJ.SFX.play(good ? 'ok' : r.r === 'near' ? 'select' : 'ng');
       $('#drill-score').textContent = this.scoreText();
+      if (this.q && this.q.mistakeId) MJ.Mistakes.resolve(this.q.mistakeId, good);
       let stampMsg = '';
       if (this.daily) {
         this.daily = false;

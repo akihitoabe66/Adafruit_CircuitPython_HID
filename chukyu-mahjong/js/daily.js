@@ -80,11 +80,12 @@
       const done = this.stamped();
       const s = this.streak();
       const head = done ? '今日のスタンプは押しました!' : '今日の1問に答えて、スタンプをもらおう';
-      const go = done ? '' : '<button class="btn pri big" id="dy-go">✂️ 最初に何を切る?(1問)</button>';
+      const mn = MJ.Mistakes ? MJ.Mistakes.count() : 0;
+      const go = done ? '' : `<button class="btn pri big" id="dy-go">✂️ 今日の1問${mn ? '(前の対局の場面)' : '(最初に何を切る?)'}</button>`;
       MJ.UI.overlay(
         `<div class="dy"><h2>📅 毎日スタンプ</h2><p class="dy-h">${head}</p>
         <div class="dy-body">${this.calendarHTML()}${this.skillsHTML()}</div>
-        <div class="dy-info">連続 <b>${s}</b>日 ・ 合計 <b>${this.total()}</b>日</div>
+        <div class="dy-info">連続 <b>${s}</b>日 ・ 合計 <b>${this.total()}</b>日${mn ? ` ・ 📝 間違えた場面 <b>${mn}</b>件が出題待ち` : ''}</div>
         <div class="dy-foot"><label><input type="checkbox" id="dy-never"${this.data.never ? ' checked' : ''}> 明日以降、起動時に表示しない</label>
         <span class="sp"></span><button class="btn" id="dy-skip">${done ? '閉じる' : 'スキップ'}</button>${go}</div></div>`,
         { plain: true });

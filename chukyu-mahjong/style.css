@@ -1243,3 +1243,17 @@ body.dealing #sc, body.dealing #side-in .sd-act { visibility: hidden; }
 .dy-foot label { font-size: 13px; display: flex; gap: 5px; align-items: center; }
 .dy-foot .sp { flex: 1; }
 .dy-stamp { margin: 0 0 4px; color: #ff9aa0; }
+
+/* 中級養成所(課題麻雀) */
+.dj h2 { margin: 0 0 2px; font-size: 20px; }
+.dj-h { margin: 0 0 6px; color: var(--mute); font-size: 14px; }
+.dj-g { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px 8px; }
+.dj-m { text-align: left; font-size: 14px; padding: 5px 10px; }
+.dj-m.ok { border-color: var(--good); }
+.dj-m.sel { outline: 2px solid var(--acc); }
+.dj-lv { color: var(--acc); font-size: 12px; display: inline-block; min-width: 3.2em; }
+.dj-foot { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+.dj-t { flex: 1; font-size: 13px; line-height: 1.45; min-height: 2.9em; }
+.dj-res { margin: 0 0 6px; padding: 6px 10px; border-radius: 8px; font-size: 15px; background: #0004; }
+.dj-res.ok { color: var(--good); border: 2px solid var(--good); } .dj-res.ng { color: var(--warn); }
+.sd-info span.mis { color: var(--acc); font-size: 13px; }
