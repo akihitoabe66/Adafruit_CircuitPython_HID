@@ -4,12 +4,13 @@
   const $ = (s) => document.querySelector(s);
   const SCREENS = ['title', 'menu', 'drill', 'select', 'notes', 'game'];
 
+  /* 並びは「中級を目指す」順: 課題 → 練習 → 学ぶ → 自由に */
   const MODE_CARDS = [
-    { id: 'free', icon: '🎴', badge: 'ヒントON/OFF可', desc: '好きな相手3人と自由に対戦。慣れたらヒントを消して実戦練習。' },
-    { id: 'beginner', icon: '🌱', badge: '初心者おすすめ', desc: '手牌を一緒に見ながら、シャンテン・おすすめ打牌・狙える役・鳴いて良いかを教えてくれます。ロンされないための注意も。' },
-    { id: 'defense', icon: '🛡', badge: '捨て牌に特化', desc: '現物・スジ・カベ・字牌など安全牌の決め方を、実際の対戦で牌ごとの危険度を見ながら練習。' },
-    { id: 'inter', icon: '🏯', badge: '課題麻雀', desc: '「タンヤオで上がれ」「ピンフで上がれ」など課題つきで対局。中級の判断も解説。' },
-    { id: 'drill', icon: '📝', badge: '何パターンでも', desc: '何切る・狙える役・守備・鳴き判断・待ち当て・点数計算を、毎回ランダムな問題で練習。答え合わせで理由を解説します。' },
+    { id: 'inter', icon: '🏯', badge: '課題麻雀', desc: '「タンヤオで上がれ」など課題つきで対局。クリアして中級をめざす。' },
+    { id: 'drill', icon: '📝', badge: '毎回ちがう問題', desc: '何切る・役・守備・鳴き・点数・押し引きを練習。正解数が中級の目安に。' },
+    { id: 'beginner', icon: '🌱', badge: '入門', desc: '手牌を見ながら、おすすめ打牌・狙える役・鳴いて良いかを教えてくれます。' },
+    { id: 'defense', icon: '🛡', badge: '守備を学ぶ', desc: '現物・スジ・カベなど安全牌の選び方を、牌ごとの危険度を見ながら練習。' },
+    { id: 'free', icon: '🎴', badge: '自由に対局', desc: '好きな相手3人と対戦。ヒントのON/OFFも自由。' },
   ];
   /* モードごとのおすすめ対戦相手 (CHARSのid) */
   const RECO = { free: null, beginner: [9, 14, 5], defense: [5, 11, 13], inter: [2, 7, 12] };
@@ -25,7 +26,7 @@
       if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : 'home');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       if (id === 'game') MJ.UI.fitStage();
-      if (id === 'menu') { App.fitMenu(); if (MJ.Daily) setTimeout(() => { if (!$('#screen-menu').classList.contains('hidden')) MJ.Daily.autoShow(); }, 300); }
+      if (id === 'menu') { App.buildStatsOnly(); App.fitMenu(); if (MJ.Daily) setTimeout(() => { if (!$('#screen-menu').classList.contains('hidden')) MJ.Daily.autoShow(); }, 300); }
       window.scrollTo(0, 0);
     },
 
@@ -49,10 +50,7 @@
         if (b.dataset.mode === 'notes') this.openNotes(); else if (b.dataset.mode === 'drill') MJ.DrillUI.open(); else if (b.dataset.mode === 'inter') MJ.Dojo.open(); else this.openSelect(b.dataset.mode);
       });
       this.showRuleLine();
-      try {
-        const st = JSON.parse(localStorage.getItem('mj_stats') || 'null');
-        if (st && st.games) $('#menu-stats').innerHTML = `対局成績: ${st.games}戦 / 1位 ${st.ranks[0]}回・2位 ${st.ranks[1]}回・3位 ${st.ranks[2]}回・4位 ${st.ranks[3]}回`;
-      } catch (e) { /* ignore */ }
+      this.buildStatsOnly();
     },
 
     showRuleLine() { const el = $('#menu-rules'); if (el) el.textContent = '4人対戦・' + MJ.rulesSummary() + '(「ルール設定」で変更できます)。CPUは5段階の強さ(入門〜達人)。'; },
@@ -140,10 +138,15 @@
       this.show('menu');
     },
     buildStatsOnly() {
+      const parts = [];
+      if (MJ.Daily) parts.push(`📅 スタンプ ${MJ.Daily.total()}日(連続${MJ.Daily.streak()}日)${MJ.Daily.stamped() ? '' : ' ・ 今日の1問がまだです'}`);
+      if (MJ.Dojo) { const n = Object.keys(MJ.Dojo.cleared()).length; parts.push(`🏯 課題 ${n}/${MJ.Dojo.list.length}クリア`); }
+      if (MJ.Daily) parts.push(`🎓 中級の目安 ${MJ.Daily.skillsDone()}/${MJ.Daily.skillsTotal()}`);
       try {
         const st = JSON.parse(localStorage.getItem('mj_stats') || 'null');
-        if (st && st.games) $('#menu-stats').innerHTML = `対局成績: ${st.games}戦 / 1位 ${st.ranks[0]}回・2位 ${st.ranks[1]}回・3位 ${st.ranks[2]}回・4位 ${st.ranks[3]}回`;
+        if (st && st.games) parts.push(`対局 ${st.games}戦(1位${st.ranks[0]}回)`);
       } catch (e) { /* ignore */ }
+      $('#menu-stats').innerHTML = parts.join(' ／ ');
     },
 
     /* ---- ノート ---- */

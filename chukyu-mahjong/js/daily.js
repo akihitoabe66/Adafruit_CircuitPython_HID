@@ -63,6 +63,9 @@
       return `<div class="dy-cal"><div class="dy-m">${y}年${m + 1}月</div><div class="dy-g">${wk}${cells}</div></div>`;
     },
 
+    skillsDone() { const st = drillStats(); return SKILLS.filter((k) => { const x = st[k.id] || { n: 0, ok: 0 }; return x.n >= MIN_N && x.ok / x.n >= GOAL; }).length; },
+    skillsTotal() { return SKILLS.length; },
+
     skillsHTML() {
       const st = drillStats();
       const rows = SKILLS.map((s) => {
