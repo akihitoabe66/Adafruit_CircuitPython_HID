@@ -1197,3 +1197,9 @@ body.tbl #coach { box-sizing: border-box; width: 720px; }
 .gsetp .vol input[type=range] { width: 120px; }
 #screen-menu .menu-gset .gsetp { right: 0; left: auto; top: 112%; max-height: none; overflow: visible; width: max-content; max-width: 800px; }
 body.tbl .sd-tools .gsetp { width: 560px; left: -580px; top: 4px; max-height: none; overflow: visible; }
+
+.pm-foot { align-items: center; }
+.pm-foot #pm-skip { margin-left: auto; margin-right: 10px; background: #3a4a46; font-size: 16px; }
+/* 流局ページ: 手牌は出さず、顔と点数だけでコンパクトに(スクロールなし) */
+.dr-h, .dr-note, .dr-tbl { display: none !important; }
+.dr-big { font-size: 40px; margin-top: 2px; } .dr-face { max-width: 72px; } .dr-n { font-size: 14px; } .dr-s { font-size: 13px; } .dr-d { font-size: 15px; }

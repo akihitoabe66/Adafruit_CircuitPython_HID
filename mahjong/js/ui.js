@@ -1032,7 +1032,7 @@
     /* ページ式のダイアログ(スクロールなしで画面に収める) */
     pagedModal(pages, onDone, lastLabel) {
       let cur = 0;
-      this.overlay(`<div class="modal paged"><div class="pm-top"><span class="pm-title"></span><span class="pm-dots">${pages.map(() => '<i></i>').join('')}</span></div><div class="pm-body">${pages.map((p) => `<div class="pm-page">${p.html}</div>`).join('')}</div><div class="pm-foot"><button class="btn" id="pm-prev">◀ 戻る</button><button class="btn pri" id="pm-next"></button></div></div>`, { plain: true, raw: true });
+      this.overlay(`<div class="modal paged"><div class="pm-top"><span class="pm-title"></span><span class="pm-dots">${pages.map(() => '<i></i>').join('')}</span></div><div class="pm-body">${pages.map((p) => `<div class="pm-page">${p.html}</div>`).join('')}</div><div class="pm-foot"><button class="btn" id="pm-prev">◀ 戻る</button><button class="btn" id="pm-skip">⏭ スキップ</button><button class="btn pri" id="pm-next"></button></div></div>`, { plain: true, raw: true });
       const modal = $('#overlay .modal');
       const body = modal.querySelector('.pm-body');
       const els = [...modal.querySelectorAll('.pm-page')];
@@ -1043,6 +1043,7 @@
         modal.querySelector('.pm-title').textContent = `${pages[cur].t}  ${cur + 1}/${pages.length}`;
         modal.querySelectorAll('.pm-dots i').forEach((d, k) => d.classList.toggle('on', k === cur));
         modal.querySelector('#pm-prev').style.visibility = cur ? 'visible' : 'hidden';
+        modal.querySelector('#pm-skip').style.visibility = pages.length > 1 && cur < pages.length - 1 ? 'visible' : 'hidden';
         modal.querySelector('#pm-next').textContent = cur === pages.length - 1 ? lastLabel : '次へ ▶';
         const pg = els[cur];
         // 枠に収まるまで文字サイズを下げる(iPhoneのSafariでも確実に効くよう zoom ではなく font-size で調整)
@@ -1050,10 +1051,12 @@
         let fpx = parseFloat(getComputedStyle(pg).fontSize) || 16;
         const fover = () => pg.scrollHeight > body.clientHeight + 1;
         while (fover() && fpx > 13) { fpx -= 0.5; pg.style.fontSize = fpx + 'px'; }
-        if (fover()) { pg.style.overflowY = 'auto'; pg.style.maxHeight = body.clientHeight + 'px'; } // これ以上は小さくせず、はみ出す分はその場でスクロール
+        // それでも収まらなければ、スクロールさせず、全体を少しだけ縮めて1画面に収める(下限0.6)
+        if (fover()) { pg.style.zoom = String(Math.max(0.6, (body.clientHeight - 2) / Math.max(1, pg.scrollHeight))); }
         MJ.SFX.stopSpeak();
       };
       modal.querySelector('#pm-prev').addEventListener('click', () => show(cur - 1));
+      modal.querySelector('#pm-skip').addEventListener('click', () => { MJ.SFX.stopSpeak(); onDone(); }); // 残りのページを飛ばして、次へ進む
       modal.querySelector('#pm-next').addEventListener('click', () => { if (cur < pages.length - 1) show(cur + 1); else onDone(); });
       show(0);
       return { show };
