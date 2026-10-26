@@ -25,15 +25,24 @@
       if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : 'home');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       if (id === 'game') MJ.UI.fitStage();
+      if (id === 'menu') App.fitMenu();
       window.scrollTo(0, 0);
     },
 
+    /* ホーム画面を、スクロールなしの1画面に収める(設計座標 832×428 を拡大縮小) */
+    fitMenu() {
+      const el = $('#screen-menu');
+      if (!el || el.classList.contains('hidden')) return;
+      const st = MJ.UI.stageFor(el);
+      const S = Math.min(st.h / 428, st.w / 832);
+      $('#mn').style.transform = `translate(${Math.round((st.w - 832 * S) / 2)}px, ${Math.round((st.h - 428 * S) / 2)}px) scale(${S})`;
+    },
     buildMenu() {
       $('#menu-modes').innerHTML = MODE_CARDS.map((m) => `<button class="mode-card" data-mode="${m.id}"><div class="mi">${m.icon}</div><h3>${MJ.Coach.MODES[m.id].name}</h3><p>${m.desc}</p><span class="badge">${m.badge}</span></button>`).join('') +
         `<button class="mode-card" data-mode="notes"><div class="mi">📖</div><h3>麻雀ノート</h3><p>役の一覧・点数計算のしかた・点数早見表・スジ/カベの見方・鳴きのルールをまとめて確認。</p><span class="badge">読み物</span></button>` +
         `<button class="mode-card" data-open-gloss><div class="mi">📚</div><h3>用語辞典</h3><p>専門用語の意味を検索。「チートイ」「ニコニコ」など地域・世代で違う<b>俗称</b>も載っています。</p><span class="badge">検索できます</span></button>` +
         `<button class="mode-card" data-open-rules><div class="mi">⚙️</div><h3>ルール設定</h3><p>喰いタン・赤ドラ・一発・裏ドラ・飛び・東南戦などを自分好みに変更。</p><span class="badge">喰いタンなど</span></button>` +
-        `<button class="mode-card" data-open-credits><div class="mi">ℹ️</div><h3>クレジット・ライセンス</h3><p>使用している音声・BGM・画像の出典とライセンス表記。</p><span class="badge">権利表記</span></button>`;
+        `<button class="mode-card" data-open-credits><div class="mi">ℹ️</div><h3>クレジット</h3><p>使用している音声・BGM・画像の出典とライセンス表記。</p><span class="badge">権利表記</span></button>`;
       $('#menu-modes').addEventListener('click', (e) => {
         const b = e.target.closest('[data-mode]');
         if (!b) return;
@@ -203,6 +212,7 @@
     document.addEventListener('click', (e) => { if (e.target.closest('[data-open-credits]')) showCredits(); else if (e.target.closest('[data-open-rules]') || e.target.closest('#sel-rules')) showRules(); });
     $('#sel-length').addEventListener('change', () => { MJ.RULES.length = $('#sel-length').value; MJ.saveRules(); $('#sel-rule-sum').textContent = 'ルール: ' + MJ.rulesSummary(); });
     MJ.UI.init();
+    window.addEventListener('resize', () => App.fitMenu());
     MJ.DrillUI.init();
     // 最初の操作でBGMを開始。iPhoneは pointerdown/touchstart では許可されないため、指を離した時(touchend/click)でも毎回試す
     let spk = false;

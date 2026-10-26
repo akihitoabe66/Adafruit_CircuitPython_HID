@@ -15,6 +15,7 @@
     const r = rectOf(el);
     if (r.width < 4 || r.height < 4) return false;
     // スクロールする画面(メニュー・選択・ノート・ダイアログなど)は、画面の外にある項目も選べる(選ぶと自動でスクロールする)
+    { const d = el.closest('details'); if (d && !d.open && !el.matches('summary')) return false; } // 閉じた設定の中は選べない
     if (el.closest('#screen-menu, #screen-select, #screen-notes, #overlay, #gloss-panel, #screen-title')) return true;
     return r.right > 0 && r.bottom > 0 && r.left < G.innerWidth && r.top < G.innerHeight;
   };
