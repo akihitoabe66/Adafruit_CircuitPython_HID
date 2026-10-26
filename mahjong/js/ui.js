@@ -261,6 +261,9 @@
 
     attach(game) {
       this.game = game;
+      // 前の対局の盤面・手牌が残って見えないよう、最初に空にする(配牌が終わるまで盤面は出さない)
+      ['#table', '#mine', '#says', '#sd-act', '#sd-info', '#fx'].forEach((s) => { const e = $(s); if (e) e.innerHTML = ''; });
+      document.body.classList.add('dealing');
       this.sel = null; this.bubbles = {}; this.adv = null; this.picked = null; this.riichiMode = false; this.reactHtml = '';
       this.hintOn = game.mode !== 'free';
       this.syncHintBtn();
@@ -376,6 +379,7 @@
     render(game) {
       if (this.game !== game) return;
       this.layout();
+      document.body.classList.remove('dealing');
       $('#table').innerHTML = this.tableHTML(game);
       $('#mine').innerHTML = this.mineHTML(game);
       $('#sd-act').innerHTML = this.sideHTML(game);

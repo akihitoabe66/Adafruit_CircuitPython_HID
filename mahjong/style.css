@@ -1216,3 +1216,6 @@ body.tbl .sd-tools .gsetp { width: 560px; left: -580px; top: 4px; max-height: no
 /* 流局の大きな文字が、下の文と重ならないように */
 .dr-big { line-height: 1.25; margin-bottom: 8px; padding-top: 4px; text-shadow: 0 3px 0 #0008; }
 .dr-sub { margin-top: 6px; }
+
+/* 対局の準備中は、盤面を出さない(前の対局の牌が一瞬見えないように) */
+body.dealing #sc, body.dealing #side-in .sd-act { visibility: hidden; }
