@@ -1,5 +1,5 @@
 /* コントローラー・リモコン・キーボード操作(Fire TV / Bluetoothパッド / Steam想定)
-   十字キー=カーソル移動 / A=決定 / B=戻る・パス / X=リーチ / Y=ツモ・ロン / LB=カン / RB=解説 / Start=ツール / Select=MENU
+   使うのは、十字キー(カーソル移動)と A(決定)と B(戻る・パス)だけ。リーチ・ポン・解説なども、枠を動かして A で押す
    最初にボタンを押すと「パッド操作」になり、カーソル(白い枠)が出る。マウスやタッチを使うと枠は消える */
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
@@ -14,6 +14,8 @@
     if (cs.display === 'none' || cs.visibility === 'hidden' || el.disabled) return false;
     const r = rectOf(el);
     if (r.width < 4 || r.height < 4) return false;
+    // スクロールする画面(メニュー・選択・ノート・ダイアログなど)は、画面の外にある項目も選べる(選ぶと自動でスクロールする)
+    if (el.closest('#screen-menu, #screen-select, #screen-notes, #overlay, #gloss-panel, #screen-title')) return true;
     return r.right > 0 && r.bottom > 0 && r.left < G.innerWidth && r.top < G.innerHeight;
   };
   /* いま操作できる範囲: 説明パネル > ダイアログ > ゲーム/各画面 */
@@ -107,6 +109,16 @@
       if (i !== cur.selectedIndex) { cur.selectedIndex = i; cur.dispatchEvent(new Event('change', { bubbles: true })); }
       return;
     }
+    // 手牌から「上」を押すと、押せるボタン(ツモ・リーチ・カン…)へ一気に移る(手牌→ボタンを何回も押さなくて済む)
+    if (dy < 0 && cur.matches('.hand .tile[data-id]')) {
+      const act = [...document.querySelectorAll('#sd-act [data-act]')].find((e) => !e.disabled && visible(e));
+      if (act) { setCur(act); return; }
+    }
+    // ボタンの列から「左」を押すと手牌へ戻る
+    if (dx < 0 && cur.closest('#sd-act, #btn-coach, #btn-tools')) {
+      const t = $('.hand .tile.rec') || [...document.querySelectorAll('.hand .tile[data-id]')].filter(visible).pop();
+      if (t) { setCur(t); return; }
+    }
     const a = rectOf(cur), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
     let best = null, bs = Infinity;
     items().forEach((el) => {
@@ -145,12 +157,6 @@
         if (back) back.click();
         break;
       }
-      case 'x': click('[data-act=riichi]'); break;
-      case 'y': (click('[data-act=tsumo]') || click('[data-act=ron]')); break;
-      case 'lb': (click('[data-act=ankan]') || click('[data-act=kakan]') || click('[data-act=kan]')); break;
-      case 'rb': click('#btn-coach'); break;
-      case 'start': click('#btn-tools'); break;
-      case 'select': click('#btn-quit'); break;
       default: break;
     }
   };
@@ -162,22 +168,21 @@
   };
 
   /* キーボード / リモコン */
-  const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Enter: 'a', Escape: 'b', Backspace: 'b', GoBack: 'b', BrowserBack: 'b', ContextMenu: 'start', MediaPlayPause: 'a' };
+  const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Enter: 'a', Escape: 'b', Backspace: 'b', GoBack: 'b', BrowserBack: 'b', MediaPlayPause: 'a' };
   G.addEventListener('keydown', (e) => {
     const t = e.target;
     if (t && /^(TEXTAREA)$/.test(t.tagName)) return;
     let n = KEYS[e.key];
     if (!n && (e.key === ' ' && P.on)) n = 'a';
-    if (!n && !e.ctrlKey && !e.metaKey) n = { x: 'x', r: 'x', y: 'y', t: 'y', k: 'lb', c: 'rb' }[e.key.toLowerCase()];
     if (!n) return;
-    if (!P.on && (n === 'a' || n === 'b' || n === 'x' || n === 'y' || n === 'lb' || n === 'rb' || n === 'start')) return; // マウス操作中の Enter などは普通に動かす
+    if (!P.on && (n === 'a' || n === 'b')) return; // マウス操作中の Enter などは普通に動かす
     e.preventDefault();
     act(n);
   }, true);
   G.addEventListener('pointerdown', () => { if (P.on) { P.on = false; document.body.classList.remove('pad-on'); if (P.cur) P.cur.classList.remove('pf'); } }, true);
 
   /* ゲームパッド(標準配置: 0=A 1=B 2=X 3=Y 4=LB 5=RB 8=Select 9=Start 12-15=十字) */
-  const MAP = { 0: 'a', 1: 'b', 2: 'x', 3: 'y', 4: 'lb', 5: 'rb', 8: 'select', 9: 'start', 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
+  const MAP = { 0: 'a', 1: 'b', 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
   const held = {};
   const poll = () => {
     const pads = (navigator.getGamepads && navigator.getGamepads()) || [];
@@ -202,7 +207,7 @@
     G.requestAnimationFrame(poll);
   };
   if (navigator.getGamepads) G.requestAnimationFrame(poll);
-  G.addEventListener('gamepadconnected', () => { if (MJ.UI && MJ.UI.toast) MJ.UI.toast('コントローラーを認識しました。十字キー=移動 / A=決定 / B=戻る・パス / X=リーチ / Y=ツモ・ロン'); });
+  G.addEventListener('gamepadconnected', () => { if (MJ.UI && MJ.UI.toast) MJ.UI.toast('コントローラーを認識しました。十字キー=移動 / A=決定 / B=戻る・パス'); });
 
   /* 画面が組み替わってカーソルが消えたら、近い場所に戻す */
   let tm = null;
