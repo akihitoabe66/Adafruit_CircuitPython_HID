@@ -1183,3 +1183,7 @@ body.tbl #coach { box-sizing: border-box; width: 720px; }
 .eq i { display: block; width: 3px; background: #2b1a00; border-radius: 1px; animation: eqb .8s ease-in-out infinite; }
 .eq i:nth-child(1) { height: 40%; animation-delay: 0s; } .eq i:nth-child(2) { height: 90%; animation-delay: .2s; } .eq i:nth-child(3) { height: 60%; animation-delay: .4s; }
 @keyframes eqb { 0%, 100% { transform: scaleY(.4); } 50% { transform: scaleY(1); } }
+
+/* 伏せた牌(背面)は、青い麻雀牌の色にする */
+.bk, .tile.back, .tile.st.bkt { background: linear-gradient(#4a8fe0, #2457a8); border-top: 2px solid #8ec0ff; box-shadow: 0 1px 0 #12326a, 0 2px 2px #0006; }
+.bk { border-radius: 2px; }
