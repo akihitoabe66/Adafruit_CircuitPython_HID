@@ -73,7 +73,9 @@
         if (rf) {
           const blk = rf.closest('.rfb'), root = blk && blk.parentElement;
           if (!root) return;
-          if (!MJ.SFX.read(this.textOf(root, blk))) this.toast('この端末には日本語の読み上げ音声がありません');
+          if (MJ.SFX.speaking()) { MJ.SFX.stopSpeak(); if (this._rfLast === rf) { this._rfLast = null; return; } }
+          this._rfLast = rf;
+          if (!this.readAloud(root, blk, rf)) this.toast('この端末には日本語の読み上げ音声がありません');
           return;
         }
         const b = e.target.closest('[data-read]');
@@ -81,7 +83,7 @@
         const root = b.dataset.read === 'coach' ? $('#coach') : b.dataset.read === 'drill' ? $('#dq-fb') : b.dataset.read === 'page' ? ($('.modal .pm-page.on') || $('.modal')) : b.dataset.read === 'review' ? ($('.modal .rv') || $('.modal')) : $('.modal');
         if (!root) return;
         if (MJ.SFX.speaking()) { MJ.SFX.stopSpeak(); return; }
-        if (!MJ.SFX.read(this.textOf(root))) this.toast('この端末には日本語の読み上げ音声がありません');
+        if (!this.readAloud(root, null, b)) this.toast('この端末には日本語の読み上げ音声がありません');
       });
       document.addEventListener('click', (e) => {
         // 解説の引き出し: ✕ボタン、または引き出しの外をタップで閉じる
@@ -187,6 +189,58 @@
       clearTimeout(this._tt); this._tt = setTimeout(() => { t.style.display = 'none'; }, 2200);
     },
     /* 画面の文章を読み上げ用テキストにする */
+    /* 読み上げ: 読んでいる場所の文を色で示し(流れるように移る)、押したボタンも「読み上げ中」の表示にする */
+    readAloud(root, from, btn) {
+      const text = this.textOf(root, from);
+      // 画面の文字(読む対象のぶん)を、順に並べて位置を数える
+      const skip = '.ch, .rd, button, table.scores, .ctabs, summary, script, style, .cnav, .rf';
+      const nodes = [];
+      let total = 0;
+      const startEl = from || null;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => {
+        const p = n.parentElement;
+        if (!p || p.closest(skip) || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        const cs = getComputedStyle(p);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return NodeFilter.FILTER_REJECT;
+        if (p.closest('.cc:not(.on)')) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      } });
+      let started = !startEl;
+      let n;
+      while ((n = walker.nextNode())) {
+        if (!started) { if (startEl.contains(n) || (startEl.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING)) started = true; else continue; }
+        nodes.push({ n, s: total }); total += n.nodeValue.length;
+      }
+      const full = nodes.map((x) => x.n.nodeValue).join('');
+      const bounds = [0];
+      for (let i = 0; i < full.length; i++) if (/[。!?\n]/.test(full[i])) bounds.push(i + 1);
+      // 見出し・箇条書きなど、ブロックの切れ目も、文の区切りにする
+      const blk = (el) => el.closest('div, li, p, ul, ol, h2, h3, tr');
+      for (let k = 1; k < nodes.length; k++) if (blk(nodes[k].n.parentElement) !== blk(nodes[k - 1].n.parentElement)) bounds.push(nodes[k].s);
+      bounds.sort((x, y) => x - y);
+      for (let k = bounds.length - 1; k > 0; k--) if (bounds[k] === bounds[k - 1]) bounds.splice(k, 1);
+      if (bounds[bounds.length - 1] < full.length) bounds.push(full.length);
+      const locate = (off) => { for (const x of nodes) if (off < x.s + x.n.nodeValue.length) return [x.n, Math.max(0, off - x.s)]; const l = nodes[nodes.length - 1]; return l ? [l.n, l.n.nodeValue.length] : null; };
+      const hi = (f) => {
+        if (!window.CSS || !CSS.highlights || !nodes.length) return;
+        const off = Math.min(full.length - 1, Math.max(0, Math.floor(f * full.length)));
+        let s0 = 0, e0 = full.length;
+        for (let i = 0; i + 1 < bounds.length; i++) if (off >= bounds[i] && off < bounds[i + 1]) { s0 = bounds[i]; e0 = bounds[i + 1]; break; }
+        const A = locate(s0), B = locate(Math.max(s0, e0 - 1));
+        if (!A || !B) return;
+        try { const r = document.createRange(); r.setStart(A[0], A[1]); r.setEnd(B[0], Math.min(B[0].nodeValue.length, B[1] + 1)); CSS.highlights.set('reading', new Highlight(r)); } catch (x) { /* ignore */ }
+      };
+      const label = btn && btn.dataset && btn.dataset.read ? btn.innerHTML : null;
+      const mark = (on) => {
+        document.body.classList.toggle('reading', on);
+        document.querySelectorAll('.reading-btn').forEach((x) => { x.classList.remove('reading-btn'); if (x._lab != null) { x.innerHTML = x._lab; x._lab = null; } });
+        if (on && btn) { btn.classList.add('reading-btn'); if (label != null) { btn._lab = label; btn.innerHTML = '<span class="eq"><i></i><i></i><i></i></span> 読み上げ中(タップで止める)'; } }
+        if (!on && window.CSS && CSS.highlights) CSS.highlights.delete('reading');
+      };
+      const ok = MJ.SFX.read(text, (ev) => { if (!ev) { mark(false); return; } hi((ev.a + ev.b) / 2 * 0.98 + 0.0001); });
+      if (ok) mark(true);
+      return ok;
+    },
     textOf(root, from) {
       const c = root.cloneNode(true);
       if (from) { const k = [...root.children].indexOf(from); for (let n = 0; n < k; n++) c.children[0].remove(); }

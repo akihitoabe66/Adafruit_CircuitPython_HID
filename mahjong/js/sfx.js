@@ -117,14 +117,16 @@
       return !all.length || all.some((v) => /^ja/i.test(v.lang));
     },
     speaking() { return !!(G.speechSynthesis && (G.speechSynthesis.speaking || G.speechSynthesis.pending)); },
-    stopSpeak() { if (G.speechSynthesis) { S._readId = (S._readId || 0) + 1; G.speechSynthesis.cancel(); } },
+    stopSpeak() { if (G.speechSynthesis) { S._readId = (S._readId || 0) + 1; G.speechSynthesis.cancel(); } if (S._cb) { const f = S._cb; S._cb = null; try { f(null); } catch (e) { /* ignore */ } } },
     /* 読み上げ: 文ごとに区切り、見出しっぽい短文・疑問・文末で声の高さ/速さ/間を変えて抑揚をつける */
-    read(text) {
+    read(text, cb) {
       const syn = G.speechSynthesis;
       if (!syn || !S.hasJaVoice()) return false;
       if (MJ.Yomi) text = MJ.Yomi.fix(text); // 麻雀用語・牌の名前を正しい読みに直す
+      if (S._cb) { const f = S._cb; S._cb = null; try { f(null); } catch (e) { /* ignore */ } }
       syn.cancel();
       const id = (S._readId = (S._readId || 0) + 1);
+      S._cb = cb || null;
       const parts = [];
       text.replace(/([。!?\n])/g, '$1|').split('|').forEach((seg) => {
         const t = seg.trim();
@@ -134,11 +136,17 @@
         else parts.push({ t, end: true });
         parts[parts.length - 1].end = true;
       });
+      const totalLen = parts.reduce((a, p) => a + p.t.length, 0) || 1;
+      let doneLen = 0;
+      const finish = () => { if (S._readId === id && S._cb === cb && cb) { S._cb = null; try { cb(null); } catch (e) { /* ignore */ } } };
       const v = S.femaleVoice();
       const base = v && /enhanced|premium|natural|online|neural|google/i.test(v.name) ? 1.0 : 1.06;
       const speakAt = (i) => {
-        if (i >= parts.length || S._readId !== id) return;
+        if (S._readId !== id) return;
+        if (i >= parts.length) { finish(); return; }
         const { t } = parts[i];
+        if (cb) { try { cb({ i, n: parts.length, a: doneLen / totalLen, b: (doneLen + t.length) / totalLen }); } catch (e) { /* ignore */ } }
+        doneLen += t.length;
         const u = new SpeechSynthesisUtterance(t);
         u.lang = 'ja-JP';
         if (v) u.voice = v;

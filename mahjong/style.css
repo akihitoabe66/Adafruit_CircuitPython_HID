@@ -1174,3 +1174,12 @@ body.tbl #coach .ctabs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom
 body.tbl #coach .ctabs .chip { font-size: 15px; padding: 3px 11px; }
 body.tbl #coach .ctabs .chip small { font-size: 12px; margin-left: 5px; opacity: .8; }
 body.tbl #coach { box-sizing: border-box; width: 720px; }
+
+/* 読み上げ中の表示: 読んでいる文に色が付き、ボタンが「読み上げ中」になる */
+::highlight(reading) { background-color: rgba(255, 211, 90, .38); color: #fff; }
+.reading-btn { background: linear-gradient(#ffd35a, #e0a21a) !important; color: #2b1a00 !important; border-color: #fff3c4 !important; animation: rdpulse 1.2s ease-in-out infinite; }
+@keyframes rdpulse { 0%, 100% { box-shadow: 0 0 0 0 #ffd35a99; } 50% { box-shadow: 0 0 0 6px #ffd35a00; } }
+.eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 1em; vertical-align: -2px; margin-right: 4px; }
+.eq i { display: block; width: 3px; background: #2b1a00; border-radius: 1px; animation: eqb .8s ease-in-out infinite; }
+.eq i:nth-child(1) { height: 40%; animation-delay: 0s; } .eq i:nth-child(2) { height: 90%; animation-delay: .2s; } .eq i:nth-child(3) { height: 60%; animation-delay: .4s; }
+@keyframes eqb { 0%, 100% { transform: scaleY(.4); } 50% { transform: scaleY(1); } }
