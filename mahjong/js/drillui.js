@@ -95,10 +95,10 @@
       MJ.Gloss.decorate($('#dq-sit'));
       $('#dq-prompt').innerHTML = q.prompt;
       MJ.Gloss.decorate($('#dq-prompt'));
-      this.fitBox($('#dq-sit'), 13, 11); this.fitBox($('#dq-prompt'), 15, 12);
+      this.fitBox($('#dq-sit'), 17, 14); this.fitBox($('#dq-prompt'), 20, 15);
       // 場 (CPUの河)
       let board = '';
-      if (q.g && (q.cat === 'def' || q.cat === 'eff' || q.cat === 'push')) {
+      if (q.g && (q.cat === 'def' || q.cat === 'push')) {
         board = '<div class="dblocks">' + [1, 2, 3].map((s) => {
           const p = q.g.players[s];
           const river = p.discards.map((d) => MJ.tileHTML(d.tile.t, d.riichi ? 'rch' : '', '', d.tile.red)).join('');
