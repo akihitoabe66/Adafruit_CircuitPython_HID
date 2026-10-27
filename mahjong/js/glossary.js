@@ -246,6 +246,7 @@
         let m, last = 0, frag = null;
         while ((m = RE.exec(text))) {
           const id = TERM.get(m[0]);
+          if (m[0].length === 1 && (/[一-鿿]/.test(text[m.index - 1] || '') || /[一-鿿]/.test(text[m.index + 1] || ''))) continue; // 「遠山」の山のように、名前の一部は用語にしない
           const sk = n.parentElement && n.parentElement.closest('.yakus') ? 't' + id : id; // 役の表は毎行リンクする
           if (seen.has(sk)) continue;
           seen.add(sk);

@@ -574,3 +574,17 @@ body.no-ruby rt { display: none; }
 @keyframes yfRise { from { opacity: 0; transform: translateY(60px); } to { opacity: 1; transform: none; } }
 @keyframes yfHop { 0%, 100% { transform: none; } 50% { transform: translateY(-22px); } }
 @keyframes yfSpin { to { transform: rotate(360deg); } }
+
+/* 結果: 吹き出しの中の用語リンクは、白い地に合う濃い色にする */
+.brag .gl, .win-head .brag .gl { color: #7a4a00 !important; border-bottom-color: #b36b00; background: #ffd35a40; }
+/* 点数計算(32インチで読める大きさ) */
+.expl-h { font-size: 26px; margin: 4px 0 8px; }
+.expl-ol { font-size: 24px; line-height: 1.75; padding-left: 34px; margin: 4px 0 8px; }
+.expl-ol li { margin-bottom: 4px; }
+.expl-ol rt { font-size: 12px; }
+/* 持ち点の別ページ: 大きく */
+.scores { font-size: 32px; margin: 10px 0; }
+.scores th { font-size: 24px; padding: 10px 14px; }
+.scores td { padding: 14px 16px; }
+.scores td b { font-size: 36px; }
+.paged h2 { font-size: 34px; }
