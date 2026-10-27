@@ -568,16 +568,28 @@
     teacherSay(text, mood, ms = 6000, kind = 'tip') {
       const host = $('#says'); if (!host) return;
       this.clearDock();
+      const tok = (this._tdTok = (this._tdTok || 0) + 1);
       const el = document.createElement('div');
       el.className = 'tdock'; el.dataset.kind = kind;
       const fs = text.length > 34 ? 11 : text.length > 24 ? 12 : 13;
       el.innerHTML = `${this.teacherImg(mood)}<div class="tb" style="font-size:${fs}px"><b>先生</b>${text}</div>`;
-      host.appendChild(el);
-      document.body.classList.add('tdock-on');
-      clearTimeout(this._tdT);
-      if (ms) this._tdT = setTimeout(() => this.clearDock(), ms);
+      // セリフとキャラは同時に出す: 絵が読み込まれてから、まとめて表示する(読み込み待ちで横幅が変わらないように)
+      const show = () => {
+        if (tok !== this._tdTok || !host.isConnected) return;
+        host.appendChild(el);
+        document.body.classList.add('tdock-on');
+        clearTimeout(this._tdT);
+        if (ms) this._tdT = setTimeout(() => this.clearDock(), ms);
+      };
+      const im = el.querySelector('img');
+      if (im && !(im.complete && im.naturalWidth)) {
+        let done = false;
+        const go = () => { if (!done) { done = true; show(); } };
+        im.addEventListener('load', go); im.addEventListener('error', go); setTimeout(go, 600);
+      } else show();
     },
     clearDock(kind) {
+      if (!kind) this._tdTok = (this._tdTok || 0) + 1; // 読み込み待ちの表示も取り消す
       const d = $('#says .tdock');
       if (!d || (kind && d.dataset.kind !== kind)) return;
       d.remove(); document.body.classList.remove('tdock-on'); clearTimeout(this._tdT);
