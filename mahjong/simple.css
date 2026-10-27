@@ -78,8 +78,20 @@ body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 .cq-keys { display: none; margin-top: 6px; font-size: 20px; font-weight: 700; color: #ffe9a0; }
 body.pad-on .cq-keys { display: block; }
 .cq-keys b { display: inline-grid; place-items: center; min-width: 1.2em; height: 1.2em; border-radius: 50%; background: #1b1b12; color: #f2c230; }
-.cq-wait { display: none; }
-.callq.locked .cq-pk { display: none; }
-.callq.locked .cq-wait { display: inline; }
+/* 出た直後の2秒は、ボタンを薄くして、カーソル(枠)も出さない。2秒後に濃くなって、選択の枠が出る */
+.callq .cq-btn { transition: opacity .25s; }
 .callq.locked .cq-btn { opacity: .45; }
+body.pad-on .callq.locked .pf { outline: none !important; box-shadow: none !important; }
 .callq .cq-btn.b-pass { background: linear-gradient(#e9e5d8, #cfc9b6); border-color: #fff; color: #2b2b22; }
+
+/* 縦に並べて、右にはみ出さないようにする */
+.cq-btns { grid-template-columns: minmax(0, 1fr) !important; gap: 6px; }
+.cq-btn { min-height: 54px; font-size: 24px !important; width: 100%; }
+.cq-btn.b-pass { grid-column: auto; font-size: 24px !important; }
+.cq-head { font-size: 20px; }
+.cq-tile .tile { width: 40px; height: 53px; }
+.cq-set .tile { width: 28px; height: 37px; }
+.cq-keys { margin-top: 4px; font-size: 18px; }
+.callq { padding: 6px 12px 8px; }
+.cq-btns:has(.cq-btn:nth-child(4)) .cq-btn { min-height: 46px; font-size: 21px !important; padding-block: 2px !important; }
+.cq-btns:has(.cq-btn:nth-child(4)) .cq-set .tile { width: 22px; height: 29px; }

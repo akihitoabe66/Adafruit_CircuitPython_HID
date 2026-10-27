@@ -537,7 +537,7 @@
       else if (cand.opts.length) msg = `${cand.opts.map((x) => label[x.kind]).filter((v, i, a) => a.indexOf(v) === i).join('・')}できます。どうしますか?`;
       else msg = o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '';
       const why = cand.opts.length ? '<div class="cq-why">↑ 持ち上がっている牌が、鳴いたときに使う牌です(ボタンの上にカーソルを置くと、その鳴き方の牌だけ光ります)</div>' : '';
-      return `<div class="callq"><div class="cq-head"><span class="cq-from">${from.name}が捨てた</span><span class="cq-tile">${t(o.tile.t)}</span><span class="cq-msg">${msg}</span></div><div class="cq-btns">${btns.join('')}</div><div class="cq-keys"><span class="cq-pk">◀▶▲▼ でえらんで、<b>A</b> で決定</span><span class="cq-wait">少しお待ちください…</span></div>${why}</div>`;
+      return `<div class="callq"><div class="cq-head"><span class="cq-from">${from.name}が捨てた</span><span class="cq-tile">${t(o.tile.t)}</span><span class="cq-msg">${msg}</span></div><div class="cq-btns">${btns.join('')}</div><div class="cq-keys"><span class="cq-pk">◀▶▲▼ でえらんで、<b>A</b> で決定</span></div>${why}</div>`;
     },
 
     allowed(sel, h) {
