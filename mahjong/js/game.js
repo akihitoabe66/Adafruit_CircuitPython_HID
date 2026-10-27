@@ -62,7 +62,7 @@
       }
     }
 
-    kyokuLabel() { return `${MJ.windName(this.roundWind)}${(this.kyoku % 4) + 1}局${this.honba ? ' ' + this.honba + '本場' : ''}`; }
+    kyokuLabel() { const K = ['一', '二', '三', '四', '五', '六', '七', '八', '九']; return `${MJ.windName(this.roundWind)}${K[this.kyoku % 4]}局${this.honba ? ' ' + (K[this.honba - 1] || this.honba) + '本場' : ''}`; }
 
     setupHand() {
       const wall = MJ.buildWall();

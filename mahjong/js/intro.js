@@ -38,7 +38,7 @@
           return `<div class="in-seat ${cls}">${MJ.UI.faceImg(ch)}<div class="in-nm">${p.name}<small>${lv ? '★'.repeat(lv) + ' ' + (MJ.LEVEL_JP[lv] || '') : ''}</small></div></div>`;
         };
         const me = () => { const p = game.players[0]; return `<div class="in-seat me">${MJ.UI.faceImg(p.char)}<div class="in-nm">あなた</div></div>`; };
-        const len = { east: '東風戦', south: '東南戦', single: '1局戦' }[game.length] || '東風戦';
+        const len = { east: '東風戦', south: '東南戦', single: '一局戦' }[game.length] || '東風戦';
         el.innerHTML = `<div class="in-stage"><div class="in-seats">${seat(3, 'l')}${seat(2, 't')}${seat(1, 'r')}${me()}</div>` +
           '<div class="in-burst"></div><div class="in-word" id="in-w1"><div class="inw">東一局</div><div class="ins">' + len + '</div></div><div class="in-word" id="in-w2"><div class="inw">勝負!</div></div>' +
           '<div class="in-flash"></div><div class="in-hint"><i>A</i> とばす</div></div>';

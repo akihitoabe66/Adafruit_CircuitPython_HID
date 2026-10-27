@@ -201,7 +201,7 @@
     const tog = (k, on, off) => `<select data-rk="${k}" data-bool="1"><option value="1"${R[k] ? ' selected' : ''}>${on}</option><option value="0"${R[k] ? '' : ' selected'}>${off}</option></select>`;
     const row = (name, ctl, note) => `<div class="rl-row"><div class="rl-h"><b>${name}</b>${ctl}</div><div class="rl-n">${note}</div></div>`;
     MJ.UI.overlay(`<h2>⚙ ルール設定</h2><div class="rl-grid">
-      ${row('対局の長さ', sel('length', [['east', '東風戦(東1〜4局)'], ['south', '東南戦(計8局)'], ['single', '1局だけ']]), '1局だけは練習向き。')}
+      ${row('対局の長さ', sel('length', [['east', '東風戦(東1〜4局)'], ['south', '東南戦(計8局)'], ['single', '一局だけ']]), '一局だけは練習向き。')}
       ${row('喰いタン', tog('kuitan', 'あり', 'なし'), 'ありなら、鳴いた手でも<b>タンヤオ</b>が成立。')}
       ${row('赤ドラ', sel('aka', [[3, '3枚(5萬・5筒・5索)'], [0, 'なし']]), '赤い5は持つだけで1飜。')}
       ${row('一発', tog('ippatsu', 'あり', 'なし'), 'リーチ後、1巡以内の和了で+1飜。')}

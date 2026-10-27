@@ -401,7 +401,7 @@
       $('#table').innerHTML = this.tableHTML(game);
       $('#mine').innerHTML = this.mineHTML(game);
       $('#sd-act').innerHTML = this.sideHTML(game);
-      $('#sd-info').innerHTML = `<b>${game.kyokuLabel()}</b><span>${{ single: '1局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`;
+      $('#sd-info').innerHTML = `<b>${game.kyokuLabel()}</b><span>${{ single: '一局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`;
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
       this.fitTip();
       if (this.sel && this.sel.type === 'react' && document.querySelector('.callq .cq-btn[data-ids]')) this.hlCall(null); // 鳴きの確認が出たら、最初の鳴き方の牌を光らせる

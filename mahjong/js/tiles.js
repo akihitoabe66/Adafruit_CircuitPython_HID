@@ -42,7 +42,7 @@
   MJ.saveRules = () => { try { localStorage.setItem('mj_rules', JSON.stringify(MJ.RULES)); } catch (e) { /* ignore */ } };
   MJ.rulesSummary = () => {
     const R = MJ.RULES;
-    return [{ east: '東風戦', south: '東南戦', single: '1局戦' }[R.length] || '東風戦', R.kuitan ? '喰いタンあり' : '喰いタンなし', R.aka ? '赤' + R.aka : '赤なし', R.ippatsu ? '一発あり' : '一発なし', R.ura ? '裏ドラあり' : '裏ドラなし', R.start + '点持ち'].join('・');
+    return [{ east: '東風戦', south: '東南戦', single: '一局戦' }[R.length] || '東風戦', R.kuitan ? '喰いタンあり' : '喰いタンなし', R.aka ? '赤' + R.aka : '赤なし', R.ippatsu ? '一発あり' : '一発なし', R.ura ? '裏ドラあり' : '裏ドラなし', R.start + '点持ち'].join('・');
   };
   MJ.isRedId = (id) => MJ.RULES.aka > 0 && (id === 16 || id === 52 || id === 88);
 

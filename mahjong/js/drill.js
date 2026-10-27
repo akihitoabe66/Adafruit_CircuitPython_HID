@@ -124,7 +124,7 @@
   const typesIcons = (ts) => ts.map(ic).join('');
 
   /* 場の説明 */
-  const sitHTML = (g, extra) => `<span class="chip dealer">東1局</span> あなたは<b>${WINDS[g.seatWindOf(g.players[0])]}家</b>${g.dealer === 0 ? '(親)' : '(子)'}　ドラ表示牌 ${g.doraInd.map((d) => ic(d.t)).join('')}${extra ? '　' + extra : ''}`;
+  const sitHTML = (g, extra) => `<span class="chip dealer">東一局</span> あなたは<b>${WINDS[g.seatWindOf(g.players[0])]}家</b>${g.dealer === 0 ? '(親)' : '(子)'}　ドラ表示牌 ${g.doraInd.map((d) => ic(d.t)).join('')}${extra ? '　' + extra : ''}`;
 
   /* ====================================================================
      1) 何切る (牌効率)
@@ -509,7 +509,7 @@
       const rest = tiles.filter((t) => t !== winObj);
       const qk = kindWanted || pick(['han', 'fu', 'points']);
       const winInfo = { res, tsumo, pay: MJ.payments(res, dealer, tsumo, 0), honba: 0, winner: { seat: dealer ? 0 : 1 } };
-      const sit = `<span class="chip dealer">東1局</span> ${dealer ? '親' : '子'}(${WINDS[seatWind]}家)の${tsumo ? '<b>ツモ</b>' : '<b>ロン</b>'}上がり${riichi ? '・<b>リーチ</b>あり' : ''}${melds.length ? `・<b>鳴き${melds.length}回</b>` : '・門前'}　ドラ表示牌 ${ic(ind.t)}　場風: 東`;
+      const sit = `<span class="chip dealer">東一局</span> ${dealer ? '親' : '子'}(${WINDS[seatWind]}家)の${tsumo ? '<b>ツモ</b>' : '<b>ロン</b>'}上がり${riichi ? '・<b>リーチ</b>あり' : ''}${melds.length ? `・<b>鳴き${melds.length}回</b>` : '・門前'}　ドラ表示牌 ${ic(ind.t)}　場風: 東`;
       const base = { cat: 'score', kind: 'choice', hand: rest, win: winObj, melds, g: mock({ hand: rest, doraInd: [ind], melds }), sit };
       const exp = `<ol class="expl-list">${MJ.Coach.explainScore(winInfo, { dealer: 0 }).map((l) => `<li>${l}</li>`).join('')}</ol>`;
       if (qk === 'han') {
