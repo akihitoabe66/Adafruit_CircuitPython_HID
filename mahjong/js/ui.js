@@ -926,7 +926,7 @@
       host.querySelectorAll(`.say.sy${p.seat}`).forEach((x) => x.remove());
       const el = document.createElement('div');
       el.className = `say sy${p.seat}`;
-      el.innerHTML = `${p.char && p.char.img ? `<img src="${p.char.img}" alt="">` : ''}<div class="sb2"><small>${p.name}</small>${text}</div>`;
+      el.innerHTML = `${p.char && p.char.img ? `<span class="fc" style="background-image:url(${p.char.img})"></span>` : ''}<div class="sb2"><small>${p.name}</small>${text}</div>`; // 顔(首元まで)の丸い切り抜き
       host.appendChild(el);
       setTimeout(() => el.remove(), 3600);
     },

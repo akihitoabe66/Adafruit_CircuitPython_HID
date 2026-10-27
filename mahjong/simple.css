@@ -115,3 +115,10 @@ body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s e
 #coach .btn.sm, #coach .pg, #coach .rf, #dr .btn.sm { font-size: 14px; }
 .ctr .ar { font-size: 14px; }
 .plq .wd { font-size: 16px; }
+
+/* 対局中の吹き出し: 顔の丸い切り抜きを大きく、首元まで見せる */
+.say .fc { flex: none; width: 104px; height: 104px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 3px 10px #000a; background-color: #e8a13a; background-repeat: no-repeat; background-size: 150% auto; background-position: 50% 0%; }
+.say { max-width: 300px; gap: 8px; }
+.say .sb2 { font-size: 18px; padding: 8px 14px; margin-bottom: 10px; }
+.say .sb2 small { font-size: 15px; }
+.say.sy1 { left: 410px; top: 90px; } .say.sy2 { left: 392px; top: 26px; } .say.sy3 { left: 66px; top: 30px; }
