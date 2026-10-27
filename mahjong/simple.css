@@ -279,3 +279,30 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 @keyframes mnPetal { 0% { opacity: 0; transform: translate(0, 0) rotate(var(--r)); } 8% { opacity: .75; } 50% { transform: translate(calc(var(--dx) * .5 + 4vw), 52vh) rotate(calc(var(--r) + 160deg)); } 92% { opacity: .7; } 100% { opacity: 0; transform: translate(var(--dx), 108vh) rotate(calc(var(--r) + 340deg)); } }
 #screen-menu #mn, #screen-title #tt { position: absolute; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .mn-petal { animation: none; opacity: 0; } }
+
+/* 右の列の「ツモ・リーチ・カン・ポン・チー」: できるときは、はっきり色が付く(元の指定が弱くて、色が付いていなかった) */
+#side-in .sd-act .act.on { color: #fff; }
+#side-in .sd-act .act.b-tsumo.on { background: linear-gradient(#ff7b5a, #d8381e); border-color: #fff; box-shadow: 0 0 0 3px #ffd23f; }
+#side-in .sd-act .act.b-riichi.on { background: linear-gradient(#ff5b8a, #c0245a); border-color: #ffd35a; box-shadow: 0 0 0 2px #ffd35a, 0 0 14px 3px #ff5b8a; animation: rchpulse 1s ease-in-out infinite; }
+#side-in .sd-act .act.b-call.on { background: linear-gradient(#5aa6ff, #2a63c9); border-color: #fff; box-shadow: 0 0 0 3px #ffd23f; }
+#side-in .sd-act .act.b-dis.on { background: linear-gradient(#ffcf5a, #c9890e); color: #2b1a00; }
+#side-in .sd-act .sb-row .act.on { font-size: 15px; }
+
+/* 宣言(リーチ・ポン・カンなど): 名前は出さない(中央の札と重なって読めなかった)。画面の端で切れないようにする */
+.shout small { display: none; }
+.shout { width: auto; height: auto; display: flex; align-items: flex-end; gap: 6px; }
+.shout .sw { position: static; font-size: 58px; line-height: 1; padding-bottom: 14px; }
+.shout.sh1 { left: auto; right: 46px; top: 80px; }
+.shout.sh3 { left: 14px; top: 90px; }
+.shout.sh2 { left: 220px; top: 14px; }
+.shout.sh0 { left: 200px; top: 220px; }
+
+/* 吹き出し: 顔より、文字(吹き出し)が、いつも上に見えるようにする */
+.say { animation: none; z-index: auto; }
+.say img { position: relative; z-index: 31; animation: sayin .18s ease-out; }
+.say .sb2 { position: relative; z-index: 32; animation: sayin .18s ease-out; }
+
+/* スタート演出: 自分の顔(シルエット)も、左下に少し出す */
+.in-seat.me { left: 3cqw; top: 41cqw; width: auto; flex-direction: row; align-items: center; gap: 1cqw; animation: inL .5s .1s cubic-bezier(.2, 1.2, .3, 1) both; }
+.in-seat.me img { height: 10cqw; width: 10cqw; border-width: .35cqw; border-radius: 1.4cqw; }
+.in-seat.me .in-nm { margin-top: 0; font-size: 2.6cqw; }
