@@ -2,7 +2,7 @@
   "name": "mahjong-gamblers-android",
   "version": "1.0.0",
   "private": true,
-  "description": "シニア向け 操作シンプル麻雀 の Android / Fire TV 用ラッパー(Capacitor)",
+  "description": "操作シンプル 本格麻雀 の Android / Fire TV 用ラッパー(Capacitor)",
   "dependencies": {
     "@capacitor/android": "^6.1.2",
     "@capacitor/app": "^6.0.1",
