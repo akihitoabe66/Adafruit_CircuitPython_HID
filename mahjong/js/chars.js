@@ -2,7 +2,7 @@
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
   const mk = (n, name, short, level, style, voice, desc, riichi, win, lose) => ({
-    id: n, voice, img: `img/chars/${String(n).padStart(2, '0')}.jpg`, name, short, level, style, desc,
+    id: n, voice, img: `img/chars/${String(n).padStart(2, '0')}.jpg`, face: `img/chars/face/${String(n).padStart(2, '0')}.png`, name, short, level, style, desc,
     lines: { riichi, win, lose },
   });
   const STYLE_JP = { attack: '攻め', defense: '守り', balanced: 'バランス' };

@@ -321,7 +321,7 @@
   MJ.preloaded = [];
   function preload() {
     const urls = [];
-    for (let i = 1; i <= 16; i++) urls.push(`img/chars/${String(i).padStart(2, '0')}.jpg`);
+    for (let i = 1; i <= 16; i++) { urls.push(`img/chars/${String(i).padStart(2, '0')}.jpg`); urls.push(`img/chars/face/${String(i).padStart(2, '0')}.png`); }
     for (let i = 1; i <= 18; i++) urls.push(`img/you/${String(i).padStart(2, '0')}.jpg`);
     for (let i = 0; i < 34; i++) urls.push(`img/tiles/${i}.png`);
     ['r4', 'r13', 'r22'].forEach((n) => urls.push(`img/tiles/${n}.png`));

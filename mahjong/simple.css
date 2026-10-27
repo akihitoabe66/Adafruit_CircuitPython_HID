@@ -114,13 +114,12 @@ body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s e
 .ctr .ar { font-size: 14px; }
 .plq .wd { font-size: 16px; }
 
-/* 対局中の吹き出し: 顔の丸い切り抜きを大きく、首元まで見せる */
-.say .fc { flex: none; width: 104px; height: 104px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 3px 10px #000a; background-color: #e8a13a; background-repeat: no-repeat; background-size: 150% auto; background-position: 50% 0%; }
-.say { max-width: 300px; gap: 8px; }
-.say .sb2 { font-size: 18px; padding: 8px 14px; margin-bottom: 10px; }
+/* 対局中の吹き出し: 顔から首元までの切り抜き(輪郭だけ。丸い枠なし)を大きく出す */
+.say img.fcut { flex: none; height: 118px; width: auto; max-width: 150px; object-fit: contain; border: 0; border-radius: 0; box-shadow: none; filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 4px 6px #000a); }
+.say { max-width: 330px; gap: 4px; align-items: flex-end; }
+.say .sb2 { font-size: 18px; padding: 8px 14px; margin-bottom: 14px; }
 .say .sb2 small { font-size: 15px; }
-.say.sy1 { left: 410px; top: 90px; } .say.sy2 { left: 392px; top: 26px; } .say.sy3 { left: 66px; top: 30px; }
-
+.say.sy1 { left: 400px; top: 84px; } .say.sy2 { left: 380px; top: 24px; } .say.sy3 { left: 60px; top: 28px; }
 /* 丸の中の A / B: 文字ではなく図形で描く(フォントによって位置がズレないように) */
 .kb, .cq-keys b { display: inline-block; flex: none; width: 1.2em; height: 1.2em; vertical-align: middle; overflow: hidden; white-space: nowrap; text-indent: -999em; color: transparent; background: center / 100% 100% no-repeat; border-radius: 50%; }
 .kb[data-k="A"], .cq-keys b[data-k="A"] { background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%2212%22 fill=%22%231b1b12%22/%3E%3Cpath d=%22M7.4 17.6 L12 6.6 L16.6 17.6 M9.3 13.6 H14.7%22 fill=%22none%22 stroke=%22%23f2c230%22 stroke-width=%222.3%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E"); }
