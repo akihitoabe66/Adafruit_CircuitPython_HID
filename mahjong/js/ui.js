@@ -862,7 +862,7 @@
       if (!g) return;
       const m = MJ.Coach.MODES[g.mode];
       let body;
-      if (!this.coachActive()) body = '<div class="cc"><div class="cc-h">先生なし</div><div class="cc-b">いまは、アドバイスはありません。</div></div>';
+      if (!this.coachActive()) body = '<div class="cc"><div class="cc-h">先生なし</div></div>';
       else if (this.coachHtml) {
         // 「この局のポイント」は最初の1巡だけ先頭に出し、その後は最後のページに回す
         const tip = this.tipHtml || '';
@@ -1134,6 +1134,7 @@
       this.tipHtml = ''; // 開始時の「この局のポイント」は出さない
       this.coachHtml = '';
       this.refreshCoach();
+      if (game.honba === 0 && game.kyoku === 0) return Promise.resolve(); // 最初の局は、スタート演出(東一局・勝負!)で見せたので、ここでは出さない
       const fx = $('#fx');
       fx.innerHTML = `<div class="banner" style="--c:#ffcc4d">${game.kyokuLabel()}<small>親: ${game.players[game.dealer].name} ／ ドラ表示牌: ${MJ.tileName(game.doraInd[0].t)}</small></div>`;
       return new Promise((r) => setTimeout(() => { fx.innerHTML = ''; r(); }, game.fast ? 0 : (game.honba === 0 && game.kyoku === 0 ? 3400 : 1800))); // 最初の局は、読めるように長めに
