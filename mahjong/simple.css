@@ -444,7 +444,7 @@ body.no-ruby rt { display: none; }
 
 /* ===== 真ん中: 本物の麻雀のような王牌(上下2段に重ねた7つの山。めくれた牌がドラ表示牌) ===== */
 .ctr .dr.wall { gap: 3px; align-items: flex-end; flex-wrap: nowrap; padding-top: 4px; }
-.ctr .stk { position: relative; width: 19px; height: 30px; flex: none; }
+.ctr .stk { position: relative; width: 17px; height: 30px; flex: none; }
 .ctr .stk .dn, .ctr .stk .up { position: absolute; left: 0; display: block; }
 .ctr .stk .dn { bottom: 0; } .ctr .stk .up { bottom: 6px; }
 .ctr .stk .dn > .tile, .ctr .stk .up > .tile { width: 17px; height: 23px; }
@@ -490,3 +490,7 @@ body.no-ruby rt { display: none; }
 #side-in .sd-act .act.pulse.on, .act.pulse.on { animation: wfPulse 1s infinite; }
 @keyframes wfPulse { 0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 8px #ffb000; } 50% { box-shadow: 0 0 0 4px #fff, 0 0 26px #ffb000; } }
 .ctr { top: 138px; height: 108px; }
+
+/* 王牌: 裏向きの牌は、上の面だけ青く、下の厚み(立体に見せる白い部分)は白のまま。左右に余白をとる */
+.ctr .dr.wall { gap: 2px; padding: 4px 12px 0; }
+.ctr .stk .tile.back { background: linear-gradient(#4a8fe0 0 72%, #f3ecd4 72%); border: 1px solid #8a96a8; border-top: 2px solid #8ec0ff; box-shadow: none; }
