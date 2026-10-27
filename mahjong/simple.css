@@ -337,3 +337,11 @@ img.tcut { height: 84px; width: auto; display: block; flex: none; filter: drop-s
 
 /* 先生をつけますか?: えらんでいる方だけを目立たせる(選んでいない方は、ふつうの色) */
 #overlay .tc-b:not(.pf) { background: #2d4a40 !important; color: #e8f2ec !important; border: 2px solid #5f8a79 !important; box-shadow: none !important; }
+
+/* チーの組み合わせが複数あるとき: 組み合わせごとのボタン(マウス・タッチで、直接えらべる) */
+.callq .cq-note { display: flex; align-items: center; gap: 10px; max-width: none; }
+.cq-cl { font-size: 15px; }
+.cq-cb { display: inline-flex; align-items: center; gap: 1px; padding: 4px 10px; border-radius: 10px; background: #2d4a40; border: 2px solid #ffd23f; cursor: pointer; font-size: 20px; }
+.cq-cb:hover { background: #ffd23f; }
+.cq-cb .tile.cq-called { outline: 3px solid #ff5b8a; }
+.dr-s .gl { color: inherit !important; }

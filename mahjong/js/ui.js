@@ -20,6 +20,8 @@
       });
       const M = $('#mine');
       M.addEventListener('click', (e) => {
+        const cb = e.target.closest('.cq-cb');
+        if (cb) { this.setChi(+cb.dataset.i); const cbtn = document.querySelector('.callq .cq-btn[data-act=chi]'); if (cbtn) this.onAction(cbtn); return; }
         const b = e.target.closest('button[data-act]');
         if (b) return this.onAction(b);
         const tl = e.target.closest('.hand .tile[data-id]');
@@ -616,7 +618,9 @@
       });
       if (o.ron) btns.push(`<button class="btn b-ron cq-btn" data-act="ron">ロン${brief && brief.rec === 'ron' ? recTag : ''}</button>`);
       btns.push(`<button class="btn b-pass cq-btn" data-act="pass">見送る${brief && brief.rec === 'pass' ? recTag : ''}</button>`); // 見送るは、いちばん右
-      const multiNote = chis.length > 1 ? '光る牌でチー。牌をさわると、組み合わせを変えられます' : '';
+      // チーの組み合わせが複数あるときは、マウスでも選べるように、組み合わせごとのボタンを出す(押すと、その組み合わせでチー)
+      const ct = o.tile.t;
+      const multiNote = chis.length > 1 ? `<span class="cq-cl">チーの組み合わせ</span>${chis.map((x, i) => `<span class="cq-cb" data-i="${i}">${[x.a, x.b, ct].sort((p, q) => p - q).map((t) => MJ.tileHTML(t, 't-xs' + (t === ct ? ' cq-called' : ''))).join('')}</span>`).join('')}` : '';
       const note = multiNote || (!o.ron && !cand.opts.length ? (o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '') : '');
       return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b data-k="A">A</b> で決定</span><span class="cq-pt">◀▶ で牌をえらんで <b data-k="A">A</b> で決定(▲ もどる)</span></div></div>`;
     },
