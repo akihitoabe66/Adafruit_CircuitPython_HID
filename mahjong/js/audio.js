@@ -5,6 +5,7 @@
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
   const HOME = 'audio/home.mp3';
+  const LATE = 'audio/game8.mp3'; // 東二局以降だけ流れる曲
   const GAME = ['audio/game1.mp3', 'audio/game2.mp3', 'audio/game3.mp3', 'audio/game4.mp3', 'audio/game5.mp3', 'audio/game6.mp3', 'audio/game7.mp3'];
   let el = null, gain = null, wired = false, last = null;
 
@@ -63,11 +64,14 @@
     },
     _playGame() {
       // 取り寄せ済みの曲を優先して選ぶ(なければ通常どおり)
-      const ready = GAME.filter((s) => s !== last && warmed.has(s));
-      const pool = ready.length ? ready : GAME.filter((s) => s !== last);
+      // game8 は、東二局以降だけ選ばれる
+      const g = MJ.App && MJ.App.game;
+      const cand = GAME.concat(g && g.kyoku >= 1 ? [LATE] : []);
+      const ready = cand.filter((s) => s !== last && warmed.has(s));
+      const pool = ready.length ? ready : cand.filter((s) => s !== last);
       last = pool[Math.floor(Math.random() * pool.length)];
       A._load(last, false);
-      MJ.warmAudio([...GAME, 'audio/result_win.mp3', 'audio/result_win2.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3']);
+      MJ.warmAudio([...GAME, LATE, 'audio/result_win.mp3', 'audio/result_win2.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3']);
     },
     /* 結果画面の専用BGM: 'win'(自分の和了) / 'lose'(マイナス) / 'draw'(流局)。閉じると対局BGMに戻る */
     playResult(kind) {
@@ -89,7 +93,7 @@
       if (scene === 'title' || !A.on) { A.stop(); return; }
       if (scene === 'home') MJ.warmAudio([...GAME]); // ホームの間に対局曲を取り寄せる
       if (scene === 'home') { if (changed || (el && el.dataset.track !== HOME)) A._load(HOME, true); }
-      else if (changed && !(el && el.dataset.track && GAME.includes(el.dataset.track) && !el.paused)) A._playGame();
+      else if (changed && !(el && el.dataset.track && (GAME.includes(el.dataset.track) || el.dataset.track === LATE) && !el.paused)) A._playGame();
     },
     resume() {
       if (!A.on || A.scene === 'title') return;
