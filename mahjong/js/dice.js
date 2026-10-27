@@ -102,8 +102,8 @@
               winds(dealer);
               seats((e, i) => e.classList.toggle('hit', i === dealer));
               try { MJ.SFX.don(0.7); } catch (e) { /* ignore */ }
-              cap(`<span><em>${dealer === 0 ? 'あなた' : game.players[dealer].name}</em>が東家(親)　<span class="dc-press">A はじめる</span></span>`);
-              await new Promise((ok) => { go = ok; setTimeout(ok, 9000); }); go = null;
+              cap(`<span><em>${dealer === 0 ? 'あなた' : game.players[dealer].name}</em>が東家(親)</span>`);
+              await wait(2600); if (done) return; // 東家が決まったら、Aボタンを押さなくても自動で始まる
               finish();
             } else {
               await wait(1100);

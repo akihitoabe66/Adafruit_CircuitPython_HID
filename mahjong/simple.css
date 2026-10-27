@@ -656,7 +656,7 @@ body.rot .dc-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
 .dc-in { --u: calc(100cqw / 960); position: absolute; inset: 0; }
 .dc-pc { position: absolute; width: calc(var(--u) * 190); display: grid; justify-items: center; gap: calc(var(--u) * 4); transition: opacity .25s; }
 .dc-pc img { height: calc(var(--u) * 104); width: auto; display: block; }
-.dc-pc img.fyou { width: calc(var(--u) * 104); border-radius: calc(var(--u) * 14); border: calc(var(--u) * 3) solid #31574a; }
+.dc-pc img.fyou { width: calc(var(--u) * 88); height: calc(var(--u) * 88); border-radius: calc(var(--u) * 14); border: calc(var(--u) * 3) solid #31574a; }
 .dc-pc.dim { opacity: .55; }
 .dc-pc.hit img { filter: drop-shadow(0 0 calc(var(--u) * 14) #f2c230) drop-shadow(0 0 calc(var(--u) * 6) #f2c230); transform: scale(1.1); }
 .dc-nm { display: flex; gap: calc(var(--u) * 8); align-items: center; background: #0d1d19; border: calc(var(--u) * 2) solid #31574a; border-radius: calc(var(--u) * 8); padding: calc(var(--u) * 2) calc(var(--u) * 10); font-size: calc(var(--u) * 21); font-weight: 900; white-space: nowrap; }
