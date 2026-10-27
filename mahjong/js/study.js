@@ -166,7 +166,7 @@
       const root = $('#sy');
       const L = this.lesson;
       if (!L) {
-        root.innerHTML = `<div class="sy-side"><div class="t2">点数計算<br>の勉強</div><div class="cap">4つのお話を、順番に読みます</div></div>${LESSONS.map((l, i) => `<button class="sy-btn" data-lesson="${i}" type="button"><b>${i + 1}</b>${l.title}</button>`).join('')}<div class="hm-hint"><span><i>▲▼</i> えらぶ</span><span><i>A</i> きめる</span><span><i>B</i> もどる</span></div><button class="sy-back list" id="sy-home" type="button">← もどる</button>`;
+        root.innerHTML = `<div class="sy-side"><div class="t2">点数計算<br>の勉強</div><div class="cap">4つのお話を、順番に読みます</div></div>${LESSONS.map((l, i) => `<button class="sy-btn" data-lesson="${i}" type="button"><b>${i + 1}</b>${l.title}</button>`).join('')}<button class="sy-btn sy-log" id="sy-log" type="button"><b>🔖</b>記録した役</button><div class="hm-hint"><span><i>▲▼</i> えらぶ</span><span><i>A</i> きめる</span><span><i>B</i> もどる</span></div><button class="sy-back list" id="sy-home" type="button">← もどる</button>`;
       } else {
         const last = this.page === L.pages.length - 1;
         root.innerHTML = `<div class="sy-head">${L.title}<span class="sy-pg">${this.page + 1} / ${L.pages.length}</span></div><div class="sy-body">${L.pages[this.page]}</div><div class="sy-nav"><button class="sy-nb" id="sy-list" type="button">もどる</button><button class="sy-nb" id="sy-prev" type="button"${this.page === 0 ? ' disabled' : ''}>◀ まえ</button>${last ? '<button class="sy-nb go" id="sy-chal" type="button">チャレンジ</button>' : '<button class="sy-nb go" id="sy-next" type="button">つぎ ▶</button>'}</div><div class="hm-hint"><span><i>◀▶</i> えらぶ</span><span><i>A</i> きめる</span><span><i>B</i> もどる</span></div>`;
@@ -182,6 +182,7 @@
         if (l) return this.openLesson(+l.dataset.lesson);
         const id = (e.target.closest('button') || {}).id;
         if (id === 'sy-home') MJ.App.show('menu');
+        else if (id === 'sy-log') MJ.Learn.openLog();
         else if (id === 'sy-list') { this.lesson = null; this.render(); }
         else if (id === 'sy-prev' && this.page > 0) { this.page--; this.render(); }
         else if (id === 'sy-next') { this.page++; this.render(); }

@@ -608,3 +608,39 @@ body.no-ruby rt { display: none; }
 .plq.p1 { top: 150px; } .plq.p3 { top: 150px; }
 /* ロンの演出の最後は、当たり牌の光を消す(「ロン」の文字の上に牌が出ないように) */
 .winfx.final ~ * { }
+
+/* 勉強の一覧: 5つ目のボタン(記録した役)。5つが入るよう、少し詰める */
+.sy-btn { height: 58px; }
+.sy-btn:nth-of-type(1) { top: 34px; } .sy-btn:nth-of-type(2) { top: 104px; } .sy-btn:nth-of-type(3) { top: 174px; } .sy-btn:nth-of-type(4) { top: 244px; } .sy-btn:nth-of-type(5) { top: 314px; }
+.sy-log { background: #ffd23f; }
+/* 「この役で学ぶ」 */
+.pm-top { position: relative; }
+.ln-open { position: absolute; right: 70px; top: 4px; font-size: 22px !important; padding: 8px 18px !important; z-index: 3; }
+.modal.ln { font-size: 22px; }
+.ln-who { font-size: 22px; color: #f2d98a; font-weight: 700; margin: 2px 0 6px; }
+.ln h3 { font-size: 30px; margin: 4px 0 8px; }
+.ln-hand { display: flex; align-items: flex-end; flex-wrap: wrap; margin: 4px 0 10px; }
+.ln-card { background: rgba(0, 0, 0, .28); border: 2px solid #3a6a5a; border-radius: 12px; padding: 8px 14px; margin: 6px 0; font-size: 22px; line-height: 1.55; }
+.ln-card b { color: #ffe14a; }
+.ln-tbl { width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 24px; }
+.ln-tbl td { padding: 8px 14px; background: rgba(0, 0, 0, .25); }
+.ln-tbl td:first-child { border-radius: 8px 0 0 8px; } .ln-tbl td:last-child { border-radius: 0 8px 8px 0; text-align: right; font-weight: 900; color: #ffe14a; }
+.ln-tbl .ln-sum td { background: rgba(242, 194, 48, .18); font-weight: 900; }
+.ln-note { font-size: 20px; color: #cfe3d8; margin: 8px 0; line-height: 1.55; }
+.ln .pm-foot { display: flex; gap: 12px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.ln .pm-foot .btn { font-size: 22px; padding: 8px 16px; }
+.ln .pm-foot .btn.off { opacity: .35; }
+.ln .btn.rec { background: #3a8aee; color: #fff; }
+.ln-list { display: grid; gap: 10px; max-height: 330px; overflow-y: auto; }
+.ln-item { display: flex; flex-direction: column; align-items: flex-start; font-size: 24px; text-align: left; }
+.ln-item span { font-size: 18px; font-weight: 500; opacity: .85; }
+/* 学ぶ画面: 内容が長いページは縮めて収め、はみ出す分は縦にスクロール */
+.ln .pm-body { overflow-y: auto; }
+.ln h3 { font-size: 26px; margin: 2px 0 4px; }
+.ln-card { font-size: 20px; line-height: 1.4; padding: 5px 12px; margin: 4px 0; }
+.ln-tbl { font-size: 20px; border-spacing: 0 3px; }
+.ln-tbl td { padding: 4px 12px; }
+.ln-note { font-size: 18px; margin: 4px 0; line-height: 1.4; }
+.ln-hand { margin: 2px 0 6px; }
+.ln-open { right: 6px; top: 44px; }
+.ln .pm-body { zoom: .8; }

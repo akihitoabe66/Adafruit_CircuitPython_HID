@@ -1364,6 +1364,12 @@
         const last = game.length === 'single';
         this.pagedModal(pages, () => { MJ.SFX.stopSpeak(); MJ.Audio.endResult(); this.closeOverlay(); resolve(); }, last ? '結果へ ▶' : '次の局へ ▶');
         if (res.type === 'win') this.announceWin(game, res);
+        if (res.type === 'win' && MJ.Learn) { // 右上に「この役で学ぶ」
+          const w0 = res.wins.find((x) => x.winner.isHuman) || res.wins[0];
+          const rec = MJ.Learn.build(game, w0);
+          const top = document.querySelector('#overlay .pm-top');
+          if (top) { const b = document.createElement('button'); b.className = 'btn pri ln-open'; b.id = 'pm-learn'; b.type = 'button'; b.textContent = '📖 この役で学ぶ'; top.appendChild(b); b.addEventListener('click', () => MJ.Learn.open(rec, true)); }
+        }
         // 結果画面のBGM: 自分が上がった=win / 自分がマイナス=lose / 流局・CPU同士の和了=draw
         MJ.Audio.playResult(res.type === 'draw' ? 'draw' : res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'draw'); // CPU同士の和了など、自分に関係ない結果は落ち着いた曲(流局と同じ)
         this.render(game);
