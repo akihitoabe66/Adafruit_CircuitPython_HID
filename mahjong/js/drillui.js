@@ -89,11 +89,33 @@
       this.next();
     },
 
+    /* 苦手な種類を中心に、次の問題を作っておく(待たせない) */
+    makeAuto() {
+      const id = MJ.pickAutoCat(load(), this.lastCatId);
+      const cat = MJ.DRILLS.find((x) => x.id === id);
+      let q = null;
+      for (let i = 0; i < 5 && !q; i++) q = cat.gen();
+      return q ? { cat, q } : null;
+    },
+    prefetch() {
+      clearTimeout(this._pt);
+      this._pt = setTimeout(() => { try { if (!this.pre) this.pre = this.makeAuto(); } catch (e) { this.pre = null; } }, 400);
+    },
+
     next() {
-      $('#dq-sit').innerHTML = '<span class="cc-s">問題を作っています…</span>';
       $('#dq-board').innerHTML = $('#dq-prompt').innerHTML = $('#dq-hand').innerHTML = $('#dq-opts').innerHTML = '';
+      $('#dq-sit').innerHTML = '';
       $('#dq-fb').classList.add('hidden');
       $('#dq-actions').classList.add('hidden');
+      const pre = this.mode === 'auto' ? this.pre : null;
+      this.pre = null;
+      if (pre) { // ホームにいるあいだに作っておいた問題を、すぐに出す
+        this.layout();
+        this.lastCatId = pre.cat.id; this.cat = pre.cat; this.q = pre.q;
+        this.picked = -1; this.done = false;
+        this.render();
+        return;
+      }
       setTimeout(() => {
         this.layout();
         if (this.mode === 'auto') { // 弱いところを中心に、種類を選ぶ
@@ -108,7 +130,7 @@
         this.picked = -1;
         this.done = false;
         this.render();
-      }, 20);
+      }, 0);
     },
 
     scoreText() {
@@ -118,6 +140,7 @@
 
     render() {
       const q = this.q;
+      if (this.mode === 'auto') this.prefetch();
       $('#drill-title').textContent = `${this.cat.icon} ${q.title}`;
       $('#drill-score').textContent = this.scoreText();
       $('#dq-sit').innerHTML = q.sit;

@@ -843,14 +843,14 @@
       if (!g) return;
       const m = MJ.Coach.MODES[g.mode];
       let body;
-      if (!this.coachActive()) body = '<div class="cc"><div class="cc-h">💡 ヒントはオフです</div><div class="cc-b">ヒントをオンにすると、おすすめの捨て牌(★)と解説が出ます。<br><button class="btn pri" data-hintoggle>💡 ヒントをオンにする</button></div></div>';
+      if (!this.coachActive()) body = '<div class="cc"><div class="cc-h">先生なし</div><div class="cc-b">いまは、アドバイスはありません。</div></div>';
       else if (this.coachHtml) {
         // 「この局のポイント」は最初の1巡だけ先頭に出し、その後は最後のページに回す
         const tip = this.tipHtml || '';
         body = g.players[0].discards.length < 1 ? tip + this.coachHtml : this.coachHtml + tip;
       }
       else body = g.mode === 'free' ? '<div class="cc"><div class="cc-h">先生</div><div class="cc-b">自分の番になると、おすすめの牌と理由が出ます。</div></div>' : `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
-      el.innerHTML = `<div class="ch"><b>🎓 ${g.mode === 'free' ? '先生' : m.name}</b><span class="chb">${g.mode === 'free' && this.coachActive() ? '<button class="btn sm" data-hintoggle>💡 ヒントをオフ</button>' : ''}<button class="btn sm" data-open-yaku>役一覧</button><button class="btn sm" data-open-gloss>用語</button><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
+      el.innerHTML = `<div class="ch"><b>🎓 ${g.mode === 'free' ? '先生' : m.name}</b><span class="chb"><button class="btn sm" data-open-yaku>役一覧</button><button class="btn sm" data-open-gloss>用語</button><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
       if (this.coachActive()) this.addReadFrom(el);

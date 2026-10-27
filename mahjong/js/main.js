@@ -25,7 +25,7 @@
       if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : 'home');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       if (id === 'game') MJ.UI.fitStage();
-      if (id === 'menu') App.fitMenu();
+      if (id === 'menu') { App.fitMenu(); if (MJ.DrillUI && MJ.DrillUI.prefetch) { MJ.DrillUI.mode = MJ.DrillUI.mode; MJ.DrillUI.prefetch(); } } // ホームにいるあいだに、クイズの1問目を作っておく
       if (id === 'title') App.fitTitle();
       if (id === 'study' && MJ.Study) MJ.Study.layout();
       if ((id === 'menu' || id === 'study') && MJ.Pad) setTimeout(() => MJ.Pad.preselect(true), 0);
