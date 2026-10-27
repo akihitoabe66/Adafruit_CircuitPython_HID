@@ -259,7 +259,22 @@
     const marks = {};
     const cards = [];
     const eff = A.byEff(an.evals);
-    const best = eff[0];
+    let best = eff[0];
+    // 先生のおすすめは、リーチをかけた人がいるとき、強いCPUと同じ読み(降りる・回す・押す)で選ぶ
+    if (an.opps.length && an.evals.length && (mode === 'free' || mode === 'beginner')) {
+      const minSh = an.minSh;
+      let fold = false;
+      if (minSh >= 2) fold = true;
+      if (minSh === 1 && an.opps.length >= 2) fold = true;
+      const kk = minSh === 0 ? 0.35 : 1;
+      let top = null, ts = -1e9;
+      for (const e of an.evals) {
+        const dn = e.danger ? e.danger.score : 0;
+        const s = fold ? -dn * 10 - e.sh * 3 + e.ukeire.n * 0.2 : -e.sh * 100 + (e.eff2 !== undefined ? (e.ukeire.n + e.eff2) * 0.75 : e.ukeire.n) * 1.5 + e.adj - dn * 1.6 * kk * 1.5;
+        if (s > ts) { ts = s; top = e; }
+      }
+      if (top) best = top;
+    }
     let recId = best ? best.tile.id : null;
 
     // ツモ・役なし
@@ -547,20 +562,40 @@
     if (o.ron) return { rec: 'ron', text: 'ロンできます! 上がりましょう!' };
     const evs = [];
     if (o.pon) evs.push({ kind: 'ポン', e: A.callEval(game, p, 'pon', t) });
-    for (const ch of o.chi) evs.push({ kind: 'チー', e: A.callEval(game, p, 'chi', t, ch.use) });
+    o.chi.forEach((ch, i) => evs.push({ kind: 'チー', idx: i, e: A.callEval(game, p, 'chi', t, ch.use) }));
     if (!evs.length) {
       if (o.kan) return { rec: 'pass', text: 'カンは、おすすめしません。見送りましょう。' };
       return null;
     }
-    const good = evs.filter((x) => x.e.yaku.ok && x.e.after < x.e.before && x.e.before > 0);
-    if (good.length) {
-      const g = good[0];
-      return { rec: 'call', kind: g.kind, text: `${g.kind}してOK! テンパイに近づきます。` };
+    const before = evs[0].e.before;
+    const riichiOthers = game.players.some((q) => q !== p && q.riichi);
+    if (before === 0) return { rec: 'pass', text: 'もうテンパイです。鳴かずに、見送りましょう。' };
+    // 鳴いたあとに切る牌まで読んで、ほんとうに得かを調べる
+    const ok = [];
+    let why = null;
+    for (const x of evs) {
+      const pl = x.e.plan;
+      if (!pl) continue;
+      if (pl.yaku.level === 'none') { why = why || '役がつかなくなるので、見送りましょう。'; continue; }
+      if (pl.furiten) { why = '鳴くとフリテンで、上がれなくなります。見送りましょう。'; continue; }
+      // 役牌のポンは、手が同じ速さでも、役が確定する分だけ得(まだ遠い手のとき)
+      const yakuhaiOk = x.kind === 'ポン' && pl.yaku.level === 'sure' && pl.sh <= before && before >= 2;
+      if (pl.sh >= before && !yakuhaiOk) { why = why || '鳴いても、手が進みません。見送りましょう。'; continue; }
+      if (riichiOthers && before >= 2) { why = 'リーチの人がいます。鳴いて進めるより、安全に打ちましょう。'; continue; }
+      // 1シャンテンの形なら、鳴かずにリーチ・高い手を狙う方がよい(役牌の確定やテンパイ直結の鳴きは別)
+      const sure = pl.yaku.level === 'sure';
+      if (before === 1 && pl.sh > 0 && !(x.kind === 'ポン' && sure)) { why = why || '鳴かなくても、あと少しでテンパイ。メンゼンで進めましょう。'; continue; }
+      if (pl.yaku.level === 'maybe' && pl.sh > 0) { why = why || '役がまだ決まっていません。見送りましょう。'; continue; }
+      ok.push(x);
     }
-    const bad = evs.find((x) => !x.e.yaku.ok);
-    if (bad) return { rec: 'pass', text: '役がつかないので、見送りましょう。' };
-    if (evs.every((x) => x.e.before === 0)) return { rec: 'pass', text: 'もうテンパイです。鳴かずに見送りましょう。' };
-    return { rec: 'pass', text: '手が進まないので、見送りましょう。' };
+    if (ok.length) {
+      ok.sort((a, b) => b.e.plan.score - a.e.plan.score);
+      const g = ok[0], pl = g.e.plan;
+      const state = pl.sh === 0 ? `テンパイ(待ち${pl.wl}枚)` : '手が進みます';
+      const kk = g.kind;
+      return { rec: 'call', kind: kk, idx: g.idx, text: `${kk}してOK! ${pl.yaku.why.replace('鳴くと役がありません', '')}、${state}。` };
+    }
+    return { rec: 'pass', text: why || '手が進まないので、見送りましょう。' };
   };
 
   /* ---------- 局の開始ヒント ---------- */

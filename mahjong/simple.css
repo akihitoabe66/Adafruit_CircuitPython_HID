@@ -225,7 +225,7 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 #intro { position: absolute; inset: 0; z-index: 90; background: radial-gradient(ellipse at 50% 45%, #2a7a5c, #0f3a2c 80%); display: grid; place-items: center; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; color: #fff; animation: inFade .2s both; }
 #intro.out { opacity: 0; transition: opacity .25s; }
 @keyframes inFade { from { opacity: 0; } to { opacity: 1; } }
-.in-stage { position: relative; width: min(100vw, 177.78vh); aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; }
+.in-stage { position: relative; width: min(var(--vw, 100vw), calc(var(--vh, 100vh) * 1.7778)); aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; }
 .in-seats { position: absolute; inset: 0; }
 .in-seat { position: absolute; display: flex; flex-direction: column; align-items: center; opacity: 0; width: 20cqw; }
 .in-seat img { height: 17cqw; width: auto; display: block; filter: none; }
@@ -345,3 +345,14 @@ img.tcut { height: 84px; width: auto; display: block; flex: none; filter: drop-s
 .cq-cb:hover { background: #ffd23f; }
 .cq-cb .tile.cq-called { outline: 3px solid #ff5b8a; }
 .dr-s .gl { color: inherit !important; }
+
+/* 左右の人の名前・点数の板: 長い名前+点数+「リーチ」でも文字が切れない長さにする */
+.plq.p1 { left: 535px; top: 166px; width: 240px; }
+.plq.p3 { left: -68px; top: 166px; width: 240px; }
+.plq .pn, .plq i { flex: none; }
+
+/* スマホ縦持ち: 画面全体が90°回って表示されるので、スタート演出の大きさも、回したあとの画面に合わせる(ゲーム画面と同じ大きさ) */
+body.rot .in-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
+
+/* iPhone・iPad: 読み上げ(端末の音声合成)は、AirPlayのテレビに出ず手元の端末から鳴ってしまうため、ボタンごと出さない */
+body.ios .rd, body.ios .rf, body.ios .vpick, body.ios label.vol:has([data-audio=rrate]) { display: none !important; }

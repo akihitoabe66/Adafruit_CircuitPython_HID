@@ -460,7 +460,7 @@
       // 公開した面子(席の手前)。鳴いた牌は横向き
       const mt = s === 0 ? [30, 40] : [22, 30];
       const melds = p.melds.length ? `<div class="melds m${s}">${p.melds.map((m) => `<div class="mg">${m.tiles.map((h, i) => (m.kind === 'ankan' && (i === 0 || i === 3) ? this.seatTile(h.t, ROT, mt[0], mt[1], { cls: 'bkt' }).replace(/<img[^>]*>/, '') : this.seatTile(h.t, ROT, mt[0], mt[1], { side: h === m.called, red: h.red }))).join('')}</div>`).join('')}</div>` : '';
-      const plq = `<div class="plq p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn" style="font-size:${p.name.length <= 4 ? 17 : p.name.length <= 6 ? 15 : 13}px">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}</div>`;
+      const plq = `<div class="plq p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn" style="font-size:${p.name.length <= 4 ? 17 : p.name.length <= 5 ? 16 : 14}px">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}</div>`;
       return `<div class="blk" data-seat="${s}">${river}${hand}${melds}${plq}</div>`;
     },
 
@@ -611,7 +611,10 @@
         if (x.kind === 'chi') {
           if (x !== chis[0]) return; // チーは1つのボタンにまとめる(組み合わせが複数なら、▼で牌を選ぶ)
           const multi = chis.length > 1;
-          btns.push(`<button class="btn b-call cq-btn" data-act="chi" data-ids="${x.ids.join(',')}" data-a="${x.a}" data-b="${x.b}"${multi ? ' data-multi="1"' : ''}>チー${multi ? '<small class="cq-sub cq-pick">▼ 牌をえらぶ</small>' : ''}${recKind === 'チー' ? recTag : ''}</button>`);
+          const ci = brief && brief.rec === 'call' && brief.kind === 'チー' && brief.idx != null && chis[brief.idx] ? brief.idx : 0; // おすすめの組み合わせを、最初から選んでおく
+          this.chiIdx = ci;
+          const cx = chis[ci];
+          btns.push(`<button class="btn b-call cq-btn" data-act="chi" data-ids="${cx.ids.join(',')}" data-a="${cx.a}" data-b="${cx.b}"${multi ? ' data-multi="1"' : ''}>チー${multi ? '<small class="cq-sub cq-pick">▼ 牌をえらぶ</small>' : ''}${recKind === 'チー' ? recTag : ''}</button>`);
           return;
         }
         btns.push(`<button class="btn b-call cq-btn" data-act="${x.kind}" data-ids="${x.ids.join(',')}">${label[x.kind]}${recKind === label[x.kind] ? recTag : ''}</button>`);
@@ -1234,23 +1237,43 @@
       if (!MJ.SFX.yakuRead || game.fast) return;
       const READ = { '門前清自摸和': 'ツモ', '断么九': 'タンヤオ', '平和': 'ピンフ', '一盃口': 'イーペーコー', '二盃口': 'リャンペーコー', '七対子': 'チートイツ', '対々和': 'トイトイ', '三暗刻': 'サンアンコー', '三色同順': 'サンショク', '三色同刻': 'サンショクドウコー', '一気通貫': 'イッツー', '混全帯么九': 'チャンタ', '純全帯么九': 'ジュンチャン', '混一色': 'ホンイツ', '清一色': 'チンイツ', '小三元': 'ショウサンゲン', '大三元': 'ダイサンゲン', '国士無双': 'コクシムソウ', '四暗刻': 'スーアンコー', '嶺上開花': 'リンシャンカイホー', '海底摸月': 'ハイテイ', '河底撈魚': 'ホーテイ', '混老頭': 'ホンロートー', '清老頭': 'チンロートー', '四槓子': 'スーカンツ', '三槓子': 'サンカンツ', '緑一色': 'リューイーソー', '字一色': 'ツーイーソー', '小四喜': 'ショウスーシー', '大四喜': 'ダイスーシー', '九蓮宝燈': 'チューレンポートー', '天和': 'テンホー', '地和': 'チーホー', 'ダブルリーチ': 'ダブルリーチ', 'ダブル立直': 'ダブルリーチ', '立直': 'リーチ', 'リーチ': 'リーチ', '一発': 'イッパツ', '槍槓': 'チャンカン' };
       const yh = { '白': 'ハク', '發': 'ハツ', '中': 'チュン', '東': 'トン', '南': 'ナン', '西': 'シャー', '北': 'ペー' };
-      const parts = [];
+      const S = MJ.SFX;
+      const keys = [];
+      const num = (n) => { // 100点単位の点数を、収録した音声(万・千・百)でつなぐ
+        const k = [];
+        const man = Math.floor(n / 10000), th = Math.floor((n % 10000) / 1000), hu = Math.floor((n % 1000) / 100);
+        if (man) k.push('m:' + man);
+        if (th) k.push('k:' + th);
+        if (hu) k.push('h:' + hu);
+        return k;
+      };
       res.wins.forEach((w) => {
         const r = w.res;
-        const names = r.yaku.map((y) => {
-          if (y.n === 'ドラ') return `ドラ${y.h}`;
-          if (y.n === '赤ドラ') return `アカドラ${y.h}`;
-          if (y.n === '裏ドラ') return `ウラドラ${y.h}`;
-          const m = /^役牌[ \s　]*(.*)$/.exec(y.n);
-          if (m) return `ヤクハイ、${yh[m[1]] || m[1]}`;
-          if (/場風|自風/.test(y.n)) { const k = y.n.replace(/[^東南西北]/g, '').slice(-1); return `${/場風/.test(y.n) ? 'バフウ' : 'ジフウ'}、${yh[k] || ''}`; }
-          return READ[y.n] || y.n;
+        keys.push('p:' + (w.winner.char ? w.winner.char.id : 0), w.tsumo ? 'y:ツモ' : 'y:ロン', null);
+        r.yaku.forEach((y) => {
+          if (y.n === 'ドラ' || y.n === '赤ドラ' || y.n === '裏ドラ') keys.push('y:' + (y.n === 'ドラ' ? 'ドラ' : y.n === '赤ドラ' ? 'アカドラ' : 'ウラドラ'), 'n:' + Math.min(13, y.h));
+          else {
+            const m = /^役牌[ \s　]*(.*)$/.exec(y.n);
+            if (m) keys.push('y:ヤクハイ', 'y:' + (yh[m[1]] || m[1]));
+            else if (/場風|自風/.test(y.n)) { const k = y.n.replace(/[^東南西北]/g, '').slice(-1); keys.push(/場風/.test(y.n) ? 'y:バフウ' : 'y:ジフウ', 'y:' + (yh[k] || '')); }
+            else keys.push('y:' + (READ[y.n] || y.n));
+          }
+          keys.push(null);
         });
-        const score = ''; // 飜・符・満貫などの名前は読まず、点数だけ読む
-        const pts = !w.tsumo ? `${w.pay.ron}点` : game.dealer === w.winner.seat ? `${w.pay.each}点オール` : `${w.pay.fromOther}、${w.pay.fromDealer}点`;
-        parts.push(`${w.winner.name}の${w.tsumo ? 'ツモ' : 'ロン'}。${names.join('。')}。${score ? score + '。' : ''}${pts}。`);
+        const p = w.pay;
+        if (!w.tsumo) keys.push(...num(p.ron), 'pt');
+        else if (game.dealer === w.winner.seat) keys.push(...num(p.each), 'pt_all');
+        else keys.push(...num(p.fromOther), null, ...num(p.fromDealer), 'pt');
+        keys.push(null);
       });
-      setTimeout(() => { if (!document.querySelector('#overlay .modal')) return; MJ.SFX.read(parts.join(' ')); }, 1100);
+      const known = keys.filter((k) => !k || S.ykHas(k)); // 収録にない言葉(まれな役など)は、読み飛ばす
+      setTimeout(() => {
+        if (!document.querySelector('#overlay .modal')) return;
+        if (!S.speakClips(known)) { // 収録音声が読み込めないとき(iPhoneは、手元から鳴るため使わない)
+          const parts = res.wins.map((w) => `${w.winner.name}の${w.tsumo ? 'ツモ' : 'ロン'}。${w.res.yaku.map((y) => (y.n === 'ドラ' || y.n === '赤ドラ' || y.n === '裏ドラ' ? `${y.n}${y.h}` : READ[y.n] || y.n)).join('。')}。`);
+          S.read(parts.join(' '));
+        }
+      }, 1100);
     },
 
     scoreTable(game, res) {

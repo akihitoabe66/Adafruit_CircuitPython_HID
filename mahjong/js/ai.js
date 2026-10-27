@@ -261,7 +261,63 @@
     else { c2[use[0]]--; c2[use[1]]--; newMeld = { kind: 'chi', t: Math.min(use[0], use[1], t) }; }
     const after = MJ.shanten(c2, f + 1);
     const yk = A.hasYakuAfterCall(game, p, newMeld, c2);
-    return { before, after, yaku: yk, menzen: p.melds.every((m) => m.kind === 'ankan') };
+    const plan = A.callPlan(game, p, kind, t, use, c2, newMeld, before);
+    return { before, after, yaku: yk, menzen: p.melds.every((m) => m.kind === 'ankan'), plan };
+  };
+
+  /* 鳴いたあとに切る牌まで読む: いちばん進む切り方(フリテンは避ける)と、そのときの役・待ちの枚数を返す。
+     食い替え(鳴いた牌・同じ形の牌をすぐ切ること)は禁止なので候補から外す */
+  A.callPlan = function (game, p, kind, t, use, c2, newMeld, before) {
+    const f1 = p.melds.length + 1;
+    const vis = A.visible ? A.visible(game, p) : null;
+    const left = (w) => Math.max(0, 4 - (vis ? vis[w] : 0));
+    const forbid = new Set([t]);
+    if (kind === 'chi') {
+      const lo = Math.min(use[0], use[1], t), hi = Math.max(use[0], use[1], t);
+      if (t === lo && lo % 9 <= 5) forbid.add(lo + 3);
+      if (t === hi && hi % 9 >= 3) forbid.add(hi - 3);
+    }
+    let best = null;
+    for (let d = 0; d < 34; d++) {
+      if (!c2[d] || forbid.has(d)) continue;
+      const c3 = c2.slice(); c3[d]--;
+      const sh = MJ.shanten(c3, f1);
+      let waits = [], furiten = false, wl = 0;
+      if (sh === 0) {
+        waits = MJ.waits(c3, f1);
+        furiten = waits.length > 0 && waits.some((w) => p.discardTypes.has(w) || w === d);
+        wl = waits.reduce((s, w) => s + left(w), 0);
+      } else if (sh > 0) {
+        for (let w = 0; w < 34; w++) { if (c3[w] >= 4) continue; c3[w]++; if (MJ.shanten(c3, f1) < sh) wl += left(w); c3[w]--; }
+      }
+      const yk = A.yakuStrict(game, p, newMeld, c3);
+      const rec = { d, sh, waits, furiten, wl, yaku: yk };
+      const score = -sh * 100 + (furiten ? -60 : 0) + (yk.level === 'sure' ? 20 : yk.level === 'maybe' ? 0 : -50) + wl;
+      rec.score = score;
+      if (!best || score > best.score) best = rec;
+    }
+    return best;
+  };
+  /* 鳴いて切ったあとの手で、役が成立するか(sure=確実 / maybe=あと1枚で成立 / none=ない) */
+  A.yakuStrict = function (game, p, newMeld, c3) {
+    const melds = p.melds.concat([newMeld]);
+    for (const m of melds) if (m.kind !== 'chi' && isYakuhaiFor(game, p, m.t)) return { level: 'sure', why: `役牌(${MJ.tileName(m.t)})のポンで役あり` };
+    for (let t = 27; t < 34; t++) if (c3[t] >= 3 && isYakuhaiFor(game, p, t)) return { level: 'sure', why: '役牌の刻子で役あり' };
+    let yao = 0;
+    for (let t = 0; t < 34; t++) if (MJ.isYaochu(t)) yao += c3[t];
+    const meldYao = melds.some((m) => (m.kind === 'chi' ? m.t % 9 === 0 || m.t % 9 === 6 : MJ.isYaochu(m.t)));
+    if (MJ.RULES.kuitan && !meldYao) {
+      if (yao === 0) return { level: 'sure', why: 'タンヤオで役あり' };
+      if (yao <= 2) return { level: 'maybe', why: `么九牌があと${yao}枚。切ればタンヤオ` };
+    }
+    const suitCnt = [0, 0, 0]; let honors = 0;
+    for (let t = 0; t < 27; t++) suitCnt[(t / 9) | 0] += c3[t];
+    for (let t = 27; t < 34; t++) honors += c3[t];
+    for (const m of melds) { if (m.t >= 27) honors += 3; else suitCnt[(m.t / 9) | 0] += 3; }
+    const total = suitCnt[0] + suitCnt[1] + suitCnt[2] + honors;
+    const top = Math.max(...suitCnt);
+    if (top + honors >= total) return { level: 'sure', why: honors && top ? '混一色で役あり' : '清一色で役あり' };
+    return { level: 'none', why: '鳴くと役がありません' };
   };
 
   /* ================= CPU 行動決定 ================= */
@@ -373,6 +429,7 @@
       if (ev.before === 0) continue;
       if (opps.length && lv >= 3 && ev.before >= 2) continue;
       if (!ev.yaku.ok) continue;
+      if (ev.plan && (ev.plan.furiten || ev.plan.yaku.level === 'none')) continue; // フリテン・役なしになる鳴きはしない
       const yakuhaiPon = cd.kind === 'pon' && isYakuhaiFor(game, p, opts.tile.t);
       const faster = ev.after < ev.before;
       let okay = false;

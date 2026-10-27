@@ -90,7 +90,7 @@
       return c.p;
     },
     _say(text) {
-      try { const syn = G.speechSynthesis; if (!syn || !text) return; const u = new G.SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; u.pitch = 0.6; u.rate = 0.85; u.volume = Math.min(1, S.readVol); syn.speak(u); } catch (e) { /* ignore */ }
+      try { const syn = G.speechSynthesis; if (!syn || !text || S.isIOS) return; const u = new G.SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; u.pitch = 0.6; u.rate = 0.85; u.volume = Math.min(1, S.readVol); syn.speak(u); } catch (e) { /* ignore */ }
     },
     clack(vol = 0.5, at = 0, pitch = 1) { S.noise(0.05, 2200 * pitch, vol, 2.5, at); S.tone(170 * pitch, 0.07, 'triangle', vol * 0.8, 70 * pitch, at); },
 
@@ -151,10 +151,11 @@
       return !all.length || all.some((v) => /^ja/i.test(v.lang));
     },
     speaking() { return !!(G.speechSynthesis && (G.speechSynthesis.speaking || G.speechSynthesis.pending)); },
-    stopSpeak() { if (G.speechSynthesis) { S._readId = (S._readId || 0) + 1; G.speechSynthesis.cancel(); } if (S._cb) { const f = S._cb; S._cb = null; try { f(null); } catch (e) { /* ignore */ } } },
+    stopSpeak() { S.stopClips(); if (G.speechSynthesis) { S._readId = (S._readId || 0) + 1; G.speechSynthesis.cancel(); } if (S._cb) { const f = S._cb; S._cb = null; try { f(null); } catch (e) { /* ignore */ } } },
     /* 読み上げ: 文ごとに区切り、見出しっぽい短文・疑問・文末で声の高さ/速さ/間を変えて抑揚をつける */
     read(text, cb) {
       const syn = G.speechSynthesis;
+      if (S.isIOS) return false; // iPhone・iPad: 音声合成はテレビ(AirPlay)に出ず手元の端末から鳴ってしまうので使わない
       if (!syn || !S.hasJaVoice()) return false;
       if (MJ.Yomi) text = MJ.Yomi.fix(text); // 麻雀用語・牌の名前を正しい読みに直す
       if (S._cb) { const f = S._cb; S._cb = null; try { f(null); } catch (e) { /* ignore */ } }
@@ -215,6 +216,46 @@
       if (!ctx) return;
       ids.forEach((id) => Object.values(S._vkey).forEach((key) => S._loadVoice(id, key)));
     },
+    /* ---- 役・点数の読み上げ(収録済みの音声 audio/yk/*.mp3 を、効果音・BGMと同じ経路で鳴らす) ----
+       端末の音声合成(Web Speech)は、AirPlayでテレビに映していても手元の端末から出てしまうため、
+       ふだんの読み上げ(上がったときの役と点数)は、収録した音声をつなげて、テレビからも鳴るようにする */
+    isIOS: /iPad|iPhone|iPod/.test((G.navigator && G.navigator.userAgent) || '') || (G.navigator && G.navigator.platform === 'MacIntel' && G.navigator.maxTouchPoints > 1),
+    _yk: null, _ykBuf: {}, _ykSrc: [], _ykId: 0,
+    loadYk() {
+      if (S._yk !== null || typeof fetch === 'undefined') return;
+      S._yk = {};
+      fetch('audio/yk/manifest.json').then((r) => r.json()).then((m) => { S._yk = m; }).catch(() => { S._yk = {}; });
+    },
+    ykHas(key) { return !!(S._yk && S._yk[key]); },
+    _ykGet(key) {
+      const fn = S._yk && S._yk[key];
+      if (!fn || !ctx) return Promise.resolve(null);
+      if (S._ykBuf[key]) return S._ykBuf[key];
+      S._ykBuf[key] = fetch(`audio/yk/${fn}`).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng))).catch(() => null);
+      return S._ykBuf[key];
+    },
+    /* keys: 'y:タンヤオ' などの並び。null は少し間をあける。つなげて鳴らす。鳴らせたら true */
+    speakClips(keys, cb) {
+      if (!ctx || !S._yk || !Object.keys(S._yk).length || !S.readVol) return false;
+      S.stopClips();
+      const id = S._ykId;
+      Promise.all(keys.map((k) => (k ? S._ykGet(k) : Promise.resolve(false)))).then((bufs) => {
+        if (id !== S._ykId) return;
+        let t = ctx.currentTime + 0.05;
+        bufs.forEach((b) => {
+          if (b === false) { t += 0.28; return; }
+          if (!b) return;
+          const src = ctx.createBufferSource(); src.buffer = b;
+          const g = ctx.createGain(); g.gain.value = Math.min(1.4, S.readVol * 1.1);
+          src.connect(g); g.connect(master);
+          src.start(t); S._ykSrc.push(src);
+          t += b.duration + 0.07;
+        });
+        if (cb) setTimeout(cb, Math.max(0, (t - ctx.currentTime) * 1000));
+      });
+      return true;
+    },
+    stopClips() { S._ykId++; S._ykSrc.forEach((s) => { try { s.stop(); } catch (e) { /* ignore */ } }); S._ykSrc = []; },
     voice(text, p) {
       const key = S._vkey[text];
       if (!S.voiceOn || !key || !ctx) return;
