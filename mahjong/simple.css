@@ -307,17 +307,17 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 .in-seat.me img { height: 10cqw; width: 10cqw; border-width: .35cqw; border-radius: 1.4cqw; }
 .in-seat.me .in-nm { margin-top: 0; font-size: 2.6cqw; }
 
-/* 先生(麻雀牌のキャラ) */
-img.tcut { height: 96px; width: auto; display: block; flex: none; filter: drop-shadow(0 3px 5px #000a); }
-.cq-teach { display: flex; align-items: flex-end; gap: 8px; max-width: 600px; }
-.cq-teach .tb, .tsay .tb { background: rgba(255, 255, 255, .95); color: #16160f; border: 3px solid #ffd23f; border-radius: 14px; padding: 8px 14px; font-size: 20px; font-weight: 800; line-height: 1.35; margin-bottom: 10px; box-shadow: 0 3px 10px #0008; }
-.cq-teach .tb b, .tsay .tb b { display: block; font-size: 15px; color: #1b6b4a; }
+/* 先生(麻雀牌のキャラ): 左下の決まった場所に出す(河・手牌・ボタンに重ならない) */
+img.tcut { height: 84px; width: auto; display: block; flex: none; filter: drop-shadow(0 3px 5px #000a); }
+.tdock { position: absolute; left: 6px; top: 286px; width: 272px; height: 68px; z-index: 40; display: flex; align-items: flex-end; gap: 6px; pointer-events: none; animation: sayin .2s ease-out; }
+.tdock img.tcut { height: 84px; margin-bottom: -2px; }
+.tdock .tb { flex: 1; min-width: 0; max-height: 68px; overflow: hidden; background: rgba(255, 255, 255, .96); color: #16160f; border: 3px solid #ffd23f; border-radius: 12px; padding: 3px 9px 4px; font-size: 14px; font-weight: 800; line-height: 1.3; box-shadow: 0 3px 10px #0008; }
+.tdock .tb b { display: block; font-size: 11px; color: #1b6b4a; line-height: 1.1; }
+body.tdock-on #mine .tipline { visibility: hidden; }
 .cq-rec { color: #b3261e !important; font-weight: 900 !important; font-size: 14px !important; }
 .callq .cq-btn.b-pass .cq-rec, .callq .cq-btn.b-call .cq-rec, .callq .cq-btn.b-ron .cq-rec { background: #fff; border-radius: 6px; padding: 0 6px; margin-top: 2px; }
-.tsay { position: absolute; left: 6px; top: 6px; z-index: 40; display: flex; align-items: flex-end; gap: 6px; max-width: 330px; animation: sayin .2s ease-out; pointer-events: none; }
-.tsay img.tcut { height: 104px; }
-.tsay .tb { font-size: 17px; }
-body.calling .tsay { display: none; }
-.cq-teach { align-self: center; max-width: 520px; }
-.cq-teach img.tcut { height: 82px; }
-.cq-teach .tb { font-size: 18px; padding: 6px 12px; margin-bottom: 6px; max-width: 360px; }
+
+/* 先生が左下にいる間は、鳴きのボタンを、右へずらして、重ならないようにする */
+body.tdock-on .callq { left: 226px; right: 0; }
+body.tdock-on .callq .cq-btns { gap: 8px; }
+body.tdock-on .callq .cq-btns .cq-btn { min-width: 96px; padding: 2px 12px !important; font-size: 26px !important; }

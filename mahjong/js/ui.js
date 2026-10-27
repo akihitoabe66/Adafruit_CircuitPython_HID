@@ -398,6 +398,9 @@
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
       this.fitTip();
       if (this.sel && this.sel.type === 'react' && document.querySelector('.callq .cq-btn[data-ids]')) this.hlCall(null); // 鳴きの確認が出たら、最初の鳴き方の牌を光らせる
+      // 鳴きの確認が出ている間は、先生のアドバイスを左下に出す。終わったら消す
+      if (this.sel && this.sel.type === 'react' && this._brief && document.querySelector('.callq')) { const d = $('#says .tdock'); if (!d || d.dataset.kind !== 'call') this.teacherSay(this._brief.text, this._brief.rec === 'pass' ? 'pass' : this._brief.rec === 'ron' ? 'ron' : 'ok', 0, 'call'); }
+      else this.clearDock('call');
       if (MJ.Pad && MJ.Pad.syncLock) MJ.Pad.syncLock();
       if (this.dng) this.hilite(this.picked != null ? ((game.players[0].hand.find((x) => x.id === this.picked) || {}).t) : this.hiType);
       if (MJ.Pad) MJ.Pad.refocus();
@@ -545,14 +548,22 @@
       this._aimAt = now; this._aimLast = h.name;
       this.teacherSay(h.text, 'advice', 7000);
     },
-    teacherSay(text, mood, ms = 6000) {
+    /* 先生の置き場所: 左下の、手牌の上(いつもは「切る牌をタップ」の表示がある所)。プレイの邪魔にならない場所に固定 */
+    teacherSay(text, mood, ms = 6000, kind = 'tip') {
       const host = $('#says'); if (!host) return;
-      host.querySelectorAll('.tsay').forEach((x) => x.remove());
+      this.clearDock();
       const el = document.createElement('div');
-      el.className = 'tsay';
+      el.className = 'tdock'; el.dataset.kind = kind;
       el.innerHTML = `${this.teacherImg(mood)}<div class="tb"><b>先生</b>${text}</div>`;
       host.appendChild(el);
-      setTimeout(() => el.remove(), ms);
+      document.body.classList.add('tdock-on');
+      clearTimeout(this._tdT);
+      if (ms) this._tdT = setTimeout(() => this.clearDock(), ms);
+    },
+    clearDock(kind) {
+      const d = $('#says .tdock');
+      if (!d || (kind && d.dataset.kind !== kind)) return;
+      d.remove(); document.body.classList.remove('tdock-on'); clearTimeout(this._tdT);
     },
     /* 「どうする?」: 文字だけのボタンを手牌の上に並べる。選んでいる鳴きに使う手牌が持ち上がって光り、捨てられた牌は枠で光る */
     callCard(game, s, cand) {
@@ -561,6 +572,7 @@
       const chis = cand.opts.filter((x) => x.kind === 'chi');
       this.chiCombos = chis; this.chiIdx = 0;
       const brief = this.hintOn ? MJ.Coach.reactBrief(game, s.p, o) : null; // 先生のひとこと(先生ありのとき)
+      this._brief = brief;
       const recKind = brief && brief.rec === 'call' ? brief.kind : null;
       const recTag = '<small class="cq-sub cq-rec">おすすめ</small>';
       const btns = [];
@@ -577,7 +589,7 @@
       btns.push(`<button class="btn b-pass cq-btn" data-act="pass">見送る${brief && brief.rec === 'pass' ? recTag : ''}</button>`); // 見送るは、いちばん右
       const multiNote = chis.length > 1 ? '光る牌でチー。牌をさわると、組み合わせを変えられます' : '';
       const note = multiNote || (!o.ron && !cand.opts.length ? (o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '') : '');
-      return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b data-k="A">A</b> で決定</span><span class="cq-pt">◀▶ で牌をえらんで <b data-k="A">A</b> で決定(▲ もどる)</span></div>${brief ? `<div class="cq-teach">${this.teacherImg(brief.rec === 'pass' ? 'pass' : brief.rec === 'ron' ? 'ron' : 'ok')}<div class="tb"><b>先生</b>${brief.text}</div></div>` : ''}</div>`;
+      return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b data-k="A">A</b> で決定</span><span class="cq-pt">◀▶ で牌をえらんで <b data-k="A">A</b> で決定(▲ もどる)</span></div></div>`;
     },
     /* チーの組み合わせを切り替える(▼で牌の選択に入ったあと、◀▶で) */
     setChi(i) {
