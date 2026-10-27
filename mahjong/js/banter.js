@@ -363,10 +363,9 @@
       const p = pick(c), lines = TH[p.char.id];
       if (!lines) return false;
       const text = lines[Math.min(stage, 2)];
-      const cut = text[0] === '!';
-      const t = cut ? text.slice(1) : text;
+      const t = text[0] === '!' ? text.slice(1) : text; // カットインは使わず、ふつうの吹き出しだけ
       lastAt = Date.now();
-      if (cut) game.ui.cutin(game, p, t); else game.ui.speak(game, p, t);
+      game.ui.speak(game, p, t);
       return true;
     },
     handStart(game) {
