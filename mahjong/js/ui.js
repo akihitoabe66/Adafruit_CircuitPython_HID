@@ -440,7 +440,7 @@
       const doras = stk.join('');
       const dora2 = '';
       const sub = [game.kyotaku ? `供託${game.kyotaku}` : ''].filter(Boolean).join(' ');
-      const ctr = `<div class="ctr"><div class="k">${game.kyokuLabel()}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.live.length}<small>枚</small></div><div class="dr wall">${doras}</div></div>`;
+      const ctr = `<div class="ctr"><div class="txt"><div class="k">${game.kyokuLabel()}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.live.length}<small>枚</small></div></div><div class="dr wall">${doras}</div></div>`;
       return ctr + [0, 1, 2, 3].map((s) => this.block(game, s)).join('');
     },
     block(game, s) {
