@@ -1242,8 +1242,8 @@
       if (!w.tsumo) pts = `${fmt(w.pay.ron)}点(${w.loser.name}から)`;
       else if (win.seat === game.dealer) pts = `${fmt(w.pay.each)}点オール`;
       else pts = `${fmt(w.pay.fromOther)}・${fmt(w.pay.fromDealer)}点`;
-      return `<div class="win-head">${this.faceImg(win.char) || '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): <span class="gl-skip">${w.loser.name}</span>`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || ''}」</div>`}</div></div>
-      <div class="win-cols"><div class="win-l"><div class="win-hand">${concealed}${melds}${winT}</div>
+      return `<div class="win-cols"><div class="win-l"><div class="win-head">${this.faceImg(win.char) || '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): <span class="gl-skip">${w.loser.name}</span>`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || ''}」</div>`}</div></div>
+      <div class="win-hand">${concealed}${melds}${winT}</div>
       <div>ドラ表示牌: ${dora}${ura}</div></div>
       <div class="win-r"><table class="yakus">${rows.replace(/門前清自摸和/g, '門前清自摸和(メンゼンツモ)')}</table>
       <div class="score-big">${r.yakuman ? r.limit : `${r.han}飜 ${r.fu}符${r.limit ? ' ' + r.limit : ''}`} → ${pts}</div></div></div>
