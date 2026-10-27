@@ -28,6 +28,7 @@
       if (id === 'menu') App.fitMenu();
       if (id === 'title') App.fitTitle();
       if (id === 'study' && MJ.Study) MJ.Study.layout();
+      if ((id === 'menu' || id === 'study') && MJ.Pad) setTimeout(() => MJ.Pad.preselect(true), 0);
       window.scrollTo(0, 0);
     },
 
@@ -49,11 +50,21 @@
     /* ホーム: 4つの大きなボタン(麻雀を開始 / 麻雀クイズ / 点数計算の勉強 / 設定) */
     buildMenu() {
       this.support = (() => { try { return localStorage.getItem('mj_support') === '1'; } catch (e) { return false; } })(); // 対局中の先生(ヒント)。標準はなし
+      this.syncTeach();
       $('#hm-play').addEventListener('click', () => this.startAuto());
+      $('#hm-teach').addEventListener('click', () => { // 先生(対局中のヒント)あり / なし の切り替え
+        this.support = !this.support;
+        try { localStorage.setItem('mj_support', this.support ? '1' : '0'); } catch (e) { /* ignore */ }
+        this.syncTeach();
+      });
       $('#hm-quiz').addEventListener('click', () => MJ.DrillUI.openAuto());
       $('#hm-study').addEventListener('click', () => MJ.Study.open());
       $('#hm-set').addEventListener('click', () => showSettings());
       this.buildStatsOnly();
+    },
+    syncTeach() {
+      document.querySelectorAll('#hm-teach .ht-s').forEach((s) => s.classList.toggle('on', (s.dataset.v === '1') === !!this.support));
+      const t = $('#hm-teach'); if (t) t.setAttribute('aria-pressed', String(!!this.support));
     },
     /* 相手は自動で決める(やさしめ〜中級の相手から3人) */
     startAuto() {
@@ -142,7 +153,7 @@
     },
     /* アプリの終了の確認(Fire TVの「戻る」でいきなり終了しない)。最初に選ばれているのは「つづける」 */
     confirmExit() {
-      MJ.UI.overlay('<div class="cf"><h2>アプリをおわりますか?</h2><div class="cf-btns"><button class="btn" id="ex-yes">おわる</button><button class="btn pri" id="ex-no">つづける</button></div></div>', { plain: true });
+      MJ.UI.overlay('<div class="cf"><h2>アプリをおわりますか?</h2><div class="cf-btns"><button class="btn danger" id="ex-yes">おわる</button><button class="btn pri" id="ex-no">つづける</button></div></div>', { plain: true });
       document.querySelector('#ex-no').addEventListener('click', () => MJ.UI.closeOverlay());
       document.querySelector('#ex-yes').addEventListener('click', () => {
         MJ.UI.closeOverlay();
@@ -245,21 +256,12 @@
       <button class="btn big" data-open-gloss>📚 用語辞典</button>
       <button class="btn big" data-open-rules>⚙ ルール</button>
       <button class="btn big" data-open-credits>ℹ クレジット</button>
-      <button class="btn big" id="st-teacher"></button>
       <button class="btn big" id="st-reset">🗑 セーブのリセット</button>
-    </div><div class="res-foot"><button class="btn pri big" id="st-close">もどる</button></div>`, { plain: true });
+    </div><div class="res-foot"><button class="btn big" id="st-close">もどる</button></div>`, { plain: true });
     const o = document.querySelector('#overlay');
     o.querySelector('#st-close').addEventListener('click', () => MJ.UI.closeOverlay());
-    const tb = o.querySelector('#st-teacher');
-    const syncT = () => { tb.innerHTML = `🎓 対局中の先生: <b>${MJ.App.support ? 'あり' : 'なし'}</b>`; };
-    syncT();
-    tb.addEventListener('click', () => { // 対局中に、おすすめの牌や解説を出す「先生」の入り切り
-      MJ.App.support = !MJ.App.support;
-      try { localStorage.setItem('mj_support', MJ.App.support ? '1' : '0'); } catch (e) { /* ignore */ }
-      syncT();
-    });
     o.querySelector('#st-reset').addEventListener('click', () => {
-      MJ.UI.overlay('<div class="cf"><h2>セーブをリセットしますか?</h2><p>対局の成績と、あなたのキャラクターが消えます。<br>次からは、新しいキャラクターが選ばれます。</p><div class="cf-btns"><button class="btn" id="rs-yes">リセットする</button><button class="btn pri" id="rs-no">やめる</button></div></div>', { plain: true });
+      MJ.UI.overlay('<div class="cf"><h2>セーブをリセットしますか?</h2><p>対局の成績と、あなたのキャラクターが消えます。<br>次からは、新しいキャラクターが選ばれます。</p><div class="cf-btns"><button class="btn danger" id="rs-yes">⚠ リセットする</button><button class="btn pri" id="rs-no">やめる</button></div></div>', { plain: true });
       document.querySelector('#rs-no').addEventListener('click', () => showSettings());
       document.querySelector('#rs-yes').addEventListener('click', () => {
         MJ.resetSave();
@@ -313,7 +315,7 @@
       App.renderChars(); App.confirmStart();
     });
     $('#btn-quit').addEventListener('click', () => {
-      MJ.UI.overlay('<div class="cf"><h2>対局をやめますか?</h2><p>ホームに戻ります。</p><div class="cf-btns"><button class="btn" id="q-yes">ホームにもどる</button><button class="btn pri" id="q-no">つづける</button></div></div>', { plain: true });
+      MJ.UI.overlay('<div class="cf"><h2>対局をやめますか?</h2><p>ホームに戻ります。</p><div class="cf-btns"><button class="btn danger" id="q-yes">ホームにもどる</button><button class="btn pri" id="q-no">つづける</button></div></div>', { plain: true });
       document.querySelector('#q-no').addEventListener('click', () => MJ.UI.closeOverlay());
       document.querySelector('#q-yes').addEventListener('click', () => App.toMenu());
     });

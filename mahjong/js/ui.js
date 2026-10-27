@@ -955,10 +955,12 @@
     /* ---------- 結果 ---------- */
     overlay(html, opt = {}) {
       const o = $('#overlay');
+      if (o.classList.contains('hidden') && MJ.Pad) MJ.Pad.saveCur(); // 閉じたときに、元の選択に戻す
       o.classList.remove('hidden');
       o.innerHTML = `<div class="ovi">${opt.raw ? html : `<div class="modal">${html}</div>`}</div>`;
       this.fitOverlay();
       o.scrollTop = 0;
+      if (MJ.Pad) MJ.Pad.preselect(true); // ダイアログでも、最初のボタンを選択中にしておく
       if (!opt.plain) { MJ.Gloss.decorate(o); if (opt.read) this.addReadFrom(o.querySelector('.modal')); } // 「ここから読み上げ」▶は、読み上げが役立つ所(opt.read)だけに付ける
       return o;
     },
@@ -973,7 +975,7 @@
       ovi.style.transform = `scale(${S})`;
       this.ovH = o.clientHeight / S;
     },
-    closeOverlay() { $('#overlay').classList.add('hidden'); $('#overlay').innerHTML = ''; },
+    closeOverlay() { $('#overlay').classList.add('hidden'); $('#overlay').innerHTML = ''; if (MJ.Pad) MJ.Pad.restoreCur(); },
 
     winExplHTML(game, w) {
       const lines = MJ.Coach.explainScore(w, game);

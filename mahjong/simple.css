@@ -143,3 +143,53 @@ body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s e
 #drill-quiz .dq-opt { font-size: 24px; padding: 6px 14px; }
 #drill-quiz.has-board .dq-opts { top: 276px; height: 62px; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 58px; }
 .hm-btn small { position: absolute; right: 34px; }
+
+/* ============================================================
+   見た目のルール(シニア向け)
+   - 選んでいるボタン: 黄色い面 + 黒い太枠 + 白い縁 + 少し拡大 + ▶ の目印。色だけに頼らず、形・大きさでも分かる
+   - 選んでいないボタン: うすい色の面 + 濃い文字
+   - 重要度: 重大(取り返せない) = 赤の面 + 白文字 + ⚠ / 注意(選ぶ) = 黄 / ふつう(情報) = 白文字 / さりげない = 小さめ(それでも約20px以上)
+   ============================================================ */
+:root { --sel: #ffd23f; --sel-ink: #16160f; --danger: #b3261e; --ok: #1b6b4a; --idle: #eef2ee; }
+
+/* ホーム */
+.hm-btn { background: var(--idle); color: var(--sel-ink); border: 6px solid transparent; transition: transform .08s; }
+#hm-play { right: 366px; }
+.hm-teach { position: absolute; right: 90px; top: 54px; width: 262px; height: 78px; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 12px; font: inherit; color: var(--sel-ink); background: var(--idle); border: 6px solid transparent; border-radius: 18px; cursor: pointer; }
+.ht-l { font-size: 22px; font-weight: 900; margin-right: 2px; }
+.ht-s { flex: 1; text-align: center; white-space: nowrap; font-size: 24px; font-weight: 900; padding: 9px 0; border-radius: 12px; background: #d3dad3; color: #5c6761; }
+.ht-s.on { color: #fff; background: #3b4540; }
+.ht-s[data-v="1"].on { background: var(--ok); }
+.ht-s.on::before { content: "✓"; margin-right: 2px; }
+.hm-btn.pf, .hm-btn:hover, .hm-btn:focus-visible, .hm-teach.pf, .hm-teach:hover, .hm-teach:focus-visible {
+  background: var(--sel); color: var(--sel-ink); border-color: var(--sel-ink); box-shadow: 0 0 0 6px #fff, 0 8px 18px #0008; transform: scale(1.035); outline: none; z-index: 3;
+}
+.hm-btn.pf::before { content: "▶"; position: absolute; left: 24px; font-size: 34px; }
+.hm-teach.pf .ht-s:not(.on) { background: #f4e7a8; }
+
+/* 勉強の画面 */
+.sy-btn, .sy-nb { background: var(--idle); color: var(--sel-ink); border: 6px solid transparent; }
+.sy-nb.go { background: var(--ok); color: #fff; }
+.sy-btn.pf, .sy-btn:hover, .sy-nb.pf, .sy-nb:hover:not(:disabled), .sy-back.pf {
+  background: var(--sel); color: var(--sel-ink); border-color: var(--sel-ink); box-shadow: 0 0 0 6px #fff, 0 8px 18px #0008; transform: scale(1.035); outline: none;
+}
+.sy-btn.pf::before { content: "▶"; position: absolute; left: 6px; font-size: 26px; }
+
+/* ダイアログ・設定・クイズの選択肢: 選んでいるものは黄色の面にする */
+body #overlay .btn.pf:not(.danger), body #overlay button.pf:not(.danger),
+body .dq-opt.pf, body #dq-ok.pf, body #dq-next.pf { background: var(--sel) !important; color: var(--sel-ink) !important; border-color: var(--sel-ink) !important; outline: 4px solid #fff !important; outline-offset: 2px; box-shadow: 0 0 0 8px #000a !important; }
+.btn.danger { background: var(--danger); color: #fff; border: 4px solid #ffb4ab; }
+body #overlay .btn.danger.pf { outline: 4px solid #fff !important; box-shadow: 0 0 0 10px var(--sel) !important; }
+
+/* 鳴きの選択: 選んでいるボタンは黄色の面 */
+body .callq .cq-btn.pf { background: var(--sel) !important; color: var(--sel-ink) !important; border-color: var(--sel-ink) !important; outline: 4px solid #fff !important; box-shadow: 0 0 0 8px #000a !important; }
+body .callq.locked .cq-btn.pf { background: inherit !important; }
+
+/* クイズの答え合わせ: 結果を、大きな色の帯と記号で伝える */
+#dq-fb .dq-fh { font-size: 30px; padding: 6px 14px; border-radius: 10px; color: #fff; }
+#dq-fb.good .dq-fh { background: var(--ok); color: #fff; }
+#dq-fb.bad .dq-fh { background: var(--danger); color: #fff; }
+#dq-fb.warn .dq-fh { background: #b26a00; color: #fff; }
+/* パッドで選んだとき、位置が相対指定に変わって、ずれないようにする */
+body.pad-on .hm-btn.pf, body.pad-on .hm-teach.pf, body.pad-on .sy-btn.pf, body.pad-on .sy-back.pf { position: absolute; }
+body.pad-on .hm-btn.pf, body.pad-on .hm-teach.pf, body.pad-on .sy-btn.pf, body.pad-on .sy-nb.pf, body.pad-on .sy-back.pf { box-shadow: 0 0 0 6px #fff, 0 8px 18px #000a !important; outline: none !important; }

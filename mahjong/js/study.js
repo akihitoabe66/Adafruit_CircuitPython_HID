@@ -172,7 +172,7 @@
         root.innerHTML = `<div class="sy-head">${L.title}<span class="sy-pg">${this.page + 1} / ${L.pages.length}</span></div><div class="sy-body">${L.pages[this.page]}</div><div class="sy-nav"><button class="sy-nb" id="sy-list" type="button">もどる</button><button class="sy-nb" id="sy-prev" type="button"${this.page === 0 ? ' disabled' : ''}>◀ まえ</button>${last ? '<button class="sy-nb go" id="sy-chal" type="button">チャレンジ</button>' : '<button class="sy-nb go" id="sy-next" type="button">つぎ ▶</button>'}</div><div class="hm-hint"><span><i>◀▶</i> えらぶ</span><span><i>A</i> きめる</span><span><i>B</i> もどる</span></div>`;
       }
       this.layout();
-      if (MJ.Pad) { MJ.Pad.cur = null; MJ.Pad.desc = null; MJ.Pad.refocus(); }
+      if (MJ.Pad) MJ.Pad.preselect(true);
     },
     back() { if (this.lesson) { this.lesson = null; this.render(); } else MJ.App.show('menu'); },
     init() {

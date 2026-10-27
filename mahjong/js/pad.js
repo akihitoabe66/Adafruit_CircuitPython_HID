@@ -140,7 +140,7 @@
       if (t) { setCur(t); return; }
     }
     const a = rectOf(cur), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
-    let best = null, bs = Infinity;
+    let best = null, bs = Infinity, same = null, sameBest = Infinity;
     items().forEach((el) => {
       if (el === cur || el.contains(cur) || cur.contains(el)) return;
       const r = rectOf(el), bx = r.left + r.width / 2, by = r.top + r.height / 2;
@@ -148,8 +148,10 @@
       const side = dx ? Math.abs(by - ay) : Math.abs(bx - ax);
       if (along <= 2) return;
       const s = along + side * 2.2;
+      if (dx && side < a.height * 0.5 && along < sameBest) { sameBest = along; same = el; } // 同じ行にあるものを、優先する
       if (s < bs) { bs = s; best = el; }
     });
+    if (same) best = same;
     if (best) setCur(best);
   };
   const press = (name) => {
@@ -185,10 +187,25 @@
       default: break;
     }
   };
+  /* 画面が出たときから、最初のボタンを「選択中」にしておく(パッドを押す前でも、色で分かる)。force=true で、選び直す */
+  P.preselect = (force) => {
+    if (force) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; }
+    if (P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur)) { P.cur.classList.add('pf'); return; }
+    setCur(pickDefault());
+  };
+  P.saveCur = () => { P.saved = P.cur; };
+  P.restoreCur = () => {
+    const s = P.saved; P.saved = null;
+    if (s && s.isConnected && visible(s) && inScope(s)) { if (P.cur && P.cur !== s) P.cur.classList.remove('pf'); P.cur = s; P.desc = descOf(s); s.classList.add('pf'); } else P.preselect(true);
+  };
   const act = (name) => {
     P.dev = 'pad';
     if (P.lockLeft() > 0) return;
-    if (!P.on) { P.on = true; document.body.classList.add('pad-on'); setCur(pickDefault()); if (name !== 'a' && name !== 'b') return; } // 最初の1回: カーソルを出す(方向キーはそれだけ。Aはそのまま決定する)
+    if (!P.on) {
+      P.on = true; document.body.classList.add('pad-on');
+      const had = P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur); // すでに選択中のボタンがあれば、そこから動かす / 決定する
+      if (!had) { setCur(pickDefault()); if (name !== 'a' && name !== 'b') return; }
+    } // 最初の1回: カーソルを出す(方向キーはそれだけ。Aはそのまま決定する)
     if (P.cur && !(P.cur.isConnected && visible(P.cur) && inScope(P.cur))) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; setCur(pickDefault()); }
     if (name === 'left' || name === 'right' || name === 'up' || name === 'down') {
       const cq = $('.callq');
