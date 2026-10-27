@@ -107,3 +107,11 @@ body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s e
 .cf p { font-size: 22px; margin: 0 0 14px; }
 .cf-btns { display: flex; gap: 24px; justify-content: center; margin-top: 18px; }
 .cf-btns .btn { min-width: 230px; font-size: 30px; padding: 16px 28px; border-radius: 14px; }
+
+/* 文字の下限(32インチのHDテレビでも読める大きさ): 設計座標で14px以上にそろえる */
+.bell { font-size: 20px; } .bell .bi { font-size: 26px; }
+.chip.dealer, .chip { font-size: 14px; }
+.hand .tile .mk { font-size: 13px; max-width: calc(var(--hw) + 12px); }
+#coach .btn.sm, #coach .pg, #coach .rf, #dr .btn.sm { font-size: 14px; }
+.ctr .ar { font-size: 14px; }
+.plq .wd { font-size: 16px; }
