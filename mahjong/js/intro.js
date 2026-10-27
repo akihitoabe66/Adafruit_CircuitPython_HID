@@ -54,9 +54,9 @@
         };
         I.skip = finish;
         const at = (ms, f) => timers.push(setTimeout(f, ms));
-        const dan = (clip, text, vol) => () => { try { MJ.SFX.don(1); MJ.SFX.playClip(clip, text, vol); } catch (e) { /* ignore */ } };
-        try { MJ.SFX.loadClip('intro_w1'); MJ.SFX.loadClip('intro_w2'); } catch (e) { /* ignore */ }
-        at(1500, dan('intro_w1', '東一局', 0.9)); at(2600, dan('intro_w2', '勝負', 1));
+        const dan = (clip, text, vol) => () => { try { MJ.SFX.don(1); if (clip) MJ.SFX.playClip(clip, text, vol); } catch (e) { /* ignore */ } };
+        try { MJ.SFX.loadClip('intro_w2'); } catch (e) { /* ignore */ }
+        at(1500, dan(null, '', 0)); at(2600, dan('intro_w2', '勝負', 1)); // 「東一局」は声なし(ドンだけ)。「勝負!」だけ声を出す
         at(2600, () => petals(el)); at(1500, () => petals(el, 14));
         at(4700, finish);
         el.addEventListener('click', finish);

@@ -55,7 +55,7 @@ python3 -m http.server 8000   # 任意。 http://localhost:8000/ を開く
 
 ## 音
 
-* BGM: ホーム画面は `audio/home.mp3`(Taiko under the Lanterns の33秒目から。先頭に3秒のフェードイン)のみ、対局中は `audio/game1〜6.mp3`(silk_and_steel / winning_hand_at_midnight / the_final_straightaway / Standards Through The Smoke / Before the Blades Fall / Midnight Run at Edo Gate)からランダムに選曲して順に再生。iPhoneでも音量が効くよう WebAudio で調整します
+* BGM: ホーム画面は `audio/home.mp3`(Autumn of the Warlord)のみ、対局中は `audio/game1〜7.mp3`(silk_and_steel / winning_hand_at_midnight / the_final_straightaway / Standards Through The Smoke / Before the Blades Fall / Midnight Run at Edo Gate / Taiko under the Lanterns(33秒目から))からランダムに選曲して順に再生。iPhoneでも音量が効くよう WebAudio で調整します
 * 効果音: WebAudio で合成(クリック・牌をつかむ/捨てる・ポン/チー/カン・リーチ・ロン/ツモ・和了/敗北ジングル等)
 * 掛け声(ロン!・ポン!・チー!・カン!・リーチ!・ツモ!): `audio/voice/<キャラid>_<種類>.mp3` に収録済み(端末や環境に依存しません)。HTS Voice "Mei"(MMDAgent Project Team / 名古屋工業大学, CC BY 3.0)を Open JTalk で合成し、キャラごとに音の高さ・速さを変えています
 * 「⚙ 設定」でBGM・効果音・掛け声のON/OFFと音量を変更できます

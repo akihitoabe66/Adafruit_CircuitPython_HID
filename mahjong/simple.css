@@ -249,7 +249,7 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 .in-hint { position: absolute; left: 0; right: 0; bottom: 0; height: 3.4cqw; background: rgba(0, 0, 0, .55); display: flex; align-items: center; padding: 0 3cqw; font-size: 2.2cqw; font-weight: 700; }
 .in-hint i { font-style: normal; color: #ffd23f; margin-right: .8cqw; }
 #intro.fx-big .in-burst { display: block; animation: inBurst 1.6s 2.6s ease-out both; }
-#intro.fx-big .in-flash { animation: inFlash .35s 2.6s ease-out both; }
+#intro .in-flash { display: none; } /* 白いフラッシュは使わない(画面が白くなって見えるため) */
 #intro.fx-big .in-stage { animation: inShake .45s 2.6s both; }
 @keyframes inL { from { opacity: 0; transform: translateX(-30cqw) rotate(-8deg); } to { opacity: 1; transform: none; } }
 @keyframes inR { from { opacity: 0; transform: translateX(30cqw) rotate(8deg); } to { opacity: 1; transform: none; } }
