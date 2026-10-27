@@ -18,9 +18,10 @@
     if (!cq) return;
     const left = P.lockLeft();
     cq.classList.toggle('locked', left > 0);
+    cq.classList.toggle('pick', !!P.tiles);
     if (left > 0) { clearTimeout(P._lt); P._lt = setTimeout(() => { const c = $('.callq'); if (c) c.classList.remove('locked'); }, left + 20); }
   };
-  P.onReact = () => { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; }; // 確認が出たら、カーソルは「見送る」から始める
+  P.onReact = () => { P.tiles = false; document.body.classList.remove('pick-tiles'); if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; }; // 確認が出たら、カーソルは「見送る」から始める
 
   const rectOf = (el) => el.getBoundingClientRect();
   const visible = (el) => {
@@ -186,9 +187,20 @@
     if (P.cur && !(P.cur.isConnected && visible(P.cur) && inScope(P.cur))) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; setCur(pickDefault()); }
     if (name === 'left' || name === 'right' || name === 'up' || name === 'down') {
       const cq = $('.callq');
-      if (cq && visible(cq)) { // 鳴きの確認: ◀▶(▲▼も)で、ボタンを順に切り替える。切り替えると、使う手牌が光る
+      if (cq && visible(cq)) { // 鳴きの確認: ◀▶でボタンを切り替える。チーが複数のときは、▼で牌の選択に入り、◀▶で牌(組み合わせ)を切り替える
+        const U = MJ.UI;
+        if (P.tiles) {
+          if (name === 'up') { P.tiles = false; cq.classList.remove('pick'); document.body.classList.remove('pick-tiles'); }
+          else if (name === 'left' || name === 'right') U.setChi((U.chiIdx || 0) + (name === 'left' ? -1 : 1));
+          return;
+        }
         const bs = [...cq.querySelectorAll('.cq-btn')], i = bs.indexOf(P.cur);
-        const d = name === 'left' || name === 'up' ? -1 : 1;
+        if (name === 'down') {
+          if (P.cur && P.cur.dataset && P.cur.dataset.multi) { P.tiles = true; cq.classList.add('pick'); document.body.classList.add('pick-tiles'); }
+          return;
+        }
+        if (name === 'up') return;
+        const d = name === 'left' ? -1 : 1;
         const n = bs[Math.max(0, Math.min(bs.length - 1, (i < 0 ? 0 : i) + d))];
         if (n) setCur(n);
         return;

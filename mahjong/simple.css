@@ -85,3 +85,18 @@ body.pad-on .callq.locked .pf { outline: none !important; box-shadow: none !impo
 /* 使う手牌(持ち上がる)と、捨てられた牌(金の枠) */
 .hand .tile.cand { transform: translateY(-16px); outline: 4px solid #f2c230; box-shadow: 0 0 14px 3px #f2c230cc; }
 body.calling .river .tile.hl { outline: 5px solid #f2c230; outline-offset: -1px; box-shadow: 0 0 16px 6px #f2c230; z-index: 3; }
+
+/* チーが複数のとき: ▼で牌の選択に入る。ボタンは「押された」見た目にして、光っている牌が主役になる */
+.cq-sub { display: block; font-size: 13px; font-weight: 700; letter-spacing: 0; color: #dbe9ff; line-height: 1.1; }
+.cq-pt { display: none; }
+.callq.pick .cq-pk { display: none; }
+.callq.pick .cq-pt { display: inline; }
+.callq.pick .cq-btn.pf { outline-width: 2px !important; box-shadow: none !important; opacity: .8; }
+.callq.pick .cq-sub { visibility: hidden; }
+body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s ease-in-out infinite; }
+@keyframes pickpulse { 0%, 100% { box-shadow: 0 0 10px 2px #f2c230cc; } 50% { box-shadow: 0 0 22px 8px #f2c230; } }
+@media (prefers-reduced-motion: reduce) { body.pick-tiles .hand .tile.cand { animation: none; } }
+.callq .cq-btns .cq-btn { flex-direction: column; justify-content: center; }
+.callq { bottom: calc(100% + 16px); z-index: 9; }
+.callq { flex-direction: column-reverse; }
+.callq { bottom: calc(100% + 30px); }

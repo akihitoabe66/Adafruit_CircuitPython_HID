@@ -520,19 +520,32 @@
     callCard(game, s, cand) {
       const o = s.o;
       const label = { pon: 'ポン', chi: 'チー', kan: 'カン' };
-      const nChi = cand.opts.filter((x) => x.kind === 'chi').length;
-      const CIRC = '①②③④';
-      let ci = 0;
+      const chis = cand.opts.filter((x) => x.kind === 'chi');
+      this.chiCombos = chis; this.chiIdx = 0;
       const btns = [];
       cand.opts.forEach((x) => {
-        const extra = x.kind === 'chi' ? ` data-a="${x.a}" data-b="${x.b}"` : '';
-        const txt = label[x.kind] + (x.kind === 'chi' && nChi > 1 ? CIRC[ci++] || '' : '');
-        btns.push(`<button class="btn b-call cq-btn" data-act="${x.kind}" data-ids="${x.ids.join(',')}"${extra}>${txt}</button>`);
+        if (x.kind === 'chi') {
+          if (x !== chis[0]) return; // チーは1つのボタンにまとめる(組み合わせが複数なら、▼で牌を選ぶ)
+          const multi = chis.length > 1;
+          btns.push(`<button class="btn b-call cq-btn" data-act="chi" data-ids="${x.ids.join(',')}" data-a="${x.a}" data-b="${x.b}"${multi ? ' data-multi="1"' : ''}>チー${multi ? '<small class="cq-sub">▼ 牌をえらぶ</small>' : ''}</button>`);
+          return;
+        }
+        btns.push(`<button class="btn b-call cq-btn" data-act="${x.kind}" data-ids="${x.ids.join(',')}">${label[x.kind]}</button>`);
       });
       if (o.ron) btns.push(`<button class="btn b-ron cq-btn" data-act="ron">ロン</button>`);
       btns.push(`<button class="btn b-pass cq-btn" data-act="pass">見送る</button>`); // 見送るは、いちばん右
       const note = !o.ron && !cand.opts.length ? (o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '') : '';
-      return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b>A</b> で決定</span></div></div>`;
+      return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b>A</b> で決定</span><span class="cq-pt">◀▶ で牌をえらんで <b>A</b> で決定(▲ もどる)</span></div></div>`;
+    },
+    /* チーの組み合わせを切り替える(▼で牌の選択に入ったあと、◀▶で) */
+    setChi(i) {
+      const cs = this.chiCombos || [];
+      if (!cs.length) return;
+      this.chiIdx = Math.max(0, Math.min(cs.length - 1, i));
+      const x = cs[this.chiIdx], btn = document.querySelector('.callq .cq-btn[data-act=chi]');
+      if (!btn) return;
+      btn.dataset.ids = x.ids.join(','); btn.dataset.a = x.a; btn.dataset.b = x.b;
+      this.hlCall(btn);
     },
     /* 選んでいる鳴きボタンに合わせて、使う手牌を持ち上げて光らせる */
     hlCall(btn) {
@@ -594,6 +607,11 @@
     /* ---------- 入力 ---------- */
     onTile(id) {
       const s = this.sel;
+      if (s && s.type === 'react' && this.chiCombos && this.chiCombos.length > 1) { // マウス・タッチ: 光らせたい組み合わせの牌をタッチ
+        const i = this.chiCombos.findIndex((x) => x.ids.includes(String(id)) || x.ids.includes(id));
+        if (i >= 0) { MJ.SFX.play('select'); this.setChi(i); }
+        return;
+      }
       if (!s || s.type !== 'self') return;
       const h = s.p.hand.find((x) => x.id === id);
       if (!h || !this.allowed(s, h)) return;
