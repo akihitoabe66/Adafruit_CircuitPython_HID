@@ -551,3 +551,26 @@ body.no-ruby rt { display: none; }
 .ctr .stk .dn { top: calc(var(--k) * 16px); height: calc(var(--k) * 17.5px); }
 .ctr .stk .dn > .tile::after { top: calc(var(--k) * 7px); height: calc(var(--k) * 3.5px); }
 .ctr .stk:last-child { margin-right: 0; }
+
+/* ===== 役ごとの上がり演出 ===== */
+.yakufx { position: absolute; left: 0; top: 0; width: 720px; height: 428px; z-index: 96; overflow: hidden; background: rgba(0, 10, 8, .6); font-family: "Zen Maru Gothic", "Noto Sans JP", sans-serif; font-weight: 900; color: #fff; animation: yfFade .3s both; }
+.yakufx > * { position: absolute; }
+.yf-dim { inset: 0; background: rgba(0, 10, 8, .5); }
+.yf-t { width: 56px; height: auto; filter: drop-shadow(0 3px 3px #0008); }
+.yf-big { left: 0; right: 0; top: 262px; text-align: center; font-size: 84px; line-height: 1.1; color: #ff3a2a; -webkit-text-stroke: 5px #fff; paint-order: stroke fill; text-shadow: 0 7px 0 #5a0a05, 0 0 28px #ffb000; animation: yfPop .45s 1.8s both; opacity: 0; }
+.yf-sub { left: 0; right: 0; top: 380px; text-align: center; font-size: 24px; color: #ffe14a; text-shadow: 0 2px 0 #000a; animation: yfFade .5s 2.2s both; opacity: 0; }
+.yf-wash { inset: 0; animation: yfFade 1.2s both; }
+.yf-gold { inset: 0; background: linear-gradient(#3a2300, #c08a00); animation: yfFade .8s both; }
+.yf-rays { inset: -60px; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 240, 170, .45) 0 6deg, transparent 6deg 16deg); animation: yfSpin 8s linear infinite; }
+.yf-yakuman .yf-big { top: 60px; font-size: 160px; color: #ffd23f; -webkit-text-stroke: 5px #7a1a00; text-shadow: 0 8px 0 #000a, 0 0 40px #fff; animation: yfPop .5s .4s both; }
+.yf-yakuman .yf-sub { top: 300px; font-size: 36px; color: #fff; animation: yfFade .5s 1.2s both; }
+.yf-daisan .yf-big { top: 250px; font-size: 90px; }
+@keyframes yfFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes yfPop { 0% { opacity: 0; transform: scale(2.4); } 70% { opacity: 1; transform: scale(.95); } 100% { opacity: 1; transform: none; } }
+@keyframes yfGlow { 0% { opacity: 0; transform: scale(.5); } 40% { opacity: 1; filter: brightness(2.2); } 100% { opacity: 1; filter: none; } }
+@keyframes yfL { from { opacity: 0; transform: translateX(-120%); } to { opacity: 1; transform: none; } }
+@keyframes yfR { from { opacity: 0; transform: translateX(120%); } to { opacity: 1; transform: none; } }
+@keyframes yfT { from { opacity: 0; transform: translateY(-140%); } to { opacity: 1; transform: none; } }
+@keyframes yfRise { from { opacity: 0; transform: translateY(60px); } to { opacity: 1; transform: none; } }
+@keyframes yfHop { 0%, 100% { transform: none; } 50% { transform: translateY(-22px); } }
+@keyframes yfSpin { to { transform: rotate(360deg); } }

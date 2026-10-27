@@ -258,6 +258,7 @@
     MJ.UI.overlay(`<h2>設定</h2><div class="st-list">
       <button class="btn big" id="st-audio">🔊 音の大きさ</button>
       <button class="btn big" id="st-think"></button>
+      <button class="btn big" id="st-fx"></button>
       <button class="btn big" id="st-notes">📖 麻雀ノート</button>
       <button class="btn big" data-open-yaku>📖 役一覧</button>
       <button class="btn big" data-open-gloss>📚 用語辞典</button>
@@ -271,6 +272,7 @@
     const thBtn = o.querySelector('#st-think');
     const thSync = () => { thBtn.textContent = '💬 悩んだときのひとこと: ' + TL[MJ.UI.thinkMode()]; };
     thSync();
+    const fxB = o.querySelector('#st-fx'); const fxS = () => { fxB.textContent = '⚡ 派手な上がり演出: ' + (MJ.UI.winFxOn() ? 'あり' : 'なし'); }; fxS(); fxB.addEventListener('click', () => { MJ.UI.setWinFx(!MJ.UI.winFxOn()); fxS(); });
     thBtn.addEventListener('click', () => { const o2 = ['normal', 'slow', 'off']; MJ.UI.setThinkMode(o2[(o2.indexOf(MJ.UI.thinkMode()) + 1) % 3]); thSync(); });
     o.querySelector('#st-reset').addEventListener('click', () => {
       MJ.UI.overlay('<div class="cf"><h2>セーブをリセットしますか?</h2><p>対局の成績と、あなたのキャラクターが消えます。<br>次からは、新しいキャラクターが選ばれます。</p><div class="cf-btns"><button class="btn danger" id="rs-yes">⚠ リセットする</button><button class="btn pri" id="rs-no">やめる</button></div></div>', { plain: true });

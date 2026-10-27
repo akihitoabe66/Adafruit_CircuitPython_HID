@@ -1035,7 +1035,7 @@
       const ci = $('#screen-game .cutin'); if (ci && +ci.dataset.seat === seat && ci !== keep) ci.remove();
     },
     banner(game, p, text) {
-      if ((text === 'ロン' || text === 'ツモ') && !game.fast) return this.winFx(game, p, text); // 上がりは、雷つきの派手な演出
+      if ((text === 'ロン' || text === 'ツモ') && !game.fast && this.winFxOn()) return this.winFx(game, p, text); // 上がりは、雷つきの派手な演出
       const col = text === 'リーチ' ? '#ff5b8a' : text === 'ロン' || text === 'ツモ' ? '#ff7b5a' : '#c48bff';
       const SFXN = { 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' };
       MJ.SFX.play(SFXN[text]);
@@ -1104,6 +1104,51 @@
         T.push(setTimeout(() => MJ.SFX.thunder(0.8), 2380));
         T.push(setTimeout(() => { fx.classList.add('final'); MJ.SFX.voice(text, p); MJ.SFX.play(text === 'ロン' ? 'ron' : 'tsumo'); }, 3300));
         T.push(setTimeout(finish, 4900));
+      });
+    },
+    winFxOn() { try { return localStorage.getItem('mj_winfx') !== 'off'; } catch (e) { return true; } },
+    setWinFx(v) { try { localStorage.setItem('mj_winfx', v ? 'on' : 'off'); } catch (e) { /* ignore */ } },
+    /* 役ごとの専用演出(国士無双・大三元・七対子・清一色・役満)。いちばん価値の高い1つだけ。約3秒、クリックでとばせる */
+    yakuFx(game, res) {
+      const sc = $('#sc');
+      if (!sc || game.fast || res.type !== 'win' || !this.winFxOn()) return Promise.resolve();
+      const w = res.wins[0], r = w.res, names = r.yaku.map((y) => y.n);
+      let kind = null;
+      if (r.yakuman) kind = names.includes('国士無双') ? 'kokushi' : names.includes('大三元') ? 'daisan' : 'yakuman';
+      else if (names.includes('清一色')) kind = 'chinitsu';
+      else if (names.includes('七対子')) kind = 'chiitoi';
+      if (!kind) return Promise.resolve();
+      const img = (t, st, cls = '') => `<img class="yf-t ${cls}" src="${MJ.tileSrc(t)}" alt="" style="${st}">`;
+      let h = '', label = '', sub = '';
+      if (kind === 'kokushi') {
+        h = '<div class="yf-dim"></div>' + [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33].map((t, i) => img(t, `left:${96 + (i % 7) * 78}px;top:${70 + ((i / 7) | 0) * 104}px;animation:yfGlow .5s ${.15 + i * .1}s both`)).join('');
+        label = '国士無双'; sub = '十三種の么九牌が、そろった!';
+      } else if (kind === 'daisan') {
+        h = '<div class="yf-dim"></div>' + [[31, 'yfL', 40], [32, 'yfT', 285], [33, 'yfR', 530]].map((a, i) => img(a[0], `left:${a[2]}px;top:70px;width:150px;animation:${a[1]} .7s ${.1 + i * .3}s both`)).join('');
+        label = '大三元'; sub = '白・發・中が、三方から集まった!';
+      } else if (kind === 'chiitoi') {
+        const p = [1, 3, 5, 10, 13, 19, 28];
+        h = '<div class="yf-dim"></div>' + p.map((t, i) => img(t, `left:${40 + i * 96}px;top:90px;animation:yfRise .5s ${.1 + i * .15}s both,yfHop .8s ${1.2 + i * .08}s 2`) + img(t, `left:${40 + i * 96 + 44}px;top:90px;animation:yfRise .5s ${.2 + i * .15}s both,yfHop .8s ${1.25 + i * .08}s 2`)).join('');
+        label = '七対子'; sub = '七組の、ペアがそろった!';
+      } else if (kind === 'chinitsu') {
+        const base = ((w.view && w.view.concealed && w.view.concealed[0]) || { t: 0 }).t;
+        const s = Math.floor(base / 9), col = ['linear-gradient(#5a0a0a,#c03a3a)', 'linear-gradient(#0a2a5a,#3a7ad8)', 'linear-gradient(#0a4a2a,#1f9a5a)'][s] || 'linear-gradient(#0a4a2a,#1f9a5a)';
+        h = `<div class="yf-wash" style="background:${col}"></div>` + Array.from({ length: 12 }, (_, i) => img(s * 9 + (i % 9), `left:${24 + i * 56}px;top:${90 + (i % 2) * 60}px;animation:yfT .5s ${.1 + i * .09}s both`)).join('');
+        label = '清一色'; sub = 'ひとつの色に、染まった!';
+      } else {
+        h = '<div class="yf-gold"></div><div class="yf-rays"></div>'; label = '役満'; sub = 'おめでとうございます!';
+      }
+      const el = document.createElement('div');
+      el.className = 'yakufx yf-' + kind;
+      el.innerHTML = h + `<div class="yf-big">${label}</div><div class="yf-sub">${sub}</div>`;
+      sc.appendChild(el);
+      MJ.SFX.don(0.8);
+      return new Promise((resolve) => {
+        let done = false;
+        const fin = () => { if (done) return; done = true; clearTimeout(t); el.remove(); document.removeEventListener('keydown', onKey, true); resolve(); };
+        const onKey = (e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fin(); } };
+        el.addEventListener('click', fin); document.addEventListener('keydown', onKey, true);
+        const t = setTimeout(fin, 3200);
       });
     },
     /* 「ツモれる!」「ロンできる!」: 上がれるときに、気づかず通り過ぎないよう、画面の真ん中に大きく出す */
@@ -1293,6 +1338,9 @@
     },
 
     showResult(game, res) {
+      return this.yakuFx(game, res).then(() => this.showResult2(game, res));
+    },
+    showResult2(game, res) {
       return new Promise((resolve) => {
         const pages = [];
         if (res.type === 'win') {
