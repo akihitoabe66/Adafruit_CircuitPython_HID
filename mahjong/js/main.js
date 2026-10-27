@@ -57,10 +57,18 @@
     },
     /* 「麻雀をはじめる」を押したら、先生をつけるかをたずねる(最初の選択は「つけない」) */
     askTeacher() {
-      // 大きな見出し+先生の顔。だれが先生かが、開始前から分かるようにする
-      MJ.UI.overlay(`<div class="cf tcd"><div class="tc-top">${MJ.UI.teacherImg('greet')}<div class="tc-q">先生を<br>つけますか?</div></div><div class="cf-btns"><button class="btn tc-b" id="tc-no">つけない</button><button class="btn tc-b" id="tc-yes">先生をつける</button></div></div>`, { plain: true });
-      document.querySelector('#tc-no').addEventListener('click', () => { MJ.UI.closeOverlay(); this.startAuto(false); });
-      document.querySelector('#tc-yes').addEventListener('click', () => { MJ.UI.closeOverlay(); this.startAuto(true); });
+      // 大きな見出し+先生の顔。絵が読み込まれてから、文字といっしょに出す(文字だけ先に出ないように)
+      const html = `<div class="cf tcd"><div class="tc-top">${MJ.UI.teacherImg('greet')}<div class="tc-q">先生を<br>つけますか?</div></div><div class="cf-btns"><button class="btn tc-b" id="tc-no">つけない</button><button class="btn tc-b" id="tc-yes">先生をつける</button></div></div>`;
+      const src = (/src="([^"]+)"/.exec(html) || [])[1];
+      let shown = false;
+      const open = () => {
+        if (shown) return; shown = true;
+        MJ.UI.overlay(html, { plain: true });
+        document.querySelector('#tc-no').addEventListener('click', () => { MJ.UI.closeOverlay(); this.startAuto(false); });
+        document.querySelector('#tc-yes').addEventListener('click', () => { MJ.UI.closeOverlay(); this.startAuto(true); });
+      };
+      if (!src) return open();
+      const im = new Image(); im.onload = im.onerror = open; im.src = src; if (im.complete) open(); setTimeout(open, 4000);
     },
     /* 相手は自動で決める(やさしめ〜中級の相手から3人) */
     startAuto(teacher) {
@@ -300,6 +308,7 @@
     MJ.DrillUI.init();
     MJ.Study.init();
     if (MJ.SFX.isIOS) document.body.classList.add('ios'); // iPhone・iPad: 音声合成の読み上げは、AirPlayのテレビに出ないので、読み上げボタンを出さない
+    ['11', '14', '21', '36'].forEach((n) => { const im = new Image(); im.src = `img/teacher/t${n}.png`; MJ.preloaded.push(im); }); // 先生の顔は、起動してすぐ読み込む
     MJ.SFX.loadYk(); // 上がったときの役・点数の読み上げ(収録音声)
     // 最初の操作でBGMを開始。iPhoneは pointerdown/touchstart では許可されないため、指を離した時(touchend/click)でも毎回試す
     let spk = false;
@@ -337,7 +346,7 @@
   /* 画像の先読み: タイトル/ホームの背景 → キャラ → 自分のアイコン → 牌 の順に、起動直後から裏で読み込んでおく(画面切替で真っ黒にならない) */
   MJ.preloaded = [];
   function preload() {
-    const urls = [];
+    const urls = ['11', '14', '21', '36'].map((n) => `img/teacher/t${n}.png`); // 「先生をつけますか?」で使う顔を、先に読み込む
     for (let i = 1; i <= 16; i++) { urls.push(`img/chars/${String(i).padStart(2, '0')}.jpg`); urls.push(`img/chars/face/${String(i).padStart(2, '0')}.png`); }
     for (let i = 1; i <= 18; i++) urls.push(`img/you/${String(i).padStart(2, '0')}.jpg`);
     for (let i = 0; i < 34; i++) urls.push(`img/tiles/${i}.png`);
