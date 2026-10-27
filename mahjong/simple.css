@@ -529,3 +529,8 @@ body.no-ruby rt { display: none; }
 .ctr .stk { height: 38px; }
 .ctr .stk .dn { height: 22px; }
 .ctr .stk .dn > .tile::after { top: 9px; }
+/* 王牌の山: 横幅を縮めて、細長く */
+.ctr .stk { width: 13px; }
+.ctr .stk .dn, .ctr .stk .up { width: 13px; }
+.ctr .stk .dn > .tile, .ctr .stk .up > .tile.back, .ctr .stk .up > .tile:not(.back) { width: 13px; }
+.ctr .dr.wall { gap: 6px; }
