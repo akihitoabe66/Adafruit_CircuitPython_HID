@@ -1035,7 +1035,7 @@
       setTimeout(() => el.remove(), 2600);
     },
     handStart(game) {
-      if (this.hintOn && game.honba === 0 && game.kyoku === 0) setTimeout(() => this.teacherSay('先生がついています。迷ったら、おしえます!', 'greet', 4500), 800);
+      if (this.hintOn && game.honba === 0 && game.kyoku === 0) setTimeout(() => this.teacherSay('先生がついています。迷ったら、おしえます!', 'greet', 7000), 800);
       MJ.SFX.play('start');
       const tip = MJ.Coach.startTip(game);
       this.tipHtml = `<div class="cc rec"><div class="cc-h">💡 この局のポイント</div><div class="cc-b">${tip}</div></div>`;
@@ -1043,7 +1043,7 @@
       this.refreshCoach();
       const fx = $('#fx');
       fx.innerHTML = `<div class="banner" style="--c:#ffcc4d">${game.kyokuLabel()}<small>親: ${game.players[game.dealer].name} ／ ドラ表示牌: ${MJ.tileName(game.doraInd[0].t)}</small></div>`;
-      return new Promise((r) => setTimeout(() => { fx.innerHTML = ''; r(); }, game.fast ? 0 : 1500));
+      return new Promise((r) => setTimeout(() => { fx.innerHTML = ''; r(); }, game.fast ? 0 : (game.honba === 0 && game.kyoku === 0 ? 3400 : 1800))); // 最初の局は、読めるように長めに
     },
 
     /* ---------- 結果 ---------- */
