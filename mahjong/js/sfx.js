@@ -182,7 +182,7 @@
     voice(text, p) {
       const key = S._vkey[text];
       if (!S.voiceOn || !key || !ctx) return;
-      const id = p && p.char ? p.char.id : 0;
+      const id = p && p.char ? (p.char.voice || p.char.id) : 0; // 掛け声の声は、キャラごとの voice 番号のファイルを使う
       const buf = S._vbuf[id + '_' + key] || S._loadVoice(id, key);
       if (!buf) return;
       const src = ctx.createBufferSource();

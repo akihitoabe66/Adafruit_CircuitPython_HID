@@ -12,7 +12,7 @@
     { id: 'drill', icon: '📝', badge: '何パターンでも', desc: '何切る・狙える役・守備・鳴き判断・待ち当て・点数計算を、毎回ランダムな問題で練習。答え合わせで理由を解説します。' },
   ];
   /* モードごとのおすすめ対戦相手 (CHARSのid) */
-  const RECO = { free: null, beginner: [9, 14, 5], defense: [5, 11, 13], inter: [2, 7, 12] };
+  const RECO = { free: null, beginner: [10, 4, 14], defense: [4, 12, 14], inter: [3, 7, 12] };
 
   const App = (MJ.App = {
     mode: 'free', picks: [], length: 'east', game: null, lastCfg: null,
@@ -66,7 +66,7 @@
     },
     /* 相手は自動で決める(やさしい相手から3人) */
     startAuto() {
-      const easy = MJ.CHARS.filter((c) => c.level <= 2).map((c) => c.id);
+      const easy = MJ.CHARS.filter((c) => c.level <= 3).map((c) => c.id); // やさしめ〜中級の相手から3人
       this.picks = MJ.shuffle(easy).slice(0, 3);
       MJ.RULES.length = 'east'; MJ.saveRules();
       this.lastCfg = { mode: this.support ? 'beginner' : 'free', picks: this.picks.slice(), length: 'east' };
@@ -134,7 +134,7 @@
       this.game = game;
       MJ.UI.attach(game);
       MJ.SFX.unlock();
-      MJ.SFX.preloadVoices([0].concat(chars.map((c) => c.id)));
+      MJ.SFX.preloadVoices([0].concat(chars.map((c) => c.voice || c.id)));
       this.show('game');
       game.run().catch((e) => { console.error(e); });
     },
@@ -228,7 +228,7 @@
       <h3>BGM</h3>
       <p>制作者が用意した楽曲を使用しています。</p>
       <h3>画像</h3>
-      <p>麻雀牌・タイトル・キャラクター画像は制作者が用意(または生成)したものです。キャラクターは既存作品の人物をもじったパロディです。公開・配布する場合は、権利者の許諾の確認(またはオリジナル画像への差し替え)が必要です。</p>
+      <p>麻雀牌・キャラクター画像は制作者が用意(生成)したものです。対戦相手は、歴史上の人物をモチーフにしています。</p>
       <h3>注意</h3>
       <p>点数・符の計算や危険度は、学習用の目安です。実際のルール(店・地域・アプリ)によって異なる場合があります。</p>
       </div><div class="res-foot"><button class="btn pri" id="cr-close">閉じる</button></div>`, { plain: true });
@@ -254,9 +254,20 @@
       <button class="btn big" data-open-gloss>📚 用語辞典</button>
       <button class="btn big" data-open-rules>⚙ ルール</button>
       <button class="btn big" data-open-credits>ℹ クレジット</button>
+      <button class="btn big" id="st-reset">🗑 セーブをリセット</button>
     </div><div class="res-foot"><button class="btn pri big" id="st-close">もどる</button></div>`, { plain: true });
     const o = document.querySelector('#overlay');
     o.querySelector('#st-close').addEventListener('click', () => MJ.UI.closeOverlay());
+    o.querySelector('#st-reset').addEventListener('click', () => {
+      MJ.UI.overlay('<div class="cf"><h2>セーブをリセットしますか?</h2><p>対局の成績と、あなたのキャラクターが消えます。<br>次からは、新しいキャラクターが選ばれます。</p><div class="cf-btns"><button class="btn" id="rs-yes">リセットする</button><button class="btn pri" id="rs-no">やめる</button></div></div>', { plain: true });
+      document.querySelector('#rs-no').addEventListener('click', () => showSettings());
+      document.querySelector('#rs-yes').addEventListener('click', () => {
+        MJ.resetSave();
+        const st = document.querySelector('#menu-stats'); if (st) st.textContent = '';
+        MJ.UI.closeOverlay();
+        MJ.UI.toast('セーブをリセットしました');
+      });
+    });
     o.querySelector('#st-notes').addEventListener('click', () => { MJ.UI.closeOverlay(); MJ.App.openNotes(); });
     o.querySelector('#st-audio').addEventListener('click', () => {
       MJ.UI.overlay(`<h2>🔊 音の大きさ</h2>${AUDIO_HTML}<div class="res-foot"><button class="btn pri big" id="au-close">もどる</button></div>`, { plain: true });
