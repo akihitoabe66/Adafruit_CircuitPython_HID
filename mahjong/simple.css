@@ -468,7 +468,7 @@ body.no-ruby rt { display: none; }
 .winfx.final .wf-ring { animation: wfRing .9s .05s both; }
 .winfx.final .wf-ron { animation: wfRon .32s .25s both; }
 .winfx.final .wf-face1, .winfx.final .wf-line, .winfx.final .wf-slash { display: none; }
-.tile.wf-hit { box-shadow: 0 0 16px 6px #ffd23f, 0 0 36px 10px #ffb000 !important; z-index: 96; }
+.tile.wf-hit { box-shadow: 0 0 16px 6px #ffd23f, 0 0 36px 10px #ffb000 !important; }
 @keyframes wfIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes wfRays { 0% { opacity: 0; transform: scale(.5); } 25% { opacity: .95; } 100% { opacity: 0; transform: scale(1.5) rotate(20deg); } }
 @keyframes wfSlide { 0% { opacity: 0; transform: translateX(110%) skewY(-6deg); } 1% { opacity: 1; } 16% { transform: translateX(0) skewY(-6deg); } 86% { transform: translateX(0) skewY(-6deg); opacity: 1; } 100% { transform: translateX(-110%) skewY(-6deg); opacity: 0; } }
@@ -604,3 +604,7 @@ body.no-ruby rt { display: none; }
 /* 対局中の名前の板: 同じ色の印(左の帯) */
 .plq.seatc0, .plq.seatc1, .plq.seatc2, .plq.seatc3 { box-shadow: inset 8px 0 0 var(--c); }
 .plq.p0.act, .plq.act { box-shadow: inset 8px 0 0 var(--c), 0 0 0 2px #ffd35a, 0 0 10px #ffd35a; }
+/* 右の名前の板が、あなたの板に重ならないよう、少し上へ */
+.plq.p1 { top: 150px; } .plq.p3 { top: 150px; }
+/* ロンの演出の最後は、当たり牌の光を消す(「ロン」の文字の上に牌が出ないように) */
+.winfx.final ~ * { }

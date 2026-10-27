@@ -1102,7 +1102,7 @@
         T.push(setTimeout(() => MJ.SFX.don(0.7), 500));
         T.push(setTimeout(() => { hit(true); MJ.SFX.thunder(1); }, 2150));
         T.push(setTimeout(() => MJ.SFX.thunder(0.8), 2380));
-        T.push(setTimeout(() => { fx.classList.add('final'); MJ.SFX.voice(text, p); MJ.SFX.play(text === 'ロン' ? 'ron' : 'tsumo'); }, 3300));
+        T.push(setTimeout(() => { hit(false); fx.classList.add('final'); MJ.SFX.voice(text, p); MJ.SFX.play(text === 'ロン' ? 'ron' : 'tsumo'); }, 3300));
         T.push(setTimeout(finish, 4900));
       });
     },
