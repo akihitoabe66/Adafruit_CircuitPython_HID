@@ -526,3 +526,6 @@ body.no-ruby rt { display: none; }
 .ctr .stk .dn { top: 16px; height: 18px; z-index: 1; }
 .ctr .stk .dn > .tile { background: #f3ecd4; border: 1px solid #8a96a8; border-radius: 0 0 3px 3px; border-top: 0; position: relative; }
 .ctr .stk .dn > .tile::after { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 4px; background: linear-gradient(#8ec0ff, #4a8fe0 35%); }
+.ctr .stk { height: 38px; }
+.ctr .stk .dn { height: 22px; }
+.ctr .stk .dn > .tile::after { top: 9px; }
