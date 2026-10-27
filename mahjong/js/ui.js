@@ -46,7 +46,7 @@
         const cb = e.target.closest('.cq-btn[data-ids]');
         if (cb) hl(cb.dataset.ids.split(','));
       });
-      M.addEventListener('mouseout', (e) => { if (e.target.closest('.cq-btn')) hl(allIds()); });
+      M.addEventListener('mouseout', (e) => { if (e.target.closest('.cq-btn')) hl([]); });
       M.addEventListener('mouseover', (e) => {
         const tl = e.target.closest('.hand .tile[data-id]');
         if (tl) this.showInfo(+tl.dataset.id);
@@ -459,7 +459,6 @@
       const cand = rs ? this.callOptions(rs) : null;
       const tiles = all.map((h) => {
         let cls = '', mk = '';
-        if (cand && cand.union.has(h.id)) cls += ' cand';
         if (sel) {
           const ok = this.allowed(sel, h);
           cls += ok ? ' ok' : ' dis';
@@ -517,27 +516,27 @@
       opts.forEach((x) => x.ids.forEach((i) => union.add(i)));
       return { opts, union };
     },
-    /* 「どうする?」の大きな確認カード */
+    /* 「どうする?」: 文字だけのボタンを手牌の上に並べる。選んでいる鳴きに使う手牌が持ち上がって光り、捨てられた牌は枠で光る */
     callCard(game, s, cand) {
       const o = s.o;
-      const from = game.players[o.from];
-      const t = (x) => MJ.tileHTML(x, 't-s');
-      const set = (types) => `<span class="cq-set">${types.map(t).join('')}</span><span class="cq-plus">+</span><span class="cq-set cq-new">${t(o.tile.t)}</span>`;
       const label = { pon: 'ポン', chi: 'チー', kan: 'カン' };
-      const btns = [];
-      if (o.ron) btns.push(`<button class="btn b-ron cq-btn" data-act="ron">ロン!<small>上がります</small></button>`);
+      const nChi = cand.opts.filter((x) => x.kind === 'chi').length;
+      const CIRC = '①②③④';
+      let ci = 0;
+      const btns = [`<button class="btn b-pass cq-btn" data-act="pass">見送る</button>`];
       cand.opts.forEach((x) => {
         const extra = x.kind === 'chi' ? ` data-a="${x.a}" data-b="${x.b}"` : '';
-        btns.push(`<button class="btn b-call cq-btn" data-act="${x.kind}" data-ids="${x.ids.join(',')}"${extra}><span class="cq-l">${label[x.kind]}</span>${set(x.types)}</button>`);
+        const txt = label[x.kind] + (x.kind === 'chi' && nChi > 1 ? CIRC[ci++] || '' : '');
+        btns.push(`<button class="btn b-call cq-btn" data-act="${x.kind}" data-ids="${x.ids.join(',')}"${extra}>${txt}</button>`);
       });
-      const canCall = o.ron || cand.opts.length;
-      btns.push(`<button class="btn b-pass cq-btn" data-act="pass">${canCall ? '見送る' : 'OK'}</button>`);
-      let msg;
-      if (o.ron) msg = `ロンできます!`;
-      else if (cand.opts.length) msg = `${cand.opts.map((x) => label[x.kind]).filter((v, i, a) => a.indexOf(v) === i).join('・')}できます。どうしますか?`;
-      else msg = o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '';
-      const why = cand.opts.length ? '<div class="cq-why">↑ 持ち上がっている牌が、鳴いたときに使う牌です(ボタンの上にカーソルを置くと、その鳴き方の牌だけ光ります)</div>' : '';
-      return `<div class="callq"><div class="cq-head"><span class="cq-from">${from.name}が捨てた</span><span class="cq-tile">${t(o.tile.t)}</span><span class="cq-msg">${msg}</span></div><div class="cq-btns">${btns.join('')}</div><div class="cq-keys"><span class="cq-pk">◀▶▲▼ でえらんで、<b>A</b> で決定</span></div>${why}</div>`;
+      if (o.ron) btns.push(`<button class="btn b-ron cq-btn" data-act="ron">ロン</button>`);
+      const note = !o.ron && !cand.opts.length ? (o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '') : '';
+      return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b>A</b> で決定</span></div></div>`;
+    },
+    /* 選んでいる鳴きボタンに合わせて、使う手牌を持ち上げて光らせる */
+    hlCall(btn) {
+      const ids = btn && btn.dataset && btn.dataset.ids ? btn.dataset.ids.split(',') : [];
+      document.querySelectorAll('#mine .hand .tile[data-id]').forEach((tl) => tl.classList.toggle('cand', ids.includes(tl.dataset.id)));
     },
 
     allowed(sel, h) {

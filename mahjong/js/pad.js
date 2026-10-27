@@ -74,6 +74,7 @@
     P.desc = descOf(el);
     if (el) {
       el.classList.add('pf');
+      if (el.matches('.cq-btn') && MJ.UI && MJ.UI.hlCall) MJ.UI.hlCall(el);
       try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* ignore */ }
       if (el.matches('.hand .tile[data-id]') && MJ.UI && MJ.UI.showInfo) { try { MJ.UI.showInfo(+el.dataset.id); } catch (e) { /* ignore */ } }
     }
@@ -183,6 +184,16 @@
     if (P.lockLeft() > 0) return;
     if (!P.on) { P.on = true; document.body.classList.add('pad-on'); setCur(pickDefault()); if (name !== 'a') return; } // 最初の1回: カーソルを出す(方向キーはそれだけ。Aはそのまま決定する)
     if (P.cur && !(P.cur.isConnected && visible(P.cur) && inScope(P.cur))) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; setCur(pickDefault()); }
+    if (name === 'left' || name === 'right' || name === 'up' || name === 'down') {
+      const cq = $('.callq');
+      if (cq && visible(cq)) { // 鳴きの確認: ◀▶(▲▼も)で、ボタンを順に切り替える。切り替えると、使う手牌が光る
+        const bs = [...cq.querySelectorAll('.cq-btn')], i = bs.indexOf(P.cur);
+        const d = name === 'left' || name === 'up' ? -1 : 1;
+        const n = bs[Math.max(0, Math.min(bs.length - 1, (i < 0 ? 0 : i) + d))];
+        if (n) setCur(n);
+        return;
+      }
+    }
     if (name === 'left') move(-1, 0); else if (name === 'right') move(1, 0); else if (name === 'up') move(0, -1); else if (name === 'down') move(0, 1);
     else press(name);
   };
