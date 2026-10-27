@@ -5,7 +5,22 @@
   const MJ = (G.MJ = G.MJ || {});
   const $ = (s, r = document) => r.querySelector(s);
   const FOCUSABLE = 'button, [data-act], .hand .tile[data-id], .pm-arrow, #dq-hand .hand .tile.ok[data-i], summary, input, select, a[href], .mode-card, [data-mode], .char, [data-pj], [data-pg], [data-readfrom], [data-dtab], [data-open-gloss], [data-open-credits], .gl, [tabindex]';
-  const P = (MJ.Pad = { on: false, cur: null, desc: null });
+  const P = (MJ.Pad = { on: false, cur: null, desc: null, dev: 'mouse' });
+  /* 鳴き・ロンの確認が出た直後は、パッド/キーを受け付けない(連打で押してしまうのを防ぐ)。マウス・タッチは対象外 */
+  const LOCK_MS = 2000;
+  P.lockLeft = () => {
+    const U = MJ.UI;
+    if (!(U && U.sel && U.sel.type === 'react' && P.dev === 'pad')) return 0;
+    return Math.max(0, LOCK_MS - (Date.now() - (U.reactAt || 0)));
+  };
+  P.syncLock = () => {
+    const cq = $('.callq');
+    if (!cq) return;
+    const left = P.lockLeft();
+    cq.classList.toggle('locked', left > 0);
+    if (left > 0) { clearTimeout(P._lt); P._lt = setTimeout(() => { const c = $('.callq'); if (c) c.classList.remove('locked'); }, left + 20); }
+  };
+  P.onReact = () => { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; }; // 確認が出たら、カーソルは「見送る」から始める
 
   const rectOf = (el) => el.getBoundingClientRect();
   const visible = (el) => {
@@ -25,6 +40,8 @@
     if (gl) return [gl];
     const ov = $('#overlay');
     if (ov && !ov.classList.contains('hidden')) return [ov];
+    const cq = $('.callq');
+    if (cq && visible(cq)) return [cq]; // 鳴きの確認が出ている間は、そのボタンだけを選べる
     const roots = [...document.querySelectorAll('.screen:not(.hidden)')];
     const tools = $('#sd-tools');
     if (tools && !tools.classList.contains('hidden')) return [tools];
@@ -65,7 +82,7 @@
   const pickDefault = () => {
     const U = MJ.UI;
     if (U && U.game && !$('#screen-game').classList.contains('hidden') && $('#overlay').classList.contains('hidden')) {
-      const cq = $('.cq-btn[data-act]:not(.b-pass)') || $('.cq-btn[data-act]');
+      const cq = $('.cq-btn.b-pass') || $('.cq-btn[data-act]'); // 初めは「見送る」
       if (cq && visible(cq)) return cq;
       const t = $('.hand .tile.rec') || $('.hand .tile.drawn:not(.ph)') || [...document.querySelectorAll('.hand .tile[data-id]')].pop();
       if (t && visible(t)) return t;
@@ -92,7 +109,7 @@
     if (P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur)) { P.cur.classList.add('pf'); return; }
     if (P.cur) { P.cur.classList.remove('pf'); P.cur = null; }
     let el = P.desc ? $(P.desc) : null;
-    if (!(el && visible(el))) el = pickDefault();
+    if (!(el && visible(el) && inScope(el))) el = pickDefault();
     setCur(el);
   };
 
@@ -149,7 +166,7 @@
         if (!$('#sd-tools').classList.contains('hidden')) { $('#sd-tools').classList.add('hidden'); return; }
         if (document.body.classList.contains('coach-open')) { document.body.classList.remove('coach-open'); return; }
         if (!$('#screen-game').classList.contains('hidden') && U && U.sel) {
-          if (U.sel.type === 'react') { click('[data-act=pass]'); return; }
+          if (U.sel.type === 'react') return; // 鳴きの確認では、Bは何もしない(誤操作防止)
           if (U.riichiMode) { click('[data-act=riichi]'); return; }
           if (U.picked != null) { U.picked = null; U.render(U.game); return; }
         }
@@ -162,6 +179,8 @@
     }
   };
   const act = (name) => {
+    P.dev = 'pad';
+    if (P.lockLeft() > 0) return;
     if (!P.on) { P.on = true; document.body.classList.add('pad-on'); setCur(pickDefault()); if (name !== 'a') return; } // 最初の1回: カーソルを出す(方向キーはそれだけ。Aはそのまま決定する)
     if (P.cur && !(P.cur.isConnected && visible(P.cur) && inScope(P.cur))) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; setCur(pickDefault()); }
     if (name === 'left') move(-1, 0); else if (name === 'right') move(1, 0); else if (name === 'up') move(0, -1); else if (name === 'down') move(0, 1);
@@ -180,7 +199,7 @@
     e.preventDefault();
     act(n);
   }, true);
-  G.addEventListener('pointerdown', () => { if (P.on) { P.on = false; document.body.classList.remove('pad-on'); if (P.cur) P.cur.classList.remove('pf'); } }, true);
+  G.addEventListener('pointerdown', () => { P.dev = 'mouse'; if (P.on) { P.on = false; document.body.classList.remove('pad-on'); if (P.cur) P.cur.classList.remove('pf'); } }, true);
 
   /* ゲームパッド(標準配置: 0=A 1=B 2=X 3=Y 4=LB 5=RB 8=Select 9=Start 12-15=十字) */
   const MAP = { 0: 'a', 1: 'b', 12: 'up', 13: 'down', 14: 'left', 15: 'right' };

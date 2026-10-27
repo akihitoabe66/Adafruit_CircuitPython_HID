@@ -63,11 +63,7 @@ body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 .cq-head { font-size: 26px; }
 .cq-btn { font-size: 30px !important; min-height: 76px; padding: 8px 26px !important; gap: 14px; }
 .cq-btn.b-pass { font-size: 30px !important; }
-.cq-btns .cq-btn:not(.b-pass):first-child::before, .cq-btn.b-pass::before {
-  content: "A"; display: inline-grid; place-items: center; width: 1.2em; height: 1.2em; border-radius: 50%;
-  background: #1b1b12; color: #f2c230; font-size: .85em; font-weight: 900; flex: none;
-}
-.cq-btn.b-pass::before { content: "B"; }
+
 .cq-set .tile { width: 36px; height: 48px; }
 .cq-tile .tile { width: 56px; height: 74px; }
 /* ツール(細かい設定)は出さない */
@@ -77,3 +73,13 @@ body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 .cq-btn.b-pass { grid-column: 1 / -1; font-size: 26px !important; }
 .cq-set .tile { width: 30px; height: 40px; }
 .cq-head { font-size: 22px; }
+
+/* 鳴きの確認: 方向キーで選んで A で決定(Bは使わない)。出た直後の2秒は、パッドの操作を受け付けない */
+.cq-keys { display: none; margin-top: 6px; font-size: 20px; font-weight: 700; color: #ffe9a0; }
+body.pad-on .cq-keys { display: block; }
+.cq-keys b { display: inline-grid; place-items: center; min-width: 1.2em; height: 1.2em; border-radius: 50%; background: #1b1b12; color: #f2c230; }
+.cq-wait { display: none; }
+.callq.locked .cq-pk { display: none; }
+.callq.locked .cq-wait { display: inline; }
+.callq.locked .cq-btn { opacity: .45; }
+.callq .cq-btn.b-pass { background: linear-gradient(#e9e5d8, #cfc9b6); border-color: #fff; color: #2b2b22; }

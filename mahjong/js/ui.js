@@ -386,6 +386,7 @@
       $('#sd-info').innerHTML = `<b>${game.kyokuLabel()}</b><span>${{ single: '1局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`;
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
       this.fitTip();
+      if (MJ.Pad && MJ.Pad.syncLock) MJ.Pad.syncLock();
       if (this.dng) this.hilite(this.picked != null ? ((game.players[0].hand.find((x) => x.id === this.picked) || {}).t) : this.hiType);
       if (MJ.Pad) MJ.Pad.refocus();
     },
@@ -536,7 +537,7 @@
       else if (cand.opts.length) msg = `${cand.opts.map((x) => label[x.kind]).filter((v, i, a) => a.indexOf(v) === i).join('・')}できます。どうしますか?`;
       else msg = o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '';
       const why = cand.opts.length ? '<div class="cq-why">↑ 持ち上がっている牌が、鳴いたときに使う牌です(ボタンの上にカーソルを置くと、その鳴き方の牌だけ光ります)</div>' : '';
-      return `<div class="callq"><div class="cq-head"><span class="cq-from">${from.name}が捨てた</span><span class="cq-tile">${t(o.tile.t)}</span><span class="cq-msg">${msg}</span></div><div class="cq-btns">${btns.join('')}</div>${why}</div>`;
+      return `<div class="callq"><div class="cq-head"><span class="cq-from">${from.name}が捨てた</span><span class="cq-tile">${t(o.tile.t)}</span><span class="cq-msg">${msg}</span></div><div class="cq-btns">${btns.join('')}</div><div class="cq-keys"><span class="cq-pk">◀▶▲▼ でえらんで、<b>A</b> で決定</span><span class="cq-wait">少しお待ちください…</span></div>${why}</div>`;
     },
 
     allowed(sel, h) {
@@ -721,6 +722,8 @@
     askReact(game, q, o) {
       return new Promise((res) => {
         this.sel = { type: 'react', p: q, o, res };
+        this.reactAt = Date.now();
+        if (MJ.Pad && MJ.Pad.onReact) MJ.Pad.onReact();
         this.adv = null;
         this.coachHtml = this.coachActive() || game.mode !== 'free' ? MJ.Coach.reactAdvice(game, q, o) : '';
         this.summary = o.ron ? 'ロンできます!' : o.chi.length || o.pon || o.kan ? '鳴くかどうかは 🎓解説 で確認できます' : '';
