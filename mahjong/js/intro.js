@@ -42,6 +42,11 @@
         el.innerHTML = `<div class="in-stage"><div class="in-seats">${seat(3, 'l')}${seat(2, 't')}${seat(1, 'r')}${me()}</div>` +
           '<div class="in-burst"></div><div class="in-word" id="in-w1"><div class="inw">東一局</div><div class="ins">' + len + '</div></div><div class="in-word" id="in-w2"><div class="inw">勝負!</div></div>' +
           '<div class="in-flash"></div><div class="in-hint"><i>A</i> とばす</div></div>';
+        // 顔の絵が読み込まれてから始める(顔が遅れて出て、文字のアニメだけ先に始まらないように)
+        const srcs = [...el.querySelectorAll('img')].map((x) => x.getAttribute('src'));
+        const ready = Promise.all(srcs.map((u) => new Promise((ok) => { const im = new Image(); im.onload = im.onerror = ok; im.src = u; if (im.complete) ok(); })));
+        Promise.race([ready, new Promise((ok) => setTimeout(ok, 3000))]).then(() => begin());
+        const begin = () => {
         host.appendChild(el);
         I.active = true;
         let done = false;
@@ -61,6 +66,7 @@
         at(2600, () => petals(el)); at(1500, () => petals(el, 14));
         at(4700, finish);
         el.addEventListener('click', finish);
+        };
       });
     },
   });
