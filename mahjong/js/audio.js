@@ -5,7 +5,7 @@
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
   const HOME = 'audio/home.mp3';
-  const GAME = ['audio/game1.mp3', 'audio/game2.mp3', 'audio/game3.mp3'];
+  const GAME = ['audio/game1.mp3', 'audio/game2.mp3', 'audio/game3.mp3', 'audio/game4.mp3', 'audio/game5.mp3', 'audio/game6.mp3'];
   let el = null, gain = null, wired = false, last = null;
 
   /* 曲を先に取り寄せておく(押してから数秒待たされないように)。順番: ホーム → 対局曲 → 結果曲 */

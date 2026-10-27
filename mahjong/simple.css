@@ -22,7 +22,7 @@ body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 .hm-btn { position: absolute; left: 90px; right: 90px; height: 78px; display: flex; align-items: center; justify-content: center; gap: 18px; padding: 0 24px; font: inherit; font-weight: 900; font-size: 42px; letter-spacing: .06em; background: var(--sp-paper); color: var(--sp-ink); border: 6px solid transparent; border-radius: 18px; cursor: pointer; white-space: nowrap; }
 .hm-btn small { font-size: 22px; font-weight: 700; letter-spacing: 0; color: #5b655f; }
 #hm-play { top: 54px; } #hm-quiz { top: 142px; } #hm-study { top: 230px; } #hm-set { top: 318px; }
-.hm-btn.pf, .hm-btn:focus-visible, .hm-btn:hover { border-color: var(--sp-focus); background: #fff; box-shadow: 0 0 0 5px rgba(242, 194, 48, .5); outline: none; }
+.hm-btn.pf { border-color: var(--sp-focus); background: #fff; box-shadow: 0 0 0 5px rgba(242, 194, 48, .5); outline: none; }
 .hm-stats { display: none; }
 .hm-hint { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; background: rgba(0, 0, 0, .55); display: flex; gap: 30px; align-items: center; padding: 0 44px; font-size: 17px; font-weight: 700; }
 .hm-hint i { font-style: normal; color: var(--sp-focus); }
@@ -126,7 +126,7 @@ body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s e
 .sy-btn { position: absolute; left: 90px; right: 90px; height: 70px; display: flex; align-items: center; gap: 22px; padding: 0 30px; font: inherit; font-weight: 900; font-size: 36px; background: var(--sp-paper); color: var(--sp-ink); border: 6px solid transparent; border-radius: 16px; cursor: pointer; white-space: nowrap; }
 .sy-btn b { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #1b1b12; color: var(--sp-focus); font-size: 26px; }
 .sy-btn:nth-of-type(1) { top: 56px; } .sy-btn:nth-of-type(2) { top: 136px; } .sy-btn:nth-of-type(3) { top: 216px; } .sy-btn:nth-of-type(4) { top: 296px; }
-.sy-btn.pf, .sy-btn:hover, .sy-btn:focus-visible, .sy-nb.pf, .sy-nb:hover:not(:disabled), .sy-back.pf { border-color: var(--sp-focus); background: #fff; box-shadow: 0 0 0 5px rgba(242, 194, 48, .5); outline: none; }
+.sy-btn.pf, .sy-nb.pf, .sy-back.pf { border-color: var(--sp-focus); background: #fff; box-shadow: 0 0 0 5px rgba(242, 194, 48, .5); outline: none; }
 .sy-back { position: absolute; left: 20px; top: 10px; font: inherit; font-weight: 800; font-size: 20px; padding: 4px 16px; border-radius: 10px; background: #e4ecd9; color: var(--sp-ink); border: 4px solid transparent; cursor: pointer; }
 .sy-body { position: absolute; left: 50px; right: 50px; top: 58px; height: 262px; font-size: 29px; line-height: 1.5; font-weight: 700; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
 .sy-body p { margin: 0; }
@@ -161,7 +161,7 @@ body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s e
 .ht-s.on { color: #fff; background: #3b4540; }
 .ht-s[data-v="1"].on { background: var(--ok); }
 .ht-s.on::before { content: "✓"; margin-right: 2px; }
-.hm-btn.pf, .hm-btn:hover, .hm-btn:focus-visible, .hm-teach.pf, .hm-teach:hover, .hm-teach:focus-visible {
+.hm-btn.pf, .hm-teach.pf {
   background: var(--sel); color: var(--sel-ink); border-color: var(--sel-ink); box-shadow: 0 0 0 6px #fff, 0 8px 18px #0008; transform: scale(1.035); outline: none; z-index: 3;
 }
 .hm-btn.pf::before { content: "▶"; position: absolute; left: 24px; font-size: 34px; }
@@ -170,7 +170,7 @@ body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s e
 /* 勉強の画面 */
 .sy-btn, .sy-nb { background: var(--idle); color: var(--sel-ink); border: 6px solid transparent; }
 .sy-nb.go { background: var(--ok); color: #fff; }
-.sy-btn.pf, .sy-btn:hover, .sy-nb.pf, .sy-nb:hover:not(:disabled), .sy-back.pf {
+.sy-btn.pf, .sy-nb.pf, .sy-back.pf {
   background: var(--sel); color: var(--sel-ink); border-color: var(--sel-ink); box-shadow: 0 0 0 6px #fff, 0 8px 18px #0008; transform: scale(1.035); outline: none;
 }
 .sy-btn.pf::before { content: "▶"; position: absolute; left: 6px; font-size: 26px; }
@@ -272,3 +272,10 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 @keyframes inPetal { 0% { opacity: 0; transform: translate(0, 0) rotate(var(--r)); } 10% { opacity: .95; } 50% { transform: translate(calc(var(--dx) * .5 + 3cqw), 30cqw) rotate(calc(var(--r) + 200deg)); } 100% { opacity: 0; transform: translate(var(--dx), 62cqw) rotate(calc(var(--r) + 420deg)); } }
 @media (prefers-reduced-motion: reduce) { .in-petal { display: none; } }
 .cq-note { font-size: 18px; background: rgba(0, 0, 0, .62); padding: 2px 12px; border-radius: 8px; max-width: 560px; text-align: center; }
+
+/* ホーム・タイトルの桜吹雪(ゆっくり) */
+.mn-petals { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 5; }
+.mn-petal { position: absolute; top: -20px; width: calc(var(--sz) * 1.5); height: calc(var(--sz) * 1.1); border-radius: 100% 0 100% 0; background: linear-gradient(135deg, #ffe9f0, #ff8fb0); opacity: 0; animation: mnPetal 14s linear infinite; }
+@keyframes mnPetal { 0% { opacity: 0; transform: translate(0, 0) rotate(var(--r)); } 8% { opacity: .75; } 50% { transform: translate(calc(var(--dx) * .5 + 4vw), 52vh) rotate(calc(var(--r) + 160deg)); } 92% { opacity: .7; } 100% { opacity: 0; transform: translate(var(--dx), 108vh) rotate(calc(var(--r) + 340deg)); } }
+#screen-menu #mn, #screen-title #tt { position: absolute; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .mn-petal { animation: none; opacity: 0; } }

@@ -274,7 +274,21 @@
     });
   }
 
+  /* ホーム・タイトルの桜吹雪: ゆっくり、ずっと流れる(CSSだけで動かす) */
+  function addPetals(sel, n) {
+    const host = $(sel); if (!host || host.querySelector('.mn-petals')) return;
+    const box = document.createElement('div'); box.className = 'mn-petals';
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('i'); p.className = 'mn-petal';
+      const dur = 11 + Math.random() * 8;
+      p.style.cssText = `left:${(Math.random() * 100).toFixed(1)}%;--dx:${(Math.random() * 16 - 4).toFixed(1)}vw;--sz:${(8 + Math.random() * 10).toFixed(0)}px;--r:${(Math.random() * 360).toFixed(0)}deg;animation-duration:${dur.toFixed(1)}s;animation-delay:${(-Math.random() * dur).toFixed(1)}s`;
+      box.appendChild(p);
+    }
+    host.insertBefore(box, host.firstChild);
+  }
+
   function init() {
+    addPetals('#screen-menu', 22); addPetals('#screen-title', 16);
     MJ.Gloss.init();
     MJ.loadRules();
     document.addEventListener('click', (e) => { if (e.target.closest('[data-open-credits]')) showCredits(); else if (e.target.closest('[data-open-rules]') || e.target.closest('#sel-rules')) showRules(); });
