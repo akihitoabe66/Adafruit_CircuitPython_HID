@@ -523,13 +523,14 @@
       const nChi = cand.opts.filter((x) => x.kind === 'chi').length;
       const CIRC = '①②③④';
       let ci = 0;
-      const btns = [`<button class="btn b-pass cq-btn" data-act="pass">見送る</button>`];
+      const btns = [];
       cand.opts.forEach((x) => {
         const extra = x.kind === 'chi' ? ` data-a="${x.a}" data-b="${x.b}"` : '';
         const txt = label[x.kind] + (x.kind === 'chi' && nChi > 1 ? CIRC[ci++] || '' : '');
         btns.push(`<button class="btn b-call cq-btn" data-act="${x.kind}" data-ids="${x.ids.join(',')}"${extra}>${txt}</button>`);
       });
       if (o.ron) btns.push(`<button class="btn b-ron cq-btn" data-act="ron">ロン</button>`);
+      btns.push(`<button class="btn b-pass cq-btn" data-act="pass">見送る</button>`); // 見送るは、いちばん右
       const note = !o.ron && !cand.opts.length ? (o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '') : '';
       return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b>A</b> で決定</span></div></div>`;
     },
