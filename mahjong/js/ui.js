@@ -570,7 +570,8 @@
       this.clearDock();
       const el = document.createElement('div');
       el.className = 'tdock'; el.dataset.kind = kind;
-      el.innerHTML = `${this.teacherImg(mood)}<div class="tb"><b>先生</b>${text}</div>`;
+      const fs = text.length > 34 ? 11 : text.length > 24 ? 12 : 13;
+      el.innerHTML = `${this.teacherImg(mood)}<div class="tb" style="font-size:${fs}px"><b>先生</b>${text}</div>`;
       host.appendChild(el);
       document.body.classList.add('tdock-on');
       clearTimeout(this._tdT);

@@ -508,7 +508,7 @@
     const h = hs[0];
     const plain = h.t.replace(/<[^>]+>/g, '');
     const first = plain.split(/[。]/)[0];
-    return { name: h.n, text: `${h.n}を目指そう!${first.length > 22 ? first.slice(0, 22) + '…' : first}` };
+    return { name: h.n, text: `${h.n}を目指そう!${first.length > 14 ? first.slice(0, 14) + '…' : first}` };
   };
   C.reactAdvice = function (game, p, o) {
     const t = o.tile.t;
