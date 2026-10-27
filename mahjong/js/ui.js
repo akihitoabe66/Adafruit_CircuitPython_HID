@@ -533,9 +533,25 @@
     },
     /* 先生(麻雀牌のキャラ)。表情ごとに、数枚から選ぶ */
     teacherImg(mood, cls = '') {
-      const M = { ok: ['21', '32'], pass: ['25', '24', '34'], advice: ['16', '26', '36'], ron: ['33', '23'], kan: ['14', '15'], pon: ['11', '31'], chi: ['12', '22'] };
+      // 表情ごとに、使える絵を、たくさん持っておく(毎回、同じ顔にならないように、かぶらない順で選ぶ)
+      const M = {
+        ok: ['21', '22', '31', '32', '35'],          // おすすめ・ほめる
+        pass: ['15', '25', '24', '34', '12'],        // 見送り・注意
+        advice: ['26', '36', '16', '13', '12'],      // ふつうのアドバイス
+        aim: ['16', '13', '26', '36', '12'],         // 目指す手
+        warn: ['24', '34', '25', '15'],              // 危ない(相手のリーチなど)
+        cheer: ['35', '31', '21', '32', '22'],       // 応援
+        greet: ['14', '21', '11', '36'],             // あいさつ
+        ron: ['23', '33', '35', '11'],
+        kan: ['14', '15', '24'],
+        pon: ['11', '31'], chi: ['12', '22'],
+      };
       const a = M[mood] || M.advice;
-      return `<img class="tcut ${cls}" src="img/teacher/t${a[Math.floor(Math.random() * a.length)]}.png" alt="">`;
+      const last = (this._tLast = this._tLast || {});
+      let pick = a[Math.floor(Math.random() * a.length)];
+      if (a.length > 1 && pick === last[mood]) pick = a[(a.indexOf(pick) + 1) % a.length];
+      last[mood] = pick;
+      return `<img class="tcut ${cls}" src="img/teacher/t${pick}.png" alt="">`;
     },
     /* 先生が、ときどき出てきて「目指す手」を教える(先生ありのときだけ。25秒以上あけて、確率でたまに) */
     maybeAim(game, p) {
@@ -546,7 +562,7 @@
       const h = MJ.Coach.aimHint(game, p);
       if (!h || h.name === this._aimLast) return;
       this._aimAt = now; this._aimLast = h.name;
-      this.teacherSay(h.text, 'advice', 7000);
+      this.teacherSay(h.text, 'aim', 7000);
     },
     /* 先生の置き場所: 左下の、手牌の上(いつもは「切る牌をタップ」の表示がある所)。プレイの邪魔にならない場所に固定 */
     teacherSay(text, mood, ms = 6000, kind = 'tip') {
@@ -982,6 +998,10 @@
       // 顔は、鳴き・リーチ・和了のこの瞬間にだけ、その席のそばに大きく出す
       const host = $('#says');
       host.querySelectorAll('.shout').forEach((x) => x.remove());
+      if (this.hintOn && text === 'リーチ' && !game.fast) { // 先生: 相手のリーチには注意、自分のリーチには応援
+        const msg = p.isHuman ? 'リーチ! いい形です。がんばって!' : 'リーチに注意! 安全な牌を切りましょう。';
+        setTimeout(() => { if (!(this.sel && this.sel.type === 'react')) this.teacherSay(msg, p.isHuman ? 'cheer' : 'warn', 6000); }, 900);
+      }
       this.clearSeat(p.seat); // 同じ席のセリフの顔が残っていたら消す
       const el = document.createElement('div');
       el.className = `shout sh${p.seat}`;
@@ -1014,6 +1034,7 @@
       setTimeout(() => el.remove(), 2600);
     },
     handStart(game) {
+      if (this.hintOn && game.honba === 0 && game.kyoku === 0) setTimeout(() => this.teacherSay('先生がついています。迷ったら、おしえます!', 'greet', 4500), 800);
       MJ.SFX.play('start');
       const tip = MJ.Coach.startTip(game);
       this.tipHtml = `<div class="cc rec"><div class="cc-h">💡 この局のポイント</div><div class="cc-b">${tip}</div></div>`;
