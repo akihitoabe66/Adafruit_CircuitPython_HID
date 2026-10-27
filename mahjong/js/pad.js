@@ -69,7 +69,11 @@
     if (el.id) return `#${el.id}`;
     return null;
   };
+  // 光っている(.pf)のは、いつも1つだけ。画面の切り替えで残った古い光を、まとめて消す
+  const clearPf = (keep) => { document.querySelectorAll('.pf').forEach((x) => { if (x !== keep) x.classList.remove('pf'); }); };
+  P.clearPf = clearPf;
   const setCur = (el) => {
+    clearPf(el);
     if (P.cur) P.cur.classList.remove('pf');
     P.cur = el || null;
     P.desc = descOf(el);
@@ -108,7 +112,7 @@
   };
   P.refocus = () => {
     if (!P.on) return;
-    if (P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur)) { P.cur.classList.add('pf'); return; }
+    if (P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur)) { clearPf(P.cur); P.cur.classList.add('pf'); return; }
     if (P.cur) { P.cur.classList.remove('pf'); P.cur = null; }
     let el = P.desc ? $(P.desc) : null;
     if (!(el && visible(el) && inScope(el))) el = pickDefault();
@@ -190,13 +194,13 @@
   /* 画面が出たときから、最初のボタンを「選択中」にしておく(パッドを押す前でも、色で分かる)。force=true で、選び直す */
   P.preselect = (force) => {
     if (force) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; }
-    if (P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur)) { P.cur.classList.add('pf'); return; }
+    if (P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur)) { clearPf(P.cur); P.cur.classList.add('pf'); return; }
     setCur(pickDefault());
   };
   P.saveCur = () => { P.saved = P.cur; };
   P.restoreCur = () => {
     const s = P.saved; P.saved = null;
-    if (s && s.isConnected && visible(s) && inScope(s)) { if (P.cur && P.cur !== s) P.cur.classList.remove('pf'); P.cur = s; P.desc = descOf(s); s.classList.add('pf'); } else P.preselect(true);
+    if (s && s.isConnected && visible(s) && inScope(s)) { clearPf(s); P.cur = s; P.desc = descOf(s); s.classList.add('pf'); } else P.preselect(true);
   };
   const act = (name) => {
     P.dev = 'pad';
