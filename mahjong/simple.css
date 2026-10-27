@@ -306,3 +306,18 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 .in-seat.me { left: 3cqw; top: 41cqw; width: auto; flex-direction: row; align-items: center; gap: 1cqw; animation: inL .5s .1s cubic-bezier(.2, 1.2, .3, 1) both; }
 .in-seat.me img { height: 10cqw; width: 10cqw; border-width: .35cqw; border-radius: 1.4cqw; }
 .in-seat.me .in-nm { margin-top: 0; font-size: 2.6cqw; }
+
+/* 先生(麻雀牌のキャラ) */
+img.tcut { height: 96px; width: auto; display: block; flex: none; filter: drop-shadow(0 3px 5px #000a); }
+.cq-teach { display: flex; align-items: flex-end; gap: 8px; max-width: 600px; }
+.cq-teach .tb, .tsay .tb { background: rgba(255, 255, 255, .95); color: #16160f; border: 3px solid #ffd23f; border-radius: 14px; padding: 8px 14px; font-size: 20px; font-weight: 800; line-height: 1.35; margin-bottom: 10px; box-shadow: 0 3px 10px #0008; }
+.cq-teach .tb b, .tsay .tb b { display: block; font-size: 15px; color: #1b6b4a; }
+.cq-rec { color: #b3261e !important; font-weight: 900 !important; font-size: 14px !important; }
+.callq .cq-btn.b-pass .cq-rec, .callq .cq-btn.b-call .cq-rec, .callq .cq-btn.b-ron .cq-rec { background: #fff; border-radius: 6px; padding: 0 6px; margin-top: 2px; }
+.tsay { position: absolute; left: 6px; top: 6px; z-index: 40; display: flex; align-items: flex-end; gap: 6px; max-width: 330px; animation: sayin .2s ease-out; pointer-events: none; }
+.tsay img.tcut { height: 104px; }
+.tsay .tb { font-size: 17px; }
+body.calling .tsay { display: none; }
+.cq-teach { align-self: center; max-width: 520px; }
+.cq-teach img.tcut { height: 82px; }
+.cq-teach .tb { font-size: 18px; padding: 6px 12px; margin-bottom: 6px; max-width: 360px; }

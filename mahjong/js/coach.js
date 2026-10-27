@@ -501,6 +501,14 @@
   }
 
   /* ---------- 鳴き・ロン時のアドバイス ---------- */
+  /* 先生の「目指す手」: いまの手牌から、狙えそうな役を1つ、短く教える。なければ null */
+  C.aimHint = function (game, p) {
+    const hs = C.yakuHints(game, p).filter((h) => h.pri >= 4 && h.pri < 9);
+    if (!hs.length) return null;
+    const h = hs[0];
+    const plain = h.t.replace(/<[^>]+>/g, '');
+    return { name: h.n, text: `${h.n}を目指してみましょう。${plain.length > 46 ? plain.slice(0, 46) + '…' : plain}` };
+  };
   C.reactAdvice = function (game, p, o) {
     const t = o.tile.t;
     const cards = [];
@@ -529,6 +537,28 @@
     if (o.kan) cards.push(card('カン(大明槓)', '同じ牌4枚で槓子にする。<b>ドラが増える</b>が、相手のドラも増える・手牌が減る・失敗しやすい。初心者は基本的に<b>おすすめしません</b>。(嶺上牌を1枚引いて、そのあと切ります)'));
     if (mode === 'defense' && an.opps.length) cards.push(card('🛡 守備の目線', '鳴くと手牌が減り、安全牌を持ちにくくなります。リーチ者がいる時の鳴きは、テンパイに直結する時だけにしましょう。'));
     return cards.join('');
+  };
+
+  /* 鳴きの確認用の、短いアドバイス(先生のひとこと)。rec: 'call'=鳴いてOK / 'pass'=見送り */
+  C.reactBrief = function (game, p, o) {
+    const t = o.tile.t;
+    if (o.ron) return { rec: 'ron', text: 'ロンできます! 上がりましょう!' };
+    const evs = [];
+    if (o.pon) evs.push({ kind: 'ポン', e: A.callEval(game, p, 'pon', t) });
+    for (const ch of o.chi) evs.push({ kind: 'チー', e: A.callEval(game, p, 'chi', t, ch.use) });
+    if (!evs.length) {
+      if (o.kan) return { rec: 'pass', text: 'カンは、おすすめしません。見送りましょう。' };
+      return null;
+    }
+    const good = evs.filter((x) => x.e.yaku.ok && x.e.after < x.e.before && x.e.before > 0);
+    if (good.length) {
+      const g = good[0];
+      return { rec: 'call', kind: g.kind, text: `${g.kind}してOK! テンパイに近づきます。` };
+    }
+    const bad = evs.find((x) => !x.e.yaku.ok);
+    if (bad) return { rec: 'pass', text: '役がつかないので、見送りましょう。' };
+    if (evs.every((x) => x.e.before === 0)) return { rec: 'pass', text: 'もうテンパイです。鳴かずに見送りましょう。' };
+    return { rec: 'pass', text: '手が進まないので、見送りましょう。' };
   };
 
   /* ---------- 局の開始ヒント ---------- */

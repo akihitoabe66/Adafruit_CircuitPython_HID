@@ -528,27 +528,56 @@
       opts.forEach((x) => x.ids.forEach((i) => union.add(i)));
       return { opts, union };
     },
+    /* 先生(麻雀牌のキャラ)。表情ごとに、数枚から選ぶ */
+    teacherImg(mood, cls = '') {
+      const M = { ok: ['21', '32'], pass: ['25', '24', '34'], advice: ['16', '26', '36'], ron: ['33', '23'], kan: ['14', '15'], pon: ['11', '31'], chi: ['12', '22'] };
+      const a = M[mood] || M.advice;
+      return `<img class="tcut ${cls}" src="img/teacher/t${a[Math.floor(Math.random() * a.length)]}.png" alt="">`;
+    },
+    /* 先生が、ときどき出てきて「目指す手」を教える(先生ありのときだけ。25秒以上あけて、確率でたまに) */
+    maybeAim(game, p) {
+      if (!this.hintOn || game.fast || game.stopped) return;
+      this._aimTurns = (this._aimTurns || 0) + 1;
+      const now = Date.now();
+      if (this._aimTurns < 3 || now - (this._aimAt || 0) < 25000 || Math.random() > 0.3) return;
+      const h = MJ.Coach.aimHint(game, p);
+      if (!h || h.name === this._aimLast) return;
+      this._aimAt = now; this._aimLast = h.name;
+      this.teacherSay(h.text, 'advice', 7000);
+    },
+    teacherSay(text, mood, ms = 6000) {
+      const host = $('#says'); if (!host) return;
+      host.querySelectorAll('.tsay').forEach((x) => x.remove());
+      const el = document.createElement('div');
+      el.className = 'tsay';
+      el.innerHTML = `${this.teacherImg(mood)}<div class="tb"><b>先生</b>${text}</div>`;
+      host.appendChild(el);
+      setTimeout(() => el.remove(), ms);
+    },
     /* 「どうする?」: 文字だけのボタンを手牌の上に並べる。選んでいる鳴きに使う手牌が持ち上がって光り、捨てられた牌は枠で光る */
     callCard(game, s, cand) {
       const o = s.o;
       const label = { pon: 'ポン', chi: 'チー', kan: 'カン' };
       const chis = cand.opts.filter((x) => x.kind === 'chi');
       this.chiCombos = chis; this.chiIdx = 0;
+      const brief = this.hintOn ? MJ.Coach.reactBrief(game, s.p, o) : null; // 先生のひとこと(先生ありのとき)
+      const recKind = brief && brief.rec === 'call' ? brief.kind : null;
+      const recTag = '<small class="cq-sub cq-rec">おすすめ</small>';
       const btns = [];
       cand.opts.forEach((x) => {
         if (x.kind === 'chi') {
           if (x !== chis[0]) return; // チーは1つのボタンにまとめる(組み合わせが複数なら、▼で牌を選ぶ)
           const multi = chis.length > 1;
-          btns.push(`<button class="btn b-call cq-btn" data-act="chi" data-ids="${x.ids.join(',')}" data-a="${x.a}" data-b="${x.b}"${multi ? ' data-multi="1"' : ''}>チー${multi ? '<small class="cq-sub">▼ 牌をえらぶ</small>' : ''}</button>`);
+          btns.push(`<button class="btn b-call cq-btn" data-act="chi" data-ids="${x.ids.join(',')}" data-a="${x.a}" data-b="${x.b}"${multi ? ' data-multi="1"' : ''}>チー${multi ? '<small class="cq-sub cq-pick">▼ 牌をえらぶ</small>' : ''}${recKind === 'チー' ? recTag : ''}</button>`);
           return;
         }
-        btns.push(`<button class="btn b-call cq-btn" data-act="${x.kind}" data-ids="${x.ids.join(',')}">${label[x.kind]}</button>`);
+        btns.push(`<button class="btn b-call cq-btn" data-act="${x.kind}" data-ids="${x.ids.join(',')}">${label[x.kind]}${recKind === label[x.kind] ? recTag : ''}</button>`);
       });
-      if (o.ron) btns.push(`<button class="btn b-ron cq-btn" data-act="ron">ロン</button>`);
-      btns.push(`<button class="btn b-pass cq-btn" data-act="pass">見送る</button>`); // 見送るは、いちばん右
+      if (o.ron) btns.push(`<button class="btn b-ron cq-btn" data-act="ron">ロン${brief && brief.rec === 'ron' ? recTag : ''}</button>`);
+      btns.push(`<button class="btn b-pass cq-btn" data-act="pass">見送る${brief && brief.rec === 'pass' ? recTag : ''}</button>`); // 見送るは、いちばん右
       const multiNote = chis.length > 1 ? '光る牌でチー。牌をさわると、組み合わせを変えられます' : '';
       const note = multiNote || (!o.ron && !cand.opts.length ? (o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '') : '');
-      return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b data-k="A">A</b> で決定</span><span class="cq-pt">◀▶ で牌をえらんで <b data-k="A">A</b> で決定(▲ もどる)</span></div></div>`;
+      return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b data-k="A">A</b> で決定</span><span class="cq-pt">◀▶ で牌をえらんで <b data-k="A">A</b> で決定(▲ もどる)</span></div>${brief ? `<div class="cq-teach">${this.teacherImg(brief.rec === 'pass' ? 'pass' : brief.rec === 'ron' ? 'ron' : 'ok')}<div class="tb"><b>先生</b>${brief.text}</div></div>` : ''}</div>`;
     },
     /* チーの組み合わせを切り替える(▼で牌の選択に入ったあと、◀▶で) */
     setChi(i) {
@@ -745,6 +774,7 @@
         this.sel = { type: 'self', p, opts, st, res };
         this.riichiMode = false; this.picked = null;
         this.adv = this.coachActive() || game.mode !== 'free' ? MJ.Coach.selfAdvice(game, p, opts, st) : null;
+        this.maybeAim(game, p);
         this.coachHtml = this.adv ? this.adv.html : '';
         this.summary = this.adv ? this.adv.summary || '' : '';
         this.buildDanger(game, p);
