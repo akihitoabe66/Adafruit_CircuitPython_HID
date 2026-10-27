@@ -149,6 +149,16 @@
       MJ.UI.game = null;
       $('#fx').innerHTML = '';
     },
+    /* アプリの終了の確認(Fire TVの「戻る」でいきなり終了しない)。最初に選ばれているのは「つづける」 */
+    confirmExit() {
+      MJ.UI.overlay('<div class="cf"><h2>アプリをおわりますか?</h2><div class="cf-btns"><button class="btn" id="ex-yes">おわる</button><button class="btn pri" id="ex-no">つづける</button></div></div>', { plain: true });
+      document.querySelector('#ex-no').addEventListener('click', () => MJ.UI.closeOverlay());
+      document.querySelector('#ex-yes').addEventListener('click', () => {
+        MJ.UI.closeOverlay();
+        try { const A = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App; if (A && A.exitApp) { A.exitApp(); return; } } catch (e) { /* ignore */ }
+        try { window.close(); } catch (e) { /* ignore */ }
+      });
+    },
     toMenu() {
       this.stopGame();
       MJ.UI.closeOverlay();
@@ -290,7 +300,7 @@
       App.renderChars(); App.confirmStart();
     });
     $('#btn-quit').addEventListener('click', () => {
-      MJ.UI.overlay('<h2>対局を中断しますか?</h2><p>メニューに戻ります。</p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="q-no">続ける</button><button class="btn pri" id="q-yes">メニューへ</button></div>');
+      MJ.UI.overlay('<div class="cf"><h2>対局をやめますか?</h2><p>ホームに戻ります。</p><div class="cf-btns"><button class="btn" id="q-yes">ホームにもどる</button><button class="btn pri" id="q-no">つづける</button></div></div>', { plain: true });
       document.querySelector('#q-no').addEventListener('click', () => MJ.UI.closeOverlay());
       document.querySelector('#q-yes').addEventListener('click', () => App.toMenu());
     });

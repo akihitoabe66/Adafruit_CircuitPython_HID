@@ -100,3 +100,10 @@ body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s e
 .callq { bottom: calc(100% + 16px); z-index: 9; }
 .callq { flex-direction: column-reverse; }
 .callq { bottom: calc(100% + 30px); }
+
+/* 確認ダイアログ(終了・対局をやめる): 大きな2つのボタンを横に並べる。右が「つづける」(最初に選ばれている) */
+.cf { text-align: center; padding: 8px 0 12px; }
+.cf h2 { font-size: 32px; margin: 4px 0 8px; }
+.cf p { font-size: 22px; margin: 0 0 14px; }
+.cf-btns { display: flex; gap: 24px; justify-content: center; margin-top: 18px; }
+.cf-btns .btn { min-width: 230px; font-size: 30px; padding: 16px 28px; border-radius: 14px; }

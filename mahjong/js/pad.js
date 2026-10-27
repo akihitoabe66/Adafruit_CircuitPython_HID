@@ -161,19 +161,24 @@
         const ov = $('#overlay');
         if (ov && !ov.classList.contains('hidden')) {
           const btns = [...ov.querySelectorAll('button')].filter((b) => visible(b));
-          const hit = btns.find((b) => /閉じる|キャンセル|やめる|戻る|OK|とじる/.test(b.textContent)) || btns.find((b) => b.id === 'pm-prev' && b.style.visibility !== 'hidden');
+          const hit = btns.find((b) => /続ける|つづける|閉じる|キャンセル|とじる/.test(b.textContent)) || btns.find((b) => /^(もどる|戻る|OK)$/.test(b.textContent.trim())) || btns.find((b) => /やめる/.test(b.textContent)) || btns.find((b) => b.id === 'pm-prev' && b.style.visibility !== 'hidden');
           if (hit) { hit.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); }
           return;
         }
         if (!$('#sd-tools').classList.contains('hidden')) { $('#sd-tools').classList.add('hidden'); return; }
         if (document.body.classList.contains('coach-open')) { document.body.classList.remove('coach-open'); return; }
-        if (!$('#screen-game').classList.contains('hidden') && U && U.sel) {
-          if (U.sel.type === 'react') return; // 鳴きの確認では、Bは何もしない(誤操作防止)
-          if (U.riichiMode) { click('[data-act=riichi]'); return; }
-          if (U.picked != null) { U.picked = null; U.render(U.game); return; }
+        if (!$('#screen-game').classList.contains('hidden')) {
+          if (U && U.sel) {
+            if (U.sel.type === 'react') return; // 鳴きの確認では、Bは何もしない(誤操作防止)
+            if (U.riichiMode) { click('[data-act=riichi]'); return; }
+            if (U.picked != null) { U.picked = null; U.render(U.game); return; }
+          }
+          click('#btn-quit'); // 対局中の「戻る」は、中断の確認を出す
+          return;
         }
-        // それ以外の画面では「戻る」「メニューへ」などを探す
-        const back = [...document.querySelectorAll('.screen:not(.hidden) button')].find((b) => /戻る|もどる|メニューへ|タイトルへ/.test(b.textContent) && visible(b));
+        if (!$('#screen-title').classList.contains('hidden') || !$('#screen-menu').classList.contains('hidden')) { MJ.App.confirmExit(); return; } // タイトル/ホーム: 終了の確認
+        // それ以外の画面(クイズ・ノートなど)では「戻る」を探す
+        const back = [...document.querySelectorAll('.screen:not(.hidden) button')].find((x) => /戻る|もどる|メニューへ|タイトルへ/.test(x.textContent) && visible(x));
         if (back) back.click();
         break;
       }
@@ -183,7 +188,7 @@
   const act = (name) => {
     P.dev = 'pad';
     if (P.lockLeft() > 0) return;
-    if (!P.on) { P.on = true; document.body.classList.add('pad-on'); setCur(pickDefault()); if (name !== 'a') return; } // 最初の1回: カーソルを出す(方向キーはそれだけ。Aはそのまま決定する)
+    if (!P.on) { P.on = true; document.body.classList.add('pad-on'); setCur(pickDefault()); if (name !== 'a' && name !== 'b') return; } // 最初の1回: カーソルを出す(方向キーはそれだけ。Aはそのまま決定する)
     if (P.cur && !(P.cur.isConnected && visible(P.cur) && inScope(P.cur))) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; setCur(pickDefault()); }
     if (name === 'left' || name === 'right' || name === 'up' || name === 'down') {
       const cq = $('.callq');
@@ -250,7 +255,7 @@
     G.requestAnimationFrame(poll);
   };
   if (navigator.getGamepads) G.requestAnimationFrame(poll);
-  G.addEventListener('gamepadconnected', () => { if (MJ.UI && MJ.UI.toast) MJ.UI.toast('コントローラーを認識しました。十字キー=移動 / A=決定 / B=戻る・パス'); });
+  G.addEventListener('gamepadconnected', () => { if (MJ.UI && MJ.UI.toast) MJ.UI.toast('コントローラーを認識しました。十字キー=えらぶ / A=決定 / B=もどる'); });
 
   /* 画面が組み替わってカーソルが消えたら、近い場所に戻す */
   let tm = null;
