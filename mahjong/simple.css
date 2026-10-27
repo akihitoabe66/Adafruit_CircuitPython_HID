@@ -428,3 +428,10 @@ body.no-ruby rt { display: none; }
 .hm-btn.pf::before { left: 22px; font-size: 28px; }
 #hm-play { top: 52px; } #hm-quiz { top: 136px; } #hm-study { top: 220px; } #hm-set { top: 304px; }
 .hm-hint { height: 28px; font-size: 20px; }
+
+/* 「先生をつけますか?」: 見出しを大きく、先生の顔をいっしょに出す */
+.tcd .tc-top { display: flex; align-items: center; justify-content: center; gap: 28px; margin: 6px 0 22px; }
+.tcd .tc-top img.tcut { height: 150px; width: auto; flex: none; }
+.tcd .tc-q { font-size: 52px !important; font-weight: 900; line-height: 1.25; text-align: left; color: #fff; }
+.tcd .cf-btns { margin-top: 12px; }
+.tcd .cf-btns .btn { min-width: 250px; font-size: 34px; padding: 18px 28px; }

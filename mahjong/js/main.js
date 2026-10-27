@@ -57,7 +57,8 @@
     },
     /* 「麻雀をはじめる」を押したら、先生をつけるかをたずねる(最初の選択は「つけない」) */
     askTeacher() {
-      MJ.UI.overlay('<div class="cf"><h2>先生をつけますか?</h2><p>先生は、おすすめの牌や注意を、おしえてくれます。<br>対局中でも、いつでも切り替えられます。</p><div class="cf-btns"><button class="btn tc-b" id="tc-no">つけない</button><button class="btn tc-b" id="tc-yes">先生をつける</button></div></div>', { plain: true });
+      // 大きな見出し+先生の顔。だれが先生かが、開始前から分かるようにする
+      MJ.UI.overlay(`<div class="cf tcd"><div class="tc-top">${MJ.UI.teacherImg('greet')}<div class="tc-q">先生を<br>つけますか?</div></div><div class="cf-btns"><button class="btn tc-b" id="tc-no">つけない</button><button class="btn tc-b" id="tc-yes">先生をつける</button></div></div>`, { plain: true });
       document.querySelector('#tc-no').addEventListener('click', () => { MJ.UI.closeOverlay(); this.startAuto(false); });
       document.querySelector('#tc-yes').addEventListener('click', () => { MJ.UI.closeOverlay(); this.startAuto(true); });
     },
