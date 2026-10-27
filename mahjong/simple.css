@@ -334,3 +334,6 @@ img.tcut { height: 84px; width: auto; display: block; flex: none; filter: drop-s
 #dq-board { top: 128px; height: 146px; }
 /* 盤面の人の顔を大きく */
 #dq-board .strip img.dface, #dq-board .strip img.fcut { height: 64px; width: auto; }
+
+/* 先生をつけますか?: えらんでいる方だけを目立たせる(選んでいない方は、ふつうの色) */
+#overlay .tc-b:not(.pf) { background: #2d4a40 !important; color: #e8f2ec !important; border: 2px solid #5f8a79 !important; box-shadow: none !important; }

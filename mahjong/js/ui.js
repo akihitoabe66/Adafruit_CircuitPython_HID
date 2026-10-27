@@ -837,8 +837,8 @@
         const tip = this.tipHtml || '';
         body = g.players[0].discards.length < 1 ? tip + this.coachHtml : this.coachHtml + tip;
       }
-      else body = `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
-      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><span class="chb">${g.mode === 'free' && this.coachActive() ? '<button class="btn sm" data-hintoggle>💡 ヒントをオフ</button>' : ''}<button class="btn sm" data-open-yaku>役一覧</button><button class="btn sm" data-open-gloss>用語</button><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
+      else body = g.mode === 'free' ? '<div class="cc"><div class="cc-h">先生</div><div class="cc-b">自分の番になると、おすすめの牌と理由が出ます。</div></div>' : `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
+      el.innerHTML = `<div class="ch"><b>🎓 ${g.mode === 'free' ? '先生' : m.name}</b><span class="chb">${g.mode === 'free' && this.coachActive() ? '<button class="btn sm" data-hintoggle>💡 ヒントをオフ</button>' : ''}<button class="btn sm" data-open-yaku>役一覧</button><button class="btn sm" data-open-gloss>用語</button><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
       if (this.coachActive()) this.addReadFrom(el);
@@ -1037,8 +1037,7 @@
     handStart(game) {
       if (this.hintOn && game.honba === 0 && game.kyoku === 0) setTimeout(() => this.teacherSay('先生がついています。迷ったら、おしえます!', 'greet', 7000), 800);
       MJ.SFX.play('start');
-      const tip = MJ.Coach.startTip(game);
-      this.tipHtml = `<div class="cc rec"><div class="cc-h">💡 この局のポイント</div><div class="cc-b">${tip}</div></div>`;
+      this.tipHtml = ''; // 開始時の「この局のポイント」は出さない
       this.coachHtml = '';
       this.refreshCoach();
       const fx = $('#fx');
