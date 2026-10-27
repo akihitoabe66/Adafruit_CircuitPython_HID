@@ -262,6 +262,7 @@
       p.drawn = null;
       p.kuikae = [];
       p.ippatsu = false;
+      if (p.isHuman && this.mission) { try { MJ.Dojo.onDiscard(this, p); } catch (e) { /* ignore */ } }
       p.tempFuriten = false;
       this.sfx('discard');
       const d = { tile, riichi: !!riichi, called: false, seq: ++this.seq };

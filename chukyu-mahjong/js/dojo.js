@@ -50,20 +50,24 @@
   /* ===== 課題麻雀 ===== */
   const has = (w, re) => w.res.yaku.some((y) => re.test(y.n));
   const MISSIONS = [
+    { id: 'ron', s: 'ロン上がり', lv: 1, name: 'ロンで上がれ', tip: '他の人が切った牌で上がる。待ちが広い形にして、フリテンに注意。', test: (w) => !w.tsumo },
     { id: 'tanyao', s: 'タンヤオ', lv: 1, name: 'タンヤオで上がれ', tip: '2〜8の数牌だけで作る。端の牌(1・9・字牌)から先に切ろう。', test: (w) => has(w, /^タンヤオ$/) },
     { id: 'pinfu', s: 'ピンフ', lv: 1, name: 'ピンフで上がれ', tip: '順子だけ・雀頭は役牌以外・両面待ち。鳴かずに作る。', test: (w) => has(w, /^平和$/) },
     { id: 'yakuhai', s: '役牌', lv: 1, name: '役牌で上がれ', tip: '白・發・中や、自風・場風を3枚そろえる(ポンもOK)。', test: (w) => has(w, /^(役牌|自風|場風)/) },
     { id: 'riichi', s: 'リーチ上がり', lv: 1, name: 'リーチをかけて上がれ', tip: '門前でテンパイしたらリーチ。その局のうちに上がること。', test: (w) => has(w, /^リーチ$/) },
     { id: 'tsumo', s: '門前ツモ', lv: 1, name: 'ツモで上がれ(門前)', tip: '鳴かずに、自分で引いて上がる(門前清自摸和)。', test: (w) => has(w, /^門前清自摸和$/) },
-    { id: 'dora3', s: 'ドラ3枚', lv: 2, name: 'ドラを3枚以上持って上がれ', tip: 'ドラ・赤ドラ・裏ドラの合計3枚以上。ドラは切らずに大事に。', test: (w) => w.res.yaku.filter((y) => y.dora).reduce((a, y) => a + y.h, 0) >= 3 },
+    { id: 'speed8', s: '8巡テンパイ', lv: 2, name: '8巡目までにテンパイ', tip: '牌効率どおりに切るのが近道。迷ったら有効牌の多い牌を残そう。', turnTest: 8 },
+    { id: 'dama', s: 'ダマテン', lv: 2, name: 'ダマテンで上がれ', tip: 'リーチも鳴きもなしで、役がある手を上がる。待ちが良いときの技。', test: (w) => w.winner.melds.every((m) => m.kind === 'ankan') && !w.winner.riichi },
+    { id: 'dora3', s: 'ドラ3枚', lv: 2, name: 'ドラ3枚以上で上がれ', tip: 'ドラ・赤ドラ・裏ドラの合計3枚以上。ドラは切らずに大事に。', test: (w) => w.res.yaku.filter((y) => y.dora).reduce((a, y) => a + y.h, 0) >= 3 },
     { id: 'chiitoi', s: '七対子', lv: 2, name: '七対子で上がれ', tip: '同じ牌2枚の組を7つ。同じ牌4枚は使えない。', test: (w) => has(w, /^七対子$/) },
     { id: 'iipeikou', s: '一盃口', lv: 2, name: '一盃口で上がれ', tip: '同じ順子を2組(例: 456と456)。門前でないと成立しない。', test: (w) => has(w, /^(一盃口|二盃口)$/) },
     { id: 'toitoi', s: '対々和', lv: 2, name: '対々和で上がれ', tip: '4面子すべてを刻子(同じ牌3枚)にする。ポンを活用。', test: (w) => has(w, /^対々和$/) },
     { id: 'sanshoku', s: '三色同順', lv: 3, name: '三色同順で上がれ', tip: '萬・筒・索で同じ数字の順子(例: 345を3色)。', test: (w) => has(w, /^三色同順$/) },
     { id: 'ittsu', s: '一気通貫', lv: 3, name: '一気通貫で上がれ', tip: '同じ色で123・456・789をそろえる。', test: (w) => has(w, /^一気通貫$/) },
-    { id: 'honitsu', s: '混一色', lv: 3, name: '混一色(染め手)で上がれ', tip: '数牌は1色だけ+字牌。他の色は切っていく。', test: (w) => has(w, /^(混一色|清一色)$/) },
-    { id: 'mangan', s: '満貫以上', lv: 3, name: '満貫(5飜)以上で上がれ', tip: 'リーチ・ドラ・役を重ねて、5飜以上に。', test: (w) => w.res.han >= 5 },
-    { id: 'noron', s: 'ノー放銃', lv: 3, name: '誰にも振り込まずに終えろ', tip: '危ないときは降りる。放銃したらその時点で失敗。', noRon: true },
+    { id: 'honitsu', s: '混一色', lv: 3, name: '混一色で上がれ', tip: '数牌は1色だけ+字牌。他の色は切っていく。', test: (w) => has(w, /^(混一色|清一色)$/) },
+    { id: 'mangan', s: '満貫以上', lv: 3, name: '満貫以上で上がれ', tip: 'リーチ・ドラ・役を重ねて、5飜以上に。', test: (w) => w.res.han >= 5 },
+    { id: 'top', s: 'トップ', lv: 3, name: 'トップで終われ', tip: '点数を見ながら、リードしたら守り、遅れたら高い手を狙う。', endTest: (g, final) => final.order[0].seat === 0 },
+    { id: 'noron', s: 'ノー放銃', lv: 3, name: '放銃せずに終えろ', tip: '危ないときは降りる。放銃したらその時点で失敗。', noRon: true },
   ];
 
   const Dojo = (MJ.Dojo = {
@@ -100,13 +104,22 @@
           if (w.loser && w.loser.isHuman) game.dealtIn = (game.dealtIn || 0) + 1;
         }
       }
+      if (m.turnTest && game.missionHit) { game.missionClear = true; game.missionOver = true; }
       if (m.noRon && game.dealtIn) game.missionOver = true;
     },
+    /* 自分が切るたびに呼ぶ(巡目が条件の課題用): 切った後にテンパイしていて、巡目が間に合えば達成 */
+    onDiscard(game, p) {
+      const m = game.mission;
+      if (!m || !m.turnTest || game.missionHit) return;
+      const turn = (game.humanLog || []).length;
+      if (turn > m.turnTest) return;
+      if (shanOf(p) === 0) { game.missionHit = true; if (MJ.UI && MJ.UI.toast) MJ.UI.toast(`🎯 ${turn}巡目でテンパイ! 課題達成(局の終わりでクリア)`); }
+    },
     /* 対局終了ダイアログに差し込む結果(クリアは保存する) */
-    endHTML(game) {
+    endHTML(game, final) {
       const m = game.mission;
       if (!m) return '';
-      const ok = m.noRon ? !game.dealtIn : !!game.missionClear;
+      const ok = m.noRon ? !game.dealtIn : m.endTest ? !!(final && m.endTest(game, final)) : !!game.missionClear;
       if (ok) { const c = this.cleared(); c[m.id] = 1; save('mj_dojo', c); }
       return `<p class="dj-res ${ok ? 'ok' : 'ng'}">${ok ? '🏯 課題クリア!' : '🏯 課題は未達成…'}<br><b>${m.name}</b>${ok ? '' : `<br><small>コツ: ${m.tip}</small>`}</p>`;
     },
@@ -186,6 +199,10 @@
       const n = c.all.filter(isD).length;
       return { status: `5飜が目標。<b>リーチ</b>(1)+ドラ(いま${n}枚)+役を重ねます。ドラは残し、鳴かずにリーチを狙うのが近道です。`, keep: isD };
     },
+    ron(c) { return { status: '他の人の捨て牌で上がります。ツモ上がりでは課題になりません。待ちを多くして、河の牌(フリテン)に注意しましょう。' }; },
+    speed8(c) { return { status: '8巡目までにテンパイするのが課題。迷ったら★(有効牌が最多)を信じて切りましょう。鳴いて早くするのもOK。' }; },
+    dama(c) { return { status: openMeld(c) ? '鳴いたので<b>ダマテンの課題は不可能</b>です。' : c.p.riichi ? 'リーチしたので<b>ダマテンの課題は不可能</b>です。' : '役が確定した手を、リーチも鳴きもせずに上がります。役がないうちはリーチしないこと。' }; },
+    top(c) { const o = c.game.players.slice().sort((a, b) => b.score - a.score); const me = o.findIndex((q) => q === c.p) + 1; return { status: `いま<b>${me}位</b>(${c.p.score.toLocaleString()}点)。${me === 1 ? 'リードしています。無理せず守りを固めて。' : `トップとの差は${(o[0].score - c.p.score).toLocaleString()}点。高い手を狙うか、ロンで差を詰めましょう。`}` }; },
     noron(c) {
       const opps = c.game.players.filter((q) => q !== c.p && q.riichi);
       return { status: opps.length ? `<b>${opps.map((q) => q.name).join('・')}</b>がリーチ中。攻めずに、安全な牌(現物・スジ)を切って降りましょう。` : 'いまはリーチ者がいません。でも、手が遠いなら攻めすぎないこと。⚠危険度の表示を見ながら切りましょう。' };
@@ -259,6 +276,15 @@
       const n = c.all.filter((h) => isDoraH(c, h)).length;
       return { short: `ドラ${n}枚 +役`, long: `ドラ・赤${n}枚。5飜まで、リーチ(1)・役・ドラを重ねる` };
     },
+    ron(c) { return sh(c, 'ロンまで'); },
+    speed8(c) {
+      const turn = (c.game.humanLog || []).length + 1;
+      if (c.game.missionHit) return { short: '達成済み◎', long: 'テンパイ済み(課題達成。局の終わりでクリア)' };
+      const n = shanOf(c.p);
+      return { short: `${Math.min(turn, 9)}巡目/8巡`, long: `${turn}巡目(8巡目までにテンパイ)。${n == null ? '' : `テンパイまであと${n}歩`}` };
+    },
+    dama(c) { return c.p.riichi ? { short: 'リーチ済で不可', long: 'リーチしたためダマテンは不可能' } : openMeld(c) ? { short: '鳴きで不可', long: '鳴いたためダマテンは不可能' } : sh(c, 'ダマで'); },
+    top(c) { const o = c.game.players.slice().sort((a, b) => b.score - a.score); const me = o.indexOf(c.p) + 1; return { short: `${me}位(${c.p.score.toLocaleString()}点)`, long: `いま${me}位。トップとの差 ${(o[0].score - c.p.score).toLocaleString()}点` }; },
     noron(c) {
       const d = c.game.dealtIn || 0;
       const r = c.game.players.filter((q) => q !== c.p && q.riichi).length;
@@ -316,6 +342,7 @@
         return t < 27 && suitOf(t) !== b.bs ? NG(`${SUITN[b.bs]}以外の牌なので、混一色が遠のきます`) : OK('染めている色(か字牌)なので、鳴いてOK');
       }
       case 'mangan': return WARN('鳴くとリーチ(1飜)が使えず、満貫が遠のきます');
+      case 'dama': return NG('鳴くとダマテン(門前)ではなくなります');
       case 'noron': return game.players.some((q) => q !== p && q.riichi) ? NG('リーチ中の鳴きは手が狭くなり、放銃しやすくなります') : null;
       default: return null;
     }

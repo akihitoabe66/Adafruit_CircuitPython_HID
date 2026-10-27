@@ -142,7 +142,7 @@
         const ov = $('#overlay');
         if (ov && !ov.classList.contains('hidden')) {
           const btns = [...ov.querySelectorAll('button')].filter((b) => visible(b));
-          const hit = btns.find((b) => /閉じる|キャンセル|やめる|戻る|OK|とじる/.test(b.textContent)) || btns.find((b) => b.id === 'pm-prev' && b.style.visibility !== 'hidden');
+          const hit = btns.find((b) => /閉じる|キャンセル|やめる|戻る|OK|とじる|スキップ/.test(b.textContent)) || btns.find((b) => b.id === 'pm-prev' && b.style.visibility !== 'hidden');
           if (hit) { hit.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); }
           return;
         }

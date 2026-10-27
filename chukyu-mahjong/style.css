@@ -1269,3 +1269,6 @@ body.dealing #sc, body.dealing #side-in .sd-act { visibility: hidden; }
 .sd-info.has-mis b { font-size: 15px; line-height: 1.1; }
 .sd-info.has-mis span.mis { font-size: 12px; line-height: 1.1; margin-top: 0; }
 .sd-info.has-mis span.mpg { font-size: 11px; line-height: 1.15; margin-top: 1px; }
+.dj-g { grid-template-columns: repeat(3, 1fr); gap: 4px 6px; }
+.dj-m { font-size: 12.5px; padding: 4px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dj-lv { min-width: 2.6em; font-size: 11px; }
