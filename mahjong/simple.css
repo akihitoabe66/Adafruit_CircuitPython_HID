@@ -533,4 +533,7 @@ body.no-ruby rt { display: none; }
 .ctr .stk { width: 13px; }
 .ctr .stk .dn, .ctr .stk .up { width: 13px; }
 .ctr .stk .dn > .tile, .ctr .stk .up > .tile.back, .ctr .stk .up > .tile:not(.back) { width: 13px; }
-.ctr .dr.wall { gap: 6px; }
+/* 牌と牌は、すき間をあけずに、ぴったり並べる(本物の山のように。となりの牌の縁が1pxだけ重なる) */
+.ctr .dr.wall { gap: 0; }
+.ctr .stk { margin-right: -1px; }
+.ctr .stk:last-child { margin-right: 0; }
