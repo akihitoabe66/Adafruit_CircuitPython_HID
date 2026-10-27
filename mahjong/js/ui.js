@@ -107,6 +107,7 @@
       // 解説ボタンの文字は、窓がどの方法で開閉されても(外をタッチ・✕・ボタン)、実際の状態に合わせる
       new MutationObserver(() => { const b = $('#btn-coach'); if (b) b.textContent = document.body.classList.contains('coach-open') ? '✕ 閉じる' : '🎓 解説'; }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
       $('#btn-hint').addEventListener('click', () => this.toggleHint());
+      $('#btn-teach').addEventListener('click', () => this.setTeacher(!this.hintOn)); // 対局中に、先生(ヒント)の あり / なし を切り替える
       document.addEventListener('click', (e) => { if (e.target.closest('[data-hintoggle]')) this.toggleHint(); });
     },
 
@@ -124,7 +125,17 @@
       if (this.game) this.render(this.game);
       this.refreshCoach();
     },
+    /* 先生(おすすめの牌・注意の表示)の あり / なし */
+    setTeacher(on) {
+      if (!!this.hintOn !== !!on) this.toggleHint();
+      this.dangerOn = !!on;
+      if (this.game) { if (this.sel && this.sel.type === 'self') this.buildDanger(this.game, this.sel.p); else { this.dng = null; } this.render(this.game); }
+      this.syncHintBtn();
+      this.toast(on ? '先生を つけました' : '先生を はずしました');
+    },
     syncHintBtn() {
+      const t = $('#btn-teach');
+      if (t) { t.textContent = `先生: ${this.hintOn ? 'あり' : 'なし'}`; t.classList.toggle('on', !!this.hintOn); }
       const b = $('#btn-hint');
       if (b) { b.textContent = `💡 ヒント: ${this.hintOn ? 'オン' : 'オフ'}`; b.classList.toggle('on', !!this.hintOn); }
     },

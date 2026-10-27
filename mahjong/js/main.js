@@ -49,29 +49,24 @@
     },
     /* ホーム: 4つの大きなボタン(麻雀を開始 / 麻雀クイズ / 点数計算の勉強 / 設定) */
     buildMenu() {
-      this.support = (() => { try { return localStorage.getItem('mj_support') === '1'; } catch (e) { return false; } })(); // 対局中の先生(ヒント)。標準はなし
-      this.syncTeach();
-      $('#hm-play').addEventListener('click', () => this.startAuto());
-      $('#hm-teach').addEventListener('click', () => { // 先生(対局中のヒント)あり / なし の切り替え
-        this.support = !this.support;
-        try { localStorage.setItem('mj_support', this.support ? '1' : '0'); } catch (e) { /* ignore */ }
-        this.syncTeach();
-      });
+      $('#hm-play').addEventListener('click', () => this.askTeacher());
       $('#hm-quiz').addEventListener('click', () => MJ.DrillUI.openAuto());
       $('#hm-study').addEventListener('click', () => MJ.Study.open());
       $('#hm-set').addEventListener('click', () => showSettings());
       this.buildStatsOnly();
     },
-    syncTeach() {
-      document.querySelectorAll('#hm-teach .ht-s').forEach((s) => s.classList.toggle('on', (s.dataset.v === '1') === !!this.support));
-      const t = $('#hm-teach'); if (t) t.setAttribute('aria-pressed', String(!!this.support));
+    /* 「麻雀をはじめる」を押したら、先生をつけるかをたずねる(最初の選択は「つけない」) */
+    askTeacher() {
+      MJ.UI.overlay('<div class="cf"><h2>先生をつけますか?</h2><p>先生は、おすすめの牌や注意を、おしえてくれます。<br>対局中でも、いつでも切り替えられます。</p><div class="cf-btns"><button class="btn pri" id="tc-no">つけない</button><button class="btn warm" id="tc-yes">先生をつける</button></div></div>', { plain: true });
+      document.querySelector('#tc-no').addEventListener('click', () => { MJ.UI.closeOverlay(); this.startAuto(false); });
+      document.querySelector('#tc-yes').addEventListener('click', () => { MJ.UI.closeOverlay(); this.startAuto(true); });
     },
     /* 相手は自動で決める(やさしめ〜中級の相手から3人) */
-    startAuto() {
+    startAuto(teacher) {
       const easy = MJ.CHARS.filter((c) => c.level <= 3).map((c) => c.id);
       this.picks = MJ.shuffle(easy).slice(0, 3);
       MJ.RULES.length = 'east'; MJ.saveRules();
-      this.lastCfg = { mode: this.support ? 'beginner' : 'free', picks: this.picks.slice(), length: 'east' };
+      this.lastCfg = { mode: 'free', teacher: !!teacher, picks: this.picks.slice(), length: 'east' };
       this.launch(this.lastCfg);
     },
 
@@ -135,6 +130,7 @@
       const game = new MJ.Game({ chars, mode: cfg.mode, length: cfg.length, ui: MJ.UI });
       this.game = game;
       MJ.UI.attach(game);
+      MJ.UI.hintOn = !!cfg.teacher; MJ.UI.dangerOn = !!cfg.teacher; MJ.UI.syncHintBtn(); // 先生(ヒント)は、えらんだとおりに始める
       MJ.SFX.unlock();
       MJ.SFX.preloadVoices([0].concat(chars.map((c) => c.voice || c.id)));
       this.show('game');
