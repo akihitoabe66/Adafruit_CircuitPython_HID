@@ -37,7 +37,13 @@
 
     /* ---------- 全体進行 ---------- */
     async run() {
+      if (this.ui && this.ui.dice) { // 対局のはじめ: サイコロを振って、最初の親(東家)を決める
+        const d = await this.ui.dice(this, true);
+        if (this.stopped) return null;
+        if (d !== null && d !== undefined) this.dealer = d;
+      }
       for (;;) {
+        if (this.handCount > 0 && this.ui && this.ui.dice) { await this.ui.dice(this, false); if (this.stopped) return null; } // 局のはじめ: 親がサイコロを振る
         const r = await this.playHand();
         if (this.stopped) return null;
         this.handCount++;

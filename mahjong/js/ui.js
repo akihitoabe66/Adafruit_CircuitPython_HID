@@ -1109,6 +1109,7 @@
     winFxOn() { try { return localStorage.getItem('mj_winfx') !== 'off'; } catch (e) { return true; } },
     setWinFx(v) { try { localStorage.setItem('mj_winfx', v ? 'on' : 'off'); } catch (e) { /* ignore */ } },
     /* 役ごとの専用演出(国士無双・大三元・七対子・清一色・役満)。いちばん価値の高い1つだけ。約3秒、クリックでとばせる */
+    dice(game, first) { return MJ.Dice ? MJ.Dice.play(game, first) : Promise.resolve(null); },
     yakuFx(game, res) {
       const sc = $('#sc');
       if (!sc || game.fast || res.type !== 'win' || !this.winFxOn()) return Promise.resolve();
