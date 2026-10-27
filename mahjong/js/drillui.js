@@ -8,7 +8,30 @@
   const D = (MJ.DrillUI = {
     cat: null, theme: null, q: null, picked: -1, done: false, ses: { n: 0, ok: 0, streak: 0, best: 0 },
 
+    /* 「麻雀クイズ」: 種類は選べない。苦手な種類を中心に、自動で出題する */
+    openAuto() {
+      MJ.App.show('drill');
+      this.mode = 'auto'; this.backTo = 'menu'; this.lastCatId = null; this.theme = null;
+      this.ses = { n: 0, ok: 0, streak: 0, best: 0 };
+      this.layout();
+      $('#drill-home').classList.add('hidden');
+      $('#drill-quiz').classList.remove('hidden');
+      this.next();
+    },
+    /* 勉強の「チャレンジ」: その内容に沿った問題だけ出す */
+    openPool(catId, backTo) {
+      MJ.App.show('drill');
+      this.mode = 'pool'; this.backTo = backTo || 'menu'; this.theme = null;
+      this.cat = MJ.DRILLS.find((d) => d.id === catId);
+      this.ses = { n: 0, ok: 0, streak: 0, best: 0 };
+      this.layout();
+      $('#drill-home').classList.add('hidden');
+      $('#drill-quiz').classList.remove('hidden');
+      this.next();
+    },
+
     open() {
+      this.mode = 'free'; this.backTo = 'menu';
       MJ.App.show('drill');
       this.cat = null;
       this.layout();
@@ -57,6 +80,7 @@
     },
 
     start(cat, theme) {
+      this.mode = 'free'; this.backTo = 'menu';
       this.cat = MJ.DRILLS.find((d) => d.id === cat);
       this.theme = theme || null;
       this.ses = { n: 0, ok: 0, streak: 0, best: 0 };
@@ -72,6 +96,11 @@
       $('#dq-actions').classList.add('hidden');
       setTimeout(() => {
         this.layout();
+        if (this.mode === 'auto') { // 弱いところを中心に、種類を選ぶ
+          const id = MJ.pickAutoCat(load(), this.lastCatId);
+          this.lastCatId = id;
+          this.cat = MJ.DRILLS.find((x) => x.id === id);
+        }
         let q = null;
         for (let i = 0; i < 5 && !q; i++) q = this.theme && this.cat.id === 'def' ? MJ.Drill.genDef(this.theme) : this.cat.gen();
         if (!q) { $('#dq-sit').textContent = '問題を作れませんでした。もう一度お試しください。'; return; }
@@ -261,7 +290,7 @@
       $('#dq-opts').addEventListener('click', (e) => { const b = e.target.closest('.dq-opt'); if (b && !b.disabled) this.answerChoice(b.dataset.id); });
       $('#dq-ok').addEventListener('click', () => this.answerTile());
       $('#dq-fb').addEventListener('click', (e) => { if (e.target.closest('#dq-next')) this.next(); else if (e.target.closest('#dq-nextp')) this.fbShow(this.fbI + 1); else if (e.target.closest('#dq-prev')) this.fbShow(this.fbI - 1); });
-      $('#drill-back').addEventListener('click', () => { MJ.App.show('menu'); });
+      $('#drill-back').addEventListener('click', () => { if (this.backTo === 'study') MJ.Study.open(); else MJ.App.show('menu'); });
       window.addEventListener('resize', () => { if (!$('#screen-drill').classList.contains('hidden')) this.layout(); });
     },
   });

@@ -103,7 +103,7 @@
       if (dc && visible(dc)) return dc;
     }
     const all = items();
-    const pref = all.find((e) => e.matches('#btn-start, #hm-play, #cfm-go, #pm-done, #pm-next, .btn.pri, .btn.start, [data-mode]')) || all[0];
+    const pref = all.find((e) => e.matches('#btn-start, #hm-play, .sy-nb.go, #cfm-go, #pm-done, #pm-next, .btn.pri, .btn.start, [data-mode]')) || all[0];
     return pref || null;
   };
   P.refocus = () => {

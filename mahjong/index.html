@@ -22,18 +22,16 @@
     </div>
   </section>
 
-  <!-- ホーム(3ボタン) -->
+  <!-- ホーム(4ボタン) -->
   <section id="screen-menu" class="screen hidden">
    <div id="mn">
     <div class="hm-head">どれにしますか?</div>
-    <div class="hm-row">
-      <button class="hm-btn" id="hm-play" type="button"><img src="img/tiles/33.png" alt="">麻雀を打つ</button>
-      <button class="hm-sup" id="hm-sup" type="button"></button>
-    </div>
-    <button class="hm-btn" id="hm-quiz" type="button"><img src="img/tiles/14.png" alt="">何を捨てる?クイズ</button>
-    <button class="hm-btn" id="hm-set" type="button"><span class="gear">⚙</span>せってい</button>
+    <button class="hm-btn" id="hm-play" type="button">麻雀を開始<small>先生なし</small></button>
+    <button class="hm-btn" id="hm-quiz" type="button">麻雀クイズ</button>
+    <button class="hm-btn" id="hm-study" type="button">点数計算の勉強</button>
+    <button class="hm-btn" id="hm-set" type="button">設定</button>
     <div id="menu-stats" class="hm-stats"></div>
-    <div class="hm-hint"><span><i>▲▼◀▶</i> えらぶ</span><span><i>A</i> きめる</span></div>
+    <div class="hm-hint"><span><i>▲▼</i> えらぶ</span><span><i>A</i> きめる</span></div>
    </div>
   </section>
 
@@ -78,6 +76,11 @@
         <div id="dq-fb" class="hidden"></div>
       </div>
     </div>
+  </section>
+
+  <!-- 点数計算の勉強 -->
+  <section id="screen-study" class="screen hidden">
+    <div id="sy"></div>
   </section>
 
   <!-- ノート -->
@@ -151,6 +154,7 @@
 <script src="js/ui.js"></script>
 <script src="js/drill.js"></script>
 <script src="js/drillui.js"></script>
+<script src="js/study.js"></script>
 <script src="js/pad.js"></script>
 <script src="js/main.js"></script>
 </body>

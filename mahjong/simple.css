@@ -17,26 +17,19 @@ body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 .tt-main { position: absolute; left: 0; right: 0; top: 164px; margin: 0; text-align: center; font-weight: 900; font-size: 96px; line-height: 1.1; text-shadow: 0 4px 0 #0006; white-space: nowrap; }
 .tt-go { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; font: inherit; font-weight: 900; font-size: 42px; padding: 8px 52px 8px 20px; border-radius: 999px; background: var(--sp-focus); color: #1b1b12; border: 4px solid #fff3b8; cursor: pointer; white-space: nowrap; }
 
-/* ホーム */
-.hm-head { position: absolute; left: 44px; top: 12px; font-weight: 900; font-size: 36px; }
-.hm-row { position: absolute; left: 40px; right: 40px; top: 64px; height: 96px; display: flex; gap: 14px; }
-#hm-quiz { position: absolute; left: 40px; right: 40px; top: 174px; height: 96px; }
-#hm-set { position: absolute; left: 40px; right: 40px; top: 284px; height: 96px; }
-.hm-btn, .hm-sup { display: flex; align-items: center; gap: 22px; padding: 0 30px; font: inherit; font-weight: 900; font-size: 46px; background: var(--sp-paper); color: var(--sp-ink); border: 6px solid transparent; border-radius: 18px; cursor: pointer; text-align: left; white-space: nowrap; }
-.hm-row .hm-btn { flex: 1; min-width: 0; }
-.hm-btn img { width: 50px; height: auto; flex: none; }
-.hm-btn .gear { width: 50px; text-align: center; font-size: 44px; flex: none; }
-.hm-sup { width: 250px; flex: none; justify-content: center; font-size: 34px; background: #e4ecd9; }
-.hm-sup.off { background: #e9e5d8; color: #5b655f; }
-.hm-sup b { font-size: 44px; }
-.hm-btn.pf, .hm-sup.pf, .hm-btn:focus-visible, .hm-sup:focus-visible, .hm-btn:hover, .hm-sup:hover { border-color: var(--sp-focus); background: #fff; box-shadow: 0 0 0 5px rgba(242, 194, 48, .5); outline: none; }
-.hm-stats { position: absolute; left: 44px; right: 44px; top: 388px; font-size: 16px; color: #dfe9e3; white-space: nowrap; overflow: hidden; }
+/* ホーム(4ボタン): 文字はボタンの中央 */
+.hm-head { position: absolute; left: 0; right: 0; top: 10px; text-align: center; font-weight: 900; font-size: 30px; }
+.hm-btn { position: absolute; left: 90px; right: 90px; height: 78px; display: flex; align-items: center; justify-content: center; gap: 18px; padding: 0 24px; font: inherit; font-weight: 900; font-size: 42px; letter-spacing: .06em; background: var(--sp-paper); color: var(--sp-ink); border: 6px solid transparent; border-radius: 18px; cursor: pointer; white-space: nowrap; }
+.hm-btn small { font-size: 22px; font-weight: 700; letter-spacing: 0; color: #5b655f; }
+#hm-play { top: 54px; } #hm-quiz { top: 142px; } #hm-study { top: 230px; } #hm-set { top: 318px; }
+.hm-btn.pf, .hm-btn:focus-visible, .hm-btn:hover { border-color: var(--sp-focus); background: #fff; box-shadow: 0 0 0 5px rgba(242, 194, 48, .5); outline: none; }
+.hm-stats { display: none; }
 .hm-hint { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; background: rgba(0, 0, 0, .55); display: flex; gap: 30px; align-items: center; padding: 0 44px; font-size: 17px; font-weight: 700; }
 .hm-hint i { font-style: normal; color: var(--sp-focus); }
 
 /* せってい(ダイアログ内の大きなボタン) */
-.st-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0; }
-.st-list .btn { width: 100%; font-size: 22px; padding: 22px 12px; }
+.st-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 8px 0; }
+.st-list .btn { width: 100%; font-size: 21px; padding: 18px 8px; }
 
 /* 対局画面: 文字を大きく(設計座標で16px以上) */
 .plq { font-size: 17px; height: 28px; }
@@ -124,3 +117,29 @@ body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s e
 .kb, .cq-keys b { display: inline-block; flex: none; width: 1.2em; height: 1.2em; vertical-align: middle; overflow: hidden; white-space: nowrap; text-indent: -999em; color: transparent; background: center / 100% 100% no-repeat; border-radius: 50%; }
 .kb[data-k="A"], .cq-keys b[data-k="A"] { background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%2212%22 fill=%22%231b1b12%22/%3E%3Cpath d=%22M7.4 17.6 L12 6.6 L16.6 17.6 M9.3 13.6 H14.7%22 fill=%22none%22 stroke=%22%23f2c230%22 stroke-width=%222.3%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E"); }
 .kb[data-k="B"], .cq-keys b[data-k="B"] { background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%2212%22 fill=%22%231b1b12%22/%3E%3Cpath d=%22M9 6.6 V17.4 M9 6.6 H12.1 a2.6 2.6 0 0 1 0 5.2 H9 M9 11.8 H12.7 a2.8 2.8 0 0 1 0 5.6 H9%22 fill=%22none%22 stroke=%22%23f2c230%22 stroke-width=%222.2%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E"); }
+
+/* 点数計算の勉強 */
+#screen-study { position: fixed; left: 0; top: 0; margin: 0; max-width: none; padding: 0; overflow: hidden; transform-origin: 0 0; box-sizing: border-box; background: radial-gradient(1200px 700px at 50% -10%, #1c4a3d 0%, #0d1f1a 60%); }
+#sy { position: absolute; left: 0; top: 0; width: 832px; height: 428px; transform-origin: 0 0; color: #fff; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; }
+.sy-head { position: absolute; left: 0; right: 0; top: 8px; text-align: center; font-weight: 900; font-size: 32px; }
+.sy-pg { position: absolute; right: 24px; top: 8px; font-size: 22px; font-weight: 700; color: #f2d98a; }
+.sy-btn { position: absolute; left: 90px; right: 90px; height: 70px; display: flex; align-items: center; gap: 22px; padding: 0 30px; font: inherit; font-weight: 900; font-size: 36px; background: var(--sp-paper); color: var(--sp-ink); border: 6px solid transparent; border-radius: 16px; cursor: pointer; white-space: nowrap; }
+.sy-btn b { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #1b1b12; color: var(--sp-focus); font-size: 26px; }
+.sy-btn:nth-of-type(1) { top: 56px; } .sy-btn:nth-of-type(2) { top: 136px; } .sy-btn:nth-of-type(3) { top: 216px; } .sy-btn:nth-of-type(4) { top: 296px; }
+.sy-btn.pf, .sy-btn:hover, .sy-btn:focus-visible, .sy-nb.pf, .sy-nb:hover:not(:disabled), .sy-back.pf { border-color: var(--sp-focus); background: #fff; box-shadow: 0 0 0 5px rgba(242, 194, 48, .5); outline: none; }
+.sy-back { position: absolute; left: 20px; top: 10px; font: inherit; font-weight: 800; font-size: 20px; padding: 4px 16px; border-radius: 10px; background: #e4ecd9; color: var(--sp-ink); border: 4px solid transparent; cursor: pointer; }
+.sy-body { position: absolute; left: 50px; right: 50px; top: 58px; height: 262px; font-size: 29px; line-height: 1.5; font-weight: 700; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.sy-body p { margin: 0; }
+.sy-body b { color: #ffe39a; }
+.st-tiles { display: flex; gap: 2px; align-items: flex-end; margin: 2px 0 4px; }
+.st-tiles .sp { width: 14px; }
+.sy-nav { position: absolute; left: 0; right: 0; top: 324px; display: flex; justify-content: center; gap: 20px; }
+.sy-nb { font: inherit; font-weight: 900; font-size: 30px; min-width: 190px; padding: 8px 20px; border-radius: 14px; background: var(--sp-paper); color: var(--sp-ink); border: 5px solid transparent; cursor: pointer; }
+.sy-nb.go { background: var(--sp-focus); color: #1b1b12; }
+.sy-nb:disabled { opacity: .35; cursor: default; }
+
+/* 選択式のクイズ: 問題文のすぐ下に、大きな選択肢を並べる */
+#drill-quiz .dq-opts { top: 190px; height: 156px; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(58px, 1fr); gap: 10px; }
+#drill-quiz .dq-opt { font-size: 24px; padding: 6px 14px; }
+#drill-quiz.has-board .dq-opts { top: 276px; height: 62px; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 58px; }
+.hm-btn small { position: absolute; right: 34px; }

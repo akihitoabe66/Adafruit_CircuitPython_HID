@@ -2,7 +2,7 @@
 (function () {
   const MJ = window.MJ;
   const $ = (s) => document.querySelector(s);
-  const SCREENS = ['title', 'menu', 'drill', 'select', 'notes', 'game'];
+  const SCREENS = ['title', 'menu', 'drill', 'study', 'select', 'notes', 'game'];
 
   const MODE_CARDS = [
     { id: 'free', icon: '🎴', badge: 'ヒントON/OFF可', desc: '好きな相手3人と自由に対戦。慣れたらヒントを消して実戦練習。' },
@@ -21,12 +21,13 @@
       MJ.UI.applyRot();
       document.body.classList.toggle('on-menu', id === 'menu');
       document.body.classList.toggle('on-title', id === 'title');
-      document.body.classList.toggle('on-game', id === 'game' || id === 'drill');
+      document.body.classList.toggle('on-game', id === 'game' || id === 'drill' || id === 'study');
       if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : 'home');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       if (id === 'game') MJ.UI.fitStage();
       if (id === 'menu') App.fitMenu();
       if (id === 'title') App.fitTitle();
+      if (id === 'study' && MJ.Study) MJ.Study.layout();
       window.scrollTo(0, 0);
     },
 
@@ -45,28 +46,18 @@
       const S = Math.min(st.h / 428, st.w / 832);
       $('#tt').style.transform = `translate(${Math.round((st.w - 832 * S) / 2)}px, ${Math.round((st.h - 428 * S) / 2)}px) scale(${S})`;
     },
-    /* ホーム: 3つの大きなボタン(麻雀を打つ / クイズ / せってい)。先生(サポート)は「打つ」の横で入り切りできる */
+    /* ホーム: 4つの大きなボタン(麻雀を開始 / 麻雀クイズ / 点数計算の勉強 / 設定) */
     buildMenu() {
-      this.support = (() => { try { return localStorage.getItem('mj_support') !== '0'; } catch (e) { return true; } })();
-      this.syncSupport();
+      this.support = (() => { try { return localStorage.getItem('mj_support') === '1'; } catch (e) { return false; } })(); // 対局中の先生(ヒント)。標準はなし
       $('#hm-play').addEventListener('click', () => this.startAuto());
-      $('#hm-sup').addEventListener('click', () => {
-        this.support = !this.support;
-        try { localStorage.setItem('mj_support', this.support ? '1' : '0'); } catch (e) { /* ignore */ }
-        this.syncSupport();
-      });
-      $('#hm-quiz').addEventListener('click', () => { MJ.DrillUI.open(); MJ.DrillUI.start('eff'); });
+      $('#hm-quiz').addEventListener('click', () => MJ.DrillUI.openAuto());
+      $('#hm-study').addEventListener('click', () => MJ.Study.open());
       $('#hm-set').addEventListener('click', () => showSettings());
       this.buildStatsOnly();
     },
-    syncSupport() {
-      const b = $('#hm-sup');
-      b.classList.toggle('off', !this.support);
-      b.innerHTML = `先生 <b>${this.support ? 'あり' : 'なし'}</b>`;
-    },
-    /* 相手は自動で決める(やさしい相手から3人) */
+    /* 相手は自動で決める(やさしめ〜中級の相手から3人) */
     startAuto() {
-      const easy = MJ.CHARS.filter((c) => c.level <= 3).map((c) => c.id); // やさしめ〜中級の相手から3人
+      const easy = MJ.CHARS.filter((c) => c.level <= 3).map((c) => c.id);
       this.picks = MJ.shuffle(easy).slice(0, 3);
       MJ.RULES.length = 'east'; MJ.saveRules();
       this.lastCfg = { mode: this.support ? 'beginner' : 'free', picks: this.picks.slice(), length: 'east' };
@@ -248,16 +239,25 @@
         <label class="vol">読み上げの速さ <input type="range" class="ac" data-audio="rrate" min="0.6" max="1.6" step="0.05"></label>
       </div>`;
   function showSettings() {
-    MJ.UI.overlay(`<h2>⚙ せってい</h2><div class="st-list">
+    MJ.UI.overlay(`<h2>設定</h2><div class="st-list">
       <button class="btn big" id="st-audio">🔊 音の大きさ</button>
       <button class="btn big" id="st-notes">📖 麻雀ノート</button>
       <button class="btn big" data-open-gloss>📚 用語辞典</button>
       <button class="btn big" data-open-rules>⚙ ルール</button>
       <button class="btn big" data-open-credits>ℹ クレジット</button>
-      <button class="btn big" id="st-reset">🗑 セーブをリセット</button>
+      <button class="btn big" id="st-teacher"></button>
+      <button class="btn big" id="st-reset">🗑 セーブのリセット</button>
     </div><div class="res-foot"><button class="btn pri big" id="st-close">もどる</button></div>`, { plain: true });
     const o = document.querySelector('#overlay');
     o.querySelector('#st-close').addEventListener('click', () => MJ.UI.closeOverlay());
+    const tb = o.querySelector('#st-teacher');
+    const syncT = () => { tb.innerHTML = `🎓 対局中の先生: <b>${MJ.App.support ? 'あり' : 'なし'}</b>`; };
+    syncT();
+    tb.addEventListener('click', () => { // 対局中に、おすすめの牌や解説を出す「先生」の入り切り
+      MJ.App.support = !MJ.App.support;
+      try { localStorage.setItem('mj_support', MJ.App.support ? '1' : '0'); } catch (e) { /* ignore */ }
+      syncT();
+    });
     o.querySelector('#st-reset').addEventListener('click', () => {
       MJ.UI.overlay('<div class="cf"><h2>セーブをリセットしますか?</h2><p>対局の成績と、あなたのキャラクターが消えます。<br>次からは、新しいキャラクターが選ばれます。</p><div class="cf-btns"><button class="btn" id="rs-yes">リセットする</button><button class="btn pri" id="rs-no">やめる</button></div></div>', { plain: true });
       document.querySelector('#rs-no').addEventListener('click', () => showSettings());
@@ -284,6 +284,7 @@
     MJ.UI.init();
     window.addEventListener('resize', () => { App.fitMenu(); App.fitTitle(); });
     MJ.DrillUI.init();
+    MJ.Study.init();
     // 最初の操作でBGMを開始。iPhoneは pointerdown/touchstart では許可されないため、指を離した時(touchend/click)でも毎回試す
     let spk = false;
     const unlock = () => { MJ.SFX.unlock(); MJ.Audio.resume(); if (!spk && window.speechSynthesis && window.SpeechSynthesisUtterance && /^(click|touchend|keydown)$/.test(event.type)) { spk = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); } catch (e) {} } }; // 読み上げの音声を最初のタップで有効にする(CPU同士の結果でも読めるように)
