@@ -288,7 +288,7 @@
   }
 
   function init() {
-    addPetals('#screen-menu', 22); addPetals('#screen-title', 16);
+    addPetals('#screen-menu', 22); // タイトルは桜吹雪なし(邪魔だったため)
     MJ.Gloss.init();
     MJ.loadRules();
     document.addEventListener('click', (e) => { if (e.target.closest('[data-open-credits]')) showCredits(); else if (e.target.closest('[data-open-rules]') || e.target.closest('#sel-rules')) showRules(); });
