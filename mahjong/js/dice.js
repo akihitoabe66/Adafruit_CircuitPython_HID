@@ -49,7 +49,7 @@
             res(dealer);
           };
           const seats = (f) => el.querySelectorAll('.dc-pc').forEach((e) => f(e, +e.dataset.i));
-          const cap = (h) => { const c = $('#dc-cap'); if (!c) return; c.innerHTML = h.indexOf('<span') === 0 ? h : '<span>' + h + '</span>'; c.classList.remove('in'); void c.offsetWidth; c.classList.add('in'); };
+          const cap = (h) => { const c = $('#dc-cap'); if (!c) return; c.innerHTML = !h ? '' : h.indexOf('<span') === 0 ? h : '<span>' + h + '</span>'; c.classList.remove('in'); void c.offsetWidth; c.classList.add('in'); };
           const winds = (d) => seats((e, i) => { const w = e.querySelector('.dc-w'); const k = (i - d + 4) % 4; w.textContent = WINDS[k]; w.classList.toggle('east', k === 0); });
           const toss = (i, v) => {
             const cu = $('#dcc' + i), dx = $('#dcx' + i), dy = $('#dcy' + i), sh = $('#dcs' + i);
@@ -81,7 +81,7 @@
               await wait(1100);
             }
             if (done) return;
-            cap('ころころ…');
+            cap('');
             try { MJ.SFX.unlock(); } catch (e) { /* ignore */ }
             toss(0, a); await wait(160); toss(1, b);
             [0, 0.44, 0.6, 0.76, 0.86].forEach((p, k) => tick(k ? 0.8 : 1, 0.16 + 1.55 * p));
