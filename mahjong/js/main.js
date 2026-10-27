@@ -252,15 +252,10 @@
       <button class="btn big" data-open-gloss>📚 用語辞典</button>
       <button class="btn big" data-open-rules>⚙ ルール</button>
       <button class="btn big" data-open-credits>ℹ クレジット</button>
-      <button class="btn big" id="st-fx"></button>
       <button class="btn big" id="st-reset">🗑 セーブのリセット</button>
     </div><div class="res-foot"><button class="btn big" id="st-close">もどる</button></div>`, { plain: true });
     const o = document.querySelector('#overlay');
     o.querySelector('#st-close').addEventListener('click', () => MJ.UI.closeOverlay());
-    const fx = o.querySelector('#st-fx');
-    const syncFx = () => { fx.innerHTML = `✨ 開始の演出: <b>${MJ.Intro.label()}</b>`; };
-    syncFx();
-    fx.addEventListener('click', () => { MJ.Intro.cycle(); syncFx(); });
     o.querySelector('#st-reset').addEventListener('click', () => {
       MJ.UI.overlay('<div class="cf"><h2>セーブをリセットしますか?</h2><p>対局の成績と、あなたのキャラクターが消えます。<br>次からは、新しいキャラクターが選ばれます。</p><div class="cf-btns"><button class="btn danger" id="rs-yes">⚠ リセットする</button><button class="btn pri" id="rs-no">やめる</button></div></div>', { plain: true });
       document.querySelector('#rs-no').addEventListener('click', () => showSettings());

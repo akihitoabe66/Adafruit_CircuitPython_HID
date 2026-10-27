@@ -46,7 +46,7 @@
         const cb = e.target.closest('.cq-btn[data-ids]');
         if (cb) hl(cb.dataset.ids.split(','));
       });
-      M.addEventListener('mouseout', (e) => { if (e.target.closest('.cq-btn')) hl([]); });
+      M.addEventListener('mouseout', (e) => { if (e.target.closest('.cq-btn')) this.hlCall(null); });
       M.addEventListener('mouseover', (e) => {
         const tl = e.target.closest('.hand .tile[data-id]');
         if (tl) this.showInfo(+tl.dataset.id);
@@ -397,6 +397,7 @@
       $('#sd-info').innerHTML = `<b>${game.kyokuLabel()}</b><span>${{ single: '1局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`;
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
       this.fitTip();
+      if (this.sel && this.sel.type === 'react' && document.querySelector('.callq .cq-btn[data-ids]')) this.hlCall(null); // 鳴きの確認が出たら、最初の鳴き方の牌を光らせる
       if (MJ.Pad && MJ.Pad.syncLock) MJ.Pad.syncLock();
       if (this.dng) this.hilite(this.picked != null ? ((game.players[0].hand.find((x) => x.id === this.picked) || {}).t) : this.hiType);
       if (MJ.Pad) MJ.Pad.refocus();
@@ -545,7 +546,8 @@
       });
       if (o.ron) btns.push(`<button class="btn b-ron cq-btn" data-act="ron">ロン</button>`);
       btns.push(`<button class="btn b-pass cq-btn" data-act="pass">見送る</button>`); // 見送るは、いちばん右
-      const note = !o.ron && !cand.opts.length ? (o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '') : '';
+      const multiNote = chis.length > 1 ? '光る牌でチー。牌をさわると、組み合わせを変えられます' : '';
+      const note = multiNote || (!o.ron && !cand.opts.length ? (o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '') : '');
       return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b data-k="A">A</b> で決定</span><span class="cq-pt">◀▶ で牌をえらんで <b data-k="A">A</b> で決定(▲ もどる)</span></div></div>`;
     },
     /* チーの組み合わせを切り替える(▼で牌の選択に入ったあと、◀▶で) */
@@ -560,6 +562,8 @@
     },
     /* 選んでいる鳴きボタンに合わせて、使う手牌を持ち上げて光らせる */
     hlCall(btn) {
+      // 「見送る」などを選んでいるときも、最初の鳴き方(チー・ポン)の牌は、光らせたままにする(何を鳴けるか分かるように)
+      if (!btn || !btn.dataset || !btn.dataset.ids) btn = document.querySelector('.callq .cq-btn[data-ids]');
       const ids = btn && btn.dataset && btn.dataset.ids ? btn.dataset.ids.split(',') : [];
       document.querySelectorAll('#mine .hand .tile[data-id]').forEach((tl) => tl.classList.toggle('cand', ids.includes(tl.dataset.id)));
     },

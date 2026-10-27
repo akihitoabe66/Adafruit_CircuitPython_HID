@@ -238,8 +238,8 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 .in-seat.r { animation: inR .55s .85s cubic-bezier(.2, 1.2, .3, 1) both; }
 .in-word { position: absolute; left: 0; right: 0; top: 63%; text-align: center; opacity: 0; transform: translateY(-50%); pointer-events: none; }
 .in-word .inw { display: inline-block; font-weight: 900; font-size: 17cqw; line-height: 1.05; letter-spacing: .02em; white-space: nowrap;
-  color: #fff6c0; -webkit-text-stroke: .75cqw #ffae1a; paint-order: stroke fill;
-  text-shadow: .35cqw 0 0 #7a1010, -.35cqw 0 0 #7a1010, 0 .35cqw 0 #7a1010, 0 -.35cqw 0 #7a1010, .3cqw .3cqw 0 #7a1010, -.3cqw -.3cqw 0 #7a1010, .3cqw -.3cqw 0 #7a1010, -.3cqw .3cqw 0 #7a1010, 0 1cqw 0 #3a0808; }
+  color: #e5161d; -webkit-text-stroke: .7cqw #ff4a3a; paint-order: stroke fill;
+  text-shadow: .35cqw 0 0 #fff4e0, -.35cqw 0 0 #fff4e0, 0 .35cqw 0 #fff4e0, 0 -.35cqw 0 #fff4e0, .3cqw .3cqw 0 #fff4e0, -.3cqw -.3cqw 0 #fff4e0, .3cqw -.3cqw 0 #fff4e0, -.3cqw .3cqw 0 #fff4e0, 0 1.1cqw 0 #5a0608, 0 0 2cqw #ff3b2a; }
 .in-word .ins { margin-top: .2cqw; font-weight: 900; font-size: 3.2cqw; letter-spacing: .2em; color: #fff; text-shadow: 0 .4cqw 0 #000a, 0 0 1.2cqw #ffb12a; }
 #in-w1 { animation: inSlam 1.0s 1.5s both; }
 #in-w2 { animation: inSlam 2.1s 2.6s both; }
@@ -266,3 +266,9 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 .say.sy1 { left: 440px; top: 150px; max-width: 270px; }
 .say .sb2 { font-size: 17px; }
 .say img.fcut { height: 112px; }
+
+/* 桜吹雪 */
+.in-petal { position: absolute; top: -3cqw; width: var(--sz); height: calc(var(--sz) * .75); border-radius: 100% 0 100% 0; background: linear-gradient(135deg, #ffe3ec, #ff9bb8); opacity: 0; pointer-events: none; z-index: 5; animation: inPetal 3s linear both; }
+@keyframes inPetal { 0% { opacity: 0; transform: translate(0, 0) rotate(var(--r)); } 10% { opacity: .95; } 50% { transform: translate(calc(var(--dx) * .5 + 3cqw), 30cqw) rotate(calc(var(--r) + 200deg)); } 100% { opacity: 0; transform: translate(var(--dx), 62cqw) rotate(calc(var(--r) + 420deg)); } }
+@media (prefers-reduced-motion: reduce) { .in-petal { display: none; } }
+.cq-note { font-size: 18px; background: rgba(0, 0, 0, .62); padding: 2px 12px; border-radius: 8px; max-width: 560px; text-align: center; }

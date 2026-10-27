@@ -56,6 +56,42 @@
       const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       src.connect(f); f.connect(g); g.connect(master); src.start(t);
     },
+    /* 和太鼓の「ドン!」: 低い胴の音 + 皮を打つ音 + 余韻(スタート演出用) */
+    don(vol = 1, at = 0) {
+      if (!ctx) return;
+      S.tone(120, 0.55, 'sine', 0.95 * vol, 42, at);
+      S.tone(70, 0.7, 'sine', 0.8 * vol, 38, at);
+      S.noise(0.18, 900, 0.7 * vol, 0.7, at, 'lowpass');
+      S.noise(0.05, 3200, 0.5 * vol, 1.5, at);
+      S.noise(1.1, 5200, 0.16 * vol, 0.5, at + 0.04, 'highpass'); // シャーン(余韻)
+    },
+    /* 演出の声(収録ファイル audio/voice/<名前>.mp3)。なければ、端末の音声合成で代用する */
+    _clip: {},
+    playClip(name, text, vol = 1) {
+      if (!S.voiceOn) return;
+      const run = (buf) => {
+        if (!ctx || !buf) return false;
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const g = ctx.createGain(); g.gain.value = Math.min(1, S.callVol * 3.2 * vol);
+        src.connect(g); g.connect(master); src.start(); return true;
+      };
+      const c = S._clip[name];
+      if (c && c.buf) { run(c.buf); return; }
+      if (c && c.fail) { S._say(text); return; }
+      if (!ctx || typeof fetch === 'undefined') { S._say(text); return; }
+      S.loadClip(name).then((buf) => { if (!run(buf)) S._say(text); });
+    },
+    loadClip(name) {
+      const c = (S._clip[name] = S._clip[name] || {});
+      if (c.p) return c.p;
+      c.p = (!ctx || typeof fetch === 'undefined') ? Promise.resolve(null)
+        : fetch(`audio/voice/${name}.mp3`).then((r) => { if (!r.ok) throw new Error('x'); return r.arrayBuffer(); }).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng)))
+          .then((buf) => { c.buf = buf; return buf; }).catch(() => { c.fail = true; return null; });
+      return c.p;
+    },
+    _say(text) {
+      try { const syn = G.speechSynthesis; if (!syn || !text) return; const u = new G.SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; u.pitch = 0.6; u.rate = 0.85; u.volume = Math.min(1, S.readVol); syn.speak(u); } catch (e) { /* ignore */ }
+    },
     clack(vol = 0.5, at = 0, pitch = 1) { S.noise(0.05, 2200 * pitch, vol, 2.5, at); S.tone(170 * pitch, 0.07, 'triangle', vol * 0.8, 70 * pitch, at); },
 
     /* ---- 効果音 ---- */

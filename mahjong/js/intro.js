@@ -6,10 +6,22 @@
   const KEY = 'mj_fx';
   const LABEL = { big: '派手', normal: 'ふつう', off: 'なし' };
   const get = () => { try { const v = localStorage.getItem(KEY); return LABEL[v] ? v : 'normal'; } catch (e) { return 'normal'; } };
+  /* 桜吹雪: 花びらがちらちら落ちる */
+  const petals = (el, n = 34) => {
+    const st = el.querySelector('.in-stage'); if (!st) return;
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('i'); p.className = 'in-petal';
+      const x = Math.random() * 100, dx = (Math.random() * 20 - 8), sz = 1.2 + Math.random() * 1.6, dur = 2.4 + Math.random() * 1.8, dl = Math.random() * 0.9, rot = Math.random() * 360;
+      p.style.cssText = `left:${x}%;--dx:${dx}cqw;--sz:${sz}cqw;--r:${rot}deg;animation-duration:${dur.toFixed(2)}s;animation-delay:${dl.toFixed(2)}s`;
+      st.appendChild(p);
+      setTimeout(() => p.remove(), (dur + dl) * 1000 + 100);
+    }
+  };
   const I = (MJ.Intro = {
-    mode: get(),
+    mode: 'big', // いつも「派手」(設定は、なし)
     label: () => LABEL[I.mode],
-    cycle() { I.mode = I.mode === 'normal' ? 'big' : I.mode === 'big' ? 'off' : 'normal'; try { localStorage.setItem(KEY, I.mode); } catch (e) { /* ignore */ } return I.mode; },
+    cycle() { return I.mode; },
+    _cycle_old() { I.mode = I.mode === 'normal' ? 'big' : I.mode === 'big' ? 'off' : 'normal'; try { localStorage.setItem(KEY, I.mode); } catch (e) { /* ignore */ } return I.mode; },
     active: false,
     skip: null,
 
@@ -42,8 +54,10 @@
         };
         I.skip = finish;
         const at = (ms, f) => timers.push(setTimeout(f, ms));
-        const dan = () => { try { MJ.SFX.play('start'); } catch (e) { /* ignore */ } };
-        at(1500, dan); at(2600, dan);
+        const dan = (clip, text, vol) => () => { try { MJ.SFX.don(1); MJ.SFX.playClip(clip, text, vol); } catch (e) { /* ignore */ } };
+        try { MJ.SFX.loadClip('intro_w1'); MJ.SFX.loadClip('intro_w2'); } catch (e) { /* ignore */ }
+        at(1500, dan('intro_w1', '東一局', 0.9)); at(2600, dan('intro_w2', '勝負', 1));
+        at(2600, () => petals(el)); at(1500, () => petals(el, 14));
         at(4700, finish);
         el.addEventListener('click', finish);
       });
