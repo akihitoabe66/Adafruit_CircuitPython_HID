@@ -416,3 +416,15 @@ body.ios .rd, body.ios .rf, body.ios .vpick, body.ios label.vol:has([data-audio=
 ruby { ruby-position: over; }
 rt { font-size: .42em; font-weight: 700; letter-spacing: 0; color: inherit; opacity: .92; line-height: 1; }
 body.no-ruby rt { display: none; }
+
+/* ホーム(C案): 左にタイトルと牌、右にボタン。ボタンの間・端に余白をとり、文字は左そろえ */
+.hm-head { display: none; }
+.hm-side { position: absolute; left: 44px; top: 70px; width: 250px; text-align: center; font-weight: 900; color: #f2d98a; }
+.hm-side .fan { display: flex; justify-content: center; margin-bottom: 14px; }
+.hm-side .fan img { width: 58px; margin: 0 -3px; filter: drop-shadow(0 3px 3px #0008); }
+.hm-side .fan img:nth-child(1) { transform: rotate(-10deg); } .hm-side .fan img:nth-child(3) { transform: rotate(10deg); }
+.hm-side .t1 { font-size: 26px; letter-spacing: .12em; } .hm-side .t2 { font-size: 56px; color: #fff; line-height: 1.15; white-space: nowrap; }
+.hm-btn { left: 336px; right: 52px; height: 64px; font-size: 34px; justify-content: flex-start; padding: 0 22px 0 68px; }
+.hm-btn.pf::before { left: 22px; font-size: 28px; }
+#hm-play { top: 52px; } #hm-quiz { top: 136px; } #hm-study { top: 220px; } #hm-set { top: 304px; }
+.hm-hint { height: 28px; font-size: 20px; }
