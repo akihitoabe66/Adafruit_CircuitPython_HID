@@ -16,7 +16,6 @@ body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 .tt-sub { position: absolute; left: 0; right: 0; top: 150px; text-align: center; font-weight: 900; font-size: 36px; letter-spacing: .12em; color: #f2d98a; }
 .tt-main { position: absolute; left: 0; right: 0; top: 192px; margin: 0; text-align: center; font-weight: 900; font-size: 72px; line-height: 1.1; text-shadow: 0 4px 0 #0006; white-space: nowrap; }
 .tt-go { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; font: inherit; font-weight: 900; font-size: 42px; padding: 8px 52px 8px 20px; border-radius: 999px; background: var(--sp-focus); color: #1b1b12; border: 4px solid #fff3b8; cursor: pointer; white-space: nowrap; }
-.kb { display: inline-grid; place-items: center; width: 1.25em; height: 1.25em; border-radius: 50%; background: #1b1b12; color: var(--sp-focus); font-size: .9em; }
 
 /* ホーム */
 .hm-head { position: absolute; left: 44px; top: 12px; font-weight: 900; font-size: 36px; }
@@ -78,7 +77,6 @@ body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 .cq-note { font-size: 18px; font-weight: 700; color: #ffe9a0; text-shadow: 0 1px 3px #000; }
 .cq-keys { display: none; font-size: 17px; font-weight: 700; color: #ffe9a0; text-shadow: 0 1px 3px #000; }
 body.pad-on .cq-keys { display: block; }
-.cq-keys b { display: inline-grid; place-items: center; min-width: 1.2em; height: 1.2em; border-radius: 50%; background: #1b1b12; color: #f2c230; }
 /* 出た直後の2秒(パッド操作のとき): ボタンを薄くして、選択の枠も出さない */
 .callq.locked .cq-btn { opacity: .45; }
 body.pad-on .callq.locked .pf { outline: none !important; box-shadow: none !important; }
@@ -122,3 +120,8 @@ body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s e
 .say .sb2 { font-size: 18px; padding: 8px 14px; margin-bottom: 10px; }
 .say .sb2 small { font-size: 15px; }
 .say.sy1 { left: 410px; top: 90px; } .say.sy2 { left: 392px; top: 26px; } .say.sy3 { left: 66px; top: 30px; }
+
+/* 丸の中の A / B: 文字ではなく図形で描く(フォントによって位置がズレないように) */
+.kb, .cq-keys b { display: inline-block; flex: none; width: 1.2em; height: 1.2em; vertical-align: middle; overflow: hidden; white-space: nowrap; text-indent: -999em; color: transparent; background: center / 100% 100% no-repeat; border-radius: 50%; }
+.kb[data-k="A"], .cq-keys b[data-k="A"] { background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%2212%22 fill=%22%231b1b12%22/%3E%3Cpath d=%22M7.4 17.6 L12 6.6 L16.6 17.6 M9.3 13.6 H14.7%22 fill=%22none%22 stroke=%22%23f2c230%22 stroke-width=%222.3%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E"); }
+.kb[data-k="B"], .cq-keys b[data-k="B"] { background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%2212%22 fill=%22%231b1b12%22/%3E%3Cpath d=%22M9 6.6 V17.4 M9 6.6 H12.1 a2.6 2.6 0 0 1 0 5.2 H9 M9 11.8 H12.7 a2.8 2.8 0 0 1 0 5.6 H9%22 fill=%22none%22 stroke=%22%23f2c230%22 stroke-width=%222.2%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E"); }

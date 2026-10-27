@@ -535,7 +535,7 @@
       if (o.ron) btns.push(`<button class="btn b-ron cq-btn" data-act="ron">ロン</button>`);
       btns.push(`<button class="btn b-pass cq-btn" data-act="pass">見送る</button>`); // 見送るは、いちばん右
       const note = !o.ron && !cand.opts.length ? (o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '') : '';
-      return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b>A</b> で決定</span><span class="cq-pt">◀▶ で牌をえらんで <b>A</b> で決定(▲ もどる)</span></div></div>`;
+      return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b data-k="A">A</b> で決定</span><span class="cq-pt">◀▶ で牌をえらんで <b data-k="A">A</b> で決定(▲ もどる)</span></div></div>`;
     },
     /* チーの組み合わせを切り替える(▼で牌の選択に入ったあと、◀▶で) */
     setChi(i) {
