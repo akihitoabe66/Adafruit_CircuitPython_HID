@@ -249,6 +249,7 @@
     MJ.UI.overlay(`<h2>設定</h2><div class="st-list">
       <button class="btn big" id="st-audio">🔊 音の大きさ</button>
       <button class="btn big" id="st-notes">📖 麻雀ノート</button>
+      <button class="btn big" data-open-yaku>📖 役一覧</button>
       <button class="btn big" data-open-gloss>📚 用語辞典</button>
       <button class="btn big" data-open-rules>⚙ ルール</button>
       <button class="btn big" data-open-credits>ℹ クレジット</button>

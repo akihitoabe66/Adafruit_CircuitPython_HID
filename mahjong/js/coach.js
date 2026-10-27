@@ -324,9 +324,10 @@
       cards.push(bestCard());
       const rc = riichiCard();
       if (rc) cards.push(rc);
-      if (mode === 'beginner') {
-        const hints = C.yakuHints(game, p).slice(0, 4);
-        if (hints.length) cards.push(card('🎯 狙える役', ul(hints.map((h) => `<b>${h.n}</b>: ${h.t}`))));
+      {
+        const hints = C.yakuHints(game, p).filter((h) => h.n !== 'ドラ').slice(0, 2);
+        const body = hints.length ? ul(hints.map((h) => `<b>${h.n}</b>: ${h.t.split('。')[0]}。`)) : '<b>まだ決まっていません。</b>迷ったら<b>タンヤオ</b>(2〜8だけで作る)か<b>役牌</b>(白・發・中)のポンが作りやすい役です。';
+        cards.push(card('🎯 目指す役', `${body}`));
       }
       const dw = defenseWarn();
       if (dw) cards.push(dw);

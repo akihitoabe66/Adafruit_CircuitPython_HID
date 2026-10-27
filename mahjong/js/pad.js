@@ -4,7 +4,7 @@
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
   const $ = (s, r = document) => r.querySelector(s);
-  const FOCUSABLE = 'button, [data-act], .hand .tile[data-id], .pm-arrow, #dq-hand .hand .tile.ok[data-i], summary, input, select, a[href], .mode-card, [data-mode], .char, [data-pj], [data-pg], [data-readfrom], [data-dtab], [data-open-gloss], [data-open-credits], .gl, [tabindex]';
+  const FOCUSABLE = 'button, [data-act], .hand .tile[data-id], .pm-arrow, #dq-hand .hand .tile.ok[data-i], summary, input, select, a[href], .mode-card, [data-mode], .char, [data-pj], [data-pg], [data-readfrom], [data-dtab], [data-open-gloss], [data-open-yaku], [data-open-credits], .gl, [tabindex]';
   const P = (MJ.Pad = { on: false, cur: null, desc: null, dev: 'mouse' });
   /* 鳴き・ロンの確認が出た直後は、パッド/キーを受け付けない(連打で押してしまうのを防ぐ)。マウス・タッチは対象外 */
   const LOCK_MS = 2000;

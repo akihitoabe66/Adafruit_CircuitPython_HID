@@ -285,18 +285,18 @@
     closeSheet() { const el = document.getElementById('gloss-sheet'); if (el) el.classList.remove('on'); },
 
     /* ---- 辞典(検索・一覧) ---- */
-    panel(focusId) {
+    panel(focusId, preCat) {
       let el = document.getElementById('gloss-panel');
       if (!el) { el = document.createElement('div'); el.id = 'gloss-panel'; document.body.appendChild(el); }
-      el.innerHTML = `<div class="gp-box"><div class="gp-head"><button class="btn sm ghost" data-gpx>← もどる</button><h2>📚 麻雀用語辞典</h2></div>
+      el.innerHTML = `<div class="gp-box"><div class="gp-head"><button class="btn sm ghost" data-gpx>← もどる</button><h2>${preCat === '役' ? '📖 役一覧' : '📚 麻雀用語辞典'}</h2></div>
         <p class="gp-note">呼び方は地域・世代・お店で違います。「チートイ」「ニコニコ」のような<b>俗称・略称</b>でも検索できます。</p>
         <input id="gp-q" class="gp-q" type="search" placeholder="用語・俗称で検索(例: ニコニコ、ダマ、チートイ)" autocomplete="off">
         <div class="gp-cats" id="gp-cats"></div><div id="gp-list" class="gp-list"></div></div>`;
       el.classList.add('on');
       document.body.classList.add('gp-open');
-      const state = { q: '', cat: '' };
+      const state = { q: '', cat: preCat || '' };
       const cats = el.querySelector('#gp-cats');
-      cats.innerHTML = ['すべて'].concat(CATS).map((c, i) => `<button class="gs-chip${i === 0 ? ' on' : ''}" data-gc="${i === 0 ? '' : c}">${c}</button>`).join('');
+      cats.innerHTML = ['すべて'].concat(CATS).map((c, i) => `<button class="gs-chip${(i === 0 ? '' : c) === state.cat ? ' on' : ''}" data-gc="${i === 0 ? '' : c}">${c}</button>`).join('');
       const render = (open) => {
         const q = state.q.trim().toLowerCase();
         const kana = (s) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
@@ -338,6 +338,7 @@
         if (o) { const id = o.dataset.gopen; Gl.closeSheet(); return Gl.panel(id); }
         if (e.target.closest('[data-gpx]')) return Gl.closePanel();
         if (e.target.closest('[data-open-gloss]')) return Gl.panel();
+        if (e.target.closest('[data-open-yaku]')) return Gl.panel(null, '役');
       }, true);
     },
   });

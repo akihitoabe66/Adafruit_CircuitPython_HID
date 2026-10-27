@@ -838,7 +838,7 @@
         body = g.players[0].discards.length < 1 ? tip + this.coachHtml : this.coachHtml + tip;
       }
       else body = `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
-      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><span class="chb">${g.mode === 'free' && this.coachActive() ? '<button class="btn sm" data-hintoggle>💡 ヒントをオフ</button>' : ''}<button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
+      el.innerHTML = `<div class="ch"><b>🎓 ${m.name}</b><span class="chb">${g.mode === 'free' && this.coachActive() ? '<button class="btn sm" data-hintoggle>💡 ヒントをオフ</button>' : ''}<button class="btn sm" data-open-yaku>役一覧</button><button class="btn sm" data-open-gloss>用語</button><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
       if (this.coachActive()) this.addReadFrom(el);
@@ -937,7 +937,7 @@
     },
     /* カードの見出しから、ボタン用のひとこと(短い名前)を作る */
     shortLabel(h) {
-      const M = [[/どうして/, 'どうして?'], [/形の名前/, '形の名前'], [/安全な牌ランキング/, '安全牌'], [/守備の目線/, '守備'], [/リーチへの警戒/, '警戒'], [/いまはリーチなし/, 'リーチなし'], [/役がありません|形はできている/, '役なし'], [/フリテン/, 'フリテン'], [/リーチ者の捨て牌/, '現物'], [/河を観察/, '河を見る'], [/状況/, '状況'], [/コツ/, 'コツ'], [/狙える役/, '狙う役'], [/打点/, '打点'], [/ロンできます/, 'ロン!'], [/ツモ和了/, 'ツモ!'], [/鳴いた後/, '鳴いた後'], [/ロンされない/, '放銃注意'], [/リーチのチャンス/, 'リーチ!'], [/スジの実例/, 'スジ例'], [/カン/, 'カン'], [/いまの手牌/, '手牌'], [/押す|押し引き/, '押し引き'], [/おすすめ/, 'おすすめ'], [/ポイント/, 'ポイント']];
+      const M = [[/どうして/, 'どうして?'], [/形の名前/, '形の名前'], [/安全な牌ランキング/, '安全牌'], [/守備の目線/, '守備'], [/リーチへの警戒/, '警戒'], [/いまはリーチなし/, 'リーチなし'], [/役がありません|形はできている/, '役なし'], [/フリテン/, 'フリテン'], [/リーチ者の捨て牌/, '現物'], [/河を観察/, '河を見る'], [/状況/, '状況'], [/コツ/, 'コツ'], [/狙える役|目指す役/, '目指す役'], [/打点/, '打点'], [/ロンできます/, 'ロン!'], [/ツモ和了/, 'ツモ!'], [/鳴いた後/, '鳴いた後'], [/ロンされない/, '放銃注意'], [/リーチのチャンス/, 'リーチ!'], [/スジの実例/, 'スジ例'], [/カン/, 'カン'], [/いまの手牌/, '手牌'], [/押す|押し引き/, '押し引き'], [/おすすめ/, 'おすすめ'], [/ポイント/, 'ポイント']];
       for (const [re, l] of M) if (re.test(h)) return l;
       const t = h.replace(/^[^\p{L}\p{N}]+/u, '').split(/[(（]/)[0].replace(/[:：]\s*$/, '');
       return t.length > 7 ? t.slice(0, 7) : t;

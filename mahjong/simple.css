@@ -316,3 +316,11 @@ img.tcut { height: 84px; width: auto; display: block; flex: none; filter: drop-s
 .cq-rec { color: #b3261e !important; font-weight: 900 !important; font-size: 14px !important; }
 .callq .cq-btn.b-pass .cq-rec, .callq .cq-btn.b-call .cq-rec, .callq .cq-btn.b-ron .cq-rec { background: #fff; border-radius: 6px; padding: 0 6px; margin-top: 2px; }
 
+
+/* 解説の「目指す役」: 役一覧・用語辞典への入口 */
+.cc-lk { display: flex; gap: 8px; margin-top: 6px; }
+.cc-lk .btn { font-size: 1em; padding: 4px 10px; }
+#coach .ch { flex-wrap: nowrap; }
+#coach .ch > b { white-space: nowrap; }
+#coach .chb { display: flex; gap: 6px; flex-wrap: nowrap; }
+#coach .chb .btn { white-space: nowrap; padding-left: 9px; padding-right: 9px; }
