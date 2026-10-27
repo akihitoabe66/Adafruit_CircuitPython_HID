@@ -67,13 +67,15 @@
       const pool = ready.length ? ready : GAME.filter((s) => s !== last);
       last = pool[Math.floor(Math.random() * pool.length)];
       A._load(last, false);
-      MJ.warmAudio([...GAME, 'audio/result_win.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3']);
+      MJ.warmAudio([...GAME, 'audio/result_win.mp3', 'audio/result_win2.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3']);
     },
     /* 結果画面の専用BGM: 'win'(自分の和了) / 'lose'(マイナス) / 'draw'(流局)。閉じると対局BGMに戻る */
     playResult(kind) {
       if (!A.on || !['win', 'lose', 'draw'].includes(kind)) return;
       A.resultOn = true;
-      A._load(`audio/result_${kind}.mp3`, true);
+      // 自分が上がったときの曲は、2曲からランダムに選ぶ
+      const name = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : `result_${kind}`;
+      A._load(`audio/${name}.mp3`, true);
     },
     endResult() {
       if (!A.resultOn) return;
