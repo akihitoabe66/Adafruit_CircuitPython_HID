@@ -1257,3 +1257,15 @@ body.dealing #sc, body.dealing #side-in .sd-act { visibility: hidden; }
 .dj-res { margin: 0 0 6px; padding: 6px 10px; border-radius: 8px; font-size: 15px; background: #0004; }
 .dj-res.ok { color: var(--good); border: 2px solid var(--good); } .dj-res.ng { color: var(--warn); }
 .sd-info span.mis { color: var(--acc); font-size: 13px; }
+
+/* 課題: 達成までの数字・鳴きの警告 */
+.sd-info { top: 36px; }
+.sd-info span.mis { font-size: 12px; line-height: 1.15; }
+.sd-info span.mpg { color: #fff; background: #0006; border-radius: 6px; font-size: 11px; line-height: 1.2; padding: 1px 2px; margin-top: 1px; }
+.cq-misw { margin-top: 4px; font-size: 12px; line-height: 1.35; text-align: left; }
+.cq-mis.ng { color: #ff9aa0; } .cq-mis.ok { color: var(--good); } .cq-mis.warn { color: var(--warn); }
+.b-call.mis-ng { outline: 2px solid #e5484d; } .b-call.mis-ok { outline: 2px solid var(--good); }
+.sd-info.has-mis { top: 33px; }
+.sd-info.has-mis b { font-size: 15px; line-height: 1.1; }
+.sd-info.has-mis span.mis { font-size: 12px; line-height: 1.1; margin-top: 0; }
+.sd-info.has-mis span.mpg { font-size: 11px; line-height: 1.15; margin-top: 1px; }

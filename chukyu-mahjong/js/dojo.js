@@ -192,16 +192,141 @@
     },
   };
 
+  const ctxOf = (game, p) => {
+    const melds = p.melds;
+    const all = p.hand.concat([].concat(...melds.map((x) => x.tiles)));
+    const cnt = {};
+    all.forEach((h) => { cnt[h.t] = (cnt[h.t] || 0) + 1; });
+    return { game, p, hand: p.hand, melds, all, cnt, seatWind: game.seatWindOf(p), roundWind: game.roundWind };
+  };
+  const yh = (c, t) => t >= 31 || t === 27 + c.seatWind || t === 27 + c.roundWind;
+  const openMeld = (c) => c.melds.some((m) => m.kind !== 'ankan');
+  const isDoraH = (c, h) => c.game.doraInd.some((d) => MJ.doraOf(d.t) === h.t) || h.red;
+  const sanshokuBest = (cnt) => {
+    let best = 0, bs = -1;
+    for (let r = 0; r < 7; r++) {
+      let sc = 0;
+      for (let s = 0; s < 3; s++) { let k = 0; for (let d = 0; d < 3; d++) if (cnt[s * 9 + r + d]) k++; sc += k; }
+      if (sc > best) { best = sc; bs = r; }
+    }
+    return { best, bs };
+  };
+  const bestSuit = (c) => {
+    const sc = [0, 1, 2].map((s) => { let k = 0; for (let i = 0; i < 9; i++) k += c.cnt[s * 9 + i] || 0; return k; });
+    return { sc, bs: sc.indexOf(Math.max(...sc)) };
+  };
+  const shanOf = (p) => { try { return MJ.shanten(MJ.toCounts(p.hand), p.melds.length); } catch (e) { return null; } };
+
+  /* ===== 達成までの数字(左上に常時表示)。short=短い表示、long=解説カード用 ===== */
+  const PROG = {
+    tanyao(c) {
+      if (c.melds.some((m) => m.tiles.some((h) => isYao(h.t)))) return { short: '鳴きで不可', long: '鳴いた面子に么九牌が入っていて不可能' };
+      const n = c.hand.filter((h) => isYao(h.t)).length;
+      return n ? { short: `么九牌あと${n}枚`, long: `1・9・字牌があと${n}枚(これを切れば形が整う)` } : { short: '么九牌なし◎', long: '1・9・字牌が手にありません(あとは完成させるだけ)' };
+    },
+    pinfu(c) { return openMeld(c) ? { short: '鳴きで不可', long: '鳴いたため平和は不可能' } : sh(c, '門前で'); },
+    yakuhai(c) {
+      let mx = 0, mt = -1;
+      Object.keys(c.cnt).forEach((t) => { if (yh(c, +t) && c.cnt[t] > mx) { mx = c.cnt[t]; mt = +t; } });
+      if (c.melds.some((m) => m.tiles.length >= 3 && yh(c, m.tiles[0].t))) return { short: '役牌ポン済◎', long: '役牌を鳴いて役が確定。あとは上がるだけ' };
+      return mx >= 3 ? { short: '役牌の刻子◎', long: '役牌の刻子があります(役が確定)' } : { short: mx ? `役牌 ${mx}/3枚` : '役牌なし', long: mx ? `${MJ.tileName(mt)}が${mx}/3枚` : '役牌(白發中・自風・場風)がまだありません' };
+    },
+    riichi(c) { return openMeld(c) ? { short: '鳴きで不可', long: '鳴いたためリーチ不可能' } : sh(c, 'リーチまで'); },
+    tsumo(c) { return openMeld(c) ? { short: '鳴きで不可', long: '鳴いたため門前ツモは不可能' } : sh(c, '門前ツモまで'); },
+    dora3(c) { const n = c.all.filter((h) => isDoraH(c, h)).length; return { short: `ドラ ${n}/3枚`, long: `ドラ・赤ドラ ${n}/3枚(裏ドラは数えていません)` }; },
+    chiitoi(c) {
+      if (c.melds.length) return { short: '鳴きで不可', long: '鳴いたため七対子は不可能' };
+      const n = Math.min(7, Object.keys(c.cnt).filter((t) => c.cnt[t] >= 2).length);
+      return { short: `対子 ${n}/7組`, long: `対子が${n}/7組(7組で完成)` };
+    },
+    iipeikou(c) { return openMeld(c) ? { short: '鳴きで不可', long: '鳴いたため一盃口は不可能' } : sh(c, '門前で'); },
+    toitoi(c) {
+      const n = Object.keys(c.cnt).filter((t) => c.cnt[t] >= 2).length;
+      return { short: `刻子対子 ${n}組`, long: `刻子・対子が${n}組(4刻子+雀頭で完成)` };
+    },
+    sanshoku(c) { const b = sanshokuBest(c.cnt); return { short: `三色 ${b.best}/9枚`, long: b.bs < 0 ? '三色の手がかりなし' : `${b.bs + 1}${b.bs + 2}${b.bs + 3}の三色が${b.best}/9枚` }; },
+    ittsu(c) {
+      const sc = [0, 1, 2].map((s) => { let k = 0; for (let i = 0; i < 9; i++) if (c.cnt[s * 9 + i]) k++; return k; });
+      const m = Math.max(...sc);
+      return { short: `一気通貫 ${m}/9`, long: `${SUITN[sc.indexOf(m)]}で1〜9のうち${m}種類` };
+    },
+    honitsu(c) {
+      const b = bestSuit(c);
+      const n = c.all.filter((h) => suitOf(h.t) >= 0 && suitOf(h.t) !== b.bs).length;
+      return n ? { short: `他の色あと${n}枚`, long: `${SUITN[b.bs]}以外の数牌があと${n}枚(これを切れば混一色の形)` } : { short: '1色にそろった◎', long: '数牌が1色にそろっています' };
+    },
+    mangan(c) {
+      const n = c.all.filter((h) => isDoraH(c, h)).length;
+      return { short: `ドラ${n}枚 +役`, long: `ドラ・赤${n}枚。5飜まで、リーチ(1)・役・ドラを重ねる` };
+    },
+    noron(c) {
+      const d = c.game.dealtIn || 0;
+      const r = c.game.players.filter((q) => q !== c.p && q.riichi).length;
+      return { short: r ? `リーチ${r}人!降りよう` : `放銃${d}回 ◎`, long: `放銃 ${d}回(0回なら達成)。${r ? `現在リーチ中が${r}人` : 'いまリーチ者はいません'}` };
+    },
+  };
+  function sh(c, pre) {
+    const n = shanOf(c.p);
+    if (n == null) return { short: pre, long: pre };
+    return n < 0 ? { short: '完成!', long: '手牌は完成形です' } : n === 0 ? { short: 'テンパイ◎', long: 'テンパイしています' } : { short: `あと${n}歩`, long: `${pre}テンパイまであと${n}歩(シャンテン数)` };
+  }
+  Dojo.progress = function (game) {
+    const m = game.mission;
+    const f = m && PROG[m.id];
+    if (!f) return null;
+    try { return f(ctxOf(game, game.players[0])); } catch (e) { return null; }
+  };
+
+  /* ===== 鳴き(ポン・チー・カン)のときの課題チェック =====
+     戻り値 { cls: 'ng'|'warn'|'ok', text } か null。types = 手牌から使う牌の種類、o.tile = 鳴く牌 */
+  Dojo.callCheck = function (game, p, o, kind, use) {
+    const m = game.mission;
+    if (!m) return null;
+    const c = ctxOf(game, p);
+    const t = o.tile.t;
+    const set = (kind === 'chi' ? use.concat([t]) : [t, t, t]);
+    const any = (fn) => set.some(fn);
+    const NG = (text) => ({ cls: 'ng', text }), WARN = (text) => ({ cls: 'warn', text }), OK = (text) => ({ cls: 'ok', text });
+    switch (m.id) {
+      case 'tanyao':
+        if (any(isYao)) return NG('1・9・字牌が入るので、タンヤオになりません');
+        return MJ.RULES.kuitan ? OK('2〜8だけ。タンヤオのまま鳴けます') : NG('「喰いタンなし」のルール: 鳴くとタンヤオは成立しません');
+      case 'pinfu': return NG('鳴くと平和はつきません');
+      case 'riichi': return NG('鳴くとリーチができません');
+      case 'tsumo': return NG('鳴くと門前ツモになりません');
+      case 'iipeikou': return NG('鳴くと一盃口はつきません');
+      case 'chiitoi': return NG('鳴くと七対子はできません');
+      case 'yakuhai':
+        if (kind !== 'chi' && yh(c, t)) return OK('役牌のポン! これで役が確定します');
+        return c.melds.some((x) => x.tiles.length >= 3 && yh(c, x.tiles[0].t)) ? null : WARN('役牌以外の鳴きです。役牌が別に集まる見込みがなければ控えめに');
+      case 'dora3': return isDoraH(c, o.tile) ? OK('ドラをもらえます') : null;
+      case 'toitoi': return kind === 'chi' ? NG('チーは順子。対々和は刻子だけで作ります') : OK('刻子が増えます(対々和に近づく)');
+      case 'sanshoku': {
+        if (kind !== 'chi') return WARN('刻子は三色同順に使えません');
+        const lo = Math.min(...set), b = sanshokuBest(c.cnt);
+        return b.bs >= 0 && lo % 9 === b.bs ? OK('狙っている数字の順子です') : WARN(`いま狙っている数字(${b.bs + 1}${b.bs + 2}${b.bs + 3})と違う順子です`);
+      }
+      case 'ittsu': {
+        if (kind !== 'chi') return WARN('刻子は一気通貫に使えません');
+        const lo = Math.min(...set);
+        return lo % 9 % 3 === 0 ? OK('123・456・789のどれかになる順子です') : WARN('123・456・789の区切りと違う順子です');
+      }
+      case 'honitsu': {
+        const b = bestSuit(c);
+        return t < 27 && suitOf(t) !== b.bs ? NG(`${SUITN[b.bs]}以外の牌なので、混一色が遠のきます`) : OK('染めている色(か字牌)なので、鳴いてOK');
+      }
+      case 'mangan': return WARN('鳴くとリーチ(1飜)が使えず、満貫が遠のきます');
+      case 'noron': return game.players.some((q) => q !== p && q.riichi) ? NG('リーチ中の鳴きは手が狭くなり、放銃しやすくなります') : null;
+      default: return null;
+    }
+  };
+
   /* an=Coach側の分析、eff=有効牌順の評価。戻り値: { html(カード), marks, recId } */
   Dojo.advice = function (game, p, an, eff, card) {
     const m = game.mission;
     const f = m && ADV[m.id];
     if (!f) return null;
-    const melds = p.melds;
-    const all = p.hand.concat([].concat(...melds.map((x) => x.tiles)));
-    const cnt = {};
-    all.forEach((h) => { cnt[h.t] = (cnt[h.t] || 0) + 1; });
-    const c = { game, p, hand: p.hand, melds, all, cnt, seatWind: game.seatWindOf(p), roundWind: game.roundWind };
+    const c = ctxOf(game, p);
     const a = f(c);
     const marks = {};
     const cutIds = [];
@@ -219,6 +344,7 @@
     } else if (cutIds.length && best && !cutIds.some((h) => h.t === best.t)) {
       note = '<div class="cc-s">課題に合わない牌を切ると手が遠のくので、今はふつうの最善を優先しています。</div>';
     }
-    return { card: card(`🎯 課題「${m.s}」`, `${a.status}${note}`, ''), marks, recId: rec ? rec.id : null, summary: `🎯${m.s}` };
+    const pg = Dojo.progress(game);
+    return { card: card(`🎯 課題「${m.s}」`, `${pg ? `<b>達成まで: ${pg.long}</b><br>` : ''}${a.status}${note}`, ''), marks, recId: rec ? rec.id : null, summary: `🎯${m.s}${pg ? ' ' + pg.short : ''}` };
   };
 })();

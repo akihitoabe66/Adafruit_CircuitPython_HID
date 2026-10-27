@@ -537,6 +537,13 @@
     };
     if (o.pon) cards.push(card(`ポン(${ic(t)}${ic(t)}${ic(t)})`, verdict(ev('pon'), 'pon') + '<div class="cc-s">ポン=同じ牌3枚の刻子を、他家の捨て牌をもらって作る。順番が飛びます。</div>', 'rec'));
     for (const c of o.chi) cards.push(card(`チー(${ic(c.use[0])}${ic(c.use[1])} + ${ic(t)})`, verdict(ev('chi', c.use), 'chi') + '<div class="cc-s">チー=左隣の人の捨て牌で順子を作る。鳴いた後は食い替え禁止の牌が切れません。</div>'));
+    if (game.mission && MJ.Dojo && (o.pon || o.chi.length || o.kan) && !o.ron) {
+      const rows = [];
+      const add = (label, kind, use) => { const r = MJ.Dojo.callCheck(game, p, o, kind, use); if (r) rows.push(`<li class="${r.cls === 'ng' ? 'bad' : r.cls === 'ok' ? 'good' : ''}">${label}: ${r.cls === 'ng' ? '⚠ ' : r.cls === 'ok' ? '◎ ' : '△ '}${r.text}</li>`); };
+      if (o.pon) add('ポン', 'pon');
+      o.chi.forEach((c2) => add('チー', 'chi', c2.use));
+      if (rows.length) cards.unshift(card(`🎯 課題「${game.mission.s}」からみた鳴き`, `<ul class="cc-ul">${rows.join('')}</ul><div class="cc-s">⚠=課題が遠のく ◎=課題に近づく △=注意</div>`, rows.some((r2) => /⚠/.test(r2)) ? 'warn' : ''));
+    }
     if (o.kan) cards.push(card('カン(大明槓)', '同じ牌4枚で槓子にする。<b>ドラが増える</b>が、相手のドラも増える・手牌が減る・失敗しやすい。初心者は基本的に<b>おすすめしません</b>。(嶺上牌を1枚引いて、そのあと切ります)'));
     if (mode === 'defense' && an.opps.length) cards.push(card('🛡 守備の目線', '鳴くと手牌が減り、安全牌を持ちにくくなります。リーチ者がいる時の鳴きは、テンパイに直結する時だけにしましょう。'));
     return cards.join('');

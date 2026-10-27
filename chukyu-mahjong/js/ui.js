@@ -383,7 +383,8 @@
       $('#table').innerHTML = this.tableHTML(game);
       $('#mine').innerHTML = this.mineHTML(game);
       $('#sd-act').innerHTML = this.sideHTML(game);
-      $('#sd-info').innerHTML = `<b>${game.kyokuLabel()}</b>${game.mission ? `<span class="mis">🎯${game.mission.s}</span>` : `<span>${{ single: '1局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`}`;
+      $('#sd-info').innerHTML = `<b>${game.kyokuLabel()}</b>${game.mission ? `<span class="mis">🎯${game.mission.s}</span>${(() => { const pg = MJ.Dojo.progress(game); return pg ? `<span class="mpg">${pg.short}</span>` : ''; })()}` : `<span>${{ single: '1局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`}`;
+      $('#sd-info').classList.toggle('has-mis', !!game.mission);
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
       this.fitTip();
       if (this.dng) this.hilite(this.picked != null ? ((game.players[0].hand.find((x) => x.id === this.picked) || {}).t) : this.hiType);
@@ -524,10 +525,13 @@
       const set = (types) => `<span class="cq-set">${types.map(t).join('')}</span><span class="cq-plus">+</span><span class="cq-set cq-new">${t(o.tile.t)}</span>`;
       const label = { pon: 'ポン', chi: 'チー', kan: 'カン' };
       const btns = [];
+      const misRows = [];
       if (o.ron) btns.push(`<button class="btn b-ron cq-btn" data-act="ron">ロン!<small>上がります</small></button>`);
       cand.opts.forEach((x) => {
         const extra = x.kind === 'chi' ? ` data-a="${x.a}" data-b="${x.b}"` : '';
-        btns.push(`<button class="btn b-call cq-btn" data-act="${x.kind}" data-ids="${x.ids.join(',')}"${extra}><span class="cq-l">${label[x.kind]}</span>${set(x.types)}</button>`);
+        const mc = game.mission && MJ.Dojo ? MJ.Dojo.callCheck(game, s.p, o, x.kind, x.types) : null;
+        if (mc) misRows.push(`<div class="cq-mis ${mc.cls}"><b>${label[x.kind]}</b> ${mc.cls === 'ng' ? '⚠' : mc.cls === 'ok' ? '◎' : '△'} ${mc.text}</div>`);
+        btns.push(`<button class="btn b-call cq-btn${mc ? ' mis-' + mc.cls : ''}" data-act="${x.kind}" data-ids="${x.ids.join(',')}"${extra}><span class="cq-l">${label[x.kind]}</span>${set(x.types)}</button>`);
       });
       const canCall = o.ron || cand.opts.length;
       btns.push(`<button class="btn b-pass cq-btn" data-act="pass">${canCall ? 'パス<small>鳴かない</small>' : 'OK'}</button>`);
@@ -536,7 +540,7 @@
       else if (cand.opts.length) msg = `${cand.opts.map((x) => label[x.kind]).filter((v, i, a) => a.indexOf(v) === i).join('・')}できます。どうしますか?`;
       else msg = o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '';
       const why = cand.opts.length ? '<div class="cq-why">↑ 持ち上がっている牌が、鳴いたときに使う牌です(ボタンの上にカーソルを置くと、その鳴き方の牌だけ光ります)</div>' : '';
-      return `<div class="callq"><div class="cq-head"><span class="cq-from">${from.name}が捨てた</span><span class="cq-tile">${t(o.tile.t)}</span><span class="cq-msg">${msg}</span></div><div class="cq-btns">${btns.join('')}</div>${why}</div>`;
+      return `<div class="callq"><div class="cq-head"><span class="cq-from">${from.name}が捨てた</span><span class="cq-tile">${t(o.tile.t)}</span><span class="cq-msg">${msg}</span></div><div class="cq-btns">${btns.join('')}</div>${misRows.length ? `<div class="cq-misw">🎯 課題「${game.mission.s}」${misRows.join('')}</div>` : ''}${why}</div>`;
     },
 
     allowed(sel, h) {
