@@ -1,4 +1,4 @@
-/* 年配向け 超操作シンプル麻雀: タイトル・ホームの新デザイン(設計座標 832×428 を画面に合わせて拡大縮小) */
+/* シニア向け 操作シンプル麻雀: タイトル・ホームの新デザイン(設計座標 832×428 を画面に合わせて拡大縮小) */
 :root { --sp-focus: #f2c230; --sp-paper: #fbf9f3; --sp-ink: #1d2a24; }
 body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 #menu-bg, body.rot #menu-bg, body.rot.on-title #menu-bg, body.on-title #menu-bg, body.on-menu #menu-bg { background: radial-gradient(ellipse at 50% 30%, #2f8563, #11382b 75%) !important; animation: none !important; }
@@ -14,7 +14,7 @@ body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 .tt-fan img:nth-child(1) { transform: rotate(-10deg) translateY(8px); }
 .tt-fan img:nth-child(3) { transform: rotate(10deg) translateY(8px); }
 .tt-sub { position: absolute; left: 0; right: 0; top: 150px; text-align: center; font-weight: 900; font-size: 36px; letter-spacing: .12em; color: #f2d98a; }
-.tt-main { position: absolute; left: 0; right: 0; top: 192px; margin: 0; text-align: center; font-weight: 900; font-size: 64px; line-height: 1.1; text-shadow: 0 4px 0 #0006; white-space: nowrap; }
+.tt-main { position: absolute; left: 0; right: 0; top: 192px; margin: 0; text-align: center; font-weight: 900; font-size: 72px; line-height: 1.1; text-shadow: 0 4px 0 #0006; white-space: nowrap; }
 .tt-go { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; font: inherit; font-weight: 900; font-size: 42px; padding: 8px 52px 8px 20px; border-radius: 999px; background: var(--sp-focus); color: #1b1b12; border: 4px solid #fff3b8; cursor: pointer; white-space: nowrap; }
 .kb { display: inline-grid; place-items: center; width: 1.25em; height: 1.25em; border-radius: 50%; background: #1b1b12; color: var(--sp-focus); font-size: .9em; }
 

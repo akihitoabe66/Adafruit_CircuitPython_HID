@@ -1,4 +1,4 @@
-# 麻雀・ギャンブラーズ — Android / Fire TV 用 APK
+# シニア向け 操作シンプル麻雀 — Android / Fire TV 用 APK
 
 ウェブ版をそのまま Android アプリ(Capacitor)に包みます。画像・音声は APK の中に入るので、ネット接続は不要です。
 

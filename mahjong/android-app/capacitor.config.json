@@ -1,6 +1,6 @@
 {
   "appId": "jp.mahjong.gamblers",
-  "appName": "麻雀・ギャンブラーズ",
+  "appName": "操作シンプル麻雀",
   "webDir": "www",
   "backgroundColor": "#020608",
   "android": { "allowMixedContent": false },
