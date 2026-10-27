@@ -155,6 +155,7 @@
       document.querySelector('#ex-no').addEventListener('click', () => MJ.UI.closeOverlay());
       document.querySelector('#ex-yes').addEventListener('click', () => {
         MJ.UI.closeOverlay();
+        try { if (window.MJNative && window.MJNative.exit) { window.MJNative.exit(); return; } } catch (e) { /* ignore */ }
         try { const A = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App; if (A && A.exitApp) { A.exitApp(); return; } } catch (e) { /* ignore */ }
         try { window.close(); } catch (e) { /* ignore */ }
       });

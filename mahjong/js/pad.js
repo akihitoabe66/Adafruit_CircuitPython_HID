@@ -216,7 +216,7 @@
   };
 
   /* キーボード / リモコン */
-  const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Enter: 'a', Escape: 'b', Backspace: 'b', GoBack: 'b', BrowserBack: 'b', MediaPlayPause: 'a' };
+  const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Enter: 'a', Escape: 'b', Backspace: 'b', GoBack: 'b', BrowserBack: 'b' }; // 再生/一時停止ボタンは使わない(押し間違い防止)
   G.addEventListener('keydown', (e) => {
     const t = e.target;
     if (t && /^(TEXTAREA)$/.test(t.tagName)) return;
@@ -262,6 +262,7 @@
   new MutationObserver(() => { if (!P.on) return; clearTimeout(tm); tm = setTimeout(P.refocus, 30); }).observe(document.body, { childList: true, subtree: true });
 
   /* Androidの戻るボタン(Capacitor) */
+  P.back = () => act('b'); // Android / Fire TV の「戻る」(MainActivity から呼ばれる)
   document.addEventListener('backbutton', () => act('b'));
   G.addEventListener('load', () => {
     try { const A = G.Capacitor && G.Capacitor.Plugins && G.Capacitor.Plugins.App; if (A && A.addListener) A.addListener('backButton', () => act('b')); } catch (e) { /* ignore */ }
