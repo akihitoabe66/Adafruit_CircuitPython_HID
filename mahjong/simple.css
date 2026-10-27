@@ -665,7 +665,8 @@ body.rot .dc-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
 .dc-w.east { background: #d8362f; }
 .dc-pc.t { left: calc(var(--u) * 385); top: calc(var(--u) * 4); } .dc-pc.b { left: calc(var(--u) * 385); bottom: calc(var(--u) * 4); }
 .dc-pc.l { left: calc(var(--u) * 30); top: calc(var(--u) * 170); } .dc-pc.r { right: calc(var(--u) * 30); top: calc(var(--u) * 170); }
-.dc-cap { position: absolute; left: calc(var(--u) * 180); right: calc(var(--u) * 180); top: calc(var(--u) * 150); height: calc(var(--u) * 52); display: grid; place-items: center; font-weight: 900; font-size: calc(var(--u) * 36); text-align: center; white-space: nowrap; }
+.dc-cap { position: absolute; left: calc(var(--u) * 180); right: calc(var(--u) * 180); top: calc(var(--u) * 150); height: calc(var(--u) * 52); display: grid; place-items: center; font-weight: 900; font-size: calc(var(--u) * 36); text-align: center; white-space: nowrap; z-index: 5; }
+.dc-cap > span { background: rgba(8, 22, 18, .88); border-radius: calc(var(--u) * 14); padding: calc(var(--u) * 2) calc(var(--u) * 20); }
 .dc-cap em { font-style: normal; color: #f2c230; }
 .dc-big { font-size: calc(var(--u) * 52); color: #f2c230; margin: 0 calc(var(--u) * 6); }
 .dc-cap.in { animation: dcCap .3s ease-out both; }
@@ -692,9 +693,9 @@ body.rot .dc-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
 .dc-sh.go { animation: dcFs 1.55s linear both; }
 @keyframes dcFx { from { transform: translateX(calc(var(--u) * var(--sxn, 400))); } to { transform: none; } }
 @keyframes dcFy {
-  0% { transform: translateY(calc(var(--u) * -330)) scale(1.6); animation-timing-function: cubic-bezier(.5, 0, 1, .6); }
+  0% { transform: translateY(calc(var(--u) * -80)) scale(1.3); animation-timing-function: cubic-bezier(.5, 0, 1, .6); }
   44% { transform: translateY(0) scale(1); animation-timing-function: cubic-bezier(0, .5, .5, 1); }
-  60% { transform: translateY(calc(var(--u) * -62)); animation-timing-function: cubic-bezier(.5, 0, 1, .6); }
+  60% { transform: translateY(calc(var(--u) * -44)); animation-timing-function: cubic-bezier(.5, 0, 1, .6); }
   76% { transform: translateY(0); animation-timing-function: cubic-bezier(0, .5, .5, 1); }
   86% { transform: translateY(calc(var(--u) * -16)); animation-timing-function: cubic-bezier(.5, 0, 1, .6); }
   94% { transform: translateY(0); }

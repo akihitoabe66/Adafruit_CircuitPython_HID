@@ -49,7 +49,7 @@
             res(dealer);
           };
           const seats = (f) => el.querySelectorAll('.dc-pc').forEach((e) => f(e, +e.dataset.i));
-          const cap = (h) => { const c = $('#dc-cap'); if (!c) return; c.innerHTML = h; c.classList.remove('in'); void c.offsetWidth; c.classList.add('in'); };
+          const cap = (h) => { const c = $('#dc-cap'); if (!c) return; c.innerHTML = h.indexOf('<span') === 0 ? h : '<span>' + h + '</span>'; c.classList.remove('in'); void c.offsetWidth; c.classList.add('in'); };
           const winds = (d) => seats((e, i) => { const w = e.querySelector('.dc-w'); const k = (i - d + 4) % 4; w.textContent = WINDS[k]; w.classList.toggle('east', k === 0); });
           const toss = (i, v) => {
             const cu = $('#dcc' + i), dx = $('#dcx' + i), dy = $('#dcy' + i), sh = $('#dcs' + i);
@@ -87,14 +87,14 @@
             [0, 0.44, 0.6, 0.76, 0.86].forEach((p, k) => tick(k ? 0.8 : 1, 0.16 + 1.55 * p));
             await wait(1900); if (done) return;
             try { MJ.SFX.noise(0.12, 3500, 0.5, 1, 0, 'bandpass'); MJ.SFX.tone(880, 0.25, 'triangle', 0.18, 0); } catch (e) { /* ignore */ }
-            cap(`${a} + ${b} = <span class="dc-big">${total}</span>${first ? '　あなたから数えます' : ''}`);
+            if (first) cap('あなたから 数えます');
             if (first) {
               seats((e) => e.classList.remove('dim'));
               await wait(700); if (done) return;
               for (let k = 0; k < total; k++) {
                 const idx = k % 4;
                 seats((e, i) => e.classList.toggle('hit', i === idx));
-                cap(`<span><em class="dc-big">${k + 1}</em>${idx === 0 ? 'あなた' : game.players[idx].name}</span>`);
+                cap(`<span>${idx === 0 ? 'あなた' : game.players[idx].name}</span>`);
                 tick(0.7, 0);
                 await wait(360); if (done) return;
               }
