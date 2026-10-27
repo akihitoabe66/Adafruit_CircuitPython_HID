@@ -454,7 +454,7 @@
       // 公開した面子(席の手前)。鳴いた牌は横向き
       const mt = s === 0 ? [30, 40] : [22, 30];
       const melds = p.melds.length ? `<div class="melds m${s}">${p.melds.map((m) => `<div class="mg">${m.tiles.map((h, i) => (m.kind === 'ankan' && (i === 0 || i === 3) ? this.seatTile(h.t, ROT, mt[0], mt[1], { cls: 'bkt' }).replace(/<img[^>]*>/, '') : this.seatTile(h.t, ROT, mt[0], mt[1], { side: h === m.called, red: h.red }))).join('')}</div>`).join('')}</div>` : '';
-      const plq = `<div class="plq p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}</div>`;
+      const plq = `<div class="plq p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn" style="font-size:${p.name.length <= 4 ? 17 : p.name.length <= 6 ? 15 : 13}px">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}</div>`;
       return `<div class="blk" data-seat="${s}">${river}${hand}${melds}${plq}</div>`;
     },
 
@@ -915,15 +915,28 @@
     },
 
     /* ---------- 演出 ---------- */
+    /* キャラの顔: どこでも同じ「輪郭の切り抜き(首元まで・丸い枠なし)」。自分のシルエットだけは正方形の画像 */
+    faceImg(ch, cls = '') {
+      if (ch && ch.face) return `<img class="fcut ${cls}" src="${ch.face}" alt="">`;
+      if (ch && ch.img) return `<img class="fyou ${cls}" src="${ch.img}" alt="">`;
+      return '';
+    },
+    /* 同じ席の顔・吹き出し・宣言が重ならないように、その席の古い表示を消す */
+    clearSeat(seat, keep) {
+      const host = $('#says');
+      if (host) host.querySelectorAll(`.say.sy${seat}, .shout.sh${seat}`).forEach((x) => { if (x !== keep) x.remove(); });
+      const ci = $('#screen-game .cutin'); if (ci && +ci.dataset.seat === seat && ci !== keep) ci.remove();
+    },
     banner(game, p, text) {
       const col = text === 'リーチ' ? '#ff5b8a' : text === 'ロン' || text === 'ツモ' ? '#ff7b5a' : '#c48bff';
       const SFXN = { 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' };
       MJ.SFX.play(SFXN[text]);
       MJ.SFX.voice(text, p);
-      const face = p.char && p.char.img ? `<img src="${p.char.img}" alt="">` : '';
+      const face = this.faceImg(p.char);
       // 顔は、鳴き・リーチ・和了のこの瞬間にだけ、その席のそばに大きく出す
       const host = $('#says');
       host.querySelectorAll('.shout').forEach((x) => x.remove());
+      this.clearSeat(p.seat); // 同じ席のセリフの顔が残っていたら消す
       const el = document.createElement('div');
       el.className = `shout sh${p.seat}`;
       el.style.setProperty('--c', col);
@@ -934,10 +947,11 @@
     speak(game, p, text) {
       // セリフは、話しているキャラの顔と吹き出しを、その席のそばに短く出す
       const host = $('#says');
+      if (host.querySelector(`.shout.sh${p.seat}`) || ($('#screen-game .cutin') && +$('#screen-game .cutin').dataset.seat === p.seat)) return; // 宣言や特別なセリフの最中は、同じ人の吹き出しを出さない
       host.querySelectorAll(`.say.sy${p.seat}`).forEach((x) => x.remove());
       const el = document.createElement('div');
       el.className = `say sy${p.seat}`;
-      el.innerHTML = `${p.char && p.char.face ? `<img class="fcut" src="${p.char.face}" alt="">` : ''}<div class="sb2"><small>${p.name}</small>${text}</div>`; // 顔(首元まで)の切り抜き(輪郭だけ・丸い枠なし)
+      el.innerHTML = `${this.faceImg(p.char)}<div class="sb2"><small>${p.name}</small>${text}</div>`; // 顔(首元まで)の切り抜き(輪郭だけ・丸い枠なし)
       host.appendChild(el);
       setTimeout(() => el.remove(), 3600);
     },
@@ -946,9 +960,10 @@
       const host = $('#screen-game');
       const old = host.querySelector('.cutin');
       if (old) old.remove();
+      this.clearSeat(p.seat);
       const el = document.createElement('div');
-      el.className = 'cutin';
-      el.innerHTML = `${p.char && p.char.img ? `<img src="${p.char.img}" alt="">` : ''}<div class="ct"><small>${p.name}</small>${text}</div>`;
+      el.className = 'cutin'; el.dataset.seat = p.seat;
+      el.innerHTML = `${this.faceImg(p.char)}<div class="ct"><small>${p.name}</small>${text}</div>`;
       host.appendChild(el);
       setTimeout(() => el.remove(), 2600);
     },
@@ -1006,7 +1021,7 @@
       if (!w.tsumo) pts = `${fmt(w.pay.ron)}点(${w.loser.name}から)`;
       else if (win.seat === game.dealer) pts = `${fmt(w.pay.each)}点オール`;
       else pts = `${fmt(w.pay.fromOther)}・${fmt(w.pay.fromDealer)}点`;
-      return `<div class="win-head">${win.char.img ? `<img src="${win.char.img}">` : '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): ${w.loser.name}`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || ''}」</div>`}</div></div>
+      return `<div class="win-head">${this.faceImg(win.char) || '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): ${w.loser.name}`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || ''}」</div>`}</div></div>
       <div class="win-cols"><div class="win-l"><div class="win-hand">${concealed}${melds}${winT}</div>
       <div>ドラ表示牌: ${dora}${ura}</div></div>
       <div class="win-r"><table class="yakus">${rows.replace(/門前清自摸和/g, '門前清自摸和(メンゼンツモ)')}</table>
@@ -1113,7 +1128,7 @@
         } else {
           const cards = res.tenpai.map((t, i) => {
             const p = game.players[i], ch = p.char || {};
-            const face = ch.img ? `<img class="dr-face" src="${ch.img}" alt="">` : '<div class="dr-face dr-me">🀄</div>';
+            const face = this.faceImg(ch, 'dr-face') || '<div class="dr-face dr-me">🀄</div>';
             const d = res.delta[i];
             return `<div class="dr-p${t ? ' tp' : ''}">${face}<div class="dr-n">${p.name}</div><div class="dr-s ${t ? 'tp' : 'no'}">${t ? 'テンパイ' : 'ノーテン'}</div><div class="dr-d ${d > 0 ? 'up' : d < 0 ? 'dn' : ''}">${d ? (d > 0 ? '+' : '') + d.toLocaleString() : '±0'}</div><div class="dr-t">${fmt(res.after[i])}点</div>${t ? `<div class="dr-h">${res.hands[i].concealed.map((h) => MJ.tileHTML(h.t, 't-s')).join('')}</div>` : ''}</div>`;
           }).join('');
@@ -1166,7 +1181,7 @@
         const me = final.results.find((r) => r.p.seat === 0);
         MJ.SFX.play(me.rank <= 2 ? 'end' : 'lose');
         const msg = me.rank === 1 ? '🎉 トップ!おめでとうございます!' : me.rank === 4 ? '残念…ラスでした。振り返って次に活かそう!' : `${me.rank}位でした。`;
-        const rows = final.results.map((r) => `<div class="rank"><div class="rk">${r.rank}</div>${r.p.char.img ? `<img src="${r.p.char.img}">` : '<div style="font-size:30px;width:56px;text-align:center">🀄</div>'}<div><b>${r.p.name}</b></div><div class="rs">${fmt(r.p.score)}点</div></div>`).join('');
+        const rows = final.results.map((r) => `<div class="rank"><div class="rk">${r.rank}</div>${MJ.UI.faceImg(r.p.char) || '<div style="font-size:30px;width:56px;text-align:center">🀄</div>'}<div><b>${r.p.name}</b></div><div class="rs">${fmt(r.p.score)}点</div></div>`).join('');
         this.overlay(`<h2>対局終了</h2><p>${msg}</p><div class="ranks">${rows}</div><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="end-menu">メニューへ</button><button class="btn pri" id="end-again">もう一度</button></div>`);
         try {
           const st = JSON.parse(localStorage.getItem('mj_stats') || '{"games":0,"ranks":[0,0,0,0]}');

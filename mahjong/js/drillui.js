@@ -131,7 +131,7 @@
         board = '<div class="dblocks">' + [1, 2, 3].map((s) => {
           const p = q.g.players[s];
           const river = p.discards.map((d) => MJ.tileHTML(d.tile.t, d.riichi ? 'rch' : '', '', d.tile.red)).join('');
-          return `<div class="blk${p.riichi ? ' rch-on' : ''}"><div class="strip"><img class="face" src="${p.char.img || ''}" alt=""><div class="meta"><div class="nm">${p.name}</div><div class="chips">${p.riichi ? '<span class="chip r">リーチ</span>' : ''}<span class="chip">${['東', '南', '西', '北'][q.g.seatWindOf(p)]}家</span></div></div></div><div class="river">${river}</div></div>`;
+          return `<div class="blk${p.riichi ? ' rch-on' : ''}"><div class="strip">${MJ.UI.faceImg(p.char, 'dface')}<div class="meta"><div class="nm">${p.name}</div><div class="chips">${p.riichi ? '<span class="chip r">リーチ</span>' : ''}<span class="chip">${['東', '南', '西', '北'][q.g.seatWindOf(p)]}家</span></div></div></div><div class="river">${river}</div></div>`;
         }).join('') + '</div>';
       }
       $('#dq-board').innerHTML = board;

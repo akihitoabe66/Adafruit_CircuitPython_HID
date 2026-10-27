@@ -108,7 +108,7 @@ body.pick-tiles .hand .tile.cand { outline-width: 5px; animation: pickpulse 1s e
 .plq .wd { font-size: 16px; }
 
 /* 対局中の吹き出し: 顔から首元までの切り抜き(輪郭だけ。丸い枠なし)を大きく出す */
-.say img.fcut { flex: none; height: 128px; width: auto; max-width: 150px; object-fit: contain; border: 0; border-radius: 0; box-shadow: none; filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 4px 6px #000a); }
+.say img.fcut, .say img.fyou { flex: none; height: 128px; width: auto; max-width: 150px; object-fit: contain; border: 0; border-radius: 0; box-shadow: none; filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 4px 6px #000a); }
 .say { max-width: 330px; gap: 4px; align-items: flex-end; }
 .say .sb2 { font-size: 18px; padding: 8px 14px; margin-bottom: 14px; }
 .say .sb2 small { font-size: 15px; }
@@ -200,3 +200,69 @@ body.pad-on .hm-btn.pf, body.pad-on .hm-teach.pf, body.pad-on .sy-btn.pf, body.p
 #side-in #btn-teach.pf { background: var(--sel) !important; color: var(--sel-ink) !important; }
 /* 先生をたずねるダイアログ: 「先生をつける」はうすい緑 */
 .cf-btns .btn.warm { background: #cfe6d9; color: #16160f; }
+
+/* ===== キャラの顔の表示を、どこでも同じ見た目にそろえる =====
+   輪郭の切り抜き(首元まで・丸い枠なし・顎まで見える)。高さだけ、場所ごとに決める。自分のシルエット(fyou)だけは、角丸の正方形。 */
+img.fcut { object-fit: contain; border: 0; border-radius: 0; box-shadow: none; aspect-ratio: auto; width: auto; max-width: none; background: none; filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 3px 5px #000a); }
+img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto; border: 3px solid #fff; }
+.shout img.fcut, .shout img.fyou { height: 118px; width: auto; display: block; }
+.shout { width: 440px; height: 150px; }
+.shout .sw { left: 120px; top: 36px; }
+.shout small { left: 8px; top: 122px; font-size: 18px; }
+.shout.sh0 { left: 160px; top: 214px; } .shout.sh1 { left: 300px; top: 70px; } .shout.sh2 { left: 150px; top: 14px; } .shout.sh3 { left: 14px; top: 70px; }
+.cutin img.fcut, .cutin img.fyou { height: 130px; width: auto; }
+.cutin .ct { font-size: 30px; } .cutin .ct small { font-size: 18px; }
+.win-head img.fcut, .win-head img.fyou, .paged .win-head img.fcut { height: 92px; width: auto; aspect-ratio: auto; }
+.rank img.fcut, .rank img.fyou { height: 64px; width: auto; aspect-ratio: auto; }
+.dr-face.fcut, .dr-face.fyou { height: 92px; width: auto; max-width: 100%; margin: 0 auto; display: block; aspect-ratio: auto; }
+.strip img.dface { height: 52px; width: auto; flex: none; }
+#dq-board .strip img.dface { height: 34px; }
+.say img.fcut { height: 128px; }
+/* 文字の下限をそろえる */
+.win-head .big { font-size: 26px; }
+
+/* ===== 対局スタート演出 ===== */
+#intro { position: absolute; inset: 0; z-index: 90; background: radial-gradient(ellipse at 50% 45%, #2a7a5c, #0f3a2c 80%); display: grid; place-items: center; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; color: #fff; animation: inFade .2s both; }
+#intro.out { opacity: 0; transition: opacity .25s; }
+@keyframes inFade { from { opacity: 0; } to { opacity: 1; } }
+.in-stage { position: relative; width: min(100vw, 177.78vh); aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; }
+.in-seats { position: absolute; inset: 0; }
+.in-seat { position: absolute; display: flex; flex-direction: column; align-items: center; opacity: 0; width: 20cqw; }
+.in-seat img { height: 17cqw; width: auto; display: block; filter: none; }
+.in-seat.t img { height: 15cqw; }
+.in-nm { margin-top: .6cqw; background: linear-gradient(#17202a, #0a0f14); border: .35cqw solid #ffd23f; border-radius: 1.2cqw; padding: .2cqw 1.8cqw; font-weight: 900; font-size: 2.8cqw; white-space: nowrap; box-shadow: 0 .6cqw 1.2cqw #000a; line-height: 1.25; text-align: center; }
+.in-nm small { display: block; font-size: 2.1cqw; color: #ffd23f; letter-spacing: .08em; line-height: 1.1; }
+.in-seat.t { left: 40cqw; top: 1.2cqw; } .in-seat.l { left: 3cqw; top: 14cqw; } .in-seat.r { right: 3cqw; top: 14cqw; }
+.in-seat.l { animation: inL .55s .25s cubic-bezier(.2, 1.2, .3, 1) both; }
+.in-seat.t { animation: inT .55s .55s cubic-bezier(.2, 1.2, .3, 1) both; }
+.in-seat.r { animation: inR .55s .85s cubic-bezier(.2, 1.2, .3, 1) both; }
+.in-word { position: absolute; left: 0; right: 0; top: 63%; text-align: center; opacity: 0; transform: translateY(-50%); pointer-events: none; }
+.in-word .inw { display: inline-block; font-weight: 900; font-size: 17cqw; line-height: 1.05; letter-spacing: .02em; white-space: nowrap;
+  color: #fff6c0; -webkit-text-stroke: .75cqw #ffae1a; paint-order: stroke fill;
+  text-shadow: .35cqw 0 0 #7a1010, -.35cqw 0 0 #7a1010, 0 .35cqw 0 #7a1010, 0 -.35cqw 0 #7a1010, .3cqw .3cqw 0 #7a1010, -.3cqw -.3cqw 0 #7a1010, .3cqw -.3cqw 0 #7a1010, -.3cqw .3cqw 0 #7a1010, 0 1cqw 0 #3a0808; }
+.in-word .ins { margin-top: .2cqw; font-weight: 900; font-size: 3.2cqw; letter-spacing: .2em; color: #fff; text-shadow: 0 .4cqw 0 #000a, 0 0 1.2cqw #ffb12a; }
+#in-w1 { animation: inSlam 1.0s 1.5s both; }
+#in-w2 { animation: inSlam 2.1s 2.6s both; }
+.in-burst { position: absolute; left: 50%; top: 63%; width: 170cqw; height: 170cqw; margin: -85cqw 0 0 -85cqw; opacity: 0; pointer-events: none; display: none;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 210, 63, .8) 0deg 4deg, rgba(255, 120, 40, 0) 4deg 14deg); -webkit-mask: radial-gradient(circle, transparent 12%, #000 38%, transparent 66%); mask: radial-gradient(circle, transparent 12%, #000 38%, transparent 66%); }
+.in-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.in-hint { position: absolute; left: 0; right: 0; bottom: 0; height: 3.4cqw; background: rgba(0, 0, 0, .55); display: flex; align-items: center; padding: 0 3cqw; font-size: 2.2cqw; font-weight: 700; }
+.in-hint i { font-style: normal; color: #ffd23f; margin-right: .8cqw; }
+#intro.fx-big .in-burst { display: block; animation: inBurst 1.6s 2.6s ease-out both; }
+#intro.fx-big .in-flash { animation: inFlash .35s 2.6s ease-out both; }
+#intro.fx-big .in-stage { animation: inShake .45s 2.6s both; }
+@keyframes inL { from { opacity: 0; transform: translateX(-30cqw) rotate(-8deg); } to { opacity: 1; transform: none; } }
+@keyframes inR { from { opacity: 0; transform: translateX(30cqw) rotate(8deg); } to { opacity: 1; transform: none; } }
+@keyframes inT { from { opacity: 0; transform: translateY(-24cqw); } to { opacity: 1; transform: none; } }
+@keyframes inSlam { 0% { opacity: 0; transform: translateY(-50%) scale(4); } 14% { opacity: 1; transform: translateY(-50%) scale(.9); } 22% { transform: translateY(-50%) scale(1.06); } 30% { transform: translateY(-50%) scale(1); } 78% { opacity: 1; transform: translateY(-50%) scale(1); } 100% { opacity: 0; transform: translateY(-50%) scale(1.15); } }
+@keyframes inBurst { 0% { opacity: 0; transform: scale(.3) rotate(0); } 12% { opacity: 1; } 100% { opacity: 0; transform: scale(1) rotate(40deg); } }
+@keyframes inFlash { 0% { opacity: .6; } 100% { opacity: 0; } }
+@keyframes inShake { 0%, 100% { transform: none; } 15% { transform: translate(-1.1cqw, .5cqw); } 30% { transform: translate(1.1cqw, -.5cqw); } 45% { transform: translate(-.7cqw, -.4cqw); } 60% { transform: translate(.7cqw, .4cqw); } 80% { transform: translate(-.3cqw, 0); } }
+@media (prefers-reduced-motion: reduce) { #intro .in-burst, #intro .in-flash, #intro .in-stage { animation: none !important; } }
+
+/* 吹き出し(顔つき)の置き場所: 3人が同時に話しても、重ならないようにずらす */
+.say.sy3 { left: 50px; top: 100px; max-width: 235px; }
+.say.sy2 { left: 230px; top: 14px; max-width: 280px; }
+.say.sy1 { left: 440px; top: 150px; max-width: 270px; }
+.say .sb2 { font-size: 17px; }
+.say img.fcut { height: 112px; }
