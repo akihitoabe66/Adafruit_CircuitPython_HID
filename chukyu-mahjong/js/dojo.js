@@ -111,4 +111,114 @@
       return `<p class="dj-res ${ok ? 'ok' : 'ng'}">${ok ? '🏯 課題クリア!' : '🏯 課題は未達成…'}<br><b>${m.name}</b>${ok ? '' : `<br><small>コツ: ${m.tip}</small>`}</p>`;
     },
   });
+
+  /* ===== 課題に合わせた打牌アドバイス =====
+     課題ごとに「課題から遠い牌(cut=切りたい)」と「課題に近い牌(keep=残したい)」を決める。
+     ★は、シャンテン数を悪くしない範囲で、切りたい牌を優先する。 */
+  const isYao = (t) => t >= 27 || t % 9 === 0 || t % 9 === 8;
+  const suitOf = (t) => (t < 27 ? Math.floor(t / 9) : -1);
+  const SUITN = ['萬子', '筒子', '索子'];
+  const ADV = {
+    tanyao(c) {
+      const n = c.hand.filter((h) => isYao(h.t)).length;
+      const meldYao = c.melds.some((m) => m.tiles.some((h) => isYao(h.t)));
+      return { status: meldYao ? '鳴いた面子に1・9・字牌が入っていて、<b>タンヤオは不可能</b>です。この局は別の方針に。' : n ? `1・9・字牌が<b>${n}枚</b>。これらは先に切りましょう。` : '1・9・字牌がありません。<b>タンヤオの形</b>です。', cut: (h) => isYao(h.t) };
+    },
+    pinfu(c) {
+      const meld = c.melds.some((m) => m.kind !== 'ankan');
+      const yh = (t) => t >= 31 || t === 27 + c.seatWind || t === 27 + c.roundWind;
+      return { status: meld ? '鳴くと<b>平和はつきません</b>。この局は別の方針に。' : '鳴かずに、順子だけで両面待ちを作ります。役牌の対子・刻子や、カンチャン/ペンチャン待ちは平和になりません。', cut: (h) => !meld && yh(h.t) && c.cnt[h.t] >= 2 };
+    },
+    yakuhai(c) {
+      const yh = (t) => t >= 31 || t === 27 + c.seatWind || t === 27 + c.roundWind;
+      const pairs = [...new Set(c.hand.filter((h) => yh(h.t) && c.cnt[h.t] >= 2).map((h) => h.t))];
+      return { status: pairs.length ? `役牌の対子(${pairs.map(MJ.tileName).join('・')})があります。<b>ポン</b>か3枚目のツモで役になります。` : '役牌(白・發・中、自風、場風)を2枚以上集めましょう。1枚の役牌は、他と重なるまで残す手も。', keep: (h) => yh(h.t) };
+    },
+    riichi(c) {
+      const meld = c.melds.some((m) => m.kind !== 'ankan');
+      return { status: meld ? '鳴くと<b>リーチはできません</b>。' : '鳴かずにテンパイを目指し、テンパイしたら<b>リーチ</b>をかけます。' };
+    },
+    tsumo(c) {
+      const meld = c.melds.some((m) => m.kind !== 'ankan');
+      return { status: meld ? '鳴くと<b>門前ツモにはなりません</b>。' : '鳴かずに、<b>自分で引いて</b>上がります(ロンでは成立しません)。' };
+    },
+    dora3(c) {
+      const isD = (h) => c.game.doraInd.some((d) => MJ.doraOf(d.t) === h.t) || h.red;
+      const n = c.all.filter(isD).length;
+      return { status: `ドラ・赤が<b>${n}枚</b>(目標3枚以上)。ドラは切らずに残し、ドラ周りの牌をつなげましょう。`, keep: isD };
+    },
+    chiitoi(c) {
+      const meld = c.melds.length;
+      const pairs = Object.keys(c.cnt).filter((t) => c.cnt[t] >= 2).length;
+      return { status: meld ? '鳴くと<b>七対子はできません</b>。' : `対子が<b>${Math.min(pairs, 7)}組</b>(7組で完成)。同じ牌は2枚ずつ。単独の牌は、対子になりにくいものから切ります。`, keep: (h) => !meld && c.cnt[h.t] === 2 };
+    },
+    iipeikou(c) {
+      const meld = c.melds.some((m) => m.kind !== 'ankan');
+      return { status: meld ? '鳴くと<b>一盃口はつきません</b>。' : '同じ順子を2組(例: 456と456)つくります。連続した牌が2枚ずつ並ぶ形を残しましょう。', keep: (h) => !meld && c.cnt[h.t] === 2 && h.t < 27 };
+    },
+    toitoi(c) {
+      const sets = Object.keys(c.cnt).filter((t) => c.cnt[t] >= 2).length;
+      const runy = (h) => h.t < 27 && c.cnt[h.t] === 1 && ((h.t % 9 > 0 && c.cnt[h.t - 1]) || (h.t % 9 < 8 && c.cnt[h.t + 1]));
+      return { status: `対子・刻子が<b>${sets}組</b>。同じ牌を集めて<b>ポン</b>で刻子にします。順子の形(連続した牌)は崩してOK。`, keep: (h) => c.cnt[h.t] >= 2, cut: (h) => runy(h) };
+    },
+    sanshoku(c) {
+      let best = 0, bs = -1;
+      for (let r = 0; r < 7; r++) {
+        let sc = 0;
+        for (let s = 0; s < 3; s++) { let k = 0; for (let d = 0; d < 3; d++) if (c.cnt[s * 9 + r + d]) k++; sc += k; }
+        if (sc > best) { best = sc; bs = r; }
+      }
+      const inR = (t) => t < 27 && t % 9 >= bs && t % 9 < bs + 3;
+      return { status: bs < 0 ? '萬・筒・索で同じ数字の順子をそろえます。' : `いちばん近いのは<b>${bs + 1}${bs + 2}${bs + 3}</b>の三色(${best}/9枚)。この数字の牌を3色で集めましょう。`, keep: (h) => bs >= 0 && inR(h.t) };
+    },
+    ittsu(c) {
+      const sc = [0, 1, 2].map((s) => { let k = 0; for (let i = 0; i < 9; i++) if (c.cnt[s * 9 + i]) k++; return k; });
+      const bs = sc.indexOf(Math.max(...sc));
+      return { status: `いちばん近いのは<b>${SUITN[bs]}</b>(1〜9のうち${sc[bs]}種類)。123・456・789を1色でそろえます。`, keep: (h) => suitOf(h.t) === bs };
+    },
+    honitsu(c) {
+      const sc = [0, 1, 2].map((s) => { let k = 0; for (let i = 0; i < 9; i++) k += c.cnt[s * 9 + i] || 0; return k; });
+      const bs = sc.indexOf(Math.max(...sc));
+      return { status: `<b>${SUITN[bs]}</b>が${sc[bs]}枚で最多。数牌はこの色だけにして、字牌も使います。ほかの2色は切っていきましょう。`, keep: (h) => suitOf(h.t) === bs || h.t >= 27, cut: (h) => suitOf(h.t) >= 0 && suitOf(h.t) !== bs };
+    },
+    mangan(c) {
+      const isD = (h) => c.game.doraInd.some((d) => MJ.doraOf(d.t) === h.t) || h.red;
+      const n = c.all.filter(isD).length;
+      return { status: `5飜が目標。<b>リーチ</b>(1)+ドラ(いま${n}枚)+役を重ねます。ドラは残し、鳴かずにリーチを狙うのが近道です。`, keep: isD };
+    },
+    noron(c) {
+      const opps = c.game.players.filter((q) => q !== c.p && q.riichi);
+      return { status: opps.length ? `<b>${opps.map((q) => q.name).join('・')}</b>がリーチ中。攻めずに、安全な牌(現物・スジ)を切って降りましょう。` : 'いまはリーチ者がいません。でも、手が遠いなら攻めすぎないこと。⚠危険度の表示を見ながら切りましょう。' };
+    },
+  };
+
+  /* an=Coach側の分析、eff=有効牌順の評価。戻り値: { html(カード), marks, recId } */
+  Dojo.advice = function (game, p, an, eff, card) {
+    const m = game.mission;
+    const f = m && ADV[m.id];
+    if (!f) return null;
+    const melds = p.melds;
+    const all = p.hand.concat([].concat(...melds.map((x) => x.tiles)));
+    const cnt = {};
+    all.forEach((h) => { cnt[h.t] = (cnt[h.t] || 0) + 1; });
+    const c = { game, p, hand: p.hand, melds, all, cnt, seatWind: game.seatWindOf(p), roundWind: game.roundWind };
+    const a = f(c);
+    const marks = {};
+    const cutIds = [];
+    p.hand.forEach((h) => {
+      if (a.cut && a.cut(h)) { marks[h.id] = { txt: '課題✕', cls: 'danger' }; cutIds.push(h); }
+      else if (a.keep && a.keep(h)) marks[h.id] = { txt: '課題◎', cls: 'safe' };
+    });
+    // 切りたい牌のうち、シャンテン数を悪くしないもの(有効牌が多い順)を★に
+    let rec = null, note = '';
+    const best = eff[0];
+    const okCut = eff.filter((e) => e.sh === an.minSh && cutIds.some((h) => h.t === e.t));
+    if (okCut.length && !(an.opps && an.opps.length)) {
+      rec = cutIds.find((h) => h.t === okCut[0].t);
+      if (best && best.t !== rec.t) note = `<div class="cc-s">通常の最善は${MJ.tileName(best.t)}ですが、課題のために<b>${MJ.tileName(rec.t)}</b>を★にしています(シャンテン数は同じ)。</div>`;
+    } else if (cutIds.length && best && !cutIds.some((h) => h.t === best.t)) {
+      note = '<div class="cc-s">課題に合わない牌を切ると手が遠のくので、今はふつうの最善を優先しています。</div>';
+    }
+    return { card: card(`🎯 課題「${m.s}」`, `${a.status}${note}`, ''), marks, recId: rec ? rec.id : null, summary: `🎯${m.s}` };
+  };
 })();

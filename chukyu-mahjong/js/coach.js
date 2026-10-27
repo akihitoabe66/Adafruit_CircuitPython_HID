@@ -378,6 +378,16 @@
       const txtS = cmp.length ? `${txt}<br><span class="cmp">★${tn(best.t)}との差: ${diffShort(game, p, an, best, e)}</span>` : txt;
       for (const h of p.hand) if (h.t === e.t) { info[h.id] = txtS; infoLong[h.id] = txt2; }
     }
+    let missionSum = '';
+    if (game.mission && MJ.Dojo && !opts.tsumo && !st.afterCall) {
+      const ma = MJ.Dojo.advice(game, p, an, eff, card);
+      if (ma) {
+        cards.unshift(ma.card);
+        Object.keys(ma.marks).forEach((id) => { if (!marks[id]) marks[id] = ma.marks[id]; });
+        if (ma.recId) recId = ma.recId;
+        missionSum = ma.summary + ' ';
+      }
+    }
     let summary = '';
     const rec = recId ? p.hand.find((h) => h.id === recId) : null;
     if (rec) {
@@ -387,6 +397,7 @@
       const sf = an.opps.length ? A.bySafety(an.evals)[0] : null;
       if (sf && sf.t !== rec.t) summary += ` / 🛡安全:${tn(sf.t)}(${sf.danger.tag})`;
     }
+    summary = missionSum + summary;
     if (opts.riichi.length) summary = '✨リーチできます! ' + summary;
     if ((mode === 'beginner' || mode === 'inter') && !opts.tsumo) {
       const fc = formsCard(game, p, an, best, eff, recId);
