@@ -56,6 +56,14 @@
       const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       src.connect(f); f.connect(g); g.connect(master); src.start(t);
     },
+    /* 雷の「バリバリ!」: 高いひび割れ音 + 低いゴロゴロ(上がりの演出用) */
+    thunder(vol = 1) {
+      if (!ctx) return;
+      S.noise(0.14, 5200, 0.85 * vol, 0.6, 0, 'highpass');
+      S.noise(0.5, 1800, 0.55 * vol, 0.5, 0.02, 'bandpass');
+      S.noise(1.3, 220, 0.9 * vol, 0.5, 0.06, 'lowpass');
+      S.tone(55, 0.9, 'sawtooth', 0.35 * vol, 28, 0.04);
+    },
     /* 和太鼓の「ドン!」: 低い胴の音 + 皮を打つ音 + 余韻(スタート演出用) */
     don(vol = 1, at = 0) {
       if (!ctx) return;

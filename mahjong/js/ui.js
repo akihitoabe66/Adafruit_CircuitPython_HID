@@ -393,6 +393,11 @@
       if (this.game !== game) return;
       this.layout();
       document.body.classList.remove('dealing');
+      const s0 = this.sel;
+      if (s0 && this._alertSel !== s0) { // 上がれるとき(ツモ・ロン)は、大きく知らせる
+        if (s0.type === 'self' && s0.opts && s0.opts.tsumo) { this._alertSel = s0; this.alertWin('ツモれる!'); }
+        else if (s0.type === 'react' && s0.o && s0.o.ron) { this._alertSel = s0; this.alertWin('ロンできる!'); }
+      }
       $('#table').innerHTML = this.tableHTML(game);
       $('#mine').innerHTML = this.mineHTML(game);
       $('#sd-act').innerHTML = this.sideHTML(game);
@@ -425,10 +430,17 @@
       return `<div class="tile st${o.cls ? ' ' + o.cls : ''}${o.red ? ' aka' : ''}" style="width:${bw}px;height:${bh}px" data-t="${t}"><img src="${MJ.tileSrc(t, o.red)}" alt="" draggable="false" style="width:${w}px;height:${h}px;transform:translate(-50%,-50%) rotate(${a}deg)"></div>`;
     },
     tableHTML(game) {
-      const doras = game.doraInd.map((d) => MJ.tileHTML(d.t, '', '', d.red)).join('') + game.doraAll.slice(game.doraInd.length).map(() => MJ.backHTML()).join('');
-      const dora2 = game.doraInd.map((d) => MJ.tileHTML(MJ.doraOf(d.t))).join('');
+      // 本物の麻雀のように、王牌を、上下2段に重ねた7つの山で見せる。左から 槓ドラ④③②①、ドラ表示牌、嶺上牌2つ。表の牌は、めくれている表示牌だけ
+      const stk = [];
+      for (let i = 0; i < 7; i++) {
+        const di = 4 - i; // 左から4番目(0始まり)がドラ表示牌 = doraInd[0]。左へ、槓ドラ
+        const up = di >= 0 && di < game.doraInd.length ? MJ.tileHTML(game.doraInd[di].t, '', '', game.doraInd[di].red) : MJ.backHTML();
+        stk.push(`<span class="stk"><span class="dn">${MJ.backHTML()}</span><span class="up">${up}</span></span>`);
+      }
+      const doras = stk.join('');
+      const dora2 = '';
       const sub = [game.kyotaku ? `供託${game.kyotaku}` : ''].filter(Boolean).join(' ');
-      const ctr = `<div class="ctr"><div class="k">${game.kyokuLabel()}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.live.length}<small>枚</small></div><div class="dr">${doras}<span class="ar">→</span>${dora2}</div></div>`;
+      const ctr = `<div class="ctr"><div class="k">${game.kyokuLabel()}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.live.length}<small>枚</small></div><div class="dr wall">${doras}</div></div>`;
       return ctr + [0, 1, 2, 3].map((s) => this.block(game, s)).join('');
     },
     block(game, s) {
@@ -666,7 +678,7 @@
       const kans = self ? [...o.ankan.map((t) => ['ankan', t]), ...o.kakan.map((t) => ['kakan', t])] : [];
       const kan = kans.length ? `<div class="sb-row">${kans.map(([k, t]) => B('b-call', k, kans.length > 1 ? `カン${MJ.tileName(t)}` : 'カン', true, `data-t="${t}"`)).join('')}</div>` : B('b-call', 'kan', 'カン', false);
       const canDis = !!(self && this.picked != null);
-      return `${o && o.tsumo ? B('b-tsumo', 'tsumo', 'ツモ!', true) : B('b-tsumo', 'tsumo', 'ツモ', false)}${o && o.riichi.length ? B('b-riichi', 'riichi', this.riichiMode ? 'リーチ取消' : '🔥リーチ', true) : B('b-riichi', 'riichi', 'リーチ', false)}${kan}${B('b-call', 'pon', 'ポン', false)}${B('b-call', 'chi', 'チー', false)}`;
+      return `${o && o.tsumo ? B('b-tsumo pulse', 'tsumo', 'ツモ!', true) : B('b-tsumo', 'tsumo', 'ツモ', false)}${o && o.riichi.length ? B('b-riichi', 'riichi', this.riichiMode ? 'リーチ取消' : '🔥リーチ', true) : B('b-riichi', 'riichi', 'リーチ', false)}${kan}${B('b-call', 'pon', 'ポン', false)}${B('b-call', 'chi', 'チー', false)}`;
     },
 
     actionsHTML(game) {
@@ -1010,6 +1022,7 @@
       const ci = $('#screen-game .cutin'); if (ci && +ci.dataset.seat === seat && ci !== keep) ci.remove();
     },
     banner(game, p, text) {
+      if ((text === 'ロン' || text === 'ツモ') && !game.fast) return this.winFx(game, p, text); // 上がりは、雷つきの派手な演出
       const col = text === 'リーチ' ? '#ff5b8a' : text === 'ロン' || text === 'ツモ' ? '#ff7b5a' : '#c48bff';
       const SFXN = { 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' };
       MJ.SFX.play(SFXN[text]);
@@ -1029,6 +1042,68 @@
       el.innerHTML = `${face}<div class="sw">${text}</div><small>${p.name}</small>`;
       host.appendChild(el);
       return new Promise((r) => setTimeout(() => { el.remove(); r(); }, game.fast ? 0 : 1000));
+    },
+    /* 上がりの演出: 画面が暗くなる → 顔とセリフの帯 → 当たり牌に雷 → 大きな顔と「ロン!!!」(約4.8秒。クリック・Aでとばせる) */
+    winTarget(game, p, text) {
+      // 雷の落ち先(設計座標 720×428): ロンは放銃した人の河の最後の牌、ツモは上がった人の手牌
+      const sc = $('#sc');
+      const hl = $('#table .tile.hl');
+      if (text === 'ロン' && hl) { // 河の牌の位置を、#sc の中の座標に直す
+        const a = hl.getBoundingClientRect(), b = sc.getBoundingClientRect();
+        const rot = document.body.classList.contains('rot');
+        const S = (rot ? b.height : b.width) / 720;
+        if (!rot) return { x: (a.left + a.width / 2 - b.left) / S, y: (a.top + a.height / 2 - b.top) / S };
+        return { x: (a.top + a.height / 2 - b.top) / S, y: (b.right - a.left - a.width / 2) / S };
+      }
+      if (p.isHuman) { const d = $('#mine .hand .tile.drawn'); const h = $('#mine .hand'); if (d && h) return { x: 20 + d.offsetLeft + d.offsetWidth / 2, y: 354 + 30 }; }
+      return [{ x: 360, y: 300 }, { x: 600, y: 214 }, { x: 360, y: 90 }, { x: 120, y: 214 }][p.seat] || { x: 360, y: 214 };
+    },
+    winFx(game, p, text) {
+      const sc = $('#sc');
+      if (!sc) return Promise.resolve();
+      const tg = this.winTarget(game, p, text);
+      const bolt = (w, dx, d) => { // ぎざぎざの雷の線(上から当たり牌まで)
+        let x = tg.x + dx, pts = [`${x.toFixed(0)},0`];
+        const n = 6;
+        for (let i = 1; i < n; i++) { x += (Math.random() * 2 - 1) * 26; pts.push(`${(i === n - 1 ? tg.x + dx * 0.15 : x).toFixed(0)},${((tg.y * i) / n).toFixed(0)}`); }
+        pts.push(`${tg.x.toFixed(0)},${tg.y.toFixed(0)}`);
+        const P = pts.join(' ');
+        return `<g class="wf-bolt" style="animation-delay:${d}ms"><polyline points="${P}" fill="none" stroke="#8fc5ff" stroke-width="${w * 2.6}" stroke-linejoin="round" stroke-linecap="round" opacity=".55"/><polyline points="${P}" fill="none" stroke="#fff" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/></g>`;
+      };
+      const line = ((p.char && p.char.lines && p.char.lines.win) || `${text}!`).split(/[。]/)[0].slice(0, 22);
+      const fx = document.createElement('div');
+      fx.className = 'winfx';
+      fx.innerHTML = `<div class="wf-dim"></div><div class="wf-rays"></div><div class="wf-slash"></div>${this.faceImg(p.char, 'wf-face1')}<div class="wf-line">${line}</div>
+        <svg class="wf-svg" viewBox="0 0 720 428" preserveAspectRatio="none">${bolt(9, -18, 2150)}${bolt(4, 46, 2260)}${bolt(14, 6, 2380)}${bolt(3, -52, 2480)}</svg>
+        <div class="wf-flash" style="--tx:${tg.x}px;--ty:${tg.y}px"></div><div class="wf-ring"></div>${this.faceImg(p.char, 'wf-face2')}<div class="wf-ron">${text}!!!</div>`;
+      sc.appendChild(fx);
+      const hit = (cls) => { const el = text === 'ロン' ? $('#table .tile.hl') : $('#mine .hand .tile.drawn'); if (el) el.classList.toggle('wf-hit', cls); };
+      MJ.SFX.don(0.9);
+      return new Promise((resolve) => {
+        const T = [];
+        let done = false;
+        const finish = () => { if (done) return; done = true; T.forEach(clearTimeout); hit(false); fx.remove(); document.removeEventListener('keydown', onKey, true); resolve(); };
+        const onKey = (e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(); } };
+        fx.addEventListener('click', finish);
+        document.addEventListener('keydown', onKey, true);
+        T.push(setTimeout(() => MJ.SFX.don(0.7), 500));
+        T.push(setTimeout(() => { hit(true); MJ.SFX.thunder(1); }, 2150));
+        T.push(setTimeout(() => MJ.SFX.thunder(0.8), 2380));
+        T.push(setTimeout(() => { fx.classList.add('final'); MJ.SFX.voice(text, p); MJ.SFX.play(text === 'ロン' ? 'ron' : 'tsumo'); }, 3300));
+        T.push(setTimeout(finish, 4900));
+      });
+    },
+    /* 「ツモれる!」「ロンできる!」: 上がれるときに、気づかず通り過ぎないよう、画面の真ん中に大きく出す */
+    alertWin(text) {
+      const sc = $('#sc');
+      if (!sc) return;
+      sc.querySelectorAll('.wf-alert').forEach((x) => x.remove());
+      const el = document.createElement('div');
+      el.className = 'wf-alert';
+      el.innerHTML = `<b>${text}</b><small>上がれます</small>`;
+      sc.appendChild(el);
+      MJ.SFX.play('select');
+      setTimeout(() => el.remove(), 2200);
     },
     speak(game, p, text) {
       // セリフは、話しているキャラの顔と吹き出しを、その席のそばに短く出す

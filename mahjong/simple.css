@@ -435,3 +435,58 @@ body.no-ruby rt { display: none; }
 .tcd .tc-q { font-size: 52px !important; font-weight: 900; line-height: 1.25; text-align: left; color: #fff; }
 .tcd .cf-btns { margin-top: 12px; }
 .tcd .cf-btns .btn { min-width: 250px; font-size: 34px; padding: 18px 28px; }
+
+/* ===== ヒントの印(スジ・現物など)は、牌に重ねず、牌のすぐ上に出す。★はその上 ===== */
+#mine .hand .tile .dgc { top: auto; left: 50%; bottom: calc(100% + 1px); transform: translateX(-50%); border-radius: 6px; white-space: nowrap; min-height: 0; }
+#mine .hand .tile .dgc.tg { font-size: 12px; padding: 1px 3px; height: auto; min-height: 20px; line-height: 1.15; }
+#mine .hand .tile.rec::before { top: -48px; }
+#mine .tipline { top: 270px; }
+
+/* ===== 真ん中: 本物の麻雀のような王牌(上下2段に重ねた7つの山。めくれた牌がドラ表示牌) ===== */
+.ctr .dr.wall { gap: 3px; align-items: flex-end; flex-wrap: nowrap; padding-top: 4px; }
+.ctr .stk { position: relative; width: 19px; height: 30px; flex: none; }
+.ctr .stk .dn, .ctr .stk .up { position: absolute; left: 0; display: block; }
+.ctr .stk .dn { bottom: 0; } .ctr .stk .up { bottom: 6px; }
+.ctr .stk .dn > .tile, .ctr .stk .up > .tile { width: 17px; height: 23px; }
+
+/* ===== 上がりの演出(ロン・ツモ) ===== */
+.winfx { position: absolute; left: 0; top: 0; width: 720px; height: 428px; z-index: 95; overflow: hidden; pointer-events: auto; font-family: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Noto Sans JP", sans-serif; font-weight: 900; color: #fff; animation: wfShake .45s 2150ms; }
+.winfx > * { position: absolute; }
+.wf-dim { inset: 0; background: rgba(0, 10, 8, .8); animation: wfIn .25s both; }
+.wf-rays { inset: 0; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 210, 63, .38) 0 4deg, transparent 4deg 14deg); -webkit-mask-image: radial-gradient(circle, transparent 8%, #000 62%); mask-image: radial-gradient(circle, transparent 8%, #000 62%); animation: wfRays 1s .1s both; }
+.wf-slash { left: -40px; top: 100px; width: 800px; height: 210px; background: linear-gradient(100deg, #7a1a10, #e23a2a 42%, #ffb000); transform: skewY(-6deg); animation: wfSlide 1.5s .5s both; }
+.winfx img.wf-face1 { left: 410px; top: 64px; height: 230px; width: auto; max-width: none; border: 0; border-radius: 0; filter: drop-shadow(0 6px 8px #000a); animation: wfSlide 1.4s .62s both; }
+.wf-line { left: 36px; top: 150px; width: 380px; font-size: 38px; line-height: 1.25; text-shadow: 0 3px 0 #4a0a05; animation: wfLine 1.3s .95s both; }
+.wf-svg { inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 0 6px #8fc5ff); }
+.wf-bolt { opacity: 0; animation: wfFlick .3s both; }
+.wf-flash { inset: 0; background: radial-gradient(circle at var(--tx) var(--ty), rgba(255, 255, 255, .85), transparent 48%); opacity: 0; animation: wfFlash .6s 2150ms both; }
+.wf-ring { left: 360px; top: 200px; width: 460px; height: 460px; margin: -230px 0 0 -230px; border-radius: 50%; border: 9px solid rgba(255, 210, 63, .65); box-shadow: 0 0 40px rgba(255, 160, 0, .6); opacity: 0; }
+.winfx img.wf-face2 { left: 210px; top: -6px; height: 250px; width: auto; max-width: none; border: 0; border-radius: 0; filter: drop-shadow(0 6px 8px #000a); opacity: 0; }
+.wf-ron { left: 0; right: 0; top: 246px; text-align: center; font-size: 104px; line-height: 1.15; color: #ff3a2a; -webkit-text-stroke: 5px #fff; paint-order: stroke fill; text-shadow: 0 7px 0 #6a0a05, 0 0 28px #ffb000; letter-spacing: .04em; opacity: 0; }
+.winfx.final .wf-dim { background: rgba(0, 10, 8, .86); }
+.winfx.final .wf-face2 { animation: wfPop .35s both; }
+.winfx.final .wf-ring { animation: wfRing .9s .05s both; }
+.winfx.final .wf-ron { animation: wfRon .32s .25s both; }
+.winfx.final .wf-face1, .winfx.final .wf-line, .winfx.final .wf-slash { display: none; }
+.tile.wf-hit { box-shadow: 0 0 16px 6px #ffd23f, 0 0 36px 10px #ffb000 !important; z-index: 96; }
+@keyframes wfIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wfRays { 0% { opacity: 0; transform: scale(.5); } 25% { opacity: .95; } 100% { opacity: 0; transform: scale(1.5) rotate(20deg); } }
+@keyframes wfSlide { 0% { opacity: 0; transform: translateX(110%) skewY(-6deg); } 1% { opacity: 1; } 16% { transform: translateX(0) skewY(-6deg); } 86% { transform: translateX(0) skewY(-6deg); opacity: 1; } 100% { transform: translateX(-110%) skewY(-6deg); opacity: 0; } }
+.winfx img.wf-face1 { animation-name: wfSlideF; }
+@keyframes wfSlideF { 0% { opacity: 0; transform: translateX(110%); } 1% { opacity: 1; } 16% { transform: none; } 86% { transform: none; opacity: 1; } 100% { transform: translateX(-110%); opacity: 0; } }
+@keyframes wfLine { 0% { opacity: 0; transform: translateX(30px); } 16% { opacity: 1; transform: none; } 84% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes wfFlick { 0% { opacity: 0; } 10% { opacity: 1; } 30% { opacity: .25; } 50% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes wfFlash { 0% { opacity: 0; } 10% { opacity: 1; } 30% { opacity: 0; } 55% { opacity: .9; } 100% { opacity: 0; } }
+@keyframes wfShake { 0%, 100% { transform: none; } 20% { transform: translate(-6px, 3px); } 40% { transform: translate(6px, -3px); } 60% { transform: translate(-4px, -2px); } 80% { transform: translate(4px, 2px); } }
+@keyframes wfPop { 0% { opacity: 0; transform: scale(1.5); } 100% { opacity: 1; transform: none; } }
+@keyframes wfRon { 0% { opacity: 0; transform: scale(2.2); } 70% { opacity: 1; transform: scale(.95); } 100% { opacity: 1; transform: none; } }
+@keyframes wfRing { 0% { opacity: 0; transform: scale(.2); } 5% { opacity: .9; } 100% { opacity: 0; transform: scale(1.3); } }
+
+/* ===== 「ツモれる!」「ロンできる!」の知らせ ===== */
+.wf-alert { position: absolute; left: 0; width: 720px; top: 130px; height: 100px; z-index: 40; display: flex; align-items: center; justify-content: center; gap: 18px; background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .62) 18%, rgba(0, 0, 0, .62) 82%, transparent); pointer-events: none; animation: wfAl 2.2s both; font-family: "Zen Maru Gothic", "Noto Sans JP", sans-serif; }
+.wf-alert b { font-size: 64px; color: #ffe14a; text-shadow: 0 0 16px #ff9a00, 0 4px 0 #7a3a00; }
+.wf-alert small { font-size: 30px; font-weight: 900; color: #fff; }
+@keyframes wfAl { 0% { opacity: 0; transform: scale(.8); } 10% { opacity: 1; transform: scale(1.05); } 16% { transform: none; } 82% { opacity: 1; } 100% { opacity: 0; } }
+#side-in .sd-act .act.pulse.on, .act.pulse.on { animation: wfPulse 1s infinite; }
+@keyframes wfPulse { 0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 8px #ffb000; } 50% { box-shadow: 0 0 0 4px #fff, 0 0 26px #ffb000; } }
+.ctr { top: 138px; height: 108px; }
