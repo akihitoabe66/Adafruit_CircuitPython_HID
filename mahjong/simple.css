@@ -644,3 +644,6 @@ body.no-ruby rt { display: none; }
 .ln-hand { margin: 2px 0 6px; }
 .ln-open { right: 6px; top: 44px; }
 .ln .pm-body { zoom: .8; }
+/* 残り枚数の桁が変わっても、山の表示は動かさない */
+.ctr { justify-content: flex-start; }
+.ctr .txt { width: 118px; }
