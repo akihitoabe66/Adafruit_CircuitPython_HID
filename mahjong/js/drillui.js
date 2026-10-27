@@ -147,7 +147,6 @@
       MJ.Gloss.decorate($('#dq-sit'));
       $('#dq-prompt').innerHTML = q.prompt;
       MJ.Gloss.decorate($('#dq-prompt'));
-      this.fitBox($('#dq-sit'), 17, 14); this.fitBox($('#dq-prompt'), 20, 15);
       // 場 (CPUの河)
       let board = '';
       if (q.g && (q.cat === 'def' || q.cat === 'push')) {
@@ -159,6 +158,7 @@
       }
       $('#dq-board').innerHTML = board;
       $('#drill-quiz').classList.toggle('has-board', !!board);
+      this.fitBox($('#dq-sit'), board ? 20 : 22, 16); this.fitBox($('#dq-prompt'), board ? 24 : 28, 18); // 枠に収まる、いちばん大きい文字にする
       // 手牌
       const melds = q.melds && q.melds.length ? `<div class="melds" style="justify-content:center;margin-bottom:6px">${q.melds.map((m) => MJ.UI.meldHTML(m)).join('')}</div>` : '';
       const tiles = q.hand.map((h, i) => `<div class="tile ok" data-i="${i}">${MJ.tileSVG(h.t, h.red)}</div>`).join('');
@@ -167,6 +167,7 @@
       // 選択肢
       if (q.kind === 'choice') {
         $('#dq-opts').innerHTML = q.options.map((o) => `<button class="btn dq-opt" data-id="${o.id}">${o.html}</button>`).join('');
+        $('#dq-opts').className = 'dq-opts ' + (q.options.length <= 3 ? 'n3' : 'n4'); // 3つまでは横1列で大きく、4つ以上は2段
         $('#dq-actions').classList.add('hidden');
       } else {
         $('#dq-opts').innerHTML = '';
@@ -175,6 +176,7 @@
         b.textContent = 'この牌を切る';
         $('#dq-actions').classList.remove('hidden');
       }
+      if (MJ.Ruby) MJ.Ruby.apply($('#dq-opts'));
       if (MJ.Pad) { MJ.Pad.cur = null; MJ.Pad.desc = null; MJ.Pad.refocus(); }
     },
 
@@ -276,8 +278,8 @@
         return ok;
       };
       const settle = (keep) => {
-        let px = 15;
-        while (!build(px) && px > 13) px -= 1;
+        let px = 22;
+        while (!build(px) && px > 18) px -= 1;
         pages.forEach((x) => { if (x.scrollHeight > body.clientHeight + 1) x.style.overflowY = 'auto'; });
         this.fbPages = pages;
         this.fbShow(keep || 0);

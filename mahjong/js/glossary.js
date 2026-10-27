@@ -228,6 +228,7 @@
     /* 文章中の用語をハイライト(同じ用語は1箇所だけ) */
     decorate(root) {
       if (!root || typeof document === 'undefined') return;
+      setTimeout(() => { if (MJ.Ruby) MJ.Ruby.apply(root); }, 0); // 用語の下線をつけたあとに、ふりがなを付ける
       const seen = new Set();
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
         acceptNode(n) {
