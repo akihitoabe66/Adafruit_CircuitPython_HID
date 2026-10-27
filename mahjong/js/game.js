@@ -183,8 +183,15 @@
 
     async decideSelf(p, opts, st) {
       if (p.isHuman) return this.ui.askSelf(this, p, opts, st);
-      await this.wait(this.cfg.cpuDelay != null ? this.cfg.cpuDelay : 550);
-      return MJ.AI.chooseSelf(this, p, opts);
+      const act = MJ.AI.chooseSelf(this, p, opts);
+      if (this.cfg.cpuDelay != null) { await this.wait(this.cfg.cpuDelay); return act; }
+      // 考える時間にゆらぎを持たせる: 引いた牌をそのまま切るときは短め、手を入れかえるときは長め。ときどき、じっくり考える
+      const r = Math.random();
+      const swap = act.tile && p.drawn && act.tile !== p.drawn;
+      let ms = swap ? 1100 + r * 1000 : 700 + r * 600;
+      if (r > 0.88) ms += 1200 + Math.random() * 1200;
+      await this.wait(ms);
+      return act;
     }
 
     /* ---------- 1局 ---------- */
@@ -213,7 +220,7 @@
         for (;;) {
           const opts = this.selfOptions(p, { afterCall, rinshan });
           let act;
-          if (p.riichi && !opts.tsumo && !opts.ankan.length) { await this.wait(350); act = { act: 'discard', tile: p.drawn }; }
+          if (p.riichi && !opts.tsumo && !opts.ankan.length) { await this.wait(p.isHuman ? 1100 : 1000 + Math.random() * 300); act = { act: 'discard', tile: p.drawn }; }
           else act = await this.decideSelf(p, opts, { afterCall, rinshan });
           if (this.stopped) return { type: 'draw', dealerTenpai: false };
           if (act.act === 'tsumo') return this.winTsumo(p, opts.tsumo, rinshan);
