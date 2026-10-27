@@ -588,3 +588,19 @@ body.no-ruby rt { display: none; }
 .scores td { padding: 14px 16px; }
 .scores td b { font-size: 36px; }
 .paged h2 { font-size: 34px; }
+
+/* ===== プレイヤーの色: あなた=赤、相手は席の順に 青・緑・紫 ===== */
+.seatc0 { --c: #e53935; } .seatc1 { --c: #3a8aee; } .seatc2 { --c: #2fbf6a; } .seatc3 { --c: #a56bff; }
+.scores.colored { border-collapse: separate; border-spacing: 0 8px; }
+.scores.colored td, .scores.colored th { border: 0; }
+.scores.colored .sc-r td { background: color-mix(in srgb, var(--c) 18%, #12332b); padding: 12px 14px; }
+.scores.colored .sc-r td:first-child { border-left: 14px solid var(--c); border-radius: 12px 0 0 12px; font-weight: 700; }
+.scores.colored .sc-r td:last-child { border-radius: 0 12px 12px 0; }
+.sc-dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: var(--c); margin-right: 12px; vertical-align: middle; }
+.scores.colored .sc-t b { font-size: 36px; }
+.scores.colored .top td:first-child { font-weight: 900; }
+.scores.colored .top .sc-t b { font-size: 48px; font-weight: 900; }
+.sc-crown { font-size: .8em; }
+/* 対局中の名前の板: 同じ色の印(左の帯) */
+.plq.seatc0, .plq.seatc1, .plq.seatc2, .plq.seatc3 { box-shadow: inset 8px 0 0 var(--c); }
+.plq.p0.act, .plq.act { box-shadow: inset 8px 0 0 var(--c), 0 0 0 2px #ffd35a, 0 0 10px #ffd35a; }

@@ -472,7 +472,7 @@
       // 公開した面子(席の手前)。鳴いた牌は横向き
       const mt = s === 0 ? [30, 40] : [22, 30];
       const melds = p.melds.length ? `<div class="melds m${s}">${p.melds.map((m) => `<div class="mg">${m.tiles.map((h, i) => (m.kind === 'ankan' && (i === 0 || i === 3) ? this.seatTile(h.t, ROT, mt[0], mt[1], { cls: 'bkt' }).replace(/<img[^>]*>/, '') : this.seatTile(h.t, ROT, mt[0], mt[1], { side: h === m.called, red: h.red }))).join('')}</div>`).join('')}</div>` : '';
-      const plq = `<div class="plq p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn" style="font-size:${p.name.length <= 4 ? 17 : p.name.length <= 5 ? 16 : 14}px">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}</div>`;
+      const plq = `<div class="plq seatc${s} p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn" style="font-size:${p.name.length <= 4 ? 17 : p.name.length <= 5 ? 16 : 14}px">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}</div>`;
       return `<div class="blk" data-seat="${s}">${river}${hand}${melds}${plq}</div>`;
     },
 
@@ -1249,7 +1249,7 @@
       `;
     },
 
-    scoreTable(game, res) {
+    scoreTableOld(game, res) {
       const rows = game.players.map((p, i) => `<tr><td>${p.name}</td><td>${fmt(res.before[i])}</td><td>${signed(res.delta[i])}</td><td><b>${fmt(res.after[i])}</b></td></tr>`).join('');
       return `<table class="scores"><tr><th>プレイヤー</th><th>前</th><th>増減</th><th>持ち点</th></tr>${rows}</table>`;
     },
@@ -1415,8 +1415,10 @@
     },
 
     scoreTable(game, res) {
-      const rows = game.players.map((p, i) => `<tr><td>${p.name}</td><td>${fmt(res.before[i])}</td><td>${signed(res.delta[i])}</td><td><b>${fmt(res.after[i])}</b></td></tr>`).join('');
-      return `<table class="scores"><tr><th>プレイヤー</th><th>前</th><th>増減</th><th>持ち点</th></tr>${rows}</table>`;
+      // あなたは赤、相手は席の順に青・緑・紫。持ち点の高い順(同点は席の順)。トップは太く大きく、王冠つき
+      const order = game.players.map((p, i) => i).sort((a, b) => res.after[b] - res.after[a] || a - b);
+      const rows = order.map((i, k) => { const p = game.players[i]; return `<tr class="sc-r seatc${i}${k === 0 ? ' top' : ''}"><td><i class="sc-dot"></i>${p.name}${k === 0 ? ' <span class="sc-crown">👑</span>' : ''}</td><td>${fmt(res.before[i])}</td><td>${signed(res.delta[i])}</td><td class="sc-t"><b>${fmt(res.after[i])}</b></td></tr>`; }).join('');
+      return `<table class="scores colored"><tr><th>プレイヤー</th><th>前</th><th>増減</th><th>持ち点</th></tr>${rows}</table>`;
     },
 
 
