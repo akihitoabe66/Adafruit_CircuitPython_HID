@@ -244,6 +244,15 @@
     e.preventDefault();
     act(n);
   }, true);
+  /* マウスを動かしたら、選択中の表示も、マウスの下のボタンに移る(2か所が光らないように)。対象は、メニュー・勉強・ダイアログ・クイズのボタン */
+  const HOVER_SEL = '.hm-btn, .sy-btn, .sy-nb, .sy-back, #overlay button, .dq-opt, #dq-ok, #dq-next';
+  document.addEventListener('mouseover', (e) => {
+    if (P.dev === 'pad' && P.on) return; // パッド操作中は、カーソルを動かさない
+    const el = e.target.closest && e.target.closest(HOVER_SEL);
+    if (!el || el.disabled || el === P.cur || !visible(el) || !inScope(el)) return;
+    if (document.body.classList.contains('locked')) return;
+    setCur(el);
+  }, true);
   G.addEventListener('pointerdown', () => { P.dev = 'mouse'; if (P.on) { P.on = false; document.body.classList.remove('pad-on'); if (P.cur) P.cur.classList.remove('pf'); } }, true);
 
   /* ゲームパッド(標準配置: 0=A 1=B 2=X 3=Y 4=LB 5=RB 8=Select 9=Start 12-15=十字) */
