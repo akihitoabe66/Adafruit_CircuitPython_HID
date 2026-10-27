@@ -703,3 +703,16 @@ body.rot .dc-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
 }
 @keyframes dcFs { 0% { opacity: 0; transform: scale(.4); } 44% { opacity: .5; transform: scale(1); } 60% { opacity: .25; transform: scale(.7); } 76% { opacity: .5; transform: scale(1); } 100% { opacity: .4; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .dc-press, .dc-cap.in { animation: none; } }
+
+/* 文字を大きく: 流局の画面(顔の下の文字)と、振り返りの説明 */
+.dr-n { font-size: 20px !important; } .dr-s { font-size: 18px !important; } .dr-d { font-size: 26px !important; } .dr-t { font-size: 21px !important; color: #d4e4dc; }
+.dr-sub { font-size: 19px !important; }
+.rv, .rv .cc-b, .rv p, .rv .rv-h { font-size: 22px; line-height: 1.55; }
+/* リーチ中の名前の板: 左右の縦の板も、リーチの札が切れない幅に */
+.plq.p1 { left: 524px; width: 262px; } .plq.p3 { left: -79px; width: 262px; }
+.plq { gap: 5px; }
+/* 真ん中の表示: 残り牌数を少し小さくして、局の表示(本場つき)が上で切れない高さに */
+.ctr .n { font-size: 34px; } .ctr .n small { font-size: 16px; }
+.ctr .k { font-size: 24px; line-height: 1.1; } .ctr .k small { font-size: 14px; }
+.ctr .txt { justify-content: center; max-height: 100%; }
+#sd-info b { font-size: 21px; line-height: 1.05; display: block; } #sd-info span { font-size: 14px; line-height: 1; }

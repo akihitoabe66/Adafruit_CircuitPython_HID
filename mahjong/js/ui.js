@@ -401,7 +401,7 @@
       $('#table').innerHTML = this.tableHTML(game);
       $('#mine').innerHTML = this.mineHTML(game);
       $('#sd-act').innerHTML = this.sideHTML(game);
-      $('#sd-info').innerHTML = `<b>${game.kyokuLabel()}</b><span>${{ single: '一局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`;
+      $('#sd-info').innerHTML = `<b>${game.kyokuLabel().replace(' ', '<br>')}</b><span>${{ single: '一局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`;
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
       this.fitTip();
       if (this.sel && this.sel.type === 'react' && document.querySelector('.callq .cq-btn[data-ids]')) this.hlCall(null); // 鳴きの確認が出たら、最初の鳴き方の牌を光らせる
@@ -440,7 +440,7 @@
       const doras = stk.join('');
       const dora2 = '';
       const sub = [game.kyotaku ? `供託${game.kyotaku}` : ''].filter(Boolean).join(' ');
-      const ctr = `<div class="ctr"><div class="txt"><div class="k">${game.kyokuLabel()}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.live.length}<small>枚</small></div></div><div class="dr wall">${doras}</div></div>`;
+      const ctr = `<div class="ctr"><div class="txt"><div class="k">${game.kyokuLabel().replace(' ', '<br>')}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.live.length}<small>枚</small></div></div><div class="dr wall">${doras}</div></div>`;
       return ctr + [0, 1, 2, 3].map((s) => this.block(game, s)).join('');
     },
     block(game, s) {
