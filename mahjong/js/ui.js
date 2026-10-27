@@ -738,6 +738,7 @@
     },
     finish(act) {
       const s = this.sel;
+      this.stopThink();
       this.sel = null; this.picked = null; this.riichiMode = false; this.adv = null; this.dng = null; this.hiType = null;
       this.reactHtml = '';
       s.res(act);
@@ -829,10 +830,22 @@
       $('#tl-close').addEventListener('click', () => this.closeOverlay());
     },
 
+    /* 悩んでいるとき、CPUがキャラらしいひとことを言う(12秒・25秒・40秒。設定で、なし/ふつう/ゆっくり) */
+    thinkMode() { try { return localStorage.getItem('mj_think') || 'normal'; } catch (e) { return 'normal'; } },
+    setThinkMode(v) { try { localStorage.setItem('mj_think', v); } catch (e) { /* ignore */ } },
+    startThink(game, p) {
+      this.stopThink();
+      const m = this.thinkMode();
+      if (m === 'off' || !p.isHuman || p.riichi || game.fast) return;
+      const k = m === 'slow' ? 1.6 : 1;
+      this._thT = [12, 25, 40].map((s, i) => setTimeout(() => { if (this.sel && this.sel.type === 'self' && this.game === game && !document.querySelector('#overlay .modal')) MJ.Banter.think(game, i); }, s * 1000 * k));
+    },
+    stopThink() { (this._thT || []).forEach(clearTimeout); this._thT = []; },
     askSelf(game, p, opts, st) {
       return new Promise((res) => {
         this.sel = { type: 'self', p, opts, st, res };
         this.riichiMode = false; this.picked = null;
+        this.startThink(game, p);
         this.adv = this.coachActive() || game.mode !== 'free' ? MJ.Coach.selfAdvice(game, p, opts, st) : null;
         this.maybeAim(game, p);
         this.coachHtml = this.adv ? this.adv.html : '';
