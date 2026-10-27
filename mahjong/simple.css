@@ -517,3 +517,12 @@ body.no-ruby rt { display: none; }
 /* めくれた牌の表(絵)は、青い牌の青い面と同じ大きさ(赤い範囲)。その下は、牌の厚み(白い側面) */
 .ctr .stk .up > .tile:not(.back) { background: linear-gradient(#f3ecd4, #f3ecd4); }
 .ctr .stk .up > .tile:not(.back) img { height: 16.5px; border-bottom: 1px solid #8a96a8; }
+
+/* 王牌の山(最終形): 上の牌は「面」だけ(青、またはめくれた絵)。その下に、牌の厚み(白い側面)があり、途中に下の牌の青い線が見える */
+.ctr .stk .up { height: 17px; top: 0; z-index: 2; }
+.ctr .stk .up > .tile.back { background: #4a8fe0; border: 1px solid #8a96a8; border-top: 1px solid #8ec0ff; border-radius: 3px; }
+.ctr .stk .up > .tile:not(.back) { background: #f3ecd4; border: 1px solid #8a96a8; border-radius: 3px; padding: 0; }
+.ctr .stk .up > .tile:not(.back) img { height: 100%; border: 0; }
+.ctr .stk .dn { top: 16px; height: 18px; z-index: 1; }
+.ctr .stk .dn > .tile { background: #f3ecd4; border: 1px solid #8a96a8; border-radius: 0 0 3px 3px; border-top: 0; position: relative; }
+.ctr .stk .dn > .tile::after { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 1.5px; background: #4a8fe0; }
