@@ -330,6 +330,12 @@
     App.buildMenu();
     $('#btn-start').addEventListener('click', () => { MJ.SFX.unlock(); MJ.SFX.play('start'); Promise.race([MJ.menuReady || Promise.resolve(), new Promise((r) => setTimeout(r, 2500))]).then(() => App.show('menu')); }); // メニューの背景が読み込まれてから移る
     $('#bell').addEventListener('click', () => MJ.Audio.setOn(!MJ.Audio.on) || MJ.UI.syncAudio());
+    // 「おわる」は、AndroidとパソコンのSteamだけ(iPhoneとFire TVには、アプリを自分で終了する仕組みがないので出さない)
+    const ua = navigator.userAgent || '';
+    const noExit = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) || /AFT[A-Z0-9]*\b|Fire ?TV|FireOS/i.test(ua);
+    if (noExit) { const ex = $('#btn-exit'); if (ex) ex.remove(); }
+    else $('#btn-exit').addEventListener('click', () => App.confirmExit());
+    $('#hm-title').addEventListener('click', () => App.show('title'));
     App.show('title');
     $('#chars').addEventListener('click', (e) => { const b = e.target.closest('.char'); if (b) App.pickChar(+b.dataset.id); });
     $('#sel-back').addEventListener('click', () => App.show('menu'));
