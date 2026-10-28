@@ -539,6 +539,7 @@
           const m = adv && adv.marks[h.id];
           if (m && m.txt && this.coachActive() && !this.dng) mk = `<span class="mk ${m.cls}">${m.txt}</span>`;
         }
+        if (mk) cls += ' hasmk'; // 牌の上に印が出ているときだけ、★はその上に出す
         if (h === p.drawn) cls += ' drawn';
         if (this.picked === h.id) cls += ' picked';
         const dv0 = sel && this.dng ? this.dangerView(h.t) : null;

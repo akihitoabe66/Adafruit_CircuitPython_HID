@@ -973,3 +973,6 @@ body.tbl .river.dense .tile.rch { width: 26px; height: 20px; }
 /* あなたも、相手と同じ「輪郭の切り抜き」(枠なし・バストアップ) */
 .dc-you { width: auto; height: auto; overflow: visible; border: 0; border-radius: 0; background: none; box-shadow: none; }
 .dc-pc.hit .dc-you { border: 0; box-shadow: none; }
+/* ★は、ヒントの印(スジ・現物など)が出ていないときは、牌の真上に出す */
+#mine .hand .tile.rec::before { top: -24px; }
+#mine .hand .tile.rec.dgt::before, #mine .hand .tile.rec.hasmk::before { top: -48px; }
