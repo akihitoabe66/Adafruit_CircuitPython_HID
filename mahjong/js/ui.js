@@ -733,9 +733,9 @@
         if (r.chi && r.chi.length) slots.push(B('b-call', 'chi', 'チー'));
         if (r.kan) slots.push(B('b-call', 'kan', 'カン'));
       }
-      const n = Math.max(2, Math.min(4, slots.length));
-      while (slots.length < n) slots.push('<div class="act-empty">―</div>');
-      const wp = slots.length <= 2 && !react ? this.waitPanel(game) : '';
+      // できる操作がないときは、空の枠を出さず、その場所を、あたり牌の欄に使う(操作が1つのときは、その下に出す)
+      const wp = slots.length <= 1 && !react ? this.waitPanel(game) : '';
+      if (!slots.length && !wp) { slots.push('<div class="act-empty">―</div>', '<div class="act-empty">―</div>'); }
       return slots.join('') + wp;
     },
     /* あたり牌の欄: テンパイしているときの待ち牌と、見えていない残りの枚数(自分の目で見える牌だけで数える) */

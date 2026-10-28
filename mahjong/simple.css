@@ -906,3 +906,8 @@ body.on-title #menu-bg { transition: opacity .6s; }
 /* メニューの見出し: 細い白枠を、さらにうすく(押せるボタンに見えないように) */
 #mn .mk-head { border: 2px solid rgba(255, 255, 255, .28) !important; box-shadow: 0 6px 18px #000a !important; border-radius: 14px !important; background: rgba(12, 20, 34, .72) !important; }
 #mn .mk-head b { color: #ffe14a; }
+/* あたり牌の欄: 3つずつ並べ、解説のボタンにかぶらない大きさにする */
+.sd-act .wait { width: 100px; box-sizing: border-box; } .sd-act .wait h5 { font-size: 15px; }
+.sd-act .wt { gap: 3px 2px; } .sd-act .wt > div { font-size: 11px; width: 30px; }
+.sd-act .wt .tile, .sd-act .wait.many .wt .tile { width: 28px !important; height: 38px !important; }
+.sd-act .wt > div > span { white-space: nowrap; }
