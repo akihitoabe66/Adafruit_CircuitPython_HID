@@ -816,3 +816,13 @@ body.on-title #menu-bg::after, body.rot.on-title #menu-bg::after { display: none
   100% { opacity: 0; transform: translate(var(--dx), 108cqh) rotate(calc(var(--r) + 600deg)); }
 }
 @media (prefers-reduced-motion: reduce) { .tt-petals { display: none; } }
+
+/* ===== 新しいメニュー画面: 背景は絵。左に、ロゴと「メニューを選択してください。」(同じ中心線)。右に、いままでと同じ4つのボタン ===== */
+body.on-menu #menu-bg, body.rot.on-menu #menu-bg { background: #0a0f1c url(img/menu_bg.webp) 50% 40% / cover no-repeat !important; opacity: 1; }
+body.on-menu #menu-bg::after, body.rot.on-menu #menu-bg::after { display: none !important; }
+#mn .mk-col { position: absolute; left: 24px; top: 6px; width: 290px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+#mn .mk-logo { display: block; width: 262px; height: auto; filter: drop-shadow(0 4px 10px #000a); pointer-events: none; }
+#mn .mk-head { box-sizing: border-box; width: 290px; text-align: center; padding: 8px 12px 10px; border-radius: 18px; background: linear-gradient(180deg, rgba(14, 22, 38, .78), rgba(14, 22, 38, .68)); border: 6px solid #ffe14a; box-shadow: 0 0 16px rgba(255, 225, 74, .55), 0 6px 18px #000a; font-weight: 900; font-size: 40px; line-height: 1.25; color: #fff; text-shadow: 0 2px 0 #0008; letter-spacing: .02em; }
+#mn .mk-head b { color: #ffe14a; font-weight: 900; }
+#mn .hm-btn { left: 344px; right: 22px; height: 74px; font-size: 42px; font-weight: 900; -webkit-text-stroke: .7px currentColor; box-shadow: 0 6px 16px #0008; }
+#hm-play { top: 24px; } #hm-quiz { top: 114px; } #hm-study { top: 204px; } #hm-set { top: 294px; }
