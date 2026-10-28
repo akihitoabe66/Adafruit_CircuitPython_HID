@@ -74,8 +74,8 @@
           (async () => {
             const who = roller === 0 ? 'あなた' : game.players[roller].name;
             if (roller === 0) {
-              cap(first ? '<span><em>東家(親)</em>を決めます　<span class="dc-press">A ふる</span></span>' : `<span>${label}<em>あなた</em>が親　<span class="dc-press">A ふる</span></span>`);
-              await new Promise((ok) => { go = ok; setTimeout(ok, 12000); }); go = null;
+              cap(first ? '<span><em>東家(親)</em>を決めます</span>' : `<span>${label}<em>あなた</em>が親　サイコロをふります</span>`);
+              await wait(1300); // Aボタンを押さなくても、自動で振る
             } else {
               cap(`<span>${label}<em>${who}</em>が親　サイコロをふります</span>`);
               await wait(1100);

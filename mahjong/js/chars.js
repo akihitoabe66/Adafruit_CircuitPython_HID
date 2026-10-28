@@ -7,6 +7,8 @@
   });
   const STYLE_JP = { attack: '攻め', defense: '守り', balanced: 'バランス' };
   MJ.STYLE_JP = STYLE_JP;
+  /* 上がりのセリフは「ロン」で書いてある。ツモのときは「ツモ」に言い換える(ツモなのに「ロンぜよ」と言わないように) */
+  MJ.winWords = (text, tsumo) => (tsumo ? String(text == null ? '' : text).replace(/ロン/g, 'ツモ') : text);
   MJ.LEVEL_JP = ['', '入門', '初級', '中級', '上級', '達人'];
 
   MJ.CHARS = [

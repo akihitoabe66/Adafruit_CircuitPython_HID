@@ -22,7 +22,13 @@
       try {
         if (!ctx) {
           const AC = G.AudioContext || G.webkitAudioContext;
-          if (AC) { ctx = new AC(); master = ctx.createGain(); master.gain.value = S.vol; master.connect(ctx.destination); }
+          if (AC) {
+            ctx = new AC(); master = ctx.createGain(); master.gain.value = S.vol;
+            // 音が重なっても、割れて(ビリビリして)聞こえないように、最後にリミッターを通す
+            const lim = ctx.createDynamicsCompressor();
+            lim.threshold.value = -10; lim.knee.value = 8; lim.ratio.value = 14; lim.attack.value = 0.003; lim.release.value = 0.15;
+            master.connect(lim); lim.connect(ctx.destination);
+          }
         }
         if (ctx && ctx.state === 'suspended') ctx.resume();
       } catch (e) { /* ignore */ }
@@ -80,7 +86,7 @@
       const run = (buf) => {
         if (!ctx || !buf) return false;
         const src = ctx.createBufferSource(); src.buffer = buf;
-        const g = ctx.createGain(); g.gain.value = Math.min(1, S.callVol * 3.2 * vol);
+        const g = ctx.createGain(); g.gain.value = Math.min(0.9, S.callVol * 3.2 * vol);
         src.connect(g); g.connect(master); src.start(); return true;
       };
       const c = S._clip[name];
@@ -254,7 +260,7 @@
           if (b === false) { t += 0.28; return; }
           if (!b) return;
           const src = ctx.createBufferSource(); src.buffer = b;
-          const g = ctx.createGain(); g.gain.value = Math.min(1.4, S.readVol * 1.1);
+          const g = ctx.createGain(); g.gain.value = Math.min(0.85, S.readVol * 0.85); // 1より大きくすると、音が割れる
           src.connect(g); g.connect(master);
           src.start(t); S._ykSrc.push(src);
           t += b.duration + 0.07;

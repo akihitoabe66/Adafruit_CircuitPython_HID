@@ -1175,7 +1175,7 @@
         const P = pts.join(' ');
         return `<g class="wf-bolt" style="animation-delay:${d}ms"><polyline points="${P}" fill="none" stroke="#8fc5ff" stroke-width="${w * 2.6}" stroke-linejoin="round" stroke-linecap="round" opacity=".55"/><polyline points="${P}" fill="none" stroke="#fff" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/></g>`;
       };
-      const line = ((p.char && p.char.lines && p.char.lines.win) || `${text}!`).split(/[。]/)[0].slice(0, 22);
+      const line = MJ.winWords(((p.char && p.char.lines && p.char.lines.win) || `${text}!`), text === 'ツモ').split(/[。]/)[0].slice(0, 22);
       const fx = document.createElement('div');
       fx.className = 'winfx';
       fx.innerHTML = `<div class="wf-dim"></div><div class="wf-rays"></div><div class="wf-slash"></div>${this.faceImg(p.char, 'wf-face1')}<div class="wf-line">${line}</div>
@@ -1334,7 +1334,7 @@
       if (!w.tsumo) pts = `${fmt(w.pay.ron)}点(${w.loser.name}から)`;
       else if (win.seat === game.dealer) pts = `${fmt(w.pay.each)}点オール`;
       else pts = `${fmt(w.pay.fromOther)}・${fmt(w.pay.fromDealer)}点`;
-      return `<div class="win-cols"><div class="win-l"><div class="win-head">${this.faceImg(win.char) || '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): <span class="gl-skip">${w.loser.name}</span>`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || ''}」</div>`}</div></div>
+      return `<div class="win-cols"><div class="win-l"><div class="win-head">${this.faceImg(win.char) || '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): <span class="gl-skip">${w.loser.name}</span>`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.winWords(MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || '', w.tsumo)}」</div>`}</div></div>
       <div class="win-hand">${concealed}${melds}${winT}</div>
       <div>ドラ表示牌: ${dora}${ura}</div></div>
       <div class="win-r"><table class="yakus">${rows.replace(/門前清自摸和/g, '門前清自摸和(メンゼンツモ)')}</table>

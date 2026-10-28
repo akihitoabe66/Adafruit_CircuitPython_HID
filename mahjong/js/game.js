@@ -36,7 +36,7 @@
     sync() { if (this.ui) this.ui.render(this); }
     async banner(p, text) { if (this.ui) await this.ui.banner(this, p, text); }
     sfx(name) { if (this.ui && this.ui.sfx) this.ui.sfx(name); }
-    speak(p, key) { if (this.ui && !p.isHuman && p.char.lines && p.char.lines[key]) this.ui.speak(this, p, p.char.lines[key]); }
+    speak(p, key, tsumo) { if (this.ui && !p.isHuman && p.char.lines && p.char.lines[key]) this.ui.speak(this, p, key === 'win' ? MJ.winWords(p.char.lines[key], tsumo) : p.char.lines[key]); }
 
     /* ---------- 全体進行 ---------- */
     async run() {
@@ -465,7 +465,7 @@
     }
 
     async winTsumo(p, res, rinshan) {
-      this.speak(p, 'win');
+      this.speak(p, 'win', true);
       this.sync();
       await this.banner(p, 'ツモ');
       const delta = [0, 0, 0, 0];
