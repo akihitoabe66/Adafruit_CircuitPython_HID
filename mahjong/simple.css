@@ -732,3 +732,9 @@ body.rot .dc-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
 /* 画面の大きさに関係なく、左に手牌、右に役の一覧(縦に並べると、役が多いとき下が切れる) */
 .win-cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 4px 14px; align-items: start; }
 .win-l { min-width: 0; } .win-hand { flex-wrap: wrap; }
+
+/* 勉強のお話: 下のボタンは、ページや文字が変わっても位置・幅を変えない。左上に、辞書引き用の「役一覧」「用語辞典」 */
+.sy-nb { flex: none; width: 210px; min-width: 0; padding-left: 0; padding-right: 0; white-space: nowrap; text-align: center; }
+.sy-ref { position: absolute; left: 20px; top: 10px; display: flex; gap: 8px; }
+.sy-rb { font: inherit; font-weight: 800; font-size: 19px; padding: 4px 12px; border-radius: 10px; background: #e4ecd9; color: var(--sp-ink); border: 4px solid transparent; cursor: pointer; white-space: nowrap; }
+.sy-rb.pf { border-color: var(--sp-focus); background: #fff; box-shadow: 0 0 0 5px rgba(242, 194, 48, .5); outline: none; }

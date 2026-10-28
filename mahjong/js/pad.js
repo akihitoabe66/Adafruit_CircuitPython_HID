@@ -164,6 +164,9 @@
     switch (name) {
       case 'a': if (P.cur && P.cur.isConnected) { if (U && U.sel && U.sel.type === 'self' && P.cur.matches('.hand .tile[data-id]')) U.picked = +P.cur.dataset.id; /* パッドでは、牌にカーソルを合わせてAで、すぐ捨てる */ P.cur.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); } else setCur(pickDefault()); break;
       case 'b': {
+        // 用語・役の説明(シート/一覧)が開いているときは、まずそれだけを閉じる(下の画面は、そのまま)
+        if (MJ.Gloss && $('#gloss-sheet.on')) { MJ.Gloss.closeSheet(); return; }
+        if (MJ.Gloss && $('#gloss-panel.on')) { MJ.Gloss.closePanel(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); return; }
         const ov = $('#overlay');
         if (ov && !ov.classList.contains('hidden')) {
           const btns = [...ov.querySelectorAll('button')].filter((b) => visible(b));
