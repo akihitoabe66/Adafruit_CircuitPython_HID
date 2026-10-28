@@ -810,10 +810,9 @@ body.on-title #menu-bg::after, body.rot.on-title #menu-bg::after { display: none
   0% { opacity: 0; transform: translate(0, 0) rotate(var(--r)); }
   6% { opacity: .95; }
   25% { transform: translate(calc(var(--dx) * .3 + 4cqw), 28cqh) rotate(calc(var(--r) + 150deg)); }
-  50% { transform: translate(calc(var(--dx) * .6 - 3cqw), 56cqh) rotate(calc(var(--r) + 300deg)); }
-  75% { transform: translate(calc(var(--dx) * .85 + 4cqw), 84cqh) rotate(calc(var(--r) + 450deg)); }
-  94% { opacity: .9; }
-  100% { opacity: 0; transform: translate(var(--dx), 108cqh) rotate(calc(var(--r) + 600deg)); }
+  55% { opacity: .95; transform: translate(calc(var(--dx) * .6 - 3cqw), 58cqh) rotate(calc(var(--r) + 330deg)); }
+  78% { opacity: .5; transform: translate(calc(var(--dx) * .85 + 4cqw), 82cqh) rotate(calc(var(--r) + 480deg)); }
+  100% { opacity: 0; transform: translate(var(--dx), 100cqh) rotate(calc(var(--r) + 600deg)); }
 }
 @media (prefers-reduced-motion: reduce) { .tt-petals { display: none; } }
 
