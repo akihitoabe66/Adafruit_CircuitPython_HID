@@ -920,3 +920,8 @@ body.on-title #menu-bg { transition: opacity .6s; }
 #mn .mk-head { border: 0 !important; box-shadow: none !important; }
 /* 対面の名前の板: 上の壁牌の真ん中に(牌に少し重なってよい)。下家の板の「リーチ」の札と重ならず、板も長くできる */
 .plq.p2 { left: 200px; top: 4px; width: 320px; z-index: 3; }
+/* ふりがな: 読みが長くても、となりの文字や上の行に重ならないように */
+ruby { white-space: nowrap; }
+rt { white-space: nowrap; }
+.note, .gp2-body, #gloss-panel { line-height: 2.15; }
+.note td, .note th { line-height: 2.1; padding-top: 6px; padding-bottom: 6px; }
