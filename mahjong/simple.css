@@ -773,3 +773,19 @@ body.rot .dc-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
 /* 「この役で学ぶ」: 押せない まえ・つぎ は、面を消して、点線の枠と うすい文字だけにする */
 .ln .pm-foot .btn.off, .ln .pm-foot .btn:disabled { opacity: 1; background: transparent !important; color: rgba(243, 239, 226, .35) !important; border: 2px dashed rgba(243, 239, 226, .25) !important; box-shadow: none !important; }
 .ln .pm-foot { gap: 10px; } .ln .pm-foot .btn { font-size: 21px; padding: 8px 14px; }
+
+/* 右の列(案A): 操作の枠は、できるものだけ。空きは点線。下にあたり牌の欄。解説・先生は、いままでのまま */
+.sd-act { top: 82px; gap: 4px; }
+#side-in .sd-act .act { height: 50px; font-size: 22px; color: #fff; }
+#side-in .sd-act .act.long { font-size: 17px; }
+#side-in .sd-act .sb-row .act { height: 50px; font-size: 14px; }
+.act-empty { height: 50px; border-radius: 10px; border: 2px dashed rgba(243, 239, 226, .22); color: rgba(243, 239, 226, .3); display: grid; place-items: center; font-size: 15px; font-weight: 800; flex: none; }
+#side-in .sd-act .act.b-tsumo.pulse { color: #fff; }
+.sd-act .wait { margin-top: 2px; border: 3px solid #ffd23f; border-radius: 12px; background: #0b1d18; padding: 3px 3px 5px; color: #fff; flex: none; }
+.sd-act .wait h5 { margin: 0 0 3px; text-align: center; font-size: 16px; color: #ffd23f; font-weight: 900; white-space: nowrap; }
+.sd-act .wt { display: flex; justify-content: center; flex-wrap: wrap; gap: 3px 4px; }
+.sd-act .wt > div { display: grid; justify-items: center; gap: 1px; font-size: 13px; font-weight: 800; }
+.sd-act .wt .tile { width: 30px; height: 40px; }
+.sd-act .wait.many .wt > div { font-size: 11px; } .sd-act .wait.many .wt .tile { width: 24px; height: 32px; }
+.sd-act .fu { text-align: center; font-size: 15px; font-weight: 900; color: #fff; background: #c0301c; border-radius: 6px; margin-top: 3px; }
+.sd-act .wt-hint { text-align: center; font-size: 14px; font-weight: 800; line-height: 1.3; padding: 4px 0; }

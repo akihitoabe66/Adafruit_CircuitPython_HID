@@ -27,7 +27,12 @@
         const tl = e.target.closest('.hand .tile[data-id]');
         if (tl) this.onTile(+tl.dataset.id);
       });
-      $('#sd-act').addEventListener('click', (e) => { const b = e.target.closest('button[data-act]'); if (b && !b.disabled) this.onAction(b); });
+      $('#sd-act').addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-act]');
+        if (!b || b.disabled) return;
+        if (this.sel && this.sel.type === 'react') { const cb = document.querySelector(`.callq .cq-btn[data-act="${b.dataset.act}"]`); if (cb) return this.onAction(cb); } // 鳴きは、卓上の帯と同じ動き(チーの組み合わせも、帯で選んだものを使う)
+        this.onAction(b);
+      });
       $('#btn-tools').addEventListener('click', () => $('#sd-tools').classList.toggle('hidden'));
       document.addEventListener('click', (e) => { if (!e.target.closest('#sd-tools, #btn-tools')) $('#sd-tools').classList.add('hidden'); });
       const hl = (ids) => M.querySelectorAll('.hand .tile[data-id]').forEach((tl) => tl.classList.toggle('cand', ids.includes(tl.dataset.id)));
@@ -670,15 +675,65 @@
       return !s.p.riichi && o.riichi.length && !this.riichiMode ? '<b class="rch-hint">テンパイ!リーチできます</b>' : s.p.riichi ? 'リーチ中: ツモ切りです' : s.st.afterCall ? '1枚切ります(暗い牌は食い替え禁止)' : this.riichiMode ? '赤枠の牌でリーチ成立' : this.oneClick ? '切る牌をタップ' : '牌を選んで、もう一度タッチで捨てる';
     },
     /* 右端の縦ボタン列(いつも同じ並びで、押せないものは灰色) */
+    /* 右の列: 「いまできる操作」だけを、決まった場所に出す(できることがない枠は、点線の空き枠)。下に、あたり牌の欄 */
     sideHTML(game) {
       const s = this.sel;
       const self = s && s.type === 'self' ? s : null;
+      const react = s && s.type === 'react' ? s : null;
       const o = self ? self.opts : null;
-      const B = (cls, act, label, on, extra = '') => `<button class="btn sb act ${cls}${on ? ' on' : ''}" data-act="${act}" ${on ? '' : 'disabled'} ${extra}>${label}</button>`;
-      const kans = self ? [...o.ankan.map((t) => ['ankan', t]), ...o.kakan.map((t) => ['kakan', t])] : [];
-      const kan = kans.length ? `<div class="sb-row">${kans.map(([k, t]) => B('b-call', k, kans.length > 1 ? `カン${MJ.tileName(t)}` : 'カン', true, `data-t="${t}"`)).join('')}</div>` : B('b-call', 'kan', 'カン', false);
-      const canDis = !!(self && this.picked != null);
-      return `${o && o.tsumo ? B('b-tsumo pulse', 'tsumo', 'ツモ!', true) : B('b-tsumo', 'tsumo', 'ツモ', false)}${o && o.riichi.length ? B('b-riichi', 'riichi', this.riichiMode ? 'リーチ取消' : '🔥リーチ', true) : B('b-riichi', 'riichi', 'リーチ', false)}${kan}${B('b-call', 'pon', 'ポン', false)}${B('b-call', 'chi', 'チー', false)}`;
+      const B = (cls, act, label, extra = '') => `<button class="btn sb act on ${cls}${label.length > 4 ? ' long' : ''}" data-act="${act}" ${extra}>${label}</button>`;
+      const slots = [];
+      if (self) {
+        if (o.tsumo) slots.push(B('b-tsumo pulse', 'tsumo', 'ツモ!'));
+        if (o.riichi.length) slots.push(B('b-riichi', 'riichi', this.riichiMode ? 'リーチ取消' : 'リーチ'));
+        const kans = [...o.ankan.map((t) => ['ankan', t]), ...o.kakan.map((t) => ['kakan', t])];
+        if (kans.length === 1) slots.push(B('b-call', kans[0][0], 'カン', `data-t="${kans[0][1]}"`));
+        else if (kans.length > 1) slots.push(`<div class="sb-row">${kans.map(([k, t]) => B('b-call', k, `カン${MJ.tileName(t)}`, `data-t="${t}"`)).join('')}</div>`);
+      } else if (react) {
+        const r = react.o;
+        if (r.ron) slots.push(B('b-tsumo pulse', 'ron', 'ロン!'));
+        if (r.pon) slots.push(B('b-call', 'pon', 'ポン'));
+        if (r.chi && r.chi.length) slots.push(B('b-call', 'chi', 'チー'));
+        if (r.kan) slots.push(B('b-call', 'kan', 'カン'));
+      }
+      const n = Math.max(2, Math.min(4, slots.length));
+      while (slots.length < n) slots.push('<div class="act-empty">―</div>');
+      const wp = slots.length <= 2 && !react ? this.waitPanel(game) : '';
+      return slots.join('') + wp;
+    },
+    /* あたり牌の欄: テンパイしているときの待ち牌と、見えていない残りの枚数(自分の目で見える牌だけで数える) */
+    waitPanel(game) {
+      const p = game.players[0];
+      if (!p || !p.hand) return '';
+      const sel = this.sel && this.sel.type === 'self' ? this.sel : null;
+      let hand = p.hand.filter((h) => h !== p.drawn), title = 'あたり牌', hint = '';
+      if (sel && this.riichiMode) { // リーチする牌を選ぶと、その牌を切ったあとの待ちを出す
+        const h = this.picked != null ? p.hand.find((x) => x.id === this.picked) : null;
+        if (!h) return '<div class="wait wait-h"><h5>待ち(予定)</h5><div class="wt-hint">切る牌を<br>えらぶと出ます</div></div>';
+        hand = p.hand.filter((x) => x !== h); title = '待ち(予定)';
+      } else if (sel && p.drawn && !p.riichi && sel.opts.riichi.length && MJ.shanten(MJ.toCounts(hand), p.melds.length) !== 0) {
+        // リーチできるけれど、いまはテンパイではない(14枚で、切るとテンパイ): どの牌を切っても待ちが同じなら、その待ちを「予定」として出す
+        const sets = sel.opts.riichi.map((t) => { const cc = MJ.toCounts(p.hand); cc[t]--; return MJ.waits(cc, p.melds.length).join(','); });
+        if (!sets.length || sets.some((x) => x !== sets[0])) return '';
+        const hh = p.hand.slice(); const k = hh.findIndex((x) => x.t === sel.opts.riichi[0]); hh.splice(k, 1);
+        hand = hh; title = '待ち(予定)';
+      }
+      if (hand.length % 3 !== 1) return '';
+      const c = MJ.toCounts(hand);
+      if (MJ.shanten(c, p.melds.length) !== 0) return '';
+      const ws = MJ.waits(c.slice(), p.melds.length);
+      if (!ws.length) return '';
+      const seen = Array(34).fill(0);
+      hand.forEach((h) => seen[h.t]++);
+      if (p.drawn && hand.indexOf(p.drawn) < 0 && !(sel && this.riichiMode)) seen[p.drawn.t]++; // 引いた牌も、見えている牌
+      game.players.forEach((q) => {
+        q.discards.forEach((d) => { if (!d.called) seen[d.tile.t]++; });
+        q.melds.forEach((m) => m.tiles.forEach((h) => seen[h.t]++));
+      });
+      game.doraInd.forEach((d) => seen[d.t]++);
+      const furiten = p.tempFuriten || p.riichiFuriten || ws.some((w) => p.discardTypes.has(w));
+      const items = ws.slice(0, 6).map((t) => `<div>${MJ.tileHTML(t, '')}<span>あと${Math.max(0, 4 - seen[t])}</span></div>`).join('');
+      return `<div class="wait${ws.length > 3 ? ' many' : ''}"><h5>${title}</h5><div class="wt">${items}</div>${furiten ? '<div class="fu">フリテン</div>' : ''}</div>`;
     },
 
     actionsHTML(game) {
