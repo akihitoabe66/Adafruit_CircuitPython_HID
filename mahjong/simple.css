@@ -276,7 +276,7 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 /* ホーム・タイトルの桜吹雪(ゆっくり) */
 .mn-petals { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 5; }
 .mn-petal { position: absolute; top: -20px; width: calc(var(--sz) * 1.5); height: calc(var(--sz) * 1.1); border-radius: 100% 0 100% 0; background: linear-gradient(135deg, #ffe9f0, #ff8fb0); opacity: 0; animation: mnPetal 14s linear infinite; }
-@keyframes mnPetal { 0% { opacity: 0; transform: translate(0, 0) rotate(var(--r)); } 8% { opacity: .75; } 50% { transform: translate(calc(var(--dx) * .5 + 4vw), 52vh) rotate(calc(var(--r) + 160deg)); } 92% { opacity: .7; } 100% { opacity: 0; transform: translate(var(--dx), 108vh) rotate(calc(var(--r) + 340deg)); } }
+@keyframes mnPetal { 0% { opacity: 0; transform: translate(0, 0) rotate(var(--r)); } 8% { opacity: .75; } 45% { opacity: .75; transform: translate(calc(var(--dx) * .5 + 4vw), 46vh) rotate(calc(var(--r) + 160deg)); } 75% { opacity: .35; transform: translate(calc(var(--dx) * .8 + 3vw), 76vh) rotate(calc(var(--r) + 270deg)); } 100% { opacity: 0; transform: translate(var(--dx), 98vh) rotate(calc(var(--r) + 340deg)); } }
 #screen-menu #mn, #screen-title #tt { position: absolute; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .mn-petal { animation: none; opacity: 0; } }
 
