@@ -423,7 +423,7 @@
     const load = (u) => new Promise((ok) => { const im = new Image(); im.onload = () => { (im.decode ? im.decode() : Promise.resolve()).then(ok, ok); }; im.onerror = ok; im.src = u; });
     Promise.all(['img/title_art.webp', 'img/btn_start.png', 'img/bgm_on.png', 'img/bgm_off.png'].map(load)).then(once);
     // メニュー画面の背景とロゴも、タイトルを見ている間に、先に読み込んでおく(メニューに移ったとき、背景が遅れて出ないように)
-    MJ.menuReady = Promise.all(['img/menu_bg.webp', 'img/logo.png'].map(load));
+    MJ.menuReady = Promise.all(['img/menu_bg.webp', 'img/logo.png', 'img/rank_bg.webp', 'img/cert.webp'].map(load)); // 段位の画面・認定証の絵も、先に読み込んでおく
     setTimeout(once, 5000);
   })();
   // 起動直後(タイトルの間)に、ホーム曲を最優先で取り寄せる

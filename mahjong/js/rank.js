@@ -15,7 +15,7 @@
   const idxOf = (pt) => { let k = 0; DAN.forEach((d, i) => { if (pt >= d[1]) k = i; }); return k; };
 
   const R = (MJ.Rank = {
-    DAN,
+    DAN, _imgs: {},
     get() { return Object.assign(base(), load(RK, {})); },
     info() {
       const s = R.get(), i = idxOf(s.pt), nxt = DAN[i + 1];
@@ -49,8 +49,10 @@
       if (!p.classList.contains('on') && MJ.Pad && MJ.Pad.saveCur) MJ.Pad.saveCur();
       p.classList.add('on'); R._view = view; R._opt = opt; clearTimeout(R._t);
       if (opt.done) R._cb = opt.done;
-      if (view === 'rank') R.drawRank(p, opt); else if (view === 'stats') R.drawStats(p, opt); else R.drawCert(p, opt);
-      if (MJ.Pad && MJ.Pad.preselect) MJ.Pad.preselect(true);
+      const draw = () => { if (R._view !== view) return; if (view === 'rank') R.drawRank(p, opt); else if (view === 'stats') R.drawStats(p, opt); else R.drawCert(p, opt); if (MJ.Pad && MJ.Pad.preselect) MJ.Pad.preselect(true); };
+      const art = view === 'rank' ? 'img/rank_bg.webp' : view === 'cert' ? 'img/cert.webp' : null;
+      if (!art) draw();
+      else { p.innerHTML = ''; const im = R._imgs[art] || (R._imgs[art] = new Image()); if (im.complete && im.naturalWidth) draw(); else { let d = false; const go = () => { if (!d) { d = true; draw(); } }; im.onload = im.onerror = go; im.src = art; setTimeout(go, 3000); } }
     },
     back() { // Bボタン: 開いている画面を1つ戻る
       if (R._view !== 'rank' && R._opt && R._opt.from === 'rank') return R.open('rank', { from: 'menu' });
@@ -64,7 +66,7 @@
       p.innerHTML = `<div class="rk-st rk-bg"><img class="rk-bgi" src="img/rank_bg.webp" alt="">` +
         px(355, 445, f.name.length > 2 ? 52 : 70, f.name) + px(705, 351, 40, f.name, 'dk') +
         (f.next ? px(1068, 358, 28, f.next) + px(1093, 446, f.left >= 1000 ? 40 : 48, String(f.left), 'num') : px(1090, 446, 34, 'いちばん上')) +
-        `<div class="rk-bar" style="left:${(531 / 14.04).toFixed(2)}%;top:${(506 / 7.68).toFixed(2)}%;width:${(350 / 14.04).toFixed(2)}%;height:${(46 / 7.68).toFixed(2)}%"><i style="width:${Math.round(f.prog * 100)}%"></i></div>` + px(705, 590, 24, `${f.s.games} 戦 打ちました`) +
+        `<div class="rk-bar" style="left:${(531 / 14.04).toFixed(2)}%;top:${(506 / 7.68).toFixed(2)}%;width:${(350 / 14.04).toFixed(2)}%;height:${(46 / 7.68).toFixed(2)}%"><i style="width:${Math.round(f.prog * 100)}%"></i></div>` + px(705, 622, 24, `${f.s.games} 戦 打ちました`) +
         `<div class="rk-btns">${opt.auto ? '' : '<button class="rk-b" data-rk="stats" type="button">対戦成績</button>'}${f.s.games && !opt.auto ? '<button class="rk-b" data-rk="cert" type="button">認定証</button>' : ''}<button class="rk-b main" data-rk="close" type="button">${opt.auto ? 'すすむ' : 'もどる'}</button></div></div>`;
       p.querySelector('.rk-st').style.setProperty('--w', '1');
       if (opt.auto) R._t = setTimeout(R.close, 3200);
