@@ -916,3 +916,5 @@ body.on-title #menu-bg { transition: opacity .6s; }
 .dc-pc[data-cid="5"] img.fcut { transform: scale(1.15); transform-origin: 50% 100%; }
 /* 対面(上)の席は、上に余裕がないので、拡大を控えめに */
 .dc-pc.t[data-cid="2"] img.fcut, .dc-pc.t[data-cid="5"] img.fcut { transform: scale(1.08); }
+/* メニューの見出し: 枠はなし。暗い半透明の板の上に、文字だけ */
+#mn .mk-head { border: 0 !important; box-shadow: none !important; }
