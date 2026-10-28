@@ -5,7 +5,7 @@
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
 
 
-  let ctx = null, master = null;
+  let ctx = null, master = null, bus = null, lim0 = null;
   const S = (MJ.SFX = {
     on: load('mj_sfx', true),
     voiceOn: load('mj_voice', true),
@@ -17,6 +17,7 @@
     yakuRead: load('mj_yakuread', true),
 
     getCtx() { return ctx; },
+    getBus() { return lim0; }, // BGMも、効果音・声と同じリミッターを通す
 
     unlock() {
       try {
@@ -27,7 +28,9 @@
             // 音が重なっても、割れて(ビリビリして)聞こえないように、最後にリミッターを通す
             const lim = ctx.createDynamicsCompressor();
             lim.threshold.value = -10; lim.knee.value = 8; lim.ratio.value = 14; lim.attack.value = 0.003; lim.release.value = 0.15;
-            master.connect(lim); lim.connect(ctx.destination);
+            // 出口の手前に少し余裕(0.8倍)を持たせる。BGMも同じ出口を通して、足し算で1.0を超えて割れないようにする
+            bus = ctx.createGain(); bus.gain.value = 0.8;
+            lim0 = lim; master.connect(lim); lim.connect(bus); bus.connect(ctx.destination);
           }
         }
         if (ctx && ctx.state === 'suspended') ctx.resume();
@@ -260,16 +263,21 @@
           if (b === false) { t += 0.28; return; }
           if (!b) return;
           const src = ctx.createBufferSource(); src.buffer = b;
-          const g = ctx.createGain(); g.gain.value = Math.min(0.85, S.readVol * 0.85); // 1より大きくすると、音が割れる
+          const g = ctx.createGain(), gv = Math.min(0.7, S.readVol * 0.7); // 1より大きくすると、音が割れる
+          // 切れ目の「プツッ」を防ぐ: 頭とおしりを、短くなめらかに
+          g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gv, t + 0.01);
+          g.gain.setValueAtTime(gv, Math.max(t + 0.01, t + b.duration - 0.02)); g.gain.linearRampToValueAtTime(0, t + b.duration);
           src.connect(g); g.connect(master);
           src.start(t); S._ykSrc.push(src);
           t += b.duration + 0.07;
         });
+        // 読み上げている間は、結果のBGMを小さくする(重なって割れるのを防ぐ)
+        try { if (MJ.Audio && MJ.Audio.duck) { MJ.Audio.duck(true); clearTimeout(S._duckT); S._duckT = setTimeout(() => MJ.Audio.duck(false), Math.max(0, (t - ctx.currentTime) * 1000) + 300); } } catch (e) { /* ignore */ }
         if (cb) setTimeout(cb, Math.max(0, (t - ctx.currentTime) * 1000));
       });
       return true;
     },
-    stopClips() { S._ykId++; S._ykSrc.forEach((s) => { try { s.stop(); } catch (e) { /* ignore */ } }); S._ykSrc = []; },
+    stopClips() { clearTimeout(S._duckT); try { if (MJ.Audio && MJ.Audio.duck) MJ.Audio.duck(false); } catch (e) { /* ignore */ } S._ykId++; S._ykSrc.forEach((s) => { try { s.stop(); } catch (e) { /* ignore */ } }); S._ykSrc = []; },
     voice(text, p) {
       const key = S._vkey[text];
       if (!S.voiceOn || !key || !ctx) return;

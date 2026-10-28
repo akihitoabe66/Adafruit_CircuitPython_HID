@@ -44,12 +44,13 @@
         const src = ctx.createMediaElementSource(el);
         gain = ctx.createGain();
         gain.gain.value = A.volume;
-        src.connect(gain); gain.connect(ctx.destination);
+        src.connect(gain); gain.connect((MJ.SFX.getBus && MJ.SFX.getBus()) || ctx.destination);
         wired = true;
         el.volume = 1;
       } catch (e) { /* 失敗したら element.volume を使う */ }
     },
-    _apply() { if (gain) gain.gain.value = A.volume; else if (el) el.volume = A.volume; },
+    _apply() { const v = A.volume * (A.ducked ? 0.4 : 1); if (gain) gain.gain.value = v; else if (el) el.volume = v; },
+    duck(on) { A.ducked = !!on; A._apply(); },
     _load(src, loop) {
       const a = A._el();
       if (!a) return;

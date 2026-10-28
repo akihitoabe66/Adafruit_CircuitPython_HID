@@ -1451,8 +1451,10 @@
       return new Promise((resolve) => {
         const pages = [];
         if (res.type === 'win') {
-          pages.push({ t: '和了', html: `<h2>${game.kyokuLabel()} 和了</h2>` + res.wins.map((w) => this.winHTML(game, w)).join('<hr>') });
-          pages.push({ t: '点数計算', html: res.wins.map((w) => this.winExplHTML(game, w)).join('<hr>') });
+          // ダブロンなどは、スクロールしないように、1人ずつ別のページにする
+          const nw = res.wins.length;
+          res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `和了 ${k + 1}/${nw}` : '和了', html: `<h2>${game.kyokuLabel()} 和了${nw > 1 ? ` (${k + 1}/${nw})` : ''}</h2>` + this.winHTML(game, w) }));
+          res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `点数計算 ${k + 1}/${nw}` : '点数計算', html: this.winExplHTML(game, w) }));
           pages.push({ t: '持ち点', html: `<h2>${game.kyokuLabel()} の結果</h2>${this.scoreTable(game, res)}` });
           const rv = res.loseReview ? MJ.Coach.loseReview(game, res) : res.review ? MJ.Coach.reviewText(res.review) : '';
           if (rv) this.splitReview(rv).forEach((h, i, a) => pages.push({ t: `振り返り`, html: h, rv: true }));
