@@ -26,6 +26,9 @@ VOICES = {
     14: (1.04, 2, 1.0),   # 静御前: 澄んだ高い声
     15: (1.0, 1, 1.0),   # 楊貴妃: 艶やか
     16: (0.96, -2, 0.95),  # クレオパトラ: 低めで気高い
+    17: (0.94, -4, 0.86),  # 聖徳太子: 穏やかで落ち着いた賢者
+    18: (0.96, -7, 0.78),  # 平清盛: 威厳のある太い声
+    19: (1.06, -6, 0.82),  # 伊達政宗: 若々しく、粋で力強い
 }
 
 
@@ -36,8 +39,12 @@ def synth(text, speed, ht):
 
 
 def main():
+    import sys
+    only = {int(a) for a in sys.argv[1:]}  # 番号を指定すると、そのキャラだけ作る(例: python3 tools/gen_voice.py 17 18 19)
     os.makedirs(OUT, exist_ok=True)
     for vid, (spd, ht, ratio) in VOICES.items():
+        if only and vid not in only:
+            continue
         for k, text in WORDS.items():
             x, sr = synth(text, spd, ht)
             with tempfile.TemporaryDirectory() as d:

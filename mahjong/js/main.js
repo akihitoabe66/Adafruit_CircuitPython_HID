@@ -380,7 +380,7 @@
   MJ.preloaded = [];
   function preload() {
     const urls = ['11', '14', '21', '36'].map((n) => `img/teacher/t${n}.png`); // 「先生をつけますか?」で使う顔を、先に読み込む
-    for (let i = 1; i <= 16; i++) { urls.push(`img/chars/${String(i).padStart(2, '0')}.jpg`); urls.push(`img/chars/face/${String(i).padStart(2, '0')}.png`); urls.push(`img/chars/face/${String(i).padStart(2, '0')}_f.png`); }
+    for (let i = 1; i <= MJ.CHARS.length; i++) { urls.push(`img/chars/${String(i).padStart(2, '0')}.jpg`); urls.push(`img/chars/face/${String(i).padStart(2, '0')}.png`); urls.push(`img/chars/face/${String(i).padStart(2, '0')}_f.png`); }
     for (let i = 1; i <= 18; i++) urls.push(`img/you/${String(i).padStart(2, '0')}.jpg`);
     for (let i = 0; i < 34; i++) urls.push(`img/tiles/${i}.png`);
     for (const a of [1, 2, 3]) for (const b of [1, 2, 3, 4, 5, 6]) urls.push(`img/teacher/t${a}${b}.png`);
