@@ -605,7 +605,7 @@ body.no-ruby rt { display: none; }
 .plq.seatc0, .plq.seatc1, .plq.seatc2, .plq.seatc3 { box-shadow: inset 8px 0 0 var(--c); }
 .plq.p0.act, .plq.act { box-shadow: inset 8px 0 0 var(--c), 0 0 0 2px #ffd35a, 0 0 10px #ffd35a; }
 /* 右の名前の板が、あなたの板に重ならないよう、少し上へ */
-.plq.p1 { top: 150px; } .plq.p3 { top: 150px; }
+.plq.p1 { top: 128px; } .plq.p3 { top: 128px; }
 /* ロンの演出の最後は、当たり牌の光を消す(「ロン」の文字の上に牌が出ないように) */
 .winfx.final ~ * { }
 
@@ -918,3 +918,5 @@ body.on-title #menu-bg { transition: opacity .6s; }
 .dc-pc.t[data-cid="2"] img.fcut, .dc-pc.t[data-cid="5"] img.fcut { transform: scale(1.08); }
 /* メニューの見出し: 枠はなし。暗い半透明の板の上に、文字だけ */
 #mn .mk-head { border: 0 !important; box-shadow: none !important; }
+/* 対面の名前の板: 上の壁牌の真ん中に(牌に少し重なってよい)。下家の板の「リーチ」の札と重ならず、板も長くできる */
+.plq.p2 { left: 200px; top: 4px; width: 320px; z-index: 3; }
