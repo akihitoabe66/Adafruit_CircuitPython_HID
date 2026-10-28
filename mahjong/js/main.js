@@ -328,7 +328,7 @@
       if (e.target.closest('button, summary, .char, .mode-card')) MJ.SFX.play('click');
     }, true);
     App.buildMenu();
-    $('#btn-start').addEventListener('click', () => { MJ.SFX.unlock(); MJ.SFX.play('start'); App.show('menu'); });
+    $('#btn-start').addEventListener('click', () => { MJ.SFX.unlock(); MJ.SFX.play('start'); Promise.race([MJ.menuReady || Promise.resolve(), new Promise((r) => setTimeout(r, 2500))]).then(() => App.show('menu')); }); // メニューの背景が読み込まれてから移る
     $('#bell').addEventListener('click', () => MJ.Audio.setOn(!MJ.Audio.on) || MJ.UI.syncAudio());
     App.show('title');
     $('#chars').addEventListener('click', (e) => { const b = e.target.closest('.char'); if (b) App.pickChar(+b.dataset.id); });
@@ -398,6 +398,8 @@
     // 背景の絵・はじめるボタン・BGMボタンが、すべて読み込まれて(デコードまで終わって)から出す
     const load = (u) => new Promise((ok) => { const im = new Image(); im.onload = () => { (im.decode ? im.decode() : Promise.resolve()).then(ok, ok); }; im.onerror = ok; im.src = u; });
     Promise.all(['img/title_art.webp', 'img/btn_start.png', 'img/bgm_on.png', 'img/bgm_off.png'].map(load)).then(once);
+    // メニュー画面の背景とロゴも、タイトルを見ている間に、先に読み込んでおく(メニューに移ったとき、背景が遅れて出ないように)
+    MJ.menuReady = Promise.all(['img/menu_bg.webp', 'img/logo.png'].map(load));
     setTimeout(once, 5000);
   })();
   // 起動直後(タイトルの間)に、ホーム曲を最優先で取り寄せる
