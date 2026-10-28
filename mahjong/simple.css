@@ -229,10 +229,10 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 .in-seats { position: absolute; inset: 0; }
 .in-seat { position: absolute; display: flex; flex-direction: column; align-items: center; opacity: 0; width: 20cqw; }
 .in-seat img { height: 17cqw; width: auto; display: block; filter: none; }
-.in-seat.t img { height: 15cqw; }
+.in-seat.t img { height: 17cqw; }
 .in-nm { margin-top: .6cqw; background: linear-gradient(#17202a, #0a0f14); border: .35cqw solid #ffd23f; border-radius: 1.2cqw; padding: .2cqw 1.8cqw; font-weight: 900; font-size: 2.8cqw; white-space: nowrap; box-shadow: 0 .6cqw 1.2cqw #000a; line-height: 1.25; text-align: center; }
 .in-nm small { display: block; font-size: 2.1cqw; color: #ffd23f; letter-spacing: .08em; line-height: 1.1; }
-.in-seat.t { left: 40cqw; top: 1.2cqw; } .in-seat.l { left: 3cqw; top: 14cqw; } .in-seat.r { right: 3cqw; top: 14cqw; }
+.in-seat.t { left: 40cqw; top: .4cqw; } .in-seat.l { left: 3cqw; top: 14cqw; } .in-seat.r { right: 3cqw; top: 14cqw; }
 .in-seat.l { animation: inL .55s .25s cubic-bezier(.2, 1.2, .3, 1) both; }
 .in-seat.t { animation: inT .55s .55s cubic-bezier(.2, 1.2, .3, 1) both; }
 .in-seat.r { animation: inR .55s .85s cubic-bezier(.2, 1.2, .3, 1) both; }
