@@ -29,7 +29,7 @@
         el.id = 'dice';
         const pc = (s, cls) => {
           const p = game.players[s];
-          return `<div class="dc-pc ${cls}" data-i="${s}">${s === 0 ? `<div class="dc-you">${MJ.UI.faceImg(p.char)}</div>` : MJ.UI.faceImg(p.char, '', s)}<div class="dc-nm"><span class="dc-w"></span>${s === 0 ? 'あなた' : p.name}</div></div>`;
+          return `<div class="dc-pc ${cls}" data-i="${s}" data-cid="${p.char ? p.char.id : 0}">${s === 0 ? `<div class="dc-you">${MJ.UI.faceImg(p.char)}</div>` : MJ.UI.faceImg(p.char, '', s)}<div class="dc-nm"><span class="dc-w"></span>${s === 0 ? 'あなた' : p.name}</div></div>`;
         };
         el.innerHTML = `<div class="dc-stage"><div class="dc-in">${pc(2, 't')}${pc(3, 'l')}${pc(1, 'r')}${pc(0, 'b')}<div class="dc-cap" id="dc-cap"></div>` +
           `<div class="dc-tray"><div class="dc-slot">${die(0, 48, 30)}${die(1, 160, 18)}</div></div><div class="dc-hint"><i>A</i> すすむ</div></div></div>`;
