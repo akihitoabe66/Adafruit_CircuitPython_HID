@@ -738,3 +738,35 @@ body.rot .dc-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
 .sy-ref { position: absolute; left: 20px; top: 10px; display: flex; gap: 8px; }
 .sy-rb { font: inherit; font-weight: 800; font-size: 19px; padding: 4px 12px; border-radius: 10px; background: #e4ecd9; color: var(--sp-ink); border: 4px solid transparent; cursor: pointer; white-space: nowrap; }
 .sy-rb.pf { border-color: var(--sp-focus); background: #fff; box-shadow: 0 0 0 5px rgba(242, 194, 48, .5); outline: none; }
+
+/* 用語辞典・役一覧: 縦にスクロールしない作り(832×428を拡大・縮小)。左に分類、右に一覧か1語の説明 */
+#gloss-panel { overflow: hidden; }
+.gp2 { position: absolute; left: 0; top: 0; width: 832px; height: 428px; transform-origin: 0 0; color: #fff; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; }
+.gp2 button { font: inherit; cursor: pointer; }
+.gp2-top { position: absolute; left: 16px; right: 16px; top: 8px; height: 48px; display: flex; align-items: center; gap: 12px; }
+.gp2-back { flex: none; width: 128px; height: 46px; font-weight: 900; font-size: 22px; border-radius: 12px; background: #e4ecd9; color: #1b1b12; border: 4px solid transparent; }
+.gp2-title { flex: none; font-weight: 900; font-size: 28px; }
+.gp2-q { flex: 1; min-width: 0; height: 46px; box-sizing: border-box; font: inherit; font-size: 22px; padding: 0 14px; border-radius: 12px; border: 3px solid #3c7a67; background: #0b1d18; color: #fff; }
+.gp2-cats { position: absolute; left: 16px; top: 64px; width: 196px; display: grid; gap: 3px; }
+.gp2-chip { height: 36px; font-weight: 800; font-size: 20px; border-radius: 10px; background: #1b3a31; color: #fff; border: 3px solid #3a6a5a; text-align: left; padding: 0 12px; white-space: nowrap; }
+.gp2-chip.on { background: #ffd23f; color: #1b1b12; border-color: #ffd23f; }
+.gp2-main { position: absolute; left: 224px; top: 62px; width: 592px; height: 358px; }
+.gp2-list { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 58px; gap: 6px 8px; height: 308px; }
+.gp2-it { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 0 14px; border-radius: 12px; background: #e4ecd9; color: #1b1b12; border: 4px solid transparent; text-align: left; overflow: hidden; min-width: 0; }
+.gp2-it b { font-size: 22px; line-height: 1.15; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.gp2-it span, .gp2-it em { font-style: normal; font-size: 15px; line-height: 1.1; color: #4a5a40; font-weight: 700; }
+.gp2-it em { background: #ffd23f; padding: 0 6px; border-radius: 6px; }
+.gp2-none { grid-column: 1 / -1; font-size: 22px; }
+.gp2-pager { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 20px; font-weight: 800; }
+.gp2-pb { width: 170px; height: 44px; font-weight: 900; font-size: 21px; border-radius: 12px; background: #e4ecd9; color: #1b1b12; border: 4px solid transparent; white-space: nowrap; }
+.gp2-pb:disabled { opacity: .35; cursor: default; }
+.gp2-back.pf, .gp2-chip.pf, .gp2-it.pf, .gp2-pb.pf, .gp2-rel.pf { border-color: #ffd23f; background: #fff; color: #1b1b12; box-shadow: 0 0 0 4px rgba(242, 194, 48, .55); outline: none; }
+.gp2-q:focus { border-color: #ffd23f; outline: none; }
+.gp2-d { position: absolute; left: 0; right: 0; top: 0; height: 308px; overflow: hidden; font-size: 24px; line-height: 1.4; font-weight: 700; }
+.gp2-dh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.gp2-dh b { font-size: 34px; color: #ffe39a; } .gp2-dh span { font-size: 20px; opacity: .8; } .gp2-dh i { font-style: normal; font-size: 16px; opacity: .7; margin-left: auto; }
+.gp2-al { font-size: 18px; color: #cfe3d8; }
+.gp2-desc { margin: 2px 0 4px; }
+.gp2-d .gx { margin: 2px 0; } .gp2-d .gx-row { margin: 2px 0; }
+.gp2-rl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 18px; }
+.gp2-rel { font-weight: 800; font-size: 19px; padding: 2px 14px; border-radius: 999px; background: #1b3a31; color: #fff; border: 3px solid #3a6a5a; }

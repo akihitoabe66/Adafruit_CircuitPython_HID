@@ -287,45 +287,82 @@
     closeSheet() { const el = document.getElementById('gloss-sheet'); if (el) el.classList.remove('on'); },
 
     /* ---- 辞典(検索・一覧) ---- */
+    /* 辞典: 縦にスクロールしない作り。左に分類、右に「一覧(1ページ10語)」か「1語の説明」を出す(832×428を拡大・縮小) */
     panel(focusId, preCat) {
       let el = document.getElementById('gloss-panel');
       if (!el) { el = document.createElement('div'); el.id = 'gloss-panel'; document.body.appendChild(el); }
-      el.innerHTML = `<div class="gp-box"><div class="gp-head"><button class="btn sm ghost" data-gpx>← もどる</button><h2>${preCat === '役' ? '📖 役一覧' : '📚 麻雀用語辞典'}</h2></div>
-        <p class="gp-note">呼び方は地域・世代・お店で違います。「チートイ」「ニコニコ」のような<b>俗称・略称</b>でも検索できます。</p>
-        <input id="gp-q" class="gp-q" type="search" placeholder="用語・俗称で検索(例: ニコニコ、ダマ、チートイ)" autocomplete="off">
-        <div class="gp-cats" id="gp-cats"></div><div id="gp-list" class="gp-list"></div></div>`;
+      el.innerHTML = '<div class="gp2" id="gp2"></div>';
       el.classList.add('on');
       document.body.classList.add('gp-open');
-      const state = { q: '', cat: preCat || '' };
-      const cats = el.querySelector('#gp-cats');
-      cats.innerHTML = ['すべて'].concat(CATS).map((c, i) => `<button class="gs-chip${(i === 0 ? '' : c) === state.cat ? ' on' : ''}" data-gc="${i === 0 ? '' : c}">${c}</button>`).join('');
-      const render = (open) => {
-        const q = state.q.trim().toLowerCase();
-        const kana = (s) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
-        const nq = kana(q);
-        const hit = L.filter((e) => (!state.cat || e.c === state.cat) && (!q || [e.n, e.y].concat(e.a, [e.d]).some((s) => kana((s || '').toLowerCase()).includes(nq))));
-        const aliasHit = (e) => q && e.a.find((a) => kana(a.toLowerCase()).includes(nq) && !kana(e.n.toLowerCase()).includes(nq));
-        el.querySelector('#gp-list').innerHTML = hit.length ? hit.map((e) => {
-          const al = e.a.filter((x) => x !== e.n && x !== e.y);
-          const ah = aliasHit(e);
-          return `<details class="gp-item" data-id="${e.id}"${open === e.id ? ' open' : ''}><summary><span class="gp-n">${e.n}</span>${e.y && e.y !== e.n ? `<span class="gp-y">${e.y}</span>` : ''}${ah ? `<span class="gp-hit">「${ah}」= ${e.n}</span>` : ''}<span class="gp-c">${e.c}</span></summary>
-          <div class="gp-d">${al.length ? `<div class="gs-alias"><b>別名・俗称:</b> ${al.join('、')}</div>` : ''}<p>${e.d}</p>${exHTML(e)}${e.r.length ? `<div class="gs-rel"><b>関連:</b> ${e.r.map((r) => { const t = TERM.get(r); return t == null ? '' : `<button class="gs-chip" data-gj="${t}">${r}</button>`; }).join('')}</div>` : ''}</div></details>`;
-        }).join('') : '<p class="gp-note">見つかりませんでした。別の言い方でも試してください。</p>';
-        if (open != null) { const t = el.querySelector(`.gp-item[data-id="${open}"]`); if (t) t.scrollIntoView({ block: 'center' }); }
+      const root = el.querySelector('#gp2');
+      const PER = 10;
+      const st = (Gl._st = { q: '', cat: preCat || '', page: 0, view: 'list', id: null });
+      const kana = (x) => x.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+      const hits = () => {
+        const q = st.q.trim().toLowerCase(), nq = kana(q);
+        return L.filter((e) => (!st.cat || e.c === st.cat) && (!q || [e.n, e.y].concat(e.a, [e.d]).some((x) => kana((x || '').toLowerCase()).includes(nq))));
       };
-      el.querySelector('#gp-q').addEventListener('input', (ev) => { state.q = ev.target.value; render(); });
-      cats.addEventListener('click', (ev) => {
-        const b = ev.target.closest('[data-gc]'); if (!b) return;
-        state.cat = b.dataset.gc;
-        cats.querySelectorAll('.gs-chip').forEach((x) => x.classList.toggle('on', x === b));
-        render();
+      Gl._hits = hits;
+      const fit = () => {
+        const w = el.clientWidth || 832, h = el.clientHeight || 428, sc = Math.min(w / 832, h / 428);
+        root.style.transform = `translate(${Math.round((w - 832 * sc) / 2)}px, ${Math.round((h - 428 * sc) / 2)}px) scale(${sc})`;
+      };
+      Gl._fit = fit;
+      const draw = () => {
+        const list = hits(), pages = Math.max(1, Math.ceil(list.length / PER));
+        st.page = Math.max(0, Math.min(pages - 1, st.page));
+        const title = st.cat === '役' ? '📖 役一覧' : '📚 用語辞典';
+        const top = `<button class="gp2-back" id="gp2-back" type="button">← もどる</button><div class="gp2-title">${title}</div><input id="gp-q" class="gp2-q" type="search" placeholder="言葉で探す(例: ダマ)" autocomplete="off" value="${st.q.replace(/"/g, '&quot;')}">`;
+        const cats = ['すべて'].concat(CATS).map((c, i) => `<button class="gp2-chip${(i === 0 ? '' : c) === st.cat ? ' on' : ''}" data-gc="${i === 0 ? '' : c}" type="button">${c}</button>`).join('');
+        let main;
+        if (st.view === 'list') {
+          const q = st.q.trim().toLowerCase(), nq = kana(q);
+          const items = list.slice(st.page * PER, st.page * PER + PER).map((e) => {
+            const ah = q && e.a.find((a) => kana(a.toLowerCase()).includes(nq) && !kana(e.n.toLowerCase()).includes(nq));
+            return `<button class="gp2-it" data-gi="${e.id}" type="button"><b>${e.n}</b>${ah ? `<em>「${ah}」</em>` : e.y && e.y !== e.n ? `<span>${e.y}</span>` : ''}</button>`;
+          }).join('');
+          main = `<div class="gp2-list">${items || '<p class="gp2-none">見つかりませんでした。別の言い方でも試してください。</p>'}</div>
+            <div class="gp2-pager"><button class="gp2-pb" id="gp2-pp" type="button"${st.page === 0 ? ' disabled' : ''}>◀ まえ</button><span>${list.length ? `${st.page + 1} / ${pages} ページ` : ''}</span><button class="gp2-pb" id="gp2-pn" type="button"${st.page >= pages - 1 ? ' disabled' : ''}>つぎ ▶</button></div>`;
+        } else {
+          const e = byId.get(st.id), al = e.a.filter((x) => x !== e.n && x !== e.y);
+          const idx = list.findIndex((x) => x.id === e.id);
+          const rel = e.r.map((r) => { const t = TERM.get(r); return t == null ? '' : `<button class="gp2-rel" data-gj="${t}" type="button">${r}</button>`; }).join('');
+          main = `<div class="gp2-d" id="gp2-d"><div class="gp2-dh"><b>${e.n}</b>${e.y && e.y !== e.n ? `<span>${e.y}</span>` : ''}<i>${e.c}</i></div>${al.length ? `<div class="gp2-al"><b>別名:</b> ${al.join('、')}</div>` : ''}<p class="gp2-desc">${e.d}</p>${exHTML(e)}${rel ? `<div class="gp2-rl"><b>関連:</b> ${rel}</div>` : ''}</div>
+            <div class="gp2-pager"><button class="gp2-pb" id="gp2-dl" type="button">一覧へ</button><button class="gp2-pb" id="gp2-dp" type="button"${idx <= 0 ? ' disabled' : ''}>◀ 前の言葉</button><button class="gp2-pb" id="gp2-dn" type="button"${idx < 0 || idx >= list.length - 1 ? ' disabled' : ''}>次の言葉 ▶</button></div>`;
+        }
+        const keep = document.activeElement && document.activeElement.id === 'gp-q';
+        root.innerHTML = `<div class="gp2-top">${top}</div><div class="gp2-cats">${cats}</div><div class="gp2-main">${main}</div>`;
+        if (keep) { const q = root.querySelector('#gp-q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+        const d = root.querySelector('#gp2-d');
+        if (d) { // 文字は小さくしすぎない範囲で、はみ出すときだけ少し縮める
+          for (let f = 24; f >= 19 && d.scrollHeight > d.clientHeight + 1; f--) d.style.fontSize = f + 'px';
+        }
+        if (MJ.Pad && MJ.Pad.preselect && !keep) MJ.Pad.preselect(true);
+      };
+      Gl._draw = draw;
+      root.addEventListener('input', (ev) => { if (ev.target.id === 'gp-q') { st.q = ev.target.value; st.view = 'list'; st.page = 0; draw(); } });
+      root.addEventListener('click', (ev) => {
+        const b = ev.target.closest('button'); if (!b) return;
+        if (b.id === 'gp2-back') return Gl.panelBack();
+        if (b.dataset.gc !== undefined) { st.cat = b.dataset.gc; st.page = 0; st.view = 'list'; return draw(); }
+        if (b.dataset.gi !== undefined) { st.view = 'detail'; st.id = +b.dataset.gi; return draw(); }
+        if (b.dataset.gj !== undefined) { st.view = 'detail'; st.id = +b.dataset.gj; return draw(); }
+        const list = hits(), idx = st.view === 'detail' ? list.findIndex((x) => x.id === st.id) : -1;
+        if (b.id === 'gp2-pp') { st.page--; return draw(); }
+        if (b.id === 'gp2-pn') { st.page++; return draw(); }
+        if (b.id === 'gp2-dl') { st.view = 'list'; st.page = Math.max(0, Math.floor(Math.max(0, idx) / PER)); return draw(); }
+        if (b.id === 'gp2-dp' && idx > 0) { st.id = list[idx - 1].id; return draw(); }
+        if (b.id === 'gp2-dn' && idx >= 0 && idx < list.length - 1) { st.id = list[idx + 1].id; return draw(); }
       });
-      el.addEventListener('click', (ev) => {
-        const j = ev.target.closest('[data-gj]');
-        if (j) { state.q = ''; state.cat = ''; el.querySelector('#gp-q').value = ''; cats.querySelectorAll('.gs-chip').forEach((x, i) => x.classList.toggle('on', i === 0)); render(+j.dataset.gj); }
-      });
-      render(focusId != null ? +focusId : null);
-      el.scrollTop = 0;
+      if (focusId != null) { st.view = 'detail'; st.id = +focusId; if (!hits().some((x) => x.id === st.id)) { st.cat = ''; st.q = ''; } }
+      fit(); draw();
+      if (!Gl._fitBound) { Gl._fitBound = true; window.addEventListener('resize', () => { if (Gl._fit && document.body.classList.contains('gp-open')) Gl._fit(); }); }
+    },
+    /* 「もどる」: 1語の説明なら一覧へ、一覧なら辞典を閉じる */
+    panelBack() {
+      const st = Gl._st;
+      if (st && st.view === 'detail') { st.view = 'list'; const list = Gl._hits(); st.page = Math.max(0, Math.floor(Math.max(0, list.findIndex((x) => x.id === st.id)) / 10)); Gl._draw(); return; }
+      Gl.closePanel();
     },
     closePanel() { const el = document.getElementById('gloss-panel'); if (el) el.classList.remove('on'); document.body.classList.remove('gp-open'); },
 
