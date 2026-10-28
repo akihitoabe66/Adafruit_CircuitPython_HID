@@ -61,8 +61,8 @@
       if (MJ.Ruby) els.forEach((e) => MJ.Ruby.apply(e));
       const recBtn = q('#ln-rec');
       const syncRec = () => { recBtn.textContent = L.isSaved(rec) ? '🔖 記録ずみ(はずす)' : '🔖 この役を記録する'; };
-      const show = (i) => { cur = Math.max(0, Math.min(pages.length - 1, i)); els.forEach((e, k) => e.classList.toggle('on', k === cur)); dots.forEach((d, k) => d.classList.toggle('on', k === cur)); q('#ln-prev').classList.toggle('off', cur === 0); q('#ln-next').classList.toggle('off', cur === pages.length - 1); syncRec(); };
-      show(0);
+      const show = (i) => { cur = Math.max(0, Math.min(pages.length - 1, i)); els.forEach((e, k) => e.classList.toggle('on', k === cur)); dots.forEach((d, k) => d.classList.toggle('on', k === cur)); q('#ln-prev').classList.toggle('off', cur === 0); q('#ln-next').classList.toggle('off', cur === pages.length - 1); q('#ln-prev').disabled = cur === 0; q('#ln-next').disabled = cur === pages.length - 1; syncRec(); if (MJ.Pad && done0) MJ.Pad.preselect(true); };
+      let done0 = false; show(0); done0 = true;
       q('#ln-prev').addEventListener('click', () => show(cur - 1));
       q('#ln-next').addEventListener('click', () => show(cur + 1));
       recBtn.addEventListener('click', () => { if (L.isSaved(rec)) L.remove(rec.id); else L.record(rec); syncRec(); });

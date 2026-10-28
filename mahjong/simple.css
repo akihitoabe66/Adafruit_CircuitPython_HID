@@ -629,7 +629,7 @@ body.no-ruby rt { display: none; }
 .ln-note { font-size: 20px; color: #cfe3d8; margin: 8px 0; line-height: 1.55; }
 .ln .pm-foot { display: flex; gap: 12px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 .ln .pm-foot .btn { font-size: 22px; padding: 8px 16px; }
-.ln .pm-foot .btn.off { opacity: .35; }
+.ln .pm-foot .btn.off, .ln .pm-foot .btn:disabled { opacity: .35; }
 .ln .btn.rec { background: #3a8aee; color: #fff; }
 .ln-list { display: grid; gap: 10px; max-height: 330px; overflow-y: auto; }
 .ln-item { display: flex; flex-direction: column; align-items: flex-start; font-size: 24px; text-align: left; }
@@ -770,3 +770,6 @@ body.rot .dc-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
 .gp2-d .gx { margin: 2px 0; } .gp2-d .gx-row { margin: 2px 0; }
 .gp2-rl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 18px; }
 .gp2-rel { font-weight: 800; font-size: 19px; padding: 2px 14px; border-radius: 999px; background: #1b3a31; color: #fff; border: 3px solid #3a6a5a; }
+/* 「この役で学ぶ」: 押せない まえ・つぎ は、面を消して、点線の枠と うすい文字だけにする */
+.ln .pm-foot .btn.off, .ln .pm-foot .btn:disabled { opacity: 1; background: transparent !important; color: rgba(243, 239, 226, .35) !important; border: 2px dashed rgba(243, 239, 226, .25) !important; box-shadow: none !important; }
+.ln .pm-foot { gap: 10px; } .ln .pm-foot .btn { font-size: 21px; padding: 8px 14px; }
