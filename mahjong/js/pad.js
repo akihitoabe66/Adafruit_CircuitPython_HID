@@ -32,12 +32,12 @@
     if (r.width < 4 || r.height < 4) return false;
     // スクロールする画面(メニュー・選択・ノート・ダイアログなど)は、画面の外にある項目も選べる(選ぶと自動でスクロールする)
     { const d = el.closest('details'); if (d && !d.open && !el.matches('summary')) return false; } // 閉じた設定の中は選べない
-    if (el.closest('#screen-menu, #screen-select, #screen-notes, #overlay, #gloss-panel, #screen-title')) return true;
+    if (el.closest('#screen-menu, #screen-select, #screen-notes, #overlay, #gloss-panel, #rk-panel, #screen-title')) return true;
     return r.right > 0 && r.bottom > 0 && r.left < G.innerWidth && r.top < G.innerHeight;
   };
   /* いま操作できる範囲: 説明パネル > ダイアログ > ゲーム/各画面 */
   const scope = () => {
-    const gl = ['#gloss-panel.on', '#gloss-sheet.on', '#gloss-panel:not(.hidden)'].map((s) => $(s)).find(Boolean);
+    const gl = ['#rk-panel.on', '#gloss-panel.on', '#gloss-sheet.on', '#gloss-panel:not(.hidden)'].map((s) => $(s)).find(Boolean);
     if (gl) return [gl];
     const ov = $('#overlay');
     if (ov && !ov.classList.contains('hidden')) return [ov];
@@ -164,6 +164,7 @@
     switch (name) {
       case 'a': if (P.cur && P.cur.isConnected) { if (U && U.sel && U.sel.type === 'self' && P.cur.matches('.hand .tile[data-id]')) U.picked = +P.cur.dataset.id; /* パッドでは、牌にカーソルを合わせてAで、すぐ捨てる */ P.cur.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); } else setCur(pickDefault()); break;
       case 'b': {
+        if (MJ.Rank && MJ.Rank.isOpen()) { MJ.Rank.back(); return; }
         // 用語・役の説明(シート/一覧)が開いているときは、まずそれだけを閉じる(下の画面は、そのまま)
         if (MJ.Gloss && $('#gloss-sheet.on')) { MJ.Gloss.closeSheet(); return; }
         if (MJ.Gloss && $('#gloss-panel.on')) { MJ.Gloss.panelBack(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); return; }

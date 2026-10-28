@@ -25,7 +25,7 @@
       if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : 'home');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       if (id === 'game') MJ.UI.fitStage();
-      if (id === 'menu') { App.fitMenu(); if (MJ.DrillUI && MJ.DrillUI.prefetch) { MJ.DrillUI.mode = MJ.DrillUI.mode; MJ.DrillUI.prefetch(); } } // ホームにいるあいだに、クイズの1問目を作っておく
+      if (id === 'menu') { if (MJ.Rank) MJ.Rank.syncMenu(); App.fitMenu(); if (MJ.DrillUI && MJ.DrillUI.prefetch) { MJ.DrillUI.mode = MJ.DrillUI.mode; MJ.DrillUI.prefetch(); } } // ホームにいるあいだに、クイズの1問目を作っておく
       if (id === 'title') App.fitTitle();
       if (id === 'study' && MJ.Study) MJ.Study.layout();
       if ((id === 'menu' || id === 'study') && MJ.Pad) setTimeout(() => MJ.Pad.preselect(true), 0);
@@ -49,12 +49,27 @@
     },
     /* ホーム: 4つの大きなボタン(麻雀を開始 / 麻雀クイズ / 点数計算の勉強 / 設定) */
     buildMenu() {
-      $('#hm-play').addEventListener('click', () => this.askTeacher());
+      $('#hm-play').addEventListener('click', () => this.playOrContinue());
+      $('#hm-rec').addEventListener('click', () => MJ.Rank.open('rank', { from: 'menu' }));
       $('#hm-quiz').addEventListener('click', () => MJ.DrillUI.openAuto());
       $('#hm-study').addEventListener('click', () => MJ.Study.open());
       $('#hm-set').addEventListener('click', () => showSettings());
       this.buildStatsOnly();
     },
+    /* 「麻雀をはじめる」: 前回のつづきがあれば「つづきから」「新しく始める」をたずねる。なければ、先生の確認へ */
+    playOrContinue() {
+      const sv = MJ.Rank.hasSave();
+      if (!sv) return this.askTeacher();
+      const names = (sv.cfg.picks || []).map((id) => (MJ.CHARS.find((c) => c.id === id) || {}).short).filter(Boolean).join('・');
+      MJ.UI.overlay(`<div class="cf svd"><h2>前回のつづきがあります</h2><p>${sv.label}　あなた ${(sv.players[0] || 0).toLocaleString()}点<br>相手: ${names}</p><div class="cf-btns"><button class="btn pri" id="sv-cont" type="button">つづきから</button><button class="btn" id="sv-new" type="button">新しく始める</button></div></div>`, { plain: true });
+      document.querySelector('#sv-cont').addEventListener('click', () => { MJ.UI.closeOverlay(); this.resume(sv); });
+      document.querySelector('#sv-new').addEventListener('click', () => {
+        MJ.UI.overlay('<div class="cf svd"><h2>新しく始めますか?</h2><p>前回のつづきは、消えます。</p><div class="cf-btns"><button class="btn pri" id="sv-back" type="button">もどる</button><button class="btn danger" id="sv-yes" type="button">新しく始める</button></div></div>', { plain: true });
+        document.querySelector('#sv-back').addEventListener('click', () => this.playOrContinue());
+        document.querySelector('#sv-yes').addEventListener('click', () => { MJ.Rank.clearSave(); MJ.UI.closeOverlay(); this.askTeacher(); });
+      });
+    },
+    resume(sv) { this.lastCfg = Object.assign({}, sv.cfg); this.launch(this.lastCfg, sv); },
     /* 「麻雀をはじめる」を押したら、先生をつけるかをたずねる(最初の選択は「つけない」) */
     askTeacher() {
       // 大きな見出し+先生の顔。絵が読み込まれてから、文字といっしょに出す(文字だけ先に出ないように)
@@ -133,11 +148,12 @@
       this.lastCfg = { mode: this.mode, picks: this.picks.slice(), length: MJ.RULES.length };
       this.launch(this.lastCfg);
     },
-    launch(cfg) {
+    launch(cfg, sv) {
       this.stopGame();
       const chars = cfg.picks.map((id) => MJ.CHARS.find((c) => c.id === id));
       const game = new MJ.Game({ chars, mode: cfg.mode, length: cfg.length, ui: MJ.UI });
       this.game = game;
+      if (sv && MJ.Rank) MJ.Rank.apply(game, sv); // つづきから: 点数・局・本場を戻す
       MJ.UI.attach(game);
       MJ.UI.hintOn = !!cfg.teacher; MJ.UI.dangerOn = !!cfg.teacher; MJ.UI.syncHintBtn(); // 先生(ヒント)は、えらんだとおりに始める
       MJ.SFX.unlock();
@@ -259,6 +275,7 @@
       <button class="btn big" id="st-audio">🔊 音の大きさ</button>
       <button class="btn big" id="st-think"></button>
       <button class="btn big" id="st-fx"></button>
+      <button class="btn big" id="st-save"></button>
       <button class="btn big" id="st-notes">📖 麻雀ノート</button>
       <button class="btn big" data-open-yaku>📖 役一覧</button>
       <button class="btn big" data-open-gloss>📚 用語辞典</button>
@@ -273,6 +290,7 @@
     const thSync = () => { thBtn.textContent = '💬 悩んだときのひとこと: ' + TL[MJ.UI.thinkMode()]; };
     thSync();
     const fxB = o.querySelector('#st-fx'); const fxS = () => { fxB.textContent = '⚡ 派手な上がり演出: ' + (MJ.UI.winFxOn() ? 'あり' : 'なし'); }; fxS(); fxB.addEventListener('click', () => { MJ.UI.setWinFx(!MJ.UI.winFxOn()); fxS(); });
+    const svB = o.querySelector('#st-save'); const svS = () => { svB.textContent = '💾 自動セーブ(つづき): ' + (MJ.Rank.saveOn() ? 'あり' : 'なし'); }; svS(); svB.addEventListener('click', () => { MJ.Rank.setSaveOn(!MJ.Rank.saveOn()); svS(); });
     thBtn.addEventListener('click', () => { const o2 = ['normal', 'slow', 'off']; MJ.UI.setThinkMode(o2[(o2.indexOf(MJ.UI.thinkMode()) + 1) % 3]); thSync(); });
     o.querySelector('#st-reset').addEventListener('click', () => {
       MJ.UI.overlay('<div class="cf"><h2>セーブをリセットしますか?</h2><p>対局の成績と、あなたのキャラクターが消えます。<br>次からは、新しいキャラクターが選ばれます。</p><div class="cf-btns"><button class="btn danger" id="rs-yes">⚠ リセットする</button><button class="btn pri" id="rs-no">やめる</button></div></div>', { plain: true });
@@ -328,7 +346,7 @@
       if (e.target.closest('button, summary, .char, .mode-card')) MJ.SFX.play('click');
     }, true);
     App.buildMenu();
-    $('#btn-start').addEventListener('click', () => { MJ.SFX.unlock(); MJ.SFX.play('start'); Promise.race([MJ.menuReady || Promise.resolve(), new Promise((r) => setTimeout(r, 2500))]).then(() => App.show('menu')); }); // メニューの背景が読み込まれてから移る
+    $('#btn-start').addEventListener('click', () => { MJ.SFX.unlock(); MJ.SFX.play('start'); Promise.race([MJ.menuReady || Promise.resolve(), new Promise((r) => setTimeout(r, 2500))]).then(() => { App.show('menu'); MJ.Rank.syncMenu(); setTimeout(() => MJ.Rank.daily(), 500); }); }); // メニューの背景が読み込まれてから移る
     $('#bell').addEventListener('click', () => MJ.Audio.setOn(!MJ.Audio.on) || MJ.UI.syncAudio());
     // 「おわる」は、AndroidとパソコンのSteamだけ(iPhoneとFire TVには、アプリを自分で終了する仕組みがないので出さない)
     const ua = navigator.userAgent || '';

@@ -27,7 +27,7 @@
 
     play(game) {
       return new Promise((res) => {
-        if (I.mode === 'off' || !game) return res();
+        if (I.mode === 'off' || !game || game.resumed) return res();
         const host = $('#screen-game');
         const old = $('#intro'); if (old) old.remove();
         const el = document.createElement('div');

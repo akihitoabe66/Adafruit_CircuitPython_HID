@@ -40,12 +40,13 @@
 
     /* ---------- 全体進行 ---------- */
     async run() {
-      if (this.ui && this.ui.dice) { // 対局のはじめ: サイコロを振って、最初の親(東家)を決める
+      if (this.ui && this.ui.dice && !this.resumed) { // 対局のはじめ: サイコロを振って、最初の親(東家)を決める
         const d = await this.ui.dice(this, true);
         if (this.stopped) return null;
         if (d !== null && d !== undefined) this.dealer = d;
       }
       for (;;) {
+        if (this.ui && MJ.Rank) MJ.Rank.write(this); // 局のはじめごとに、自動セーブ
         if (this.handCount > 0 && this.ui && this.ui.dice) { await this.ui.dice(this, false); if (this.stopped) return null; } // 局のはじめ: 親がサイコロを振る
         const r = await this.playHand();
         if (this.stopped) return null;
@@ -63,6 +64,7 @@
         if (this.length === 'south' && this.kyoku >= 8) end = true;
         this.roundWind = Math.min(1, Math.floor(this.kyoku / 4));
         if (end) {
+          if (this.ui && MJ.Rank) MJ.Rank.clearSave(); // 終わった対局には、戻れない
           const order = this.players.slice().sort((a, b) => b.score - a.score || a.seat - b.seat);
           const final = { order, results: order.map((p, i) => ({ p, rank: i + 1 })) };
           if (this.ui) await this.ui.gameEnd(this, final);

@@ -19,19 +19,20 @@
   };
   /* ---- 自分のキャラクター: 最初にシルエットの中からランダムで1つ選び、セーブが残っている間は同じキャラにする(セーブをリセットすると、また選び直し) ---- */
   MJ.YOU_COUNT = 18;
+  MJ.YOU_FEMALE = [3, 5, 6, 7, 10, 12, 14, 15, 18]; // 使う絵(女性)。ほかの番号(男性)は、データだけ残してあり、MJ.YOU_FEMALE に足せば、また使える
   let youMem = 0;
   MJ.youIndex = () => {
     let v = 0;
     try { v = +localStorage.getItem('mj_you'); } catch (e) { v = youMem; }
-    if (!(v >= 1 && v <= MJ.YOU_COUNT)) {
-      v = 1 + Math.floor(Math.random() * MJ.YOU_COUNT);
+    if (!MJ.YOU_FEMALE.includes(v)) { // 男性の絵が保存されていたら、女性の絵から選び直す(男性の絵のデータは、ゲームに残してある)
+      v = MJ.YOU_FEMALE[Math.floor(Math.random() * MJ.YOU_FEMALE.length)];
       youMem = v;
       try { localStorage.setItem('mj_you', String(v)); } catch (e) { /* ignore */ }
     }
     return v;
   };
   /* セーブのリセット: 対局成績・練習問題の記録・自分のキャラクターを消す */
-  MJ.resetSave = () => { ['mj_stats', 'mj_drill', 'mj_you'].forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }); youMem = 0; };
+  MJ.resetSave = () => { ['mj_stats', 'mj_drill', 'mj_you', 'mj_rank', 'mj_save'].forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }); youMem = 0; };
   /* ---- ルール設定(ブラウザに保存。対局開始時の値が使われる) ---- */
   MJ.RULE_DEFAULTS = { length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: false, doubleRon: true, kuikae: false, kazoe: true, start: 25000 };
   MJ.RULES = Object.assign({}, MJ.RULE_DEFAULTS);

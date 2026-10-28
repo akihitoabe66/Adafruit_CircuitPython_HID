@@ -1533,6 +1533,7 @@
           st.games++; st.ranks[me.rank - 1]++;
           localStorage.setItem('mj_stats', JSON.stringify(st));
         } catch (e) { /* ignore */ }
+        try { const dan = MJ.Rank && MJ.Rank.record(game, final); if (dan) setTimeout(() => MJ.Rank.open('cert', { dan, after: true }), 700); } catch (e) { /* ignore */ } // 段位が上がったとき(最初の1戦も)、認定証を出す
         $('#end-menu').addEventListener('click', () => { this.closeOverlay(); resolve(); MJ.App.toMenu(); });
         $('#end-again').addEventListener('click', () => { this.closeOverlay(); resolve(); MJ.App.again(); });
       });
