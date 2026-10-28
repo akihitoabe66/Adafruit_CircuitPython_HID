@@ -345,6 +345,7 @@
       App.picks = r ? r.slice() : MJ.shuffle(MJ.CHARS.slice()).slice(0, 3).map((c) => c.id);
       App.renderChars(); App.confirmStart();
     });
+    $('#btn-vol').addEventListener('click', () => MJ.UI.openVolume());
     $('#btn-quit').addEventListener('click', () => {
       MJ.UI.overlay('<div class="cf"><h2>対局をやめますか?</h2><p>ホームに戻ります。</p><div class="cf-btns"><button class="btn danger" id="q-yes">ホームにもどる</button><button class="btn pri" id="q-no">つづける</button></div></div>', { plain: true });
       document.querySelector('#q-no').addEventListener('click', () => MJ.UI.closeOverlay());

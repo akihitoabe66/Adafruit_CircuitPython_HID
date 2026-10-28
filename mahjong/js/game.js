@@ -29,7 +29,10 @@
     }
 
     seatWindOf(p) { return (p.seat - this.dealer + 4) % 4; }
-    wait(ms) { return this.fast ? Promise.resolve() : sleep(ms); }
+    wait(ms) { // 音量の板が開いている間(MJ.paused)は、CPUの動きも止める
+      if (this.fast) return Promise.resolve();
+      return sleep(ms).then(async () => { while (MJ.paused && !this.stopped) await sleep(120); });
+    }
     sync() { if (this.ui) this.ui.render(this); }
     async banner(p, text) { if (this.ui) await this.ui.banner(this, p, text); }
     sfx(name) { if (this.ui && this.ui.sfx) this.ui.sfx(name); }

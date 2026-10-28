@@ -195,6 +195,7 @@
     }
   };
   /* 画面が出たときから、最初のボタンを「選択中」にしておく(パッドを押す前でも、色で分かる)。force=true で、選び直す */
+  P.setCur = (el) => setCur(el);
   P.preselect = (force) => {
     if (force) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; }
     if (P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur)) { clearPf(P.cur); P.cur.classList.add('pf'); return; }
