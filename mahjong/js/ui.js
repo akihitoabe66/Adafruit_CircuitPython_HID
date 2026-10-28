@@ -492,10 +492,11 @@
       const ROT = [0, -90, 180, 90][s];
       // 河: 6枚ずつ。1段目が中央側、新しい段ほど席の手前。リーチ牌は横向き(横幅ぶん隣を押し出す)
       let rows = '';
-      for (let i = 0; i < p.discards.length; i += 6) {
-        rows += `<div class="rrow">${p.discards.slice(i, i + 6).map((d) => MJ.tileHTML(d.tile.t, `${d.called ? 'called' : ''}${d.riichi ? ' rch' : ''}${game.lastDiscard && game.lastDiscard.d === d && !d.called ? ' hl' : ''}`, '', d.tile.red)).join('')}</div>`;
+      const per = p.discards.length > 18 ? 8 : 6; // 19枚目からは、小さくして8枚ずつ(3段に収める。手牌や板に重ならないように)
+      for (let i = 0; i < p.discards.length; i += per) {
+        rows += `<div class="rrow">${p.discards.slice(i, i + per).map((d) => MJ.tileHTML(d.tile.t, `${d.called ? 'called' : ''}${d.riichi ? ' rch' : ''}${game.lastDiscard && game.lastDiscard.d === d && !d.called ? ' hl' : ''}`, '', d.tile.red)).join('')}</div>`;
       }
-      const river = `<div class="river r${s}">${rows}</div>`;
+      const river = `<div class="river r${s}${per > 6 ? ' dense' : ''}">${rows}</div>`;
       // 伏せた(または見える)手牌を席の縁に並べる
       let hand = '';
       if (s !== 0) {
@@ -1447,14 +1448,21 @@
         modal.querySelector('#pm-next').classList.toggle('off', cur >= pages.length - 1);
         const dn = modal.querySelector('#pm-done'); dn.textContent = lastLabel; dn.style.visibility = cur === pages.length - 1 ? 'visible' : 'hidden';
         const pg = els[cur];
-        // 枠に収まるまで文字サイズを下げる(iPhoneのSafariでも確実に効くよう zoom ではなく font-size で調整)
-        pg.style.fontSize = '';
-        let fpx = parseFloat(getComputedStyle(pg).fontSize) || 16;
-        const fover = () => pg.scrollHeight > body.clientHeight + 1;
-        while (fover() && fpx > 13) { fpx -= 0.5; pg.style.fontSize = fpx + 'px'; }
-        // それでも収まらなければ、スクロールさせず、全体を少しだけ縮めて1画面に収める(下限0.6)
-        if (fover()) { pg.style.zoom = String(Math.max(0.6, (body.clientHeight - 2) / Math.max(1, pg.scrollHeight))); }
+        const fit = () => {
+          if (els[cur] !== pg) return;
+          // 枠に収まるまで文字サイズを下げる(iPhoneのSafariでも確実に効くよう zoom ではなく font-size で調整)
+          pg.style.zoom = ''; pg.style.fontSize = '';
+          let fpx = parseFloat(getComputedStyle(pg).fontSize) || 16;
+          const fover = () => pg.scrollHeight * (parseFloat(pg.style.zoom) || 1) > body.clientHeight + 1;
+          while (fover() && fpx > 13) { fpx -= 0.5; pg.style.fontSize = fpx + 'px'; }
+          // それでも収まらなければ、スクロールさせず、全体を少しずつ縮めて1画面に収める(測り直しながら。ふりがなで行が高くなっても、必ず収める)
+          if (fover()) { let z = 1; while (fover() && z > 0.5) { z = Math.round((z - 0.02) * 100) / 100; pg.style.zoom = String(z); } }
+        };
+        fit();
+        pg.querySelectorAll('img').forEach((im) => { if (!im.complete) im.addEventListener('load', fit, { once: true }); }); // 顔の画像が読み込まれて高さが変わっても、収め直す
+        setTimeout(fit, 350);
         MJ.SFX.stopSpeak();
+        if (pages[cur].onShow) pages[cur].onShow();
       };
       modal.querySelector('#pm-prev').addEventListener('click', () => show(cur - 1));
       modal.querySelector('#pm-skip').addEventListener('click', () => { MJ.SFX.stopSpeak(); onDone(); }); // 残りのページを飛ばして、次へ進む
@@ -1473,8 +1481,9 @@
         if (res.type === 'win') {
           // ダブロンなどは、スクロールしないように、1人ずつ別のページにする
           const nw = res.wins.length;
-          res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `和了 ${k + 1}/${nw}` : '和了', html: `<h2>${game.kyokuLabel()} 和了${nw > 1 ? ` (${k + 1}/${nw})` : ''}</h2>` + this.winHTML(game, w) }));
-          res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `点数計算 ${k + 1}/${nw}` : '点数計算', html: this.winExplHTML(game, w) }));
+          // 読み上げも、そのページの1人ぶんだけ(ページを開いたときに読む)
+          res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `和了(${k + 1}人目)` : '和了', html: `<h2>${game.kyokuLabel()} 和了</h2>` + this.winHTML(game, w), onShow: nw > 1 ? () => this.announceWin(game, { wins: [w] }) : null }));
+          res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `点数計算(${k + 1}人目)` : '点数計算', html: this.winExplHTML(game, w) }));
           pages.push({ t: '持ち点', html: `<h2>${game.kyokuLabel()} の結果</h2>${this.scoreTable(game, res)}` });
           const rv = res.loseReview ? MJ.Coach.loseReview(game, res) : res.review ? MJ.Coach.reviewText(res.review) : '';
           if (rv) this.splitReview(rv).forEach((h, i, a) => pages.push({ t: `振り返り`, html: h, rv: true }));
@@ -1492,7 +1501,7 @@
         else MJ.SFX.play('drawgame');
         const last = game.length === 'single';
         this.pagedModal(pages, () => { MJ.SFX.stopSpeak(); MJ.Audio.endResult(); this.closeOverlay(); resolve(); }, last ? '結果へ ▶' : '次の局へ ▶');
-        if (res.type === 'win') this.announceWin(game, res);
+        if (res.type === 'win' && res.wins.length < 2) this.announceWin(game, res);
         if (res.type === 'win' && MJ.Learn) { // 右上に「この役で学ぶ」
           const w0 = res.wins.find((x) => x.winner.isHuman) || res.wins[0];
           const rec = MJ.Learn.build(game, w0);

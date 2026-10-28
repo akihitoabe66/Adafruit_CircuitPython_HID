@@ -966,3 +966,10 @@ rt { white-space: nowrap; }
 @keyframes wxStamp { 0% { opacity: 0; transform: scale(2.6) rotate(-6deg); } 7% { opacity: 1; transform: scale(.94) rotate(0); } 11% { transform: scale(1.04); } 15% { transform: scale(1); } 82% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes wxFade { 0% { opacity: 0; transform: translateY(8px); } 10% { opacity: 1; transform: none; } 82% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .winfx.wx { animation: none; } }
+/* 河が19枚以上: 小さくして8枚ずつ(3段に収める) */
+body.tbl .river.dense .tile { width: 20px; height: 26px; }
+body.tbl .river.dense .tile.rch { width: 26px; height: 20px; }
+.river.dense .rrow { height: 27px; }
+/* あなたも、相手と同じ「輪郭の切り抜き」(枠なし・バストアップ) */
+.dc-you { width: auto; height: auto; overflow: visible; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.dc-pc.hit .dc-you { border: 0; box-shadow: none; }
