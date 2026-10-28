@@ -276,7 +276,7 @@
       <button class="btn big" id="st-think"></button>
       <button class="btn big" id="st-fx"></button>
       <button class="btn big" id="st-save"></button>
-      <button class="btn big" id="st-notes">📖 麻雀ノート</button>
+      <button class="btn big" id="st-notes">📖 麻雀参考書</button>
       <button class="btn big" data-open-yaku>📖 役一覧</button>
       <button class="btn big" data-open-gloss>📚 用語辞典</button>
       <button class="btn big" data-open-rules>⚙ ルール</button>
