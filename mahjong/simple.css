@@ -798,13 +798,11 @@ body.on-title #menu-bg::after, body.rot.on-title #menu-bg::after { display: none
 #screen-title .tt-go:hover, #screen-title .tt-go.pf, #screen-title .tt-go:focus-visible { transform: translateX(-50%) scale(1.07); outline: none; }
 #screen-title .tt-go.pf img, #screen-title .tt-go:focus-visible img { filter: drop-shadow(0 0 8px #ffd23f) drop-shadow(0 0 20px #ffd23f) drop-shadow(0 6px 8px #000a); }
 #screen-title .tt-go:active { transform: translateX(-50%) scale(1.02); }
-/* BGM ボタン: 「はじめる」の看板の絵を、両端の飾りを残して横に伸ばして使う。文字は金色 */
-#screen-title .tt-bgm { position: absolute; right: 14px; top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 196px; height: 46px; padding: 0; margin: 0; background: none; color: #f3d58a; border: solid transparent; border-width: 0 28px; border-image: url(img/btn_plain.png) 0 105 0 105 fill / 0 28px 0 28px stretch; border-radius: 0; box-shadow: none; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif; cursor: pointer; z-index: 5; filter: drop-shadow(0 4px 5px #0009); transition: transform .15s, filter .15s; }
-#screen-title .tt-bgm .bi { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 35%, #5a3a1f, #2a170a); color: #f6dc94; font-size: 19px; font-weight: 900; line-height: 1; position: relative; flex: none; margin-left: -6px; box-shadow: inset 0 1px 2px #0008, 0 0 0 1.5px #c99a3d; }
-#screen-title .tt-bgm .bt { font-size: 20px; font-weight: 900; letter-spacing: .04em; white-space: nowrap; background: linear-gradient(#fff6cf, #e6b44a 70%, #c88f2a); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 1px 0 #3b2208); }
-#screen-title .tt-bgm[aria-pressed="false"] { filter: grayscale(.75) brightness(.78) drop-shadow(0 4px 5px #0009); }
-#screen-title .tt-bgm[aria-pressed="false"] .bi::after { content: ''; position: absolute; left: 4px; right: 4px; top: 50%; height: 3px; border-radius: 2px; background: #f6dc94; box-shadow: 0 0 0 1px #2a170a; transform: rotate(-45deg); }
-#screen-title .tt-bgm:hover, #screen-title .tt-bgm.pf, #screen-title .tt-bgm:focus-visible { transform: scale(1.06); outline: none; filter: drop-shadow(0 0 7px #ffd23f) drop-shadow(0 4px 5px #0009); }
+/* BGM ボタン: ON / OFF の絵を、切り替えて出す */
+#screen-title .tt-bgm { position: absolute; right: 14px; top: 10px; display: block; width: 150px; height: auto; padding: 0; margin: 0; background: none; border: 0; border-image: none; border-radius: 0; box-shadow: none; cursor: pointer; z-index: 5; transition: transform .15s, filter .15s; }
+#screen-title .tt-bgm img { display: block; width: 100%; height: auto; pointer-events: none; filter: drop-shadow(0 4px 6px #000a); }
+#screen-title .tt-bgm:hover, #screen-title .tt-bgm.pf, #screen-title .tt-bgm:focus-visible { transform: scale(1.07); outline: none; }
+#screen-title .tt-bgm.pf img, #screen-title .tt-bgm:focus-visible img { filter: drop-shadow(0 0 8px #ffd23f) drop-shadow(0 0 18px #ffd23f) drop-shadow(0 4px 6px #000a); }
 /* 桜: 画面いっぱいに、ゆっくり降る(ボタンや文字の操作はじゃましない) */
 .tt-petals { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; container-type: size; }
 .tt-petals i { position: absolute; top: -4cqh; width: var(--sz); height: calc(var(--sz) * .78); border-radius: 100% 0 100% 0; background: linear-gradient(135deg, #fff0f4, #ffb3c8 60%, #ff8fb0); box-shadow: 0 0 .5cqw rgba(255, 190, 210, .6); opacity: 0; animation: ttPetal 12s linear infinite; }

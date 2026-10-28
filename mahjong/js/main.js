@@ -396,7 +396,7 @@
     let fired = false;
     const once = () => { if (!fired) { fired = true; done(); } };
     im.onload = once; im.onerror = once;
-    im.src = 'img/title_art.webp'; const im2 = new Image(); im2.src = 'img/btn_start.png';
+    im.src = 'img/title_art.webp'; const im2 = new Image(); im2.src = 'img/btn_start.png'; new Image().src = 'img/bgm_on.png'; new Image().src = 'img/bgm_off.png';
     if (im.complete) once();
     setTimeout(once, 4000);
   })();

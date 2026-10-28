@@ -191,8 +191,8 @@
       const bell = $('#bell');
       if (bell) {
         bell.setAttribute('aria-pressed', String(MJ.Audio.on));
-        bell.querySelector('.bi').textContent = '♪';
-        bell.querySelector('.bt').textContent = MJ.Audio.on ? 'BGM ON' : 'BGM OFF';
+        const im = bell.querySelector('img');
+        if (im) { im.src = MJ.Audio.on ? 'img/bgm_on.png' : 'img/bgm_off.png'; im.alt = MJ.Audio.on ? 'BGM ON' : 'BGM OFF'; }
       }
       document.querySelectorAll('.ac').forEach((c) => {
         if (c === except) return;
