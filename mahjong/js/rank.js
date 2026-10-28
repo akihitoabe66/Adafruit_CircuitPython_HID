@@ -1,5 +1,5 @@
 /* 段位・対戦成績・認定証と、自動セーブ(つづき)。
-   段位: 初段から始まる。東風戦・東南戦を最後まで打った対局で点が入る(1位+30 / 2位+15 / 3位+5 / 4位+0)。下がらない。
+   段位: 初段から始まり、十段の先が名人。東風戦・東南戦を最後まで打った対局で点が入る(1位+30 / 2位+15 / 3位+5 / 4位+0)。下がらない。
    セーブ: 局のはじめごとに自動で保存し、「つづきから」で、その局のはじめから再開する(牌は配り直す)。 */
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
@@ -8,7 +8,7 @@
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
   /* 段位の表: [名前, 必要な累計点] */
-  const DAN = [['初段', 0], ['二段', 200], ['三段', 400], ['四段', 600], ['五段', 800], ['名人', 1200]];
+  const DAN = [['初段', 0], ['二段', 200], ['三段', 400], ['四段', 600], ['五段', 800], ['六段', 1000], ['七段', 1200], ['八段', 1400], ['九段', 1600], ['十段', 1800], ['名人', 2200]];
   const PTS = [30, 15, 5, 0];
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
   const base = () => ({ pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '' });
