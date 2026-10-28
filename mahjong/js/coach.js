@@ -249,7 +249,7 @@
       items.push(`<li><b>${info.name}</b>(★を切ったあと)<br>${info.one}<div class="cc-s">${info.why}</div></li>`);
     }
     if (!items.length) return null;
-    return card('🧩 手牌の中の「形の名前」', `<ul class="cc-ul">${items.join('')}</ul><div class="cc-s">形を名前で覚えると、迷ったときの判断が速くなります(麻雀ノート「丸暗記したい7つの形」)。</div>`);
+    return card('🧩 手牌の中の「形の名前」', `<ul class="cc-ul">${items.join('')}</ul><div class="cc-s">形を名前で覚えると、迷ったときの判断が速くなります(麻雀参考書「丸暗記したい7つの形」)。</div>`);
   }
 
   /* ---------- 自分の手番のアドバイス ---------- */
