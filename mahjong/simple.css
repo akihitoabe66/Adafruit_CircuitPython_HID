@@ -912,4 +912,7 @@ body.on-title #menu-bg { transition: opacity .6s; }
 .sd-act .wt .tile, .sd-act .wait.many .wt .tile { width: 28px !important; height: 38px !important; }
 .sd-act .wt > div > span { white-space: nowrap; }
 /* サイコロ画面: 遠山の金さんは、絵の余白が大きく小さく見えるので、大きくする */
-.dc-pc[data-cid="2"] img.fcut { transform: scale(1.25); transform-origin: 50% 100%; }
+.dc-pc[data-cid="2"] img.fcut { transform: scale(1.18); transform-origin: 50% 100%; }
+.dc-pc[data-cid="5"] img.fcut { transform: scale(1.15); transform-origin: 50% 100%; }
+/* 対面(上)の席は、上に余裕がないので、拡大を控えめに */
+.dc-pc.t[data-cid="2"] img.fcut, .dc-pc.t[data-cid="5"] img.fcut { transform: scale(1.08); }
