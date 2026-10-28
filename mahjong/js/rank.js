@@ -59,9 +59,12 @@
     /* 「あなたの段位」の画面(ご用意の背景に、文字を重ねる) */
     drawRank(p, opt) {
       const f = R.info();
-      p.innerHTML = `<div class="rk-st rk-bg"><img class="rk-bgi" src="img/rank_bg.webp" alt=""><span class="rk-t" style="left:25.5%;top:57.5%;font-size:6.4cqw">${f.name}</span><span class="rk-t dk" style="left:50%;top:46.6%;font-size:3.7cqw">${f.name}</span>` +
-        (f.next ? `<span class="rk-t" style="left:76.5%;top:46.2%;font-size:2.7cqw">${f.next}</span><span class="rk-t" style="left:77.6%;top:58.2%;font-size:5cqw;color:#fff3c4">${f.left}</span>` : `<span class="rk-t" style="left:75.5%;top:52%;font-size:3.6cqw">いちばん上です</span>`) +
-        `<div class="rk-bar" style="left:50.4%;top:70.6%;width:25%;height:5.6%"><i style="width:${Math.round(f.prog * 100)}%"></i></div><span class="rk-t" style="left:50.4%;top:81%;font-size:2.4cqw">${f.s.games} 戦 打ちました</span>` +
+      // 背景の絵(1404×768)の、空いている枠の位置に合わせて、文字を置く(座標は、絵のピクセル)
+      const px = (x, y, fs, html, cls = '') => `<span class="rk-t ${cls}" style="left:${(x / 14.04).toFixed(2)}%;top:${(y / 7.68).toFixed(2)}%;font-size:${(fs / 14.04).toFixed(2)}cqw">${html}</span>`;
+      p.innerHTML = `<div class="rk-st rk-bg"><img class="rk-bgi" src="img/rank_bg.webp" alt="">` +
+        px(355, 445, f.name.length > 2 ? 52 : 70, f.name) + px(705, 351, 40, f.name, 'dk') +
+        (f.next ? px(1068, 358, 28, f.next) + px(1093, 446, f.left >= 1000 ? 40 : 48, String(f.left), 'num') : px(1090, 446, 34, 'いちばん上')) +
+        `<div class="rk-bar" style="left:${(531 / 14.04).toFixed(2)}%;top:${(506 / 7.68).toFixed(2)}%;width:${(350 / 14.04).toFixed(2)}%;height:${(46 / 7.68).toFixed(2)}%"><i style="width:${Math.round(f.prog * 100)}%"></i></div>` + px(705, 590, 24, `${f.s.games} 戦 打ちました`) +
         `<div class="rk-btns">${opt.auto ? '' : '<button class="rk-b" data-rk="stats" type="button">対戦成績</button>'}${f.s.games && !opt.auto ? '<button class="rk-b" data-rk="cert" type="button">認定証</button>' : ''}<button class="rk-b main" data-rk="close" type="button">${opt.auto ? 'すすむ' : 'もどる'}</button></div></div>`;
       p.querySelector('.rk-st').style.setProperty('--w', '1');
       if (opt.auto) R._t = setTimeout(R.close, 3200);

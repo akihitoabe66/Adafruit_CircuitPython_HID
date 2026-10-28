@@ -899,3 +899,7 @@ body.on-title #menu-bg { transition: opacity .6s; }
 .svd p { font-size: 26px; line-height: 1.5; }
 .rk-stats .cpus { top: 20.8cqw; gap: .9cqw; } .rk-stats .cpu { height: 8.2cqw; } .rk-stats .cpu img { width: 7.4cqw; height: 6cqw; } .rk-stats .rk4 > div { padding: .6cqw; } .rk-stats .rk4 b { font-size: 3.6cqw; }
 .rk-stats .rk-btns.bot { bottom: 1.2cqw; } .rk-stats .rk-b { font-size: 2.6cqw; padding: .5cqw 2.6cqw; }
+/* 段位の画面: 文字は、絵の枠の中央に置く。バーは、細長い枠の中に収める */
+.rk-bar { transform: none !important; border-radius: .6cqw; border: 0; background: rgba(0, 0, 0, .35); }
+.rk-bar i { border-radius: .6cqw; }
+.rk-t.num { color: #fff3c4; letter-spacing: .02em; }
