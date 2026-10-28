@@ -393,13 +393,12 @@
   (function titleReady() {
     const done = () => { placeStart(); document.body.classList.add('title-ready'); };
     placeStart();
-    const im = new Image();
     let fired = false;
     const once = () => { if (!fired) { fired = true; done(); } };
-    im.onload = once; im.onerror = once;
-    im.src = 'img/title_art.webp'; const im2 = new Image(); im2.src = 'img/btn_start.png'; new Image().src = 'img/bgm_on.png'; new Image().src = 'img/bgm_off.png';
-    if (im.complete) once();
-    setTimeout(once, 4000);
+    // 背景の絵・はじめるボタン・BGMボタンが、すべて読み込まれて(デコードまで終わって)から出す
+    const load = (u) => new Promise((ok) => { const im = new Image(); im.onload = () => { (im.decode ? im.decode() : Promise.resolve()).then(ok, ok); }; im.onerror = ok; im.src = u; });
+    Promise.all(['img/title_art.webp', 'img/btn_start.png', 'img/bgm_on.png', 'img/bgm_off.png'].map(load)).then(once);
+    setTimeout(once, 5000);
   })();
   // 起動直後(タイトルの間)に、ホーム曲を最優先で取り寄せる
   // 画像の先読みは、ホーム曲が取り寄せ終わってから(通信を取り合って曲が遅れないように)
