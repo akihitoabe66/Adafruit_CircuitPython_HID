@@ -191,7 +191,7 @@
       const bell = $('#bell');
       if (bell) {
         bell.setAttribute('aria-pressed', String(MJ.Audio.on));
-        bell.querySelector('.bi').textContent = MJ.Audio.on ? '🔔' : '🔕';
+        bell.querySelector('.bi').textContent = '♪';
         bell.querySelector('.bt').textContent = MJ.Audio.on ? 'BGM ON' : 'BGM OFF';
       }
       document.querySelectorAll('.ac').forEach((c) => {

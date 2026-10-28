@@ -375,6 +375,16 @@
     next();
   }
   init();
+  /* タイトル画面の桜: 花びらを、ゆっくり何度でも降らせる(最初から画面全体に散らばっているように、アニメの開始位置をずらす) */
+  (function sakura() {
+    const host = $('#tt-petals'); if (!host) return;
+    for (let i = 0; i < 28; i++) {
+      const p = document.createElement('i');
+      const sz = 1.3 + Math.random() * 1.5, dur = 9 + Math.random() * 7;
+      p.style.cssText = `left:${(Math.random() * 110 - 5).toFixed(1)}%;--sz:${sz.toFixed(2)}cqw;--dx:${(Math.random() * 16 - 4).toFixed(1)}cqw;--r:${Math.round(Math.random() * 360)}deg;animation-duration:${dur.toFixed(1)}s;animation-delay:${(-Math.random() * dur).toFixed(1)}s`;
+      host.appendChild(p);
+    }
+  })();
   function placeStart() { App.fitTitle(); }
   MJ.placeStart = placeStart;
   window.addEventListener('resize', placeStart);
@@ -386,7 +396,7 @@
     let fired = false;
     const once = () => { if (!fired) { fired = true; done(); } };
     im.onload = once; im.onerror = once;
-    im.src = 'img/tiles/31.png';
+    im.src = 'img/title_art.webp'; const im2 = new Image(); im2.src = 'img/btn_start.png';
     if (im.complete) once();
     setTimeout(once, 4000);
   })();
