@@ -309,7 +309,7 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 
 /* 先生(麻雀牌のキャラ): 左上すみの決まった場所に出す(河・手牌・ボタンに重ならない) */
 img.tcut { height: 84px; width: auto; display: block; flex: none; filter: drop-shadow(0 3px 5px #000a); }
-.tdock { position: absolute; left: 34px; top: 6px; width: 206px; height: 92px; z-index: 40; display: flex; align-items: flex-end; gap: 6px; pointer-events: none; animation: sayin .2s ease-out; }
+.tdock { position: absolute; left: 62px; top: 6px; width: 200px; height: 92px; z-index: 40; display: flex; align-items: flex-end; gap: 6px; pointer-events: none; animation: sayin .2s ease-out; }
 .tdock img.tcut { height: 70px; margin-bottom: 0; }
 .tdock .tb { flex: 1; min-width: 0; max-height: 92px; overflow: hidden; background: rgba(255, 255, 255, .96); color: #16160f; border: 3px solid #ffd23f; border-radius: 12px; padding: 3px 7px 4px; font-size: 13px; font-weight: 800; line-height: 1.25; box-shadow: 0 3px 10px #0008; }
 .tdock .tb b { display: block; font-size: 11px; color: #1b6b4a; line-height: 1.1; }
