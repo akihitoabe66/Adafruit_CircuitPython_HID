@@ -903,3 +903,6 @@ body.on-title #menu-bg { transition: opacity .6s; }
 .rk-bar { transform: none !important; border-radius: .6cqw; border: 0; background: rgba(0, 0, 0, .35); }
 .rk-bar i { border-radius: .6cqw; }
 .rk-t.num { color: #fff3c4; letter-spacing: .02em; }
+/* メニューの見出し: 細い白枠を、さらにうすく(押せるボタンに見えないように) */
+#mn .mk-head { border: 2px solid rgba(255, 255, 255, .28) !important; box-shadow: 0 6px 18px #000a !important; border-radius: 14px !important; background: rgba(12, 20, 34, .72) !important; }
+#mn .mk-head b { color: #ffe14a; }
