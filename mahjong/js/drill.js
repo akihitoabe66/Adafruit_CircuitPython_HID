@@ -680,6 +680,78 @@
     return null;
   }
 
+
+  /* ====================================================================
+     9) 手なりのとき、孤立した「数牌」と「役牌」のどちらを切る?
+     目安(ひとつの考え方): 序盤で、メンツが0・愚形(カンチャン・ペンチャン)が2つ以上 → 役牌を残して、鳴きも使う。
+                         手が整っている → 数牌を残す(くっつく牌が多く、リーチに向く)
+     ==================================================================== */
+  const maxSets = (c) => {
+    const a = c.slice();
+    const rec = (i) => {
+      while (i < 34 && a[i] === 0) i++;
+      if (i >= 34) return 0;
+      let best = 0;
+      if (a[i] >= 3) { a[i] -= 3; best = Math.max(best, 1 + rec(i)); a[i] += 3; }
+      if (i < 27 && i % 9 <= 6 && a[i + 1] > 0 && a[i + 2] > 0) { a[i]--; a[i + 1]--; a[i + 2]--; best = Math.max(best, 1 + rec(i)); a[i]++; a[i + 1]++; a[i + 2]++; }
+      const keep = a[i]; a[i] = 0; best = Math.max(best, rec(i + 1)); a[i] = keep;
+      return best;
+    };
+    return rec(0);
+  };
+  function genKeep() {
+    const wantKeepNum = Math.random() < 0.5; // true: 手が整っている(数牌を残す) / false: メンツ0・愚形2つ以上(役牌を残す)
+    for (let tries = 0; tries < 600; tries++) {
+      const ts = [];
+      const suitOf = () => rnd(3);
+      if (wantKeepNum) {
+        for (let i = 0; i < 2; i++) ts.push(...shun(suitOf(), rnd(7)));
+        for (let i = 0; i < 2; i++) { const s = suitOf(), r = 1 + rnd(6); ts.push(s * 9 + r, s * 9 + r + 1); }
+        const ps = suitOf(), pr = rnd(9); ts.push(ps * 9 + pr, ps * 9 + pr);
+      } else {
+        for (let i = 0; i < 2; i++) { const s = suitOf(); if (Math.random() < 0.6) { const r = rnd(7); ts.push(s * 9 + r, s * 9 + r + 2); } else if (Math.random() < 0.5) ts.push(s * 9, s * 9 + 1); else ts.push(s * 9 + 7, s * 9 + 8); }
+        for (let i = 0; i < 2; i++) { const s = suitOf(), r = 1 + rnd(6); ts.push(s * 9 + r, s * 9 + r + 1); }
+        for (let i = 0; i < 2; i++) { const s = suitOf(), r = rnd(9); ts.push(s * 9 + r, s * 9 + r); }
+      }
+      const c = new Array(34).fill(0); ts.forEach((t) => c[t]++);
+      if (c.some((n) => n > 3)) continue;
+      const sets = maxSets(c);
+      if (wantKeepNum ? sets < 2 : sets !== 0) continue;
+      // 数牌の候補(孤立: 同じ種類の前後2つ以内に、ほかの牌がない)
+      const xs = []; for (let s = 0; s < 3; s++) for (let r = 2; r <= 6; r++) { const t = s * 9 + r; let near = false; for (let d = -2; d <= 2; d++) if (c[s * 9 + r + d] > 0) near = true; if (!near) xs.push(t); }
+      if (!xs.length) continue;
+      const X = pick(xs), H = 31 + rnd(3); // 三元牌(白・發・中)
+      const pool = new Pool();
+      const tiles = pool.takeMany(ts.concat([X, H]));
+      if (!tiles) continue;
+      sortTiles(tiles);
+      const dora = randTile(pool, 1);
+      const dealer = rnd(4);
+      const rivers = [[], randRiver(pool, 2 + rnd(3)), randRiver(pool, 2 + rnd(3)), randRiver(pool, 2 + rnd(3))];
+      const g = mock({ hand: tiles, doraInd: [dora], rivers, dealer, chars: MJ.shuffle(MJ.CHARS.slice()).slice(0, 4) });
+      const numT = tiles.find((h) => h.t === X), honT = tiles.find((h) => h.t === H);
+      const cutAns = wantKeepNum ? 'hon' : 'num';
+      const leftX = [X - 2, X - 1, X + 1, X + 2].reduce((a, t) => a + pool.left(t), 0);
+      const why = wantKeepNum
+        ? `手牌は、すでに<b>メンツが${sets}つ</b>あり、形が整っています。${ic(X)}のような<b>数牌</b>は、前後の牌とくっつきやすく(あと<b>${leftX}枚</b>)、<b>リーチ</b>に向かう手に合います。${ic(H)}は、2枚そろうまで、役になりません。`
+        : `手牌は<b>メンツが0つ</b>で、<b>愚形</b>(カンチャン・ペンチャン)もあり、形が整っていません。${ic(H)}のような<b>役牌</b>は、あと1枚で<b>ポン</b>ができ、役がつきます。<b>鳴きを使う手</b>に向きます。${ic(X)}は、役もつかないので、先に切ります。`;
+      return {
+        cat: 'keep', kind: 'choice', title: '数牌と役牌、どっちを切る?', hand: tiles, g,
+        sit: sitHTML(g, '全員ノーリーチ・序盤'),
+        prompt: `序盤の<b>手なり</b>です。${ic(X)} と ${ic(H)} は、どちらも、まだ、ほかの牌と、つながっていません。<b>どちらを切りますか?</b>`,
+        options: [{ id: 'num', html: `${ic(X)} ${tn(X)}を切る` }, { id: 'hon', html: `${ic(H)} ${tn(H)}を切る` }],
+        grade(id) {
+          const okk = id === cutAns;
+          return {
+            r: okk ? 'ok' : 'ng',
+            html: `<p>手なりのときの目安は、<b>${wantKeepNum ? ic(H) + ' ' + tn(H) + 'を切る' : ic(X) + ' ' + tn(X) + 'を切る'}</b>です。</p><p>${why}</p><div class="cc cc-help"><div class="cc-b"><b>目安</b>: メンツが0つ・愚形が2つ以上 → 役牌を残す ／ 形が整っている → 数牌を残す。<br>ひとつの考え方で、場の状況によって、変わります。</div></div>`,
+          };
+        },
+      };
+    }
+    return null;
+  }
+
   /* ---------- カテゴリ一覧 ---------- */
   MJ.DRILLS = [
     { id: 'eff', icon: '✂️', name: '何を切る?(牌効率)', level: '入門', desc: '14枚の手牌から、テンパイに近づく牌を選びます。有効牌の数と、切る順番の基本が身につきます。', gen: genEff },
@@ -690,7 +762,8 @@
     { id: 'score', icon: '🧮', name: '点数計算ドリル', level: '入門〜中級', desc: '飜数・符・点数を、ランダムな上がり形で練習。答え合わせで計算のしくみが一手ずつ分かります。', gen: () => genScore() },
     { id: 'push', icon: '⚖️', name: '押すか引くか', level: '中級', desc: '相手がリーチ。自分の手の進み具合・打点・危険度を比べて「押す・回し打ち・オリる」を判断します。', gen: genPush },
     { id: 'riichi', icon: '🔥', name: 'リーチかダマか', level: '中級', desc: 'テンパイしたとき、リーチをかけるか黙って待つか。役・打点・待ちの枚数から判断します。', gen: genRiichi },
+    { id: 'keep', icon: '🀄', name: '数牌と役牌、どっちを切る?(手なり)', level: '入門〜中級', desc: '序盤で、孤立した数牌と役牌のどちらを切るか。手が整っていれば数牌を残し、バラバラなら役牌を残す目安を覚えます。', gen: genKeep },
   ];
   MJ.DRILL_THEMES = THEMES;
-  MJ.Drill = { Pool, mock, genEff, genDef, genCall, genYaku, genWait, genScore, genPush, genRiichi };
+  MJ.Drill = { Pool, mock, genKeep, genEff, genDef, genCall, genYaku, genWait, genScore, genPush, genRiichi };
 })(typeof window !== 'undefined' ? window : globalThis);
