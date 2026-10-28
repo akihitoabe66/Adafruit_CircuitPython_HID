@@ -260,6 +260,7 @@
         m.kind = 'kakan';
       }
       p.drawn = null;
+      if (this.ui && MJ.Banter && MJ.Banter.kan) MJ.Banter.kan(this, p);
       this.kans++;
       for (const q of this.players) q.ippatsu = false;
       this.sortHand(p);

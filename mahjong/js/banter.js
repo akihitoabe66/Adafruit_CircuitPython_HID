@@ -342,7 +342,7 @@
       let text = pick(cand.length ? cand : pool);
       h.push(text); if (h.length > 8) h.shift();
       const others = game.players.filter((q) => q !== p);
-      text = text.replace(/\{n\}/g, () => pick(others).name);
+      text = text.replace(/\{n\}/g, () => pick(others).name).replace(/\{r\}/g, opt.r || pick(others).name).replace(/\{k\}/g, opt.k || pick(others).name);
       const cut = text[0] === '!';
       if (cut) text = text.slice(1);
       lastAt = now;
