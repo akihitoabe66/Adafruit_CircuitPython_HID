@@ -1140,8 +1140,8 @@
       if (host) host.querySelectorAll(`.say.sy${seat}, .shout.sh${seat}`).forEach((x) => { if (x !== keep) x.remove(); });
       const ci = $('#screen-game .cutin'); if (ci && +ci.dataset.seat === seat && ci !== keep) ci.remove();
     },
-    banner(game, p, text) {
-      if ((text === 'ロン' || text === 'ツモ') && !game.fast && this.winFxOn()) return this.winFx(game, p, text); // 上がりは、雷つきの派手な演出
+    banner(game, p, text, opt) {
+      if ((text === 'ロン' || text === 'ツモ') && !game.fast && this.winFxOn()) return this.winFx(game, p, text, opt); // 上がりは、雷つきの派手な演出
       const col = text === 'リーチ' ? '#ff5b8a' : text === 'ロン' || text === 'ツモ' ? '#ff7b5a' : '#c48bff';
       const SFXN = { 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' };
       MJ.SFX.play(SFXN[text]);
@@ -1177,27 +1177,46 @@
       if (p.isHuman) { const d = $('#mine .hand .tile.drawn'); const h = $('#mine .hand'); if (d && h) return { x: 20 + d.offsetLeft + d.offsetWidth / 2, y: 354 + 30 }; }
       return [{ x: 360, y: 300 }, { x: 600, y: 214 }, { x: 360, y: 90 }, { x: 120, y: 214 }][p.seat] || { x: 360, y: 214 };
     },
-    winFx(game, p, text) {
+    /* 上がりの演出(案1): 暗くなって当たり牌に光 → 稲妻が落ちる → カットイン(帯・大きな顔・大きな文字・決めゼリフ)。
+       「ロン」と言うのは、カットインに入る瞬間の1回だけ。ダブロンは、雷1回・カットイン1回に2人の顔(約3秒。クリック・Aでとばせる) */
+    winFx(game, p, text, opt = {}) {
       const sc = $('#sc');
       if (!sc) return Promise.resolve();
+      const all = opt.all && opt.all.length > 1 ? opt.all : [p];
+      const multi = all.length > 1;
+      const word = (multi ? (all.length >= 3 ? 'トリプルロン' : 'ダブロン') : text) + '!';
       const tg = this.winTarget(game, p, text);
-      const bolt = (w, dx, d) => { // ぎざぎざの雷の線(上から当たり牌まで)
+      const bolt = (w, dx, k) => { // ぎざぎざの雷の線(上から当たり牌まで)
         let x = tg.x + dx, pts = [`${x.toFixed(0)},0`];
-        const n = 6;
+        const n = 7;
         for (let i = 1; i < n; i++) { x += (Math.random() * 2 - 1) * 26; pts.push(`${(i === n - 1 ? tg.x + dx * 0.15 : x).toFixed(0)},${((tg.y * i) / n).toFixed(0)}`); }
         pts.push(`${tg.x.toFixed(0)},${tg.y.toFixed(0)}`);
         const P = pts.join(' ');
-        return `<g class="wf-bolt" style="animation-delay:${d}ms"><polyline points="${P}" fill="none" stroke="#8fc5ff" stroke-width="${w * 2.6}" stroke-linejoin="round" stroke-linecap="round" opacity=".55"/><polyline points="${P}" fill="none" stroke="#fff" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/></g>`;
+        return `<polyline points="${P}" stroke="#8fc5ff" stroke-width="${w * 2.6}" opacity=".55"/><polyline points="${P}" stroke="#fff" stroke-width="${w}"/>`;
       };
-      const line = MJ.winWords(((p.char && p.char.lines && p.char.lines.win) || `${text}!`), text === 'ツモ').split(/[。]/)[0].slice(0, 22);
+      // 決めゼリフ: 「ロン」「ツモ」という言葉を除いた、最初の一言のあとの部分(なければ出さない)
+      const quoteOf = (q) => {
+        const raw = q && q.char && q.char.lines && q.char.lines.win;
+        if (!raw) return '';
+        const t = MJ.winWords(raw, text === 'ツモ');
+        const m = /^[^。!!…]*[。!!…]+\s*(.+)$/.exec(t);
+        return m ? m[1].slice(0, 22) : '';
+      };
+      const nm = (q) => (q.isHuman ? 'あなた' : q.name);
+      const a = all[0], b = all[1];
       const fx = document.createElement('div');
-      fx.className = 'winfx';
-      fx.innerHTML = `<div class="wf-dim"></div><div class="wf-rays"></div><div class="wf-slash"></div>${this.faceImg(p.char, 'wf-face1', p.seat)}<div class="wf-line">${line}</div>
-        <svg class="wf-svg" viewBox="0 0 720 428" preserveAspectRatio="none">${bolt(9, -18, 2150)}${bolt(4, 46, 2260)}${bolt(14, 6, 2380)}${bolt(3, -52, 2480)}</svg>
-        <div class="wf-flash" style="--tx:${tg.x}px;--ty:${tg.y}px"></div><div class="wf-ring"></div>${this.faceImg(p.char, 'wf-face2', p.seat)}<div class="wf-ron">${text}!!!</div>`;
+      fx.className = 'winfx wx' + (multi ? ' wx-multi' : '');
+      fx.style.setProperty('--tx', tg.x + 'px'); fx.style.setProperty('--ty', tg.y + 'px');
+      fx.innerHTML = `<div class="wx-dim"></div><div class="wx-spot"></div>
+        <svg class="wx-bolts" viewBox="0 0 720 428" preserveAspectRatio="none">${bolt(9, -18)}${bolt(4, 46)}${bolt(13, 6)}</svg>
+        <div class="wx-mark"></div><div class="wx-flash"></div>
+        <div class="wx-band"></div><div class="wx-speed"></div>
+        ${multi ? this.faceImg(b.char, 'wx-face wx-f2', b.seat) : ''}${this.faceImg(a.char, 'wx-face', a.seat)}
+        <div class="wx-who">${nm(a)}</div>${multi ? `<div class="wx-who wx-who2">${nm(b)}</div>` : ''}
+        <div class="wx-word">${word}</div>
+        ${quoteOf(a) ? `<div class="wx-quote">${quoteOf(a)}</div>` : ''}${multi && quoteOf(b) ? `<div class="wx-quote wx-q2">${quoteOf(b)}</div>` : ''}`;
       sc.appendChild(fx);
       const hit = (cls) => { const el = text === 'ロン' ? $('#table .tile.hl') : $('#mine .hand .tile.drawn'); if (el) el.classList.toggle('wf-hit', cls); };
-      MJ.SFX.don(0.9);
       return new Promise((resolve) => {
         const T = [];
         let done = false;
@@ -1205,11 +1224,12 @@
         const onKey = (e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(); } };
         fx.addEventListener('click', finish);
         document.addEventListener('keydown', onKey, true);
-        T.push(setTimeout(() => MJ.SFX.don(0.7), 500));
-        T.push(setTimeout(() => { hit(true); MJ.SFX.thunder(1); }, 2150));
-        T.push(setTimeout(() => MJ.SFX.thunder(0.8), 2380));
-        T.push(setTimeout(() => { hit(false); fx.classList.add('final'); MJ.SFX.voice(text, p); MJ.SFX.play(text === 'ロン' ? 'ron' : 'tsumo'); }, 3300));
-        T.push(setTimeout(finish, 4900));
+        const SFXK = text === 'ロン' ? 'ron' : 'tsumo';
+        T.push(setTimeout(() => { hit(true); MJ.SFX.thunder(1); }, 500));
+        T.push(setTimeout(() => { MJ.SFX.don(0.9); MJ.SFX.voice(text, a); MJ.SFX.play(SFXK); }, 1000));
+        if (multi) T.push(setTimeout(() => MJ.SFX.voice(text, b), 1500));
+        T.push(setTimeout(() => hit(false), 1500));
+        T.push(setTimeout(finish, 3000));
       });
     },
     winFxOn() { try { return localStorage.getItem('mj_winfx') !== 'off'; } catch (e) { return true; } },

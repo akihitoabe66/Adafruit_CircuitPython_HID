@@ -34,7 +34,7 @@
       return sleep(ms).then(async () => { while (MJ.paused && !this.stopped) await sleep(120); });
     }
     sync() { if (this.ui) this.ui.render(this); }
-    async banner(p, text) { if (this.ui) await this.ui.banner(this, p, text); }
+    async banner(p, text, opt) { if (this.ui) await this.ui.banner(this, p, text, opt); }
     sfx(name) { if (this.ui && this.ui.sfx) this.ui.sfx(name); }
     speak(p, key, tsumo) { if (this.ui && !p.isHuman && p.char.lines && p.char.lines[key]) this.ui.speak(this, p, key === 'win' ? MJ.winWords(p.char.lines[key], tsumo) : p.char.lines[key]); }
 
@@ -469,7 +469,7 @@
     }
 
     async winTsumo(p, res, rinshan) {
-      this.speak(p, 'win', true);
+      if (!(this.ui && this.ui.winFxOn && this.ui.winFxOn() && !this.fast)) this.speak(p, 'win', true); // 派手な演出では、決めゼリフはカットインの中に出す
       this.sync();
       await this.banner(p, 'ツモ');
       const delta = [0, 0, 0, 0];
@@ -494,10 +494,11 @@
       const delta = [0, 0, 0, 0];
       const wins = [];
       let first = true;
+      const fxOn = !!(this.ui && this.ui.winFxOn && this.ui.winFxOn() && !this.fast); // 派手な演出では、決めゼリフはカットインの中に出す
       for (const q of winners) {
-        this.speak(q, 'win');
+        if (!fxOn) this.speak(q, 'win');
         this.sync();
-        await this.banner(q, 'ロン');
+        if (first || !fxOn) await this.banner(q, 'ロン', fxOn ? { all: winners } : undefined); // ダブロンの演出は、1回にまとめる
         const res = MJ.evaluate(this.buildCtx(q, tile, false));
         const pay = MJ.payments(res, q.seat === this.dealer, false, first ? this.honba : 0);
         delta[from.seat] -= pay.ron; delta[q.seat] += pay.ron;
