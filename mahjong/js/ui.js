@@ -1115,8 +1115,8 @@
 
     /* ---------- 演出 ---------- */
     /* キャラの顔: どこでも同じ「輪郭の切り抜き(首元まで・丸い枠なし)」。自分のシルエットだけは正方形の画像 */
-    faceImg(ch, cls = '') {
-      if (ch && ch.face) return `<img class="fcut ${cls}" src="${ch.face}" alt="">`;
+    faceImg(ch, cls = '', seat = -1) {
+      if (ch && ch.face) return `<img class="fcut ${cls}" src="${seat >= 0 && MJ.faceFlipped(ch, seat) ? ch.face.replace(/\.png$/, '_f.png') : ch.face}" alt="">`;
       if (ch && ch.img) return `<img class="fyou ${cls}" src="${ch.img}" alt="">`;
       return '';
     },
@@ -1178,9 +1178,9 @@
       const line = MJ.winWords(((p.char && p.char.lines && p.char.lines.win) || `${text}!`), text === 'ツモ').split(/[。]/)[0].slice(0, 22);
       const fx = document.createElement('div');
       fx.className = 'winfx';
-      fx.innerHTML = `<div class="wf-dim"></div><div class="wf-rays"></div><div class="wf-slash"></div>${this.faceImg(p.char, 'wf-face1')}<div class="wf-line">${line}</div>
+      fx.innerHTML = `<div class="wf-dim"></div><div class="wf-rays"></div><div class="wf-slash"></div>${this.faceImg(p.char, 'wf-face1', p.seat)}<div class="wf-line">${line}</div>
         <svg class="wf-svg" viewBox="0 0 720 428" preserveAspectRatio="none">${bolt(9, -18, 2150)}${bolt(4, 46, 2260)}${bolt(14, 6, 2380)}${bolt(3, -52, 2480)}</svg>
-        <div class="wf-flash" style="--tx:${tg.x}px;--ty:${tg.y}px"></div><div class="wf-ring"></div>${this.faceImg(p.char, 'wf-face2')}<div class="wf-ron">${text}!!!</div>`;
+        <div class="wf-flash" style="--tx:${tg.x}px;--ty:${tg.y}px"></div><div class="wf-ring"></div>${this.faceImg(p.char, 'wf-face2', p.seat)}<div class="wf-ron">${text}!!!</div>`;
       sc.appendChild(fx);
       const hit = (cls) => { const el = text === 'ロン' ? $('#table .tile.hl') : $('#mine .hand .tile.drawn'); if (el) el.classList.toggle('wf-hit', cls); };
       MJ.SFX.don(0.9);
@@ -1263,7 +1263,7 @@
       host.querySelectorAll(`.say.sy${p.seat}`).forEach((x) => x.remove());
       const el = document.createElement('div');
       el.className = `say sy${p.seat}`;
-      el.innerHTML = `${this.faceImg(p.char)}<div class="sb2"><small>${p.name}</small>${text}</div>`; // 顔(首元まで)の切り抜き(輪郭だけ・丸い枠なし)
+      el.innerHTML = `${this.faceImg(p.char, '', p.seat)}<div class="sb2"><small>${p.name}</small>${text}</div>`; // 顔(首元まで)の切り抜き(輪郭だけ・丸い枠なし)
       host.appendChild(el);
       setTimeout(() => el.remove(), 3600);
     },
@@ -1275,7 +1275,7 @@
       this.clearSeat(p.seat);
       const el = document.createElement('div');
       el.className = 'cutin'; el.dataset.seat = p.seat;
-      el.innerHTML = `${this.faceImg(p.char)}<div class="ct"><small>${p.name}</small>${text}</div>`;
+      el.innerHTML = `${this.faceImg(p.char, '', p.seat)}<div class="ct"><small>${p.name}</small>${text}</div>`;
       host.appendChild(el);
       setTimeout(() => el.remove(), 2600);
     },

@@ -7,6 +7,11 @@
   });
   const STYLE_JP = { attack: '攻め', defense: '守り', balanced: 'バランス' };
   MJ.STYLE_JP = STYLE_JP;
+  /* 顔の向き: 席ごとに、顔がテーブルの中央を向くように、左右反転した絵を使う。
+     席: 1=下家(右) 2=対面(上) 3=上家(左)。ねずみ小僧・大岡越前・遠山の金さん・西郷隆盛は、元の絵を対面と上家に、反転を下家に。
+     それ以外は、元の絵を対面と下家に、反転を上家に使う */
+  const FLIP_RIGHT = new Set([2, 3, 4, 10]);
+  MJ.faceFlipped = (ch, seat) => !!ch && ch.id > 0 && (FLIP_RIGHT.has(ch.id) ? seat === 1 : seat === 3);
   /* 上がりのセリフは「ロン」で書いてある。ツモのときは「ツモ」に言い換える(ツモなのに「ロンぜよ」と言わないように) */
   MJ.winWords = (text, tsumo) => (tsumo ? String(text == null ? '' : text).replace(/ロン/g, 'ツモ') : text);
   MJ.LEVEL_JP = ['', '入門', '初級', '中級', '上級', '達人'];
