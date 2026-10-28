@@ -914,6 +914,20 @@
       if (!dv) return '';
       return `<b class="dgl ${dv.cls}">${dv.sym} 安全度 ${dv.stars}</b> (${dv.who}に対して約${dv.score}%・${dv.tag})<br><span class="cc-s">${dv.why}</span>`;
     },
+    /* 先生なしのときの「解説」: 対局の事実だけ(局・ドラ・点数と順位)。おすすめや役の候補は出さない */
+    factsHtml(g) {
+      if (!g || !g.doraInd || !g.live) return '<div class="cc"><div class="cc-h">いまの場</div><div class="cc-b">対局がはじまると、ここに場の情報が出ます。</div></div>';
+      const fmtS = (n) => n.toLocaleString('ja-JP');
+      const W = (p) => MJ.windName(g.seatWindOf(p));
+      const dora = g.doraInd.map((d) => `<span class="ft">${MJ.tileHTML(d.t, 't-m', '', d.red)}<i>→</i>${MJ.tileHTML(MJ.doraOf(d.t), 't-m')}</span>`).join('');
+      const me = g.players[0];
+      const info = `<div class="cc"><div class="cc-h">いまの場</div><div class="cc-b"><ul class="cc-ul"><li>${g.kyokuLabel()}　山の残り <b>${g.live.length}</b>枚</li><li>あなたは <b>${W(me)}家</b>${me.seat === g.dealer ? '(親)' : `　親は ${g.players[g.dealer].name}`}</li>${g.kyotaku ? `<li>供託 <b>${g.kyotaku}</b>本(${fmtS(g.kyotaku * 1000)}点)</li>` : ''}</ul></div></div>`
+        + `<div class="cc"><div class="cc-h">ドラ</div><div class="cc-b"><div class="ftl">${dora}</div></div></div>`;
+      const ord = g.players.map((p, i) => ({ p, i })).sort((a, b) => b.p.score - a.p.score || a.i - b.i);
+      const top = ord[0].p.score;
+      const rows = ord.map((o, k) => `<li class="ftr${o.i === 0 ? ' me' : ''}"><b>${k + 1}位</b> ${o.i === 0 ? 'あなた' : o.p.name} <b>${fmtS(o.p.score)}</b>点${k ? ` <small>(−${fmtS(top - o.p.score)})</small>` : ''}${o.p.riichi ? ' <span class="chip r">リーチ</span>' : ''}</li>`).join('');
+      return info + `<div class="cc"><div class="cc-h">いまの点数</div><div class="cc-b"><ul class="cc-ul">${rows}</ul></div></div>`;
+    },
     /* 対局中に見られる、自分の切り牌ログ(危険度は対局中に見える情報=リーチだけで判定。相手の手は使わない) */
     showTimeline() {
       const g = this.game;
@@ -967,14 +981,14 @@
       if (!g) return;
       const m = MJ.Coach.MODES[g.mode];
       let body;
-      if (!this.coachActive()) body = '<div class="cc"><div class="cc-h">先生なし</div></div>';
+      if (!this.coachActive()) body = this.factsHtml(g);
       else if (this.coachHtml) {
         // 「この局のポイント」は最初の1巡だけ先頭に出し、その後は最後のページに回す
         const tip = this.tipHtml || '';
         body = g.players[0].discards.length < 1 ? tip + this.coachHtml : this.coachHtml + tip;
       }
       else body = g.mode === 'free' ? '<div class="cc"><div class="cc-h">先生</div><div class="cc-b">自分の番になると、おすすめの牌と理由が出ます。</div></div>' : `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
-      el.innerHTML = `<div class="ch"><b>🎓 ${g.mode === 'free' ? '先生' : m.name}</b><span class="chb"><button class="btn sm" data-open-yaku>役一覧</button><button class="btn sm" data-open-gloss>用語</button><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
+      el.innerHTML = `<div class="ch"><b>🎓 ${!this.coachActive() ? 'いまの場' : g.mode === 'free' ? '先生' : m.name}</b><span class="chb"><button class="btn sm" data-open-yaku>役一覧</button><button class="btn sm" data-open-gloss>用語</button><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
       if (this.coachActive()) this.addReadFrom(el);

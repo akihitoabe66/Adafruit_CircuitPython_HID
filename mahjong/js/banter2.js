@@ -272,6 +272,9 @@
   const spoken = { hand: -1 }; // 1局に1回ずつ出すセリフの管理
 
   /* リーチがあったとき: 向かい(対面)の人がリーチなら、向かいに座っているキャラが、ほぼ必ず反応する */
+  // 現物切り(降り)へのひとこと: どのキャラも同じ言い回し
+  const GEN = ['それを捨てるとは、勝負を捨てたな!'], AVO = ['一発回避したな!'];
+  Object.keys(B.lines).forEach((id) => { B.lines[id].genbutsu = GEN; B.lines[id].avoid = AVO; });
   const baseRiichi = B.riichi;
   B.riichi = function (game, p) {
     const opp = game.players[(p.seat + 2) % 4];
@@ -279,8 +282,24 @@
     baseRiichi.call(B, game, p);
   };
   /* 切った牌のあと: リーチ者がいる間の「次は誰が動くか…」、終盤・ラストのひとこと */
+  const pend = new Set(); let genbSaid = false; // pend=あなたが切ったとき一発中だったリーチ者
+  /* 一発の巡が、ロンされずに過ぎたとき(リーチ者が、一発のまま次の牌を引いた): あなたの打牌が一発をかわした */
+  B.ippatsuAvoided = function (game, p) {
+    if (game.fast || !B.on || !p || p.isHuman || !p.riichi || !p.ippatsu) return;
+    if (!pend.has(p)) return;
+    pend.delete(p);
+    if (genbSaid) return;
+    if (Math.random() < 0.6) B.say(game, p, 'avoid', { force: true });
+  };
   const baseDiscard = B.discard;
   B.discard = function (game, p, tile) {
+    // リーチした直後の一発の巡だけ: あなたがリーチ者の現物(河にある牌)を切ったら、勝負から降りた、と言われる
+    if (p.isHuman && !game.fast && B.on) {
+      pend.clear(); genbSaid = false;
+      game.players.forEach((q) => { if (!q.isHuman && q.riichi && q.ippatsu) pend.add(q); });
+      const ro = game.players.filter((q) => !q.isHuman && q.riichi && q.ippatsu && q.discards.some((d) => d.tile && d.tile.t === tile.t));
+      if (ro.length && Math.random() < 0.7 && B.say(game, pick(ro), 'genbutsu', { force: true })) { genbSaid = true; return; }
+    }
     baseDiscard.call(B, game, p, tile);
     if (game.fast || !B.on) return;
     const live = game.live ? game.live.length : 99;

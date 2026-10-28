@@ -925,3 +925,7 @@ ruby { white-space: nowrap; }
 rt { white-space: nowrap; }
 .note, .gp2-body, #gloss-panel { line-height: 2.15; }
 .note td, .note th { line-height: 2.1; padding-top: 6px; padding-bottom: 6px; }
+/* 先生なしの「解説」: 場の事実 */
+.ftl { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ft { display: inline-flex; align-items: center; gap: 3px; } .ft i { font-style: normal; color: #ffd35a; margin: 0 2px; }
+.ftr.me { color: #ffe27a; }

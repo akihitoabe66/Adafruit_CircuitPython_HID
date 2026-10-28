@@ -216,6 +216,7 @@
         if (drawMode === 'normal') {
           if (this.live.length === 0) return this.exhaustive();
           this.draw(p);
+          if (this.ui && MJ.Banter && MJ.Banter.ippatsuAvoided) MJ.Banter.ippatsuAvoided(this, p);
         } else if (drawMode === 'rinshan') { this.drawRinshan(p); rinshan = true; }
         drawMode = 'normal';
         p.tempFuriten = p.riichi ? p.tempFuriten : false;
