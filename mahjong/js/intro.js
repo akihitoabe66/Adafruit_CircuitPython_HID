@@ -35,7 +35,7 @@
         const seat = (s, cls) => {
           const p = game.players[s], ch = p.char || {};
           const lv = ch.level || 0;
-          return `<div class="in-seat ${cls}">${MJ.UI.faceImg(ch, '', s)}<div class="in-nm">${p.name}<small>${lv ? '★'.repeat(lv) + ' ' + (MJ.LEVEL_JP[lv] || '') : ''}</small></div></div>`;
+          return `<div class="in-seat ${cls}">${MJ.UI.faceImg(ch, '', s)}<div class="in-nm">${p.name}<small>${lv ? '★'.repeat(lv) : ''}</small></div></div>`;
         };
         const me = () => { const p = game.players[0]; return `<div class="in-seat me">${MJ.UI.faceImg(p.char)}<div class="in-nm">あなた</div></div>`; };
         const len = { east: '東風戦', south: '東南戦', single: '一局戦' }[game.length] || '東風戦';

@@ -111,7 +111,7 @@
     renderChars() {
       $('#chars').innerHTML = MJ.CHARS.map((c) => {
         const n = this.picks.indexOf(c.id) + 1;
-        return `<button class="char${n ? ' sel' : ''}" data-id="${c.id}" ${n ? `data-n="${n}"` : ''}><img src="${c.img}" alt=""><div class="cn">${c.name}</div><div class="cl"><span class="stars">${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)}</span> ${MJ.LEVEL_JP[c.level]}・${MJ.STYLE_JP[c.style]}</div></button>`;
+        return `<button class="char${n ? ' sel' : ''}" data-id="${c.id}" ${n ? `data-n="${n}"` : ''}><img src="${c.img}" alt=""><div class="cn">${c.name}</div><div class="cl"><span class="stars">${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)}</span>・${MJ.STYLE_JP[c.style]}</div></button>`;
       }).join('');
       $('#sel-bar').innerHTML = [0, 1, 2].map((i) => {
         const c = MJ.CHARS.find((x) => x.id === this.picks[i]);
@@ -125,7 +125,7 @@
     confirmStart() {
       if (this.picks.length !== 3) return;
       const cs = this.picks.map((id) => MJ.CHARS.find((c) => c.id === id));
-      MJ.UI.overlay(`<div class="cfm"><h2>この3人と対戦しますか?</h2><div class="cfm-row">${cs.map((c) => `<div class="cfm-c"><img src="${c.img}" alt=""><b>${c.name.replace(/\(.*$/, '')}</b><span>${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)} ${MJ.LEVEL_JP[c.level]}</span></div>`).join('')}</div><p class="sub">${MJ.rulesSummary()}</p><div class="cfm-btns"><button class="btn big" id="cfm-cancel">キャンセル</button><button class="btn pri big" id="cfm-go">対局開始</button></div></div>`, { plain: true });
+      MJ.UI.overlay(`<div class="cfm"><h2>この3人と対戦しますか?</h2><div class="cfm-row">${cs.map((c) => `<div class="cfm-c"><img src="${c.img}" alt=""><b>${c.name.replace(/\(.*$/, '')}</b><span>${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)}</span></div>`).join('')}</div><p class="sub">${MJ.rulesSummary()}</p><div class="cfm-btns"><button class="btn big" id="cfm-cancel">キャンセル</button><button class="btn pri big" id="cfm-go">対局開始</button></div></div>`, { plain: true });
       document.querySelector('#cfm-cancel').addEventListener('click', () => MJ.UI.closeOverlay());
       document.querySelector('#cfm-go').addEventListener('click', () => { MJ.UI.closeOverlay(); this.start(); });
     },
@@ -135,7 +135,7 @@
       else if (this.picks.length < 3) this.picks.push(id);
       else { this.picks.shift(); this.picks.push(id); }
       const c = MJ.CHARS.find((x) => x.id === id);
-      $('#char-detail').innerHTML = `<b>${c.name}</b>(${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)} ${MJ.LEVEL_JP[c.level]}・${MJ.STYLE_JP[c.style]})<br>${c.desc}`;
+      $('#char-detail').innerHTML = `<b>${c.name}</b>(${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)}・${MJ.STYLE_JP[c.style]})<br>${c.desc}`;
       this.renderChars();
       if (this.picks.length === 3 && i < 0) this.confirmStart();
     },
