@@ -282,7 +282,7 @@
       <button class="btn big" data-open-rules>⚙ ルール</button>
       <button class="btn big" data-open-credits>ℹ クレジット</button>
       <button class="btn big" id="st-reset">🗑 セーブのリセット</button>
-    </div><div class="res-foot"><button class="btn big" id="st-close">もどる</button></div>`, { plain: true });
+    </div><div class="res-foot"><button class="btn big" id="st-close">◀ もどる</button></div>`, { plain: true });
     const o = document.querySelector('#overlay');
     o.querySelector('#st-close').addEventListener('click', () => MJ.UI.closeOverlay());
     const TL = { off: 'なし', normal: 'ふつう', slow: 'ゆっくり' };
@@ -304,7 +304,7 @@
     });
     o.querySelector('#st-notes').addEventListener('click', () => { MJ.UI.closeOverlay(); MJ.App.openNotes(); });
     o.querySelector('#st-audio').addEventListener('click', () => {
-      MJ.UI.overlay(`<h2>🔊 音の大きさ</h2>${AUDIO_HTML}<div class="res-foot"><button class="btn pri big" id="au-close">もどる</button></div>`, { plain: true });
+      MJ.UI.overlay(`<h2>🔊 音の大きさ</h2>${AUDIO_HTML}<div class="res-foot"><button class="btn pri big" id="au-close">◀ もどる</button></div>`, { plain: true });
       MJ.UI.syncAudio();
       document.querySelector('#au-close').addEventListener('click', () => showSettings());
     });

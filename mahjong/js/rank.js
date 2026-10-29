@@ -67,7 +67,7 @@
         px(355, 445, f.name.length > 2 ? 52 : 70, f.name) + px(705, 349, 40, f.name, 'dk') +
         (f.next ? px(1068, 358, 28, f.next) + px(1093, 446, f.left >= 1000 ? 40 : 48, String(f.left), 'num') : px(1090, 446, 34, 'いちばん上')) +
         `<div class="rk-bar" style="left:${(531 / 14.04).toFixed(2)}%;top:${(506 / 7.68).toFixed(2)}%;width:${(350 / 14.04).toFixed(2)}%;height:${(46 / 7.68).toFixed(2)}%"><i style="width:${Math.max(f.prog > 0 ? 4 : 0, Math.round(f.prog * 100))}%"></i></div>` + (f.next ? px(706, 529, 26, `${f.s.pt - f.base} / ${f.next_pt - f.base} 点`, 'num') : '') + px(1037, 563, f.name.length > 2 ? 24 : 31, f.name.split('').join('<br>'), 'v') + px(705, 622, 24, `${f.s.games} 戦 打ちました`) +
-        `<div class="rk-btns">${opt.auto ? '' : '<button class="rk-b" data-rk="stats" type="button">対戦成績</button>'}${f.s.games && !opt.auto ? '<button class="rk-b" data-rk="cert" type="button">認定証</button>' : ''}<button class="rk-b main" data-rk="close" type="button">${opt.auto ? 'すすむ' : 'もどる'}</button></div></div>`;
+        `<div class="rk-btns">${opt.auto ? '' : '<button class="rk-b" data-rk="stats" type="button">対戦成績</button>'}${f.s.games && !opt.auto ? '<button class="rk-b" data-rk="cert" type="button">認定証</button>' : ''}<button class="rk-b main" data-rk="close" type="button">${opt.auto ? 'すすむ' : '◀ もどる'}</button></div></div>`;
       p.querySelector('.rk-st').style.setProperty('--w', '1');
       if (opt.auto) R._t = setTimeout(R.close, 3200);
     },
@@ -84,13 +84,13 @@
       p.innerHTML = `<div class="rk-st rk-stats"><div class="rk-ttl">📊 対戦成績</div><div class="me"><img src="${you}" alt=""><div class="dan">${f.name}</div><div class="sm">平均順位 ${avg}位</div></div>
         <div class="rk4">${bars}</div><div class="cpus">${rows}</div>
         <div class="num"><div>対局数<b>${total}</b></div><div>1位の割合<b>${total ? Math.round(s.ranks[0] / total * 100) : 0}%</b></div></div>
-        <div class="rk-btns bot"><button class="rk-b" data-rk="prev" type="button"${pg === 0 ? ' disabled' : ''}>◀ まえ</button><button class="rk-b" data-rk="next" type="button"${pg >= pages - 1 ? ' disabled' : ''}>つぎ ▶</button><button class="rk-b main" data-rk="back" type="button">もどる</button></div></div>`;
+        <div class="rk-btns bot"><button class="rk-b" data-rk="prev" type="button"${pg === 0 ? ' disabled' : ''}>◀ まえ</button><button class="rk-b" data-rk="next" type="button"${pg >= pages - 1 ? ' disabled' : ''}>つぎ ▶</button><button class="rk-b main" data-rk="back" type="button">◀ もどる</button></div></div>`;
     },
     /* 認定証: 「あなた 殿」と、あなたの絵が入る */
     drawCert(p, opt) {
       const name = opt.dan || R.label();
       const you = `img/you/${String(MJ.youIndex()).padStart(2, '0')}.jpg`;
-      p.innerHTML = `<div class="rk-st rk-cert"><div class="cert"><img src="img/cert.webp" alt="段位認定証"><span class="cd">${name}</span><span class="cn">あなた</span><div class="cph" style="background-image:url(${you})"></div></div><div class="rk-btns bot"><button class="rk-b main" data-rk="${opt.after ? 'close' : 'back'}" type="button">${opt.after ? 'つぎへ' : 'もどる'}</button></div></div>`;
+      p.innerHTML = `<div class="rk-st rk-cert"><div class="cert"><img src="img/cert.webp" alt="段位認定証"><span class="cd">${name}</span><span class="cn">あなた</span><div class="cph" style="background-image:url(${you})"></div></div><div class="rk-btns bot"><button class="rk-b main" data-rk="${opt.after ? 'close' : 'back'}" type="button">${opt.after ? 'つぎへ' : '◀ もどる'}</button></div></div>`;
     },
     /* 1日の最初の1回だけ、「あなたの段位」を見せる(まだ1戦も打っていないときは出さない) */
     daily() {

@@ -1004,3 +1004,16 @@ body:not(.title-ready) #screen-title::after { content: "よみこみ中…"; pos
 body.rot #rk-panel { inset: auto; left: 0; top: 0; width: var(--vh); height: var(--vw); transform-origin: 0 0; transform: translate(var(--vw), 0) rotate(90deg); }
 body.rot .rk-st { width: min(var(--vh), calc(var(--vw) * 1.8281)); }
 body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--vh) * 1.35)); }
+
+/* ===== 「もどる」の位置: クイズ・参考書は左上、段位と認定証は中央、成績は左下 ===== */
+.rk-btns .rk-b.main { order: -1; }
+.rk-stats .rk-btns.bot { justify-content: flex-start; padding-left: 2cqw; }
+.rk-st:not(.rk-stats) .rk-btns { justify-content: center; }
+/* 対戦成績(スマホでも重ならない配置): 対局数・1位の割合は、左下の小さな枠 */
+.rk-stats .me { height: 40cqw; padding: 3cqw 1cqw 0; }
+.rk-stats .me img { width: 17cqw; height: 17cqw; }
+.rk-stats .dan { font-size: 5.4cqw; margin-top: 1.2cqw; } .rk-stats .sm { font-size: 2.6cqw; margin-top: .8cqw; white-space: nowrap; }
+.rk-stats .num { left: 3cqw; width: 23cqw; bottom: 1.4cqw; grid-template-columns: 1fr 1fr; gap: .8cqw; }
+.rk-stats .num div { padding: .2cqw .2cqw; font-size: 1.6cqw; line-height: 1.2; white-space: nowrap; }
+.rk-stats .num b { font-size: 3cqw; line-height: 1.1; }
+.rk-stats .rk-btns.bot { left: 27cqw; right: auto; padding-left: 0; }

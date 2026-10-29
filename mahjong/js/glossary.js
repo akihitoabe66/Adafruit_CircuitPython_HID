@@ -312,7 +312,7 @@
         const list = hits(), pages = Math.max(1, Math.ceil(list.length / PER));
         st.page = Math.max(0, Math.min(pages - 1, st.page));
         const title = st.cat === '役' ? '📖 役一覧' : '📚 用語辞典';
-        const top = `<button class="gp2-back" id="gp2-back" type="button">← もどる</button><div class="gp2-title">${title}</div><input id="gp-q" class="gp2-q" type="search" placeholder="言葉で探す(例: ダマ)" autocomplete="off" value="${st.q.replace(/"/g, '&quot;')}">`;
+        const top = `<button class="gp2-back" id="gp2-back" type="button">◀ もどる</button><div class="gp2-title">${title}</div><input id="gp-q" class="gp2-q" type="search" placeholder="言葉で探す(例: ダマ)" autocomplete="off" value="${st.q.replace(/"/g, '&quot;')}">`;
         const cats = ['すべて'].concat(CATS).map((c, i) => `<button class="gp2-chip${(i === 0 ? '' : c) === st.cat ? ' on' : ''}" data-gc="${i === 0 ? '' : c}" type="button">${c}</button>`).join('');
         let main;
         if (st.view === 'list') {
