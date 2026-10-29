@@ -946,7 +946,11 @@
       const m = this.thinkMode();
       if (m === 'off' || !p.isHuman || p.riichi || game.fast) return;
       const k = m === 'slow' ? 1.6 : 1;
-      this._thT = [30, 60, 120].map((s, i) => setTimeout(() => { if (this.sel && this.sel.type === 'self' && this.game === game && !document.querySelector('#overlay .modal')) MJ.Banter.think(game, i); }, s * 1000 * k));
+      const say = (i) => { if (this.sel && this.sel.type === 'self' && this.game === game && !document.querySelector('#overlay .modal')) MJ.Banter.think(game, i); };
+      this._thT = [30, 60, 120].map((s, i) => setTimeout(() => say(i), s * 1000 * k));
+      // 180秒(3分)で1セリフ、それ以降は3分ごとに、ずっと続ける(番が終わるまで)
+      const loop = () => { say(3); this._thT.push(setTimeout(loop, 180 * 1000 * k)); };
+      this._thT.push(setTimeout(loop, 180 * 1000 * k));
     },
     stopThink() { (this._thT || []).forEach(clearTimeout); this._thT = []; },
     askSelf(game, p, opts, st) {

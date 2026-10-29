@@ -361,9 +361,17 @@
     think(game, stage) {
       const c = B.cpus(game);
       if (!c.length || !B.on || game.fast) return false;
-      const p = pick(c), lines = TH[p.char.id];
+      // 直前に話した人は避ける(3分ごとの放置のセリフで、同じ人が続かないように)
+      const cc = stage >= 3 && c.length > 1 ? c.filter((q) => q.seat !== B._lastThinker) : c;
+      const p = pick(cc), lines = TH[p.char.id];
       if (!lines) return false;
-      const text = lines[Math.min(stage, 2)];
+      B._lastThinker = p.seat;
+      let text;
+      if (stage >= 3) { // 3分以降(3分ごと): 長時間用のセリフを順番に
+        const L3 = (MJ.BanterLONG && MJ.BanterLONG[p.char.id]) || lines;
+        B._longN = (B._longN || 0) + 1;
+        text = L3[(B._longN - 1 + p.seat) % L3.length];
+      } else text = lines[Math.min(stage, 2)];
       const t = text[0] === '!' ? text.slice(1) : text; // カットインは使わず、ふつうの吹き出しだけ
       lastAt = Date.now();
       game.ui.speak(game, p, t);
