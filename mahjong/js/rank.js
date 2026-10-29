@@ -66,7 +66,7 @@
       p.innerHTML = `<div class="rk-st rk-bg"><img class="rk-bgi" src="img/rank_bg.webp" alt="">` +
         px(355, 445, f.name.length > 2 ? 52 : 70, f.name) + px(705, 349, 40, f.name, 'dk') +
         (f.next ? px(1068, 358, 28, f.next) + px(1093, 446, f.left >= 1000 ? 40 : 48, String(f.left), 'num') : px(1090, 446, 34, 'いちばん上')) +
-        `<div class="rk-bar" style="left:${(531 / 14.04).toFixed(2)}%;top:${(506 / 7.68).toFixed(2)}%;width:${(350 / 14.04).toFixed(2)}%;height:${(46 / 7.68).toFixed(2)}%"><i style="width:${Math.max(f.prog > 0 ? 4 : 0, Math.round(f.prog * 100))}%"></i></div>` + (f.next ? px(706, 529, 26, `${f.s.pt - f.base} / ${f.next_pt - f.base} 点`, 'num') : '') + px(1041, 563, f.name.length > 2 ? 24 : 31, f.name.split('').join('<br>'), 'v') + px(705, 622, 24, `${f.s.games} 戦 打ちました`) +
+        `<div class="rk-bar" style="left:${(531 / 14.04).toFixed(2)}%;top:${(506 / 7.68).toFixed(2)}%;width:${(350 / 14.04).toFixed(2)}%;height:${(46 / 7.68).toFixed(2)}%"><i style="width:${Math.max(f.prog > 0 ? 4 : 0, Math.round(f.prog * 100))}%"></i></div>` + (f.next ? px(706, 529, 26, `${f.s.pt - f.base} / ${f.next_pt - f.base} 点`, 'num') : '') + px(1037, 563, f.name.length > 2 ? 24 : 31, f.name.split('').join('<br>'), 'v') + px(705, 622, 24, `${f.s.games} 戦 打ちました`) +
         `<div class="rk-btns">${opt.auto ? '' : '<button class="rk-b" data-rk="stats" type="button">対戦成績</button>'}${f.s.games && !opt.auto ? '<button class="rk-b" data-rk="cert" type="button">認定証</button>' : ''}<button class="rk-b main" data-rk="close" type="button">${opt.auto ? 'すすむ' : 'もどる'}</button></div></div>`;
       p.querySelector('.rk-st').style.setProperty('--w', '1');
       if (opt.auto) R._t = setTimeout(R.close, 3200);
