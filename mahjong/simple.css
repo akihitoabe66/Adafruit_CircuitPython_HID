@@ -1048,3 +1048,26 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 .dq-fa { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
 .mascot.ms-fb { position: static; margin: 0 auto 0 44px; } .ms-fb img.tcut { height: 56px; } .ms-fb .mb { margin-bottom: 6px; font-size: 15px; }
 #dr .dr-top h2 { right: 252px !important; }
+
+/* 麻雀先生の評価・特訓 */
+.ev { position: absolute; left: 36px; right: 36px; top: 62px; bottom: 8px; display: grid; grid-template-columns: 250px 1fr; grid-template-rows: auto 1fr; gap: 6px 18px; }
+.ev-top { display: flex; flex-direction: column; align-items: center; gap: 6px; grid-row: 1 / 3; }
+.ev-top img.tcut { height: 96px; width: auto; }
+.ev-say { background: #fffdf0; color: #16160f; border: 3px solid #ffd23f; border-radius: 14px; padding: 8px 12px; font-size: 17px; font-weight: 900; line-height: 1.4; }
+.ev-bars { display: grid; gap: 3px; align-content: start; }
+.ev-r { display: grid; grid-template-columns: 200px 1fr 54px; align-items: center; gap: 8px; font-size: 16px; font-weight: 900; padding: 1px 8px; border-radius: 8px; }
+.ev-r.weak { background: rgba(229, 57, 53, .25); }
+.ev-b { height: 14px; border-radius: 7px; background: #20352d; overflow: hidden; } .ev-b u { display: block; height: 100%; background: linear-gradient(#ffe27a, #e6a21a); text-decoration: none; }
+.ev-r.weak .ev-b u { background: linear-gradient(#ff8a7a, #e53935); }
+.ev-p { text-align: right; font-size: 17px; color: #ffe27a; }
+.ev-act { display: flex; justify-content: flex-end; align-items: end; }
+.ev-act .btn { font-size: 24px; padding: 10px 24px; }
+.ev-res { grid-column: 2; display: grid; gap: 8px; align-content: center; }
+.ev-res .big { font-size: 40px; font-weight: 900; color: #ffe27a; }
+.ev-res .row { background: rgba(0,0,0,.3); border-radius: 12px; padding: 6px 14px; font-size: 20px; font-weight: 900; display: flex; justify-content: space-between; }
+.ev-res .row b { color: #ffe27a; }
+.ev-res .ev-act { gap: 10px; justify-content: flex-start; } .ev-res .ev-act .btn { font-size: 20px !important; padding: 8px 18px !important; white-space: nowrap; width: auto !important; min-width: 0 !important; }
+.ev-res .btn.pri { color: #1b1b12 !important; }
+.ev-d { color:#cfe; font-size:18px; } .ev-res .row { gap:10px; } .ev-res .row span:first-child { flex:1; }
+.ev-go { font-size: 20px !important; margin-right: 10px; }
+.ev-r { gap: 6px; font-size: 15px; padding: 0 8px; } .ev-n { white-space: nowrap; } .ev-bars { gap: 2px; }

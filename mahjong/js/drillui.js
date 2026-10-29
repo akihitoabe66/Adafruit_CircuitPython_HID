@@ -38,8 +38,74 @@
       this.renderHome();
     },
 
+    /* 直近30問の記録(評価・特訓に使う) */
+    logAns(id, ok) { try { const l = JSON.parse(localStorage.getItem('mj_dlog') || '[]'); l.push([id, ok ? 1 : 0]); while (l.length > 30) l.shift(); localStorage.setItem('mj_dlog', JSON.stringify(l)); } catch (e) { /* ignore */ } },
+    recent() { try { return JSON.parse(localStorage.getItem('mj_dlog') || '[]'); } catch (e) { return []; } },
+    /* 麻雀先生の評価: 直近30問の種類ごとの正解率。3問以上の種類だけ判定し、苦手(正解率の低い順)を2つ選ぶ */
+    evaluate() {
+      const l = this.recent(), by = {};
+      l.forEach(([id, ok]) => { const c = (by[id] = by[id] || { n: 0, ok: 0 }); c.n++; c.ok += ok; });
+      const rows = MJ.DRILLS.filter((d) => !/^st_/.test(d.id)).map((d) => { const c = by[d.id] || { n: 0, ok: 0 }; return { d, n: c.n, ok: c.ok, rate: c.n ? c.ok / c.n : null }; });
+      const judged = rows.filter((r) => r.n >= 3).sort((a, b) => a.rate - b.rate || b.n - a.n);
+      const weak = judged.filter((r) => r.rate < 0.8).slice(0, 2);
+      const best = judged.slice().sort((a, b) => b.rate - a.rate)[0];
+      const tot = l.length, okn = l.reduce((a, x) => a + x[1], 0);
+      return { rows, weak, best, tot, okn, rate: tot ? okn / tot : null };
+    },
+    shortName(d) { return ({ keep: '数牌と役牌どっち?', def: '安全牌を選ぼう', eff: '何を切る?', call: '鳴く?見送る?', short: '最短の役は?', ana: '穴あきクイズ', score: '点数計算' })[d.id] || d.name.replace(/\(.*\)/, ''); },
+    openEval() {
+      const e = this.evaluate(); this.eval = e;
+      { const qm = $('#dr .ms-quiz'); if (qm) qm.remove(); }
+      $('#drill-title').textContent = '🎓 麻雀先生の評価'; $('#drill-score').textContent = '';
+      $('#drill-quiz').classList.add('hidden'); $('#drill-home').classList.remove('hidden'); this.view = 'eval'; this.mode = 'eval';
+      const pct = (r) => (r == null ? '-' : Math.round(r * 100) + '%');
+      const mood = e.tot < 5 ? 'greet' : e.rate >= 0.8 ? 'ok' : e.rate >= 0.5 ? 'advice' : 'cheer';
+      const lead = e.tot < 5 ? 'まだ問題が少ないので、判定できません。まずは、いろいろ解いてみましょう。' : `直近${e.tot}問で、${e.okn}問 正解(${pct(e.rate)})。${e.best ? `${this.shortName(e.best.d)}が得意です。` : ''}${e.weak.length ? `${e.weak.map((w) => w.d.name.replace(/\(.*\)/, '')).join('と')}を、特訓しましょう。` : '苦手は、見当たりません。すばらしい!'}`;
+      const bars = e.rows.map((r) => `<div class="ev-r${e.weak.some((w) => w.d.id === r.d.id) ? ' weak' : ''}"><span class="ev-n">${r.d.icon} ${this.shortName(r.d)}</span><span class="ev-b"><u style="width:${r.n >= 3 ? Math.round(r.rate * 100) : 0}%"></u></span><span class="ev-p">${r.n >= 3 ? pct(r.rate) : '—'}</span></div>`).join('');
+      $('#drill-home').innerHTML = `<div class="ev"><div class="ev-top">${MJ.UI.teacherImg(mood)}<div class="ev-say">${lead}</div></div><div class="ev-bars">${bars}</div><div class="ev-act">${e.weak.length ? `<button class="btn pri big" id="ev-train" type="button" data-ev="train">🔥 苦手の特訓(10問)</button>` : ''}</div></div>`;
+      this.layout();
+    },
+
+    /* 苦手の特訓: いちばん苦手な種類を6問、2番目を4問(苦手が1つなら10問) */
+    startTrain() {
+      const e = this.evaluate();
+      if (!e.weak.length) return this.openEval();
+      const w = e.weak, plan = [];
+      const n1 = w.length > 1 ? 6 : 10;
+      for (let i = 0; i < n1; i++) plan.push(w[0].d.id);
+      for (let i = n1; i < 10; i++) plan.push(w[1].d.id);
+      plan.sort(() => Math.random() - 0.5); // 同じ種類が続きすぎないように、ばらす
+      this.mode = 'train'; this.backTo = 'menu'; this.view = 'quiz'; this.theme = null; this.lastCatId = null;
+      this.trainPlan = plan; this.trainBefore = e; this.trainRes = {};
+      this.ses = { n: 0, ok: 0, streak: 0, best: 0 };
+      MJ.App.show('drill');
+      this.layout();
+      $('#drill-home').classList.add('hidden');
+      $('#drill-quiz').classList.remove('hidden');
+      this.next();
+    },
+    trainResult() {
+      const e0 = this.trainBefore, ses = this.ses;
+      const nm = (d) => this.shortName(d);
+      const rows = Object.keys(this.trainRes).map((id) => {
+        const d = MJ.DRILLS.find((x) => x.id === id), r = this.trainRes[id], b = e0.rows.find((x) => x.d.id === id);
+        return `<div class="row"><span>${d.icon} ${nm(d)}</span><b>${r.ok}/${r.n}問 正解</b><span class="ev-d">${b && b.rate != null ? Math.round(b.rate * 100) + '%' : '—'} → ${Math.round((r.ok / r.n) * 100)}%</span></div>`;
+      }).join('');
+      const mood = ses.ok >= 8 ? 'ok' : ses.ok >= 5 ? 'cheer' : 'advice';
+      const say = ses.ok >= 8 ? 'すばらしい! 苦手を克服してきましたね。' : ses.ok >= 5 ? 'いい調子です。もう1回やれば、もっと良くなります。' : 'だいじょうぶ。間違えたところが、いちばん伸びるところです。';
+      $('#drill-title').textContent = '🔥 特訓の結果'; $('#drill-score').textContent = '';
+      { const qm = $('#dr .ms-quiz'); if (qm) qm.remove(); }
+      $('#drill-quiz').classList.add('hidden'); $('#drill-home').classList.remove('hidden');
+      this.view = 'result'; this.mode = 'eval';
+      $('#drill-home').innerHTML = `<div class="ev"><div class="ev-top">${MJ.UI.teacherImg(mood)}<div class="ev-say">${say}</div></div><div class="ev-res"><div class="big">${ses.ok} / ${ses.n}問 正解</div>${rows}<div class="ev-act"><button class="btn pri" id="ev-again" type="button" data-ev="train">🔥 もう1回</button><button class="btn" id="ev-see" type="button" data-ev="eval">🎓 評価を見る</button></div></div></div>`;
+      MJ.SFX.play(ses.ok >= 8 ? 'ok' : 'select');
+      this.layout();
+      if (MJ.Pad) { MJ.Pad.cur = null; MJ.Pad.desc = null; MJ.Pad.refocus(); }
+    },
+
     layout() {
       const el = $('#screen-drill');
+      { const d = $('#dr'); if (d) d.dataset.mode = this.mode || ''; }
       if (!el || el.classList.contains('hidden')) return;
       const st = MJ.UI.stageFor(el);
       const S = Math.min(st.h / 428, st.w / 832);
@@ -107,6 +173,7 @@
       $('#dq-sit').innerHTML = '';
       $('#dq-fb').classList.add('hidden');
       $('#dq-actions').classList.add('hidden');
+      if (this.mode === 'train' && this.ses.n >= this.trainPlan.length) return this.trainResult();
       const pre = this.mode === 'auto' ? this.pre : null;
       this.pre = null;
       if (pre) { // ホームにいるあいだに作っておいた問題を、すぐに出す
@@ -118,6 +185,7 @@
       }
       setTimeout(() => {
         this.layout();
+        if (this.mode === 'train') { this.cat = MJ.DRILLS.find((x) => x.id === this.trainPlan[this.ses.n]); } else
         if (this.mode === 'auto') { // 弱いところを中心に、種類を選ぶ
           const id = MJ.pickAutoCat(load(), this.lastCatId);
           this.lastCatId = id;
@@ -135,6 +203,7 @@
 
     scoreText() {
       const s = this.ses;
+      if (this.mode === 'train') return `特訓 ${Math.min(s.n + (this.done ? 0 : 1), 10)}/10問`;
       return `今回 ${s.ok}/${s.n}問 正解${s.streak >= 2 ? ` ・ 🔥${s.streak}連続` : ''}`;
     },
 
@@ -232,6 +301,8 @@
       const c = (st[this.cat.id] = st[this.cat.id] || { n: 0, ok: 0 });
       c.n++; if (good) c.ok++;
       save(st);
+      this.logAns(this.cat.id, good);
+      if (this.mode === 'train') { const t = (this.trainRes[this.cat.id] = this.trainRes[this.cat.id] || { n: 0, ok: 0 }); t.n++; if (good) t.ok++; }
       MJ.SFX.play(good ? 'ok' : r.r === 'near' ? 'select' : 'ng');
       $('#drill-score').textContent = this.scoreText();
       const head = good ? '⭕ 正解!' : r.r === 'near' ? '△ おしい!' : '❌ ちがいます';
@@ -242,7 +313,7 @@
     showFb(head, cls, html) {
       const fb = $('#dq-fb');
       fb.className = `dq-fb ${cls}`;
-      fb.innerHTML = `<div class="dq-fh"><span>${head}</span><span class="pg"></span><button class="btn sm rd" data-read="drill">🔊 読み上げ</button></div><div class="dq-body" id="dq-exp"></div><div class="dq-fa">${cls === 'good' ? MJ.UI.mascotHTML('ok', '正解です!', 'ms-fb') : MJ.UI.mascotHTML('pass', 'おしい! つぎは大丈夫', 'ms-fb')}<button class="btn pri" id="dq-next">次の問題 ▶</button></div><button class="pm-arrow l" id="dq-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="dq-nextp" aria-label="次へ">▶</button>`;
+      fb.innerHTML = `<div class="dq-fh"><span>${head}</span><span class="pg"></span><button class="btn sm rd" data-read="drill">🔊 読み上げ</button></div><div class="dq-body" id="dq-exp"></div><div class="dq-fa">${cls === 'good' ? MJ.UI.mascotHTML('ok', '正解です!', 'ms-fb') : MJ.UI.mascotHTML('pass', 'おしい! つぎは大丈夫', 'ms-fb')}${this.mode === 'auto' ? '<button class="btn sm ev-go" data-ev="eval" type="button">🎓 評価</button>' : ''}<button class="btn pri" id="dq-next">次の問題 ▶</button></div><button class="pm-arrow l" id="dq-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="dq-nextp" aria-label="次へ">▶</button>`;
       $('#dq-actions').classList.add('hidden');
       { const qm = $('#dr .ms-quiz'); if (qm) qm.remove(); } // 答え合わせの間は、問題のときの先生は、かくれる
       const body = $('#dq-exp');
@@ -320,8 +391,9 @@
       });
       $('#dq-opts').addEventListener('click', (e) => { const b = e.target.closest('.dq-opt'); if (b && !b.disabled) this.answerChoice(b.dataset.id); });
       $('#dq-ok').addEventListener('click', () => this.answerTile());
-      $('#dq-fb').addEventListener('click', (e) => { if (e.target.closest('#dq-next')) this.next(); else if (e.target.closest('#dq-nextp')) this.fbShow(this.fbI + 1); else if (e.target.closest('#dq-prev')) this.fbShow(this.fbI - 1); });
-      $('#drill-back').addEventListener('click', () => { if (this.backTo === 'study') MJ.Study.open(); else MJ.App.show('menu'); });
+      $('#dq-fb').addEventListener('click', (e) => { if (e.target.closest('.ev-go')) this.openEval(); else if (e.target.closest('#dq-next')) this.next(); else if (e.target.closest('#dq-nextp')) this.fbShow(this.fbI + 1); else if (e.target.closest('#dq-prev')) this.fbShow(this.fbI - 1); });
+      $('#drill-home').addEventListener('click', (e) => { const b = e.target.closest('[data-ev]'); if (!b) return; if (b.dataset.ev === 'train') this.startTrain(); else this.openEval(); });
+      $('#drill-back').addEventListener('click', () => { if (this.mode === 'eval') return MJ.App.show('menu'); if (this.backTo === 'study') MJ.Study.open(); else MJ.App.show('menu'); });
       window.addEventListener('resize', () => { if (!$('#screen-drill').classList.contains('hidden')) this.layout(); });
     },
   });
