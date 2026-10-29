@@ -71,7 +71,7 @@
       const ready = cand.filter((s) => s !== last && warmed.has(s));
       const pool = ready.length ? ready : cand.filter((s) => s !== last);
       last = pool[Math.floor(Math.random() * pool.length)];
-      A._load(last, false);
+      A._load(last, true); // 1局のあいだは、同じ曲をくり返す。局が終わって結果画面を閉じたら、新しい曲に変わる
       MJ.warmAudio([...GAME, LATE, 'audio/result_win.mp3', 'audio/result_win2.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3']);
     },
     /* 結果画面の専用BGM: 'win'(自分の和了) / 'lose'(マイナス) / 'draw'(流局)。閉じると対局BGMに戻る */
