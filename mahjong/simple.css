@@ -1017,3 +1017,7 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 .rk-stats .num div { padding: .2cqw .2cqw; font-size: 1.6cqw; line-height: 1.2; white-space: nowrap; }
 .rk-stats .num b { font-size: 3cqw; line-height: 1.1; }
 .rk-stats .rk-btns.bot { left: 27cqw; right: auto; padding-left: 0; }
+
+/* 選んでいるボタン: 黒い枠・白い縁を外側に出し、少しだけ大きくする(黄色い面が小さくならず、上下に隙間が残る) */
+#mn .hm-btn.pf { border-color: transparent; transform: scale(1.04); z-index: 5; box-shadow: 0 0 0 3px #16160f, 0 0 0 5px #fff, 0 8px 18px #000a !important; }
+#mn .hm-btn.pf::before { left: 20px; }
