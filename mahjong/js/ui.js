@@ -591,6 +591,10 @@
       return { opts, union };
     },
     /* 麻雀先生(麻雀牌のキャラ)。表情ごとに、数枚から選ぶ */
+    /* 勉強・クイズの画面に出す麻雀先生: 顔の絵と、ひとこと(吹き出し)のHTML */
+    mascotHTML(mood, text, cls = '') {
+      return `<div class="mascot ${cls}">${this.teacherImg(mood)}${text ? `<div class="mb">${text}</div>` : ''}</div>`;
+    },
     teacherImg(mood, cls = '') {
       // 表情ごとに、使える絵を、たくさん持っておく(毎回、同じ顔にならないように、かぶらない順で選ぶ)
       const M = {

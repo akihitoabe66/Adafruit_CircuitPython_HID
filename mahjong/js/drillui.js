@@ -157,6 +157,7 @@
         }).join('') + '</div>';
       }
       $('#dq-board').innerHTML = board;
+      { const old = $('#dr .mascot'); if (old) old.remove(); $('#dr').insertAdjacentHTML('beforeend', MJ.UI.mascotHTML('advice', '', 'ms-quiz')); } // 考える顔で、待つ
       $('#drill-quiz').classList.toggle('has-board', !!board);
       // ふりがなを先に付けてから、枠に収まる、いちばん大きい文字にする(ふりがなで行が高くなるぶんも含めて測る)
       if (MJ.Ruby) { MJ.Ruby.apply($('#dq-sit')); MJ.Ruby.apply($('#dq-prompt')); }
@@ -241,8 +242,9 @@
     showFb(head, cls, html) {
       const fb = $('#dq-fb');
       fb.className = `dq-fb ${cls}`;
-      fb.innerHTML = `<div class="dq-fh"><span>${head}</span><span class="pg"></span><button class="btn sm rd" data-read="drill">🔊 読み上げ</button></div><div class="dq-body" id="dq-exp"></div><div class="dq-fa"><button class="btn pri" id="dq-next">次の問題 ▶</button></div><button class="pm-arrow l" id="dq-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="dq-nextp" aria-label="次へ">▶</button>`;
+      fb.innerHTML = `<div class="dq-fh"><span>${head}</span><span class="pg"></span><button class="btn sm rd" data-read="drill">🔊 読み上げ</button></div><div class="dq-body" id="dq-exp"></div><div class="dq-fa">${cls === 'good' ? MJ.UI.mascotHTML('ok', '正解です!', 'ms-fb') : MJ.UI.mascotHTML('pass', 'おしい! つぎは大丈夫', 'ms-fb')}<button class="btn pri" id="dq-next">次の問題 ▶</button></div><button class="pm-arrow l" id="dq-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="dq-nextp" aria-label="次へ">▶</button>`;
       $('#dq-actions').classList.add('hidden');
+      { const qm = $('#dr .ms-quiz'); if (qm) qm.remove(); } // 答え合わせの間は、問題のときの先生は、かくれる
       const body = $('#dq-exp');
       // 用語の下線や読み上げボタンを先に付けてから、高さを測る(後から付けると行が高くなってはみ出す)
       const tmp = document.createElement('div');
