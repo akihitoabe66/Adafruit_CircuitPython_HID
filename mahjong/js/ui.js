@@ -1548,6 +1548,7 @@
           keys.push(null);
         });
         const p = w.pay;
+        if (r.limit) keys.push('l:' + r.limit, null); // 「満貫」「跳満」…を、点数の前に言う(盛り上がるように)
         if (!w.tsumo) keys.push(...num(p.ron), 'pt');
         else if (game.dealer === w.winner.seat) keys.push(...num(p.each), 'pt_all');
         else keys.push(...num(p.fromOther), null, ...num(p.fromDealer), 'pt');
@@ -1557,7 +1558,7 @@
       setTimeout(() => {
         if (!document.querySelector('#overlay .modal')) return;
         if (!S.speakClips(known)) { // 収録音声が読み込めないとき(iPhoneは、手元から鳴るため使わない)
-          const parts = res.wins.map((w) => `${w.winner.name}の${w.tsumo ? 'ツモ' : 'ロン'}。${w.res.yaku.map((y) => (y.n === 'ドラ' || y.n === '赤ドラ' || y.n === '裏ドラ' ? `${y.n}${y.h}` : READ[y.n] || y.n)).join('。')}。`);
+          const parts = res.wins.map((w) => `${w.winner.name}の${w.tsumo ? 'ツモ' : 'ロン'}。${w.res.yaku.map((y) => (y.n === 'ドラ' || y.n === '赤ドラ' || y.n === '裏ドラ' ? `${y.n}${y.h}` : READ[y.n] || y.n)).join('。')}。${w.res.limit ? w.res.limit + '。' : ''}`);
           S.read(parts.join(' '));
         }
       }, 1100);
