@@ -378,27 +378,34 @@
   }
   /* 画像の先読み: タイトル/ホームの背景 → キャラ → 自分のアイコン → 牌 の順に、起動直後から裏で読み込んでおく(画面切替で真っ黒にならない) */
   MJ.preloaded = [];
-  function preload() {
-    const urls = ['11', '14', '21', '36'].map((n) => `img/teacher/t${n}.png`); // 「先生をつけますか?」で使う顔を、先に読み込む
-    for (let i = 1; i <= MJ.CHARS.length; i++) { urls.push(`img/chars/${String(i).padStart(2, '0')}.jpg`); urls.push(`img/chars/face/${String(i).padStart(2, '0')}.png`); urls.push(`img/chars/face/${String(i).padStart(2, '0')}_f.png`); }
-    for (let i = 1; i <= 18; i++) urls.push(`img/you/${String(i).padStart(2, '0')}.png`);
-    for (let i = 0; i < 34; i++) urls.push(`img/tiles/${i}.png`);
-    for (const a of [1, 2, 3]) for (const b of [1, 2, 3, 4, 5, 6]) urls.push(`img/teacher/t${a}${b}.png`);
-    ['r4', 'r13', 'r22'].forEach((n) => urls.push(`img/tiles/${n}.png`));
-    let k = 0;
-    const next = () => {
-      // 同時に4枚ずつ読む
-      for (let n = 0; n < 4 && k < urls.length; n++, k++) {
-        const im = new Image();
-        im.decoding = 'async';
-        im.onload = im.onerror = () => { if (k < urls.length) next(); };
-        im.src = urls[k];
-        if (im.decode) im.decode().catch(() => {});
-        MJ.preloaded.push(im);
-      }
-    };
-    next();
-  }
+  const pad2 = (i) => String(i).padStart(2, '0');
+  /* 画像を読み込んで、デコードまで終わらせる(失敗しても止まらない)。読み込んだ絵は MJ.preloaded に持っておく */
+  const loadImg = (u) => new Promise((ok) => { const im = new Image(); im.decoding = 'async'; im.onload = () => { (im.decode ? im.decode() : Promise.resolve()).then(ok, ok); }; im.onerror = ok; im.src = u; MJ.preloaded.push(im); });
+  /* 背景の絵は、データとして取り寄せて、CSS変数に入れる(CSSの背景の読み込みが遅れたり、抜けたりしないように) */
+  const loadArt = (u, v) => fetch(u).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); }).then((b) => { const url = URL.createObjectURL(b); document.documentElement.style.setProperty(v, `url(${url})`); return loadImg(url); }).catch(() => loadImg(u));
+  const pool = (urls, n) => new Promise((done) => { let k = 0, run = 0; const go = () => { if (k >= urls.length && run === 0) return done(); while (run < n && k < urls.length) { run++; loadImg(urls[k++]).then(() => { run--; go(); }); } }; go(); });
+  /* 全画面で必要な絵(牌・顔・先生・背景・ボタン)は、タイトルを出す前に全部そろえる */
+  const ESSENTIAL = (() => {
+    const u = [];
+    for (let i = 0; i < 34; i++) u.push(`img/tiles/${i}.png`);
+    ['r4', 'r13', 'r22'].forEach((n) => u.push(`img/tiles/${n}.png`));
+    for (let i = 1; i <= MJ.CHARS.length; i++) { u.push(`img/chars/face/${pad2(i)}.png`); u.push(`img/chars/${pad2(i)}.jpg`); }
+    ['11', '14', '21', '36'].forEach((n) => u.push(`img/teacher/t${n}.png`));
+    try { const yi = pad2(MJ.youIndex()); u.push(`img/you/${yi}.jpg`, `img/you/${yi}.png`); } catch (e) { /* ignore */ } // いまの、あなたの絵(成績・段位の画面・対局)
+    ['img/btn_start.png', 'img/bgm_on.png', 'img/bgm_off.png', 'img/logo.png', 'img/rank_bg.webp', 'img/cert.webp'].forEach((x) => u.push(x));
+    return u;
+  })();
+  /* そのほか(左右反転の顔・あなたの絵・先生の表情)は、タイトルのあと、裏で読み込む */
+  const LATER = (() => {
+    const u = [];
+    for (let i = 1; i <= MJ.CHARS.length; i++) u.push(`img/chars/face/${pad2(i)}_f.png`);
+    for (let i = 1; i <= 18; i++) { u.push(`img/you/${pad2(i)}.png`); u.push(`img/you/${pad2(i)}.jpg`); }
+    for (const a of [1, 2, 3]) for (const b of [1, 2, 3, 4, 5, 6]) u.push(`img/teacher/t${a}${b}.png`);
+    return u;
+  })();
+  MJ.essentialReady = Promise.all([loadArt('img/title_art.webp', '--art-title'), loadArt('img/menu_bg.webp', '--art-menu'), pool(ESSENTIAL, 6)]);
+  MJ.laterReady = MJ.essentialReady.then(() => pool(LATER, 4));
+  function preload() { /* (以前の先読みは、上の MJ.essentialReady / MJ.laterReady が行う) */ }
   init();
   /* タイトル画面の桜: 花びらを、ゆっくり何度でも降らせる(最初から画面全体に散らばっているように、アニメの開始位置をずらす) */
   (function sakura() {
@@ -419,12 +426,10 @@
     placeStart();
     let fired = false;
     const once = () => { if (!fired) { fired = true; done(); } };
-    // 背景の絵・はじめるボタン・BGMボタンが、すべて読み込まれて(デコードまで終わって)から出す
-    const load = (u) => new Promise((ok) => { const im = new Image(); im.onload = () => { (im.decode ? im.decode() : Promise.resolve()).then(ok, ok); }; im.onerror = ok; im.src = u; });
-    Promise.all(['img/title_art.webp', 'img/btn_start.png', 'img/bgm_on.png', 'img/bgm_off.png'].map(load)).then(once);
-    // メニュー画面の背景とロゴも、タイトルを見ている間に、先に読み込んでおく(メニューに移ったとき、背景が遅れて出ないように)
-    MJ.menuReady = Promise.all(['img/menu_bg.webp', 'img/logo.png', 'img/rank_bg.webp', 'img/cert.webp'].map(load)); // 段位の画面・認定証の絵も、先に読み込んでおく
-    setTimeout(once, 5000);
+    // 背景の絵・ボタン・牌・顔など、全画面で使う絵が、すべて読み込まれて(デコードまで終わって)から出す
+    MJ.essentialReady.then(once);
+    MJ.menuReady = MJ.essentialReady;
+    setTimeout(once, 20000); // 回線がとても遅いときだけ、あきらめて先に出す
   })();
   // 起動直後(タイトルの間)に、ホーム曲を最優先で取り寄せる
   // 画像の先読みは、ホーム曲が取り寄せ終わってから(通信を取り合って曲が遅れないように)
