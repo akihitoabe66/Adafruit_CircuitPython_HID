@@ -56,7 +56,7 @@
       $('#hm-set').addEventListener('click', () => showSettings());
       this.buildStatsOnly();
     },
-    /* 「麻雀をはじめる」: 前回のつづきがあれば「つづきから」「新しく始める」をたずねる。なければ、先生の確認へ */
+    /* 「麻雀をはじめる」: 前回のつづきがあれば「つづきから」「新しく始める」をたずねる。なければ、麻雀先生の確認へ */
     playOrContinue() {
       const sv = MJ.Rank.hasSave();
       if (!sv) return this.askTeacher();
@@ -70,10 +70,10 @@
       });
     },
     resume(sv) { this.lastCfg = Object.assign({}, sv.cfg); this.launch(this.lastCfg, sv); },
-    /* 「麻雀をはじめる」を押したら、先生をつけるかをたずねる(最初の選択は「つけない」) */
+    /* 「麻雀をはじめる」を押したら、麻雀先生をつけるかをたずねる(最初の選択は「つけない」) */
     askTeacher() {
-      // 大きな見出し+先生の顔。絵が読み込まれてから、文字といっしょに出す(文字だけ先に出ないように)
-      const html = `<div class="cf tcd"><div class="tc-top">${MJ.UI.teacherImg('greet')}<div class="tc-q">先生を<br>つけますか?</div></div><div class="cf-btns"><button class="btn tc-b" id="tc-no">つけない</button><button class="btn tc-b" id="tc-yes">先生をつける</button></div></div>`;
+      // 大きな見出し+麻雀先生の顔。絵が読み込まれてから、文字といっしょに出す(文字だけ先に出ないように)
+      const html = `<div class="cf tcd"><div class="tc-top">${MJ.UI.teacherImg('greet')}<div class="tc-q">麻雀先生を<br>つけますか?</div></div><div class="cf-btns"><button class="btn tc-b" id="tc-no">つけない</button><button class="btn tc-b" id="tc-yes">麻雀先生をつける</button></div></div>`;
       const src = (/src="([^"]+)"/.exec(html) || [])[1];
       let shown = false;
       const open = () => {
@@ -155,7 +155,7 @@
       this.game = game;
       if (sv && MJ.Rank) MJ.Rank.apply(game, sv); // つづきから: 点数・局・本場を戻す
       MJ.UI.attach(game);
-      MJ.UI.hintOn = !!cfg.teacher; MJ.UI.dangerOn = !!cfg.teacher; MJ.UI.syncHintBtn(); // 先生(ヒント)は、えらんだとおりに始める
+      MJ.UI.hintOn = !!cfg.teacher; MJ.UI.dangerOn = !!cfg.teacher; MJ.UI.syncHintBtn(); // 麻雀先生(ヒント)は、えらんだとおりに始める
       MJ.SFX.unlock();
       MJ.SFX.preloadVoices([0].concat(chars.map((c) => c.voice || c.id)));
       this.show('game');
@@ -334,7 +334,7 @@
     MJ.DrillUI.init();
     MJ.Study.init();
     if (MJ.SFX.isIOS) document.body.classList.add('ios'); // iPhone・iPad: 音声合成の読み上げは、AirPlayのテレビに出ないので、読み上げボタンを出さない
-    ['11', '14', '21', '36'].forEach((n) => { const im = new Image(); im.src = `img/teacher/t${n}.png`; MJ.preloaded.push(im); }); // 先生の顔は、起動してすぐ読み込む
+    ['11', '14', '21', '36'].forEach((n) => { const im = new Image(); im.src = `img/teacher/t${n}.png`; MJ.preloaded.push(im); }); // 麻雀先生の顔は、起動してすぐ読み込む
     MJ.SFX.loadYk(); // 上がったときの役・点数の読み上げ(収録音声)
     // 最初の操作でBGMを開始。iPhoneは pointerdown/touchstart では許可されないため、指を離した時(touchend/click)でも毎回試す
     let spk = false;
@@ -384,7 +384,7 @@
   /* 背景の絵は、データとして取り寄せて、CSS変数に入れる(CSSの背景の読み込みが遅れたり、抜けたりしないように) */
   const loadArt = (u, v) => fetch(u).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); }).then((b) => { const url = URL.createObjectURL(b); document.documentElement.style.setProperty(v, `url(${url})`); return loadImg(url); }).catch(() => loadImg(u));
   const pool = (urls, n) => new Promise((done) => { let k = 0, run = 0; const go = () => { if (k >= urls.length && run === 0) return done(); while (run < n && k < urls.length) { run++; loadImg(urls[k++]).then(() => { run--; go(); }); } }; go(); });
-  /* 全画面で必要な絵(牌・顔・先生・背景・ボタン)は、タイトルを出す前に全部そろえる */
+  /* 全画面で必要な絵(牌・顔・麻雀先生・背景・ボタン)は、タイトルを出す前に全部そろえる */
   const ESSENTIAL = (() => {
     const u = [];
     for (let i = 0; i < 34; i++) u.push(`img/tiles/${i}.png`);
@@ -395,7 +395,7 @@
     ['img/btn_start.png', 'img/bgm_on.png', 'img/bgm_off.png', 'img/logo.png', 'img/rank_bg.webp', 'img/cert.webp'].forEach((x) => u.push(x));
     return u;
   })();
-  /* そのほか(左右反転の顔・あなたの絵・先生の表情)は、タイトルのあと、裏で読み込む */
+  /* そのほか(左右反転の顔・あなたの絵・麻雀先生の表情)は、タイトルのあと、裏で読み込む */
   const LATER = (() => {
     const u = [];
     for (let i = 1; i <= MJ.CHARS.length; i++) u.push(`img/chars/face/${pad2(i)}_f.png`);

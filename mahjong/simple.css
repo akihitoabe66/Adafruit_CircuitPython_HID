@@ -195,7 +195,7 @@ body.pad-on .hm-btn.pf, body.pad-on .hm-teach.pf, body.pad-on .sy-btn.pf, body.p
 body.pad-on .hm-btn.pf, body.pad-on .hm-teach.pf, body.pad-on .sy-btn.pf, body.pad-on .sy-nb.pf, body.pad-on .sy-back.pf { box-shadow: 0 0 0 6px #fff, 0 8px 18px #000a !important; outline: none !important; }
 
 /* 対局中の「先生: あり/なし」ボタン(右の列の下) */
-#side-in #btn-teach { top: 376px; height: 44px; font-size: 18px; line-height: 1.1; background: #3b4540; border: 3px solid #fff; color: #fff; }
+#side-in #btn-teach { top: 376px; height: 44px; font-size: 16px; line-height: 1.15; background: #3b4540; border: 3px solid #fff; color: #fff; }
 #side-in #btn-teach.on { background: var(--ok); }
 #side-in #btn-teach.pf { background: var(--sel) !important; color: var(--sel-ink) !important; }
 /* 先生をたずねるダイアログ: 「先生をつける」はうすい緑 */

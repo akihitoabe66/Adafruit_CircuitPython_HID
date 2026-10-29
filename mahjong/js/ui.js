@@ -114,7 +114,7 @@
       // 解説ボタンの文字は、窓がどの方法で開閉されても(外をタッチ・✕・ボタン)、実際の状態に合わせる
       new MutationObserver(() => { const b = $('#btn-coach'); if (b) b.textContent = document.body.classList.contains('coach-open') ? '✕ 閉じる' : '🎓 解説'; }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
       $('#btn-hint').addEventListener('click', () => this.toggleHint());
-      $('#btn-teach').addEventListener('click', () => this.setTeacher(!this.hintOn)); // 対局中に、先生(ヒント)の あり / なし を切り替える
+      $('#btn-teach').addEventListener('click', () => this.setTeacher(!this.hintOn)); // 対局中に、麻雀先生(ヒント)の あり / なし を切り替える
       document.addEventListener('click', (e) => { if (e.target.closest('[data-hintoggle]')) this.toggleHint(); });
     },
 
@@ -132,17 +132,17 @@
       if (this.game) this.render(this.game);
       this.refreshCoach();
     },
-    /* 先生(おすすめの牌・注意の表示)の あり / なし */
+    /* 麻雀先生(おすすめの牌・注意の表示)の あり / なし */
     setTeacher(on) {
       if (!!this.hintOn !== !!on) this.toggleHint();
       this.dangerOn = !!on;
       if (this.game) { if (this.sel && this.sel.type === 'self') this.buildDanger(this.game, this.sel.p); else { this.dng = null; } this.render(this.game); }
       this.syncHintBtn();
-      this.toast(on ? '先生を つけました' : '先生を はずしました');
+      this.toast(on ? '麻雀先生を つけました' : '麻雀先生を はずしました');
     },
     syncHintBtn() {
       const t = $('#btn-teach');
-      if (t) { t.textContent = `先生: ${this.hintOn ? 'あり' : 'なし'}`; t.classList.toggle('on', !!this.hintOn); }
+      if (t) { t.innerHTML = `麻雀先生<br>${this.hintOn ? 'あり' : 'なし'}`; t.classList.toggle('on', !!this.hintOn); }
       const b = $('#btn-hint');
       if (b) { b.textContent = `💡 ヒント: ${this.hintOn ? 'オン' : 'オフ'}`; b.classList.toggle('on', !!this.hintOn); }
     },
@@ -447,7 +447,7 @@
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
       this.fitTip();
       if (this.sel && this.sel.type === 'react' && document.querySelector('.callq .cq-btn[data-ids]')) this.hlCall(null); // 鳴きの確認が出たら、最初の鳴き方の牌を光らせる
-      // 鳴きの確認が出ている間は、先生のアドバイスを左下に出す。終わったら消す
+      // 鳴きの確認が出ている間は、麻雀先生のアドバイスを左下に出す。終わったら消す
       if (this.sel && this.sel.type === 'react' && this._brief && document.querySelector('.callq')) { const d = $('#says .tdock'); if (!d || d.dataset.kind !== 'call') this.teacherSay(this._brief.text, this._brief.rec === 'pass' ? 'pass' : this._brief.rec === 'ron' ? 'ron' : 'ok', 0, 'call'); }
       else this.clearDock('call');
       if (MJ.Pad && MJ.Pad.syncLock) MJ.Pad.syncLock();
@@ -590,7 +590,7 @@
       opts.forEach((x) => x.ids.forEach((i) => union.add(i)));
       return { opts, union };
     },
-    /* 先生(麻雀牌のキャラ)。表情ごとに、数枚から選ぶ */
+    /* 麻雀先生(麻雀牌のキャラ)。表情ごとに、数枚から選ぶ */
     teacherImg(mood, cls = '') {
       // 表情ごとに、使える絵を、たくさん持っておく(毎回、同じ顔にならないように、かぶらない順で選ぶ)
       const M = {
@@ -612,7 +612,7 @@
       last[mood] = pick;
       return `<img class="tcut ${cls}" src="img/teacher/t${pick}.png" alt="">`;
     },
-    /* 先生が、ときどき出てきて「目指す手」を教える(先生ありのときだけ。25秒以上あけて、確率でたまに) */
+    /* 麻雀先生が、ときどき出てきて「目指す手」を教える(麻雀先生ありのときだけ。25秒以上あけて、確率でたまに) */
     maybeAim(game, p) {
       if (!this.hintOn || game.fast || game.stopped) return;
       this._aimTurns = (this._aimTurns || 0) + 1;
@@ -623,7 +623,7 @@
       this._aimAt = now; this._aimLast = h.name;
       this.teacherSay(h.text, 'aim', 7000);
     },
-    /* 先生の置き場所: 左下の、手牌の上(いつもは「切る牌をタップ」の表示がある所)。プレイの邪魔にならない場所に固定 */
+    /* 麻雀先生の置き場所: 左下の、手牌の上(いつもは「切る牌をタップ」の表示がある所)。プレイの邪魔にならない場所に固定 */
     teacherSay(text, mood, ms = 6000, kind = 'tip') {
       const host = $('#says'); if (!host) return;
       this.clearDock();
@@ -631,7 +631,7 @@
       const el = document.createElement('div');
       el.className = 'tdock'; el.dataset.kind = kind;
       const fs = text.length > 34 ? 11 : text.length > 24 ? 12 : 13;
-      el.innerHTML = `${this.teacherImg(mood)}<div class="tb" style="font-size:${fs}px"><b>先生</b>${text}</div>`;
+      el.innerHTML = `${this.teacherImg(mood)}<div class="tb" style="font-size:${fs}px"><b>麻雀先生</b>${text}</div>`;
       // セリフとキャラは同時に出す: 絵が読み込まれてから、まとめて表示する(読み込み待ちで横幅が変わらないように)
       const show = () => {
         if (tok !== this._tdTok || !host.isConnected) return;
@@ -659,7 +659,7 @@
       const label = { pon: 'ポン', chi: 'チー', kan: 'カン' };
       const chis = cand.opts.filter((x) => x.kind === 'chi');
       this.chiCombos = chis; this.chiIdx = 0;
-      const brief = this.hintOn ? MJ.Coach.reactBrief(game, s.p, o) : null; // 先生のひとこと(先生ありのとき)
+      const brief = this.hintOn ? MJ.Coach.reactBrief(game, s.p, o) : null; // 麻雀先生のひとこと(麻雀先生ありのとき)
       this._brief = brief;
       const recKind = brief && brief.rec === 'call' ? brief.kind : null;
       const recTag = '<small class="cq-sub cq-rec">おすすめ</small>';
@@ -917,7 +917,7 @@
       if (!dv) return '';
       return `<b class="dgl ${dv.cls}">${dv.sym} 安全度 ${dv.stars}</b> (${dv.who}に対して約${dv.score}%・${dv.tag})<br><span class="cc-s">${dv.why}</span>`;
     },
-    /* 先生なしのときの「解説」: 対局の事実だけ(局・ドラ・点数と順位)。おすすめや役の候補は出さない */
+    /* 麻雀先生なしのときの「解説」: 対局の事実だけ(局・ドラ・点数と順位)。おすすめや役の候補は出さない */
     factsHtml(g) {
       if (!g || !g.doraInd || !g.live) return ''; // 対局がはじまる前は、何も出さない
       const fmtS = (n) => n.toLocaleString('ja-JP');
@@ -994,8 +994,8 @@
         const tip = this.tipHtml || '';
         body = g.players[0].discards.length < 1 ? tip + this.coachHtml : this.coachHtml + tip;
       }
-      else body = g.mode === 'free' ? '<div class="cc"><div class="cc-h">先生</div><div class="cc-b">自分の番になると、おすすめの牌と理由が出ます。</div></div>' : `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
-      el.innerHTML = `<div class="ch"><b>🎓 ${!this.coachActive() ? 'いまの場' : g.mode === 'free' ? '先生' : m.name}</b><span class="chb"><button class="btn sm" data-open-yaku>役一覧</button><button class="btn sm" data-open-gloss>用語</button><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
+      else body = g.mode === 'free' ? '<div class="cc"><div class="cc-h">麻雀先生</div><div class="cc-b">自分の番になると、おすすめの牌と理由が出ます。</div></div>' : `<div class="cc"><div class="cc-h">${m.short}モード</div><div class="cc-b">${m.desc}</div></div>${this.tipHtml || ''}`;
+      el.innerHTML = `<div class="ch"><b>🎓 ${!this.coachActive() ? 'いまの場' : g.mode === 'free' ? '麻雀先生' : m.name}</b><span class="chb"><button class="btn sm" data-open-yaku>役一覧</button><button class="btn sm" data-open-gloss>用語</button><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
       if (this.coachActive()) this.addReadFrom(el);
@@ -1157,7 +1157,7 @@
       // 顔は、鳴き・リーチ・和了のこの瞬間にだけ、その席のそばに大きく出す
       const host = $('#says');
       host.querySelectorAll('.shout').forEach((x) => x.remove());
-      if (this.hintOn && text === 'リーチ' && !game.fast) { // 先生: 相手のリーチには注意、自分のリーチには応援
+      if (this.hintOn && text === 'リーチ' && !game.fast) { // 麻雀先生: 相手のリーチには注意、自分のリーチには応援
         const msg = p.isHuman ? 'リーチ! いい形です。がんばって!' : 'リーチに注意! 安全な牌を切りましょう。';
         setTimeout(() => { if (!(this.sel && this.sel.type === 'react')) this.teacherSay(msg, p.isHuman ? 'cheer' : 'warn', 6000); }, 900);
       }
@@ -1321,7 +1321,7 @@
       setTimeout(() => el.remove(), 2600);
     },
     handStart(game) {
-      if (this.hintOn && game.honba === 0 && game.kyoku === 0) setTimeout(() => this.teacherSay('先生がついています。迷ったら、おしえます!', 'greet', 7000), 800);
+      if (this.hintOn && game.honba === 0 && game.kyoku === 0) setTimeout(() => this.teacherSay('ついています。迷ったら、おしえます!', 'greet', 7000), 800);
       MJ.SFX.play('start');
       this.tipHtml = ''; // 開始時の「この局のポイント」は出さない
       this.coachHtml = '';

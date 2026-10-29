@@ -260,7 +260,7 @@
     const cards = [];
     const eff = A.byEff(an.evals);
     let best = eff[0];
-    // 先生のおすすめは、リーチをかけた人がいるとき、強いCPUと同じ読み(降りる・回す・押す)で選ぶ
+    // 麻雀先生のおすすめは、リーチをかけた人がいるとき、強いCPUと同じ読み(降りる・回す・押す)で選ぶ
     if (an.opps.length && an.evals.length && (mode === 'free' || mode === 'beginner')) {
       const minSh = an.minSh;
       let fold = false;
@@ -517,7 +517,7 @@
   }
 
   /* ---------- 鳴き・ロン時のアドバイス ---------- */
-  /* 先生の「目指す手」: いまの手牌から、狙えそうな役を1つ、短く教える。なければ null */
+  /* 麻雀先生の「目指す手」: いまの手牌から、狙えそうな役を1つ、短く教える。なければ null */
   C.aimHint = function (game, p) {
     const hs = C.yakuHints(game, p).filter((h) => h.pri >= 4 && h.pri < 9);
     if (!hs.length) return null;
@@ -556,7 +556,7 @@
     return cards.join('');
   };
 
-  /* 鳴きの確認用の、短いアドバイス(先生のひとこと)。rec: 'call'=鳴いてOK / 'pass'=見送り */
+  /* 鳴きの確認用の、短いアドバイス(麻雀先生のひとこと)。rec: 'call'=鳴いてOK / 'pass'=見送り */
   C.reactBrief = function (game, p, o) {
     const t = o.tile.t;
     if (o.ron) return { rec: 'ron', text: 'ロンできます! 上がりましょう!' };
