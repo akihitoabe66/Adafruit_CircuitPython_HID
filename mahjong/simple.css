@@ -1000,3 +1000,7 @@ body:not(.title-ready) #screen-title::after { content: "よみこみ中…"; pos
 
 .rk-t.v { line-height: 1.1; color: #3a220a; text-shadow: none; font-weight: 900; }
 .rk-bar + .rk-t.num { text-shadow: 0 0 3px #000, 0 0 3px #000, 0 1px 2px #000; color: #fff; font-weight: 900; }
+/* スマホ縦持ち: 段位・成績・認定証の画面も、ほかの画面と同じように、横画面(90°回転)で出す */
+body.rot #rk-panel { inset: auto; left: 0; top: 0; width: var(--vh); height: var(--vw); transform-origin: 0 0; transform: translate(var(--vw), 0) rotate(90deg); }
+body.rot .rk-st { width: min(var(--vh), calc(var(--vw) * 1.8281)); }
+body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--vh) * 1.35)); }
