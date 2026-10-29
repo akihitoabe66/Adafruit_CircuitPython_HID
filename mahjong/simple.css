@@ -1033,13 +1033,18 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 .ctr .k .ks { display: inline-flex; flex-direction: column; gap: 3px; font-size: 14px; }
 .ctr .k .ks img { width: 44px; height: auto; display: block; }
 
-/* 麻雀先生(勉強・クイズ)。顔は、ふつうの吹き出しと同じ絵 */
+/* 麻雀先生(勉強・クイズ)。文字や牌に重ならない、あいた場所に置く */
 .mascot { position: absolute; display: flex; align-items: flex-end; gap: 6px; pointer-events: none; z-index: 20; }
 .mascot img.tcut { height: 100px; width: auto; filter: drop-shadow(0 4px 6px #0009); }
 .mascot .mb { background: #fffdf0; color: #16160f; border: 3px solid #ffd23f; border-radius: 12px; padding: 3px 10px; font-weight: 900; font-size: 15px; line-height: 1.3; white-space: nowrap; margin-bottom: 18px; }
-.ms-list { left: 44px; top: 250px; }
-.ms-list img.tcut { height: 70px; order: 2; } .ms-list .mb { order: 1; margin-bottom: 20px; font-size: 14px; }
-.ms-page { right: 14px; top: 200px; flex-direction: row-reverse; } .ms-page img.tcut { height: 104px; } .ms-page .mb:empty { display: none; }
-.ms-quiz { right: 8px; top: 332px; } .ms-quiz img.tcut { height: 84px; }
+/* 勉強の一覧: 左の列の、「もどる」ボタンの上 */
+.ms-list { left: 44px; top: 246px; }
+.ms-list img.tcut { height: 62px; order: 2; } .ms-list .mb { order: 1; margin-bottom: 14px; font-size: 13px; padding: 2px 8px; }
+/* 勉強のお話: 下のボタンの列の、右はし */
+.ms-page { right: 112px; top: 4px; } .ms-page img.tcut { height: 52px; } .ms-page .mb { display: none; }
+/* クイズの問題: 上の帯の、スコアの左 */
+.ms-quiz { right: 198px; top: 6px; } .ms-quiz img.tcut { height: 50px; }
+/* 答え合わせ: 「次の問題」ボタンの左 */
 .dq-fa { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
-.mascot.ms-fb { position: static; margin-right: auto; } .ms-fb img.tcut { height: 70px; } .ms-fb .mb { margin-bottom: 8px; font-size: 16px; }
+.mascot.ms-fb { position: static; margin: 0 auto 0 44px; } .ms-fb img.tcut { height: 56px; } .ms-fb .mb { margin-bottom: 6px; font-size: 15px; }
+#dr .dr-top h2 { right: 252px !important; }
