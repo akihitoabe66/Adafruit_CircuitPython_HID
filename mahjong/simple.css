@@ -982,3 +982,21 @@ body.tbl .river.dense .tile.rch { width: 26px; height: 20px; }
 
 /* よみこみ中の表示(タイトルの絵や牌が、そろうまで) */
 body:not(.title-ready) #screen-title::after { content: "よみこみ中…"; position: absolute; left: 0; right: 0; top: 46%; text-align: center; color: #cfe6da; font-size: 26px; font-weight: 700; letter-spacing: .2em; opacity: .85; }
+/* 案: 左右・対面の鳴きの置き場所(重ならないように) */
+.melds.m2 { left: auto; right: 112px; top: 34px; flex-direction: row-reverse; }
+.melds.m1 { left: 626px; top: 72px; }
+.melds.m3 { left: 72px; top: 36px; }
+.melds.m1 { left: 616px; top: 62px; gap: 4px; } .melds.m3 { top: 34px; gap: 4px; } .melds.m2 { gap: 5px; right: 112px; top: 33px; }
+/* 案: 対局終了の順位表を、スクロールなしで1画面に */
+#overlay .modal:has(.ranks) { max-height: calc(100% - 8px); padding: 10px 18px 10px; overflow: hidden; display: flex; flex-direction: column; gap: 4px; }
+#overlay .modal:has(.ranks) h2 { margin: 0; font-size: 26px; display: inline-block; }
+#overlay .modal:has(.ranks) > p { margin: 0; font-size: 20px; }
+.ranks { gap: 5px !important; margin: 4px 0 !important; }
+.ranks .rank { padding: 3px 14px !important; gap: 12px !important; min-height: 0; }
+.ranks .rank img.fcut, .ranks .rank img.fyou { height: 52px !important; width: auto !important; }
+.ranks .rank .rk { font-size: 28px; width: 34px; }
+.ranks .rank b { font-size: 24px; } .ranks .rank .rs { font-size: 26px; }
+#menu-stats, .hm-stats { display: none !important; }
+
+.rk-t.v { line-height: 1.1; color: #3a220a; text-shadow: none; font-weight: 900; }
+.rk-bar + .rk-t.num { text-shadow: 0 0 3px #000, 0 0 3px #000, 0 1px 2px #000; color: #fff; font-weight: 900; }

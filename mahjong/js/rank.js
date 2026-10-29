@@ -19,7 +19,7 @@
     get() { return Object.assign(base(), load(RK, {})); },
     info() {
       const s = R.get(), i = idxOf(s.pt), nxt = DAN[i + 1];
-      return { s, i, name: DAN[i][0], next: nxt ? nxt[0] : null, left: nxt ? nxt[1] - s.pt : 0, prog: nxt ? (s.pt - DAN[i][1]) / (nxt[1] - DAN[i][1]) : 1 };
+      return { s, i, base: DAN[i][1], next_pt: nxt ? nxt[1] : 0, name: DAN[i][0], next: nxt ? nxt[0] : null, left: nxt ? nxt[1] - s.pt : 0, prog: nxt ? (s.pt - DAN[i][1]) / (nxt[1] - DAN[i][1]) : 1 };
     },
     label() { return R.info().name; },
     /* 対局が最後まで終わったとき。東風戦・東南戦だけを数える。段位が上がった(または最初の認定の)ときは、その段位名を返す */
@@ -64,9 +64,9 @@
       // 背景の絵(1404×768)の、空いている枠の位置に合わせて、文字を置く(座標は、絵のピクセル)
       const px = (x, y, fs, html, cls = '') => `<span class="rk-t ${cls}" style="left:${(x / 14.04).toFixed(2)}%;top:${(y / 7.68).toFixed(2)}%;font-size:${(fs / 14.04).toFixed(2)}cqw">${html}</span>`;
       p.innerHTML = `<div class="rk-st rk-bg"><img class="rk-bgi" src="img/rank_bg.webp" alt="">` +
-        px(355, 445, f.name.length > 2 ? 52 : 70, f.name) + px(705, 351, 40, f.name, 'dk') +
+        px(355, 445, f.name.length > 2 ? 52 : 70, f.name) + px(705, 349, 40, f.name, 'dk') +
         (f.next ? px(1068, 358, 28, f.next) + px(1093, 446, f.left >= 1000 ? 40 : 48, String(f.left), 'num') : px(1090, 446, 34, 'いちばん上')) +
-        `<div class="rk-bar" style="left:${(531 / 14.04).toFixed(2)}%;top:${(506 / 7.68).toFixed(2)}%;width:${(350 / 14.04).toFixed(2)}%;height:${(46 / 7.68).toFixed(2)}%"><i style="width:${Math.round(f.prog * 100)}%"></i></div>` + px(705, 622, 24, `${f.s.games} 戦 打ちました`) +
+        `<div class="rk-bar" style="left:${(531 / 14.04).toFixed(2)}%;top:${(506 / 7.68).toFixed(2)}%;width:${(350 / 14.04).toFixed(2)}%;height:${(46 / 7.68).toFixed(2)}%"><i style="width:${Math.max(f.prog > 0 ? 4 : 0, Math.round(f.prog * 100))}%"></i></div>` + (f.next ? px(706, 529, 26, `${f.s.pt - f.base} / ${f.next_pt - f.base} 点`, 'num') : '') + px(1041, 563, f.name.length > 2 ? 24 : 31, f.name.split('').join('<br>'), 'v') + px(705, 622, 24, `${f.s.games} 戦 打ちました`) +
         `<div class="rk-btns">${opt.auto ? '' : '<button class="rk-b" data-rk="stats" type="button">対戦成績</button>'}${f.s.games && !opt.auto ? '<button class="rk-b" data-rk="cert" type="button">認定証</button>' : ''}<button class="rk-b main" data-rk="close" type="button">${opt.auto ? 'すすむ' : 'もどる'}</button></div></div>`;
       p.querySelector('.rk-st').style.setProperty('--w', '1');
       if (opt.auto) R._t = setTimeout(R.close, 3200);
