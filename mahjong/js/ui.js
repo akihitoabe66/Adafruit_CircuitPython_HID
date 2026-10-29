@@ -918,7 +918,7 @@
     },
     /* 先生なしのときの「解説」: 対局の事実だけ(局・ドラ・点数と順位)。おすすめや役の候補は出さない */
     factsHtml(g) {
-      if (!g || !g.doraInd || !g.live) return '<div class="cc"><div class="cc-h">いまの場</div><div class="cc-b">対局がはじまると、ここに場の情報が出ます。</div></div>';
+      if (!g || !g.doraInd || !g.live) return ''; // 対局がはじまる前は、何も出さない
       const fmtS = (n) => n.toLocaleString('ja-JP');
       const W = (p) => MJ.windName(g.seatWindOf(p));
       const dora = g.doraInd.map((d) => `<span class="ft">${MJ.tileHTML(d.t, 't-m', '', d.red)}<i>→</i>${MJ.tileHTML(MJ.doraOf(d.t), 't-m')}</span>`).join('');
