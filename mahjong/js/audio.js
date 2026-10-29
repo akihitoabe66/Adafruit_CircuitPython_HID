@@ -5,6 +5,7 @@
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
   const HOME = 'audio/home.mp3';
+  const STUDY = 'audio/study.mp3'; // 点数計算の勉強の画面だけ流れる曲
   const LATE = 'audio/game8.mp3'; // 東二局以降だけ流れる曲
   const GAME = ['audio/game1.mp3', 'audio/game2.mp3', 'audio/game3.mp3', 'audio/game4.mp3', 'audio/game5.mp3', 'audio/game6.mp3', 'audio/game7.mp3'];
   let el = null, gain = null, wired = false, last = null;
@@ -92,8 +93,8 @@
       const changed = A.scene !== scene || !el || el.paused;
       A.scene = scene;
       if (scene === 'title' || !A.on) { A.stop(); return; }
-      if (scene === 'home') MJ.warmAudio([...GAME]); // ホームの間に対局曲を取り寄せる
-      if (scene === 'home') { if (changed || (el && el.dataset.track !== HOME)) A._load(HOME, true); }
+      if (scene === 'home') MJ.warmAudio([STUDY, ...GAME]); // ホームの間に、勉強の曲と対局曲を取り寄せる
+      if (scene === 'home' || scene === 'study') { const tr = scene === 'study' ? STUDY : HOME; if (changed || (el && el.dataset.track !== tr)) A._load(tr, true); }
       else if (changed && !(el && el.dataset.track && (GAME.includes(el.dataset.track) || el.dataset.track === LATE) && !el.paused)) A._playGame();
     },
     resume() {
