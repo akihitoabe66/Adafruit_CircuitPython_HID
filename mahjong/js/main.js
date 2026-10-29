@@ -22,7 +22,7 @@
       document.body.classList.toggle('on-menu', id === 'menu');
       document.body.classList.toggle('on-title', id === 'title');
       document.body.classList.toggle('on-game', id === 'game' || id === 'drill' || id === 'study');
-      if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : id === 'study' ? 'study' : 'home');
+      if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : id === 'study' ? 'study' : id === 'drill' ? 'quiz' : 'home');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       if (id === 'game') MJ.UI.fitStage();
       if (id === 'menu') { if (MJ.Rank) MJ.Rank.syncMenu(); App.fitMenu(); if (MJ.DrillUI && MJ.DrillUI.prefetch) { MJ.DrillUI.mode = MJ.DrillUI.mode; MJ.DrillUI.prefetch(); } } // ホームにいるあいだに、クイズの1問目を作っておく
