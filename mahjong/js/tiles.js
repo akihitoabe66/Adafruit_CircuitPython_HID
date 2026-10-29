@@ -32,7 +32,7 @@
     return v;
   };
   /* セーブのリセット: 対局成績・練習問題の記録・自分のキャラクターを消す */
-  MJ.resetSave = () => { ['mj_stats', 'mj_drill', 'mj_you', 'mj_rank', 'mj_save'].forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }); youMem = 0; };
+  MJ.resetSave = () => { ['mj_stats', 'mj_drill', 'mj_dlog', 'mj_hlog', 'mj_you', 'mj_rank', 'mj_save'].forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }); youMem = 0; };
   /* ---- ルール設定(ブラウザに保存。対局開始時の値が使われる) ---- */
   MJ.RULE_DEFAULTS = { length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: false, doubleRon: true, kuikae: false, kazoe: true, start: 25000 };
   MJ.RULES = Object.assign({}, MJ.RULE_DEFAULTS);

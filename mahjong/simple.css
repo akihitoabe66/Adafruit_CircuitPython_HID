@@ -1071,3 +1071,9 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 .ev-d { color:#cfe; font-size:18px; } .ev-res .row { gap:10px; } .ev-res .row span:first-child { flex:1; }
 .ev-go { font-size: 20px !important; margin-right: 10px; }
 .ev-r { gap: 6px; font-size: 15px; padding: 0 8px; } .ev-n { white-space: nowrap; } .ev-bars { gap: 2px; }
+
+.tabx { font: inherit; font-weight: 900; font-size: 22px; padding: 2px 18px; margin: 0 4px; border-radius: 12px; border: 0; background: #20352d; color: #cfe; pointer-events: auto; cursor: pointer; }
+.tabx.on { background: #ffd23f; color: #1b1b12; }
+#dr .dr-top h2 { overflow: visible !important; text-overflow: clip !important; }
+.ev-r.ev-g { grid-template-columns: 180px 1fr 56px 112px; } .ev-t { font-size: 13px; color: #cfe; text-align: right; }
+.ev-plan { font-size: 15px; font-weight: 900; color: #ffe27a; margin-top: 6px; }

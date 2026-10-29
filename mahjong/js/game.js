@@ -51,6 +51,7 @@
         const r = await this.playHand();
         if (this.stopped) return null;
         this.handCount++;
+        if (this.ui) this.logHand(r);
         let renchan;
         if (r.type === 'draw') { renchan = r.dealerTenpai; this.honba++; }
         else {
@@ -197,6 +198,20 @@
       if (r > 0.88) ms += 1200 + Math.random() * 1200;
       await this.wait(ms);
       return act;
+    }
+
+    /* 麻雀先生の評価に使う、あなたの1局ぶんの記録(直近20局) */
+    logHand(r) {
+      try {
+        const me = this.players.find((p) => p.isHuman); if (!me) return;
+        const win = r.type === 'win' ? r.wins.find((w) => w.winner === me) : null;
+        const dealt = r.type === 'win' ? r.wins.find((w) => w.loser === me) : null;
+        const faced = this.players.some((p) => p !== me && p.riichi);
+        const l = JSON.parse(localStorage.getItem('mj_hlog') || '[]');
+        l.push([win ? 1 : 0, dealt ? 1 : 0, me.riichi ? 1 : 0, me.melds.some((m) => m.kind !== 'ankan') ? 1 : 0, win ? Math.max(0, r.delta[me.seat]) : 0, faced ? 1 : 0, dealt && dealt.winner.riichi ? 1 : 0]);
+        while (l.length > 20) l.shift();
+        localStorage.setItem('mj_hlog', JSON.stringify(l));
+      } catch (e) { /* ignore */ }
     }
 
     /* ---------- 1局 ---------- */

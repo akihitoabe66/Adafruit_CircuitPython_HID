@@ -84,7 +84,7 @@
       p.innerHTML = `<div class="rk-st rk-stats"><div class="rk-ttl">📊 対戦成績</div><div class="me"><img src="${you}" alt=""><div class="dan">${f.name}</div><div class="sm">平均順位 ${avg}位</div></div>
         <div class="rk4">${bars}</div><div class="cpus">${rows}</div>
         <div class="num"><div>対局数<b>${total}</b></div><div>1位の割合<b>${total ? Math.round(s.ranks[0] / total * 100) : 0}%</b></div></div>
-        <div class="rk-btns bot"><button class="rk-b" data-rk="prev" type="button"${pg === 0 ? ' disabled' : ''}>◀ まえ</button><button class="rk-b" data-rk="next" type="button"${pg >= pages - 1 ? ' disabled' : ''}>つぎ ▶</button><button class="rk-b main" data-rk="back" type="button">◀ もどる</button></div></div>`;
+        <div class="rk-btns bot"><button class="rk-b" data-rk="prev" type="button"${pg === 0 ? ' disabled' : ''}>◀ まえ</button><button class="rk-b" data-rk="next" type="button"${pg >= pages - 1 ? ' disabled' : ''}>つぎ ▶</button><button class="rk-b main" data-rk="back" type="button">◀ もどる</button><button class="rk-b" data-rk="eval" type="button">🎓 評価</button></div></div>`;
     },
     /* 認定証: 「あなた 殿」と、あなたの絵が入る */
     drawCert(p, opt) {
@@ -121,6 +121,7 @@
     const k = b.dataset.rk, o = R._opt || {};
     if (k === 'close') R.close();
     else if (k === 'stats') R.open('stats', { from: 'rank' });
+    else if (k === 'eval') { R.close(); MJ.App.show('drill'); MJ.DrillUI.mode = 'eval'; MJ.DrillUI.openEval('game'); }
     else if (k === 'cert') R.open('cert', { from: 'rank' });
     else if (k === 'back') R.back();
     else if (k === 'prev') R.open('stats', { from: o.from, page: Math.max(0, (o.page || 0) - 1) });
