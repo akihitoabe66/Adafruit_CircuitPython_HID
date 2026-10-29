@@ -40,7 +40,10 @@
         const begin = () => {
           host.appendChild(el);
           D.active = true;
-          let done = false, go = null;
+          let done = false, go = null, quick = false, tossed = false; const waiters = [];
+          const wt = (ms) => new Promise((r) => { if (quick) { r(); return; } const t = setTimeout(r, ms); waiters.push(() => { clearTimeout(t); r(); }); }); // Aで、待ちをとばせる待ち
+          // 回っているサイコロを、いますぐ出た目で止める
+          const settle = () => { [0, 1].forEach((i) => { const cu = $('#dcc' + i); if (cu) cu.style.transition = 'none'; ['dcx', 'dcy', 'dcs'].forEach((k) => { const e = $('#' + k + i); if (e && e.getAnimations) e.getAnimations().forEach((a) => { try { a.finish(); } catch (er) { /* ignore */ } }); }); }); };
           const finish = () => {
             if (done) return; done = true; D.active = false; D.skip = null;
             el.classList.add('out');
@@ -66,7 +69,12 @@
           [0, 1].forEach((i) => { const cu = $('#dcc' + i); cu.style.transition = 'none'; cu.style.transform = 'rotateY(0deg) rotateX(0deg) rotateZ(0deg)'; });
 
           D.skip = finish;
-          el.addEventListener('click', () => { if (go) go(); else finish(); });
+          el.addEventListener('click', () => {
+            // 1回目: 結果までとばす(サイコロが出た目で止まり、親が光る)。2回目: すぐ次へ
+            if (quick || done) { finish(); return; }
+            quick = true; if (tossed) settle();
+            waiters.splice(0).forEach((f) => f());
+          });
           const label = first ? '' : game.kyokuLabel() + '　';
           seats((e) => e.classList.add('dim'));
           if (!first) { winds(dealer); seats((e, i) => e.classList.toggle('hit', i === dealer)); seats((e) => e.classList.remove('dim')); }
@@ -75,38 +83,38 @@
             const who = roller === 0 ? 'あなた' : game.players[roller].name;
             if (roller === 0) {
               cap(first ? '<span><em>東家(親)</em>を決めます</span>' : `<span>${label}<em>あなた</em>が親　サイコロをふります</span>`);
-              await wait(1300); // Aボタンを押さなくても、自動で振る
+              await wt(1300); // Aボタンを押さなくても、自動で振る
             } else {
               cap(`<span>${label}<em>${who}</em>が親　サイコロをふります</span>`);
-              await wait(1100);
+              await wt(1100);
             }
             if (done) return;
             cap('');
             try { MJ.SFX.unlock(); } catch (e) { /* ignore */ }
-            toss(0, a); await wait(160); toss(1, b);
+            toss(0, a); await wt(160); toss(1, b); tossed = true; if (quick) settle();
             [0, 0.44, 0.6, 0.76, 0.86].forEach((p, k) => tick(k ? 0.8 : 1, 0.16 + 1.55 * p));
-            await wait(1900); if (done) return;
+            await wt(1900); if (done) return; if (quick) settle();
             try { MJ.SFX.noise(0.12, 3500, 0.5, 1, 0, 'bandpass'); MJ.SFX.tone(880, 0.25, 'triangle', 0.18, 0); } catch (e) { /* ignore */ }
             if (first) cap('あなたから 数えます');
             if (first) {
               seats((e) => e.classList.remove('dim'));
-              await wait(700); if (done) return;
-              for (let k = 0; k < total; k++) {
+              await wt(700); if (done) return;
+              for (let k = 0; k < total && !quick; k++) {
                 const idx = k % 4;
                 seats((e, i) => e.classList.toggle('hit', i === idx));
                 cap(`<span>${idx === 0 ? 'あなた' : game.players[idx].name}</span>`);
                 tick(0.7, 0);
-                await wait(360); if (done) return;
+                await wt(360); if (done) return;
               }
-              await wait(300); if (done) return;
+              if (!quick) await wt(300); if (done) return;
               winds(dealer);
               seats((e, i) => e.classList.toggle('hit', i === dealer));
               try { MJ.SFX.don(0.7); } catch (e) { /* ignore */ }
               cap(`<span><em>${dealer === 0 ? 'あなた' : game.players[dealer].name}</em>が東家(親)</span>`);
-              await wait(2600); if (done) return; // 東家が決まったら、Aボタンを押さなくても自動で始まる
+              await wait(quick ? 1700 : 2600); if (done) return; // 東家が決まったら、Aボタンを押さなくても自動で始まる
               finish();
             } else {
-              await wait(1100);
+              await (quick ? wait(1500) : wt(1100)); if (done) return;
               finish();
             }
           })();
