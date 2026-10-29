@@ -976,3 +976,6 @@ body.tbl .river.dense .tile.rch { width: 26px; height: 20px; }
 /* ★は、ヒントの印(スジ・現物など)が出ていないときは、牌の真上に出す */
 #mine .hand .tile.rec::before { top: -24px; }
 #mine .hand .tile.rec.dgt::before, #mine .hand .tile.rec.hasmk::before { top: -48px; }
+/* クイズ(場のある問題): 文の枠を、ふりがなで行が高くなっても収まる高さに */
+#drill-quiz.has-board .dq-prompt { height: 58px; }
+#drill-quiz.has-board #dq-board, #dq-board { top: 158px; height: 148px; }

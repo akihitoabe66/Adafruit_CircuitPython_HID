@@ -158,7 +158,11 @@
       }
       $('#dq-board').innerHTML = board;
       $('#drill-quiz').classList.toggle('has-board', !!board);
-      this.fitBox($('#dq-sit'), board ? 20 : 22, 16); this.fitBox($('#dq-prompt'), board ? 24 : 28, 18); // 枠に収まる、いちばん大きい文字にする
+      // ふりがなを先に付けてから、枠に収まる、いちばん大きい文字にする(ふりがなで行が高くなるぶんも含めて測る)
+      if (MJ.Ruby) { MJ.Ruby.apply($('#dq-sit')); MJ.Ruby.apply($('#dq-prompt')); }
+      const fitTop = () => { this.fitBox($('#dq-sit'), board ? 20 : 22, 12); this.fitBox($('#dq-prompt'), board ? 24 : 28, 13); };
+      fitTop();
+      setTimeout(() => { if (this.q === q) fitTop(); }, 150); // 牌の画像・文字の読み込みで高さが変わっても、収め直す
       // 手牌
       const melds = q.melds && q.melds.length ? `<div class="melds" style="justify-content:center;margin-bottom:6px">${q.melds.map((m) => MJ.UI.meldHTML(m)).join('')}</div>` : '';
       const tiles = q.hand.map((h, i) => `<div class="tile ok" data-i="${i}">${MJ.tileSVG(h.t, h.red)}</div>`).join('');
