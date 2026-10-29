@@ -1021,3 +1021,14 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 /* 選んでいるボタン: 黒い枠・白い縁を外側に出し、少しだけ大きくする(黄色い面が小さくならず、上下に隙間が残る) */
 #mn .hm-btn.pf { border-color: transparent; transform: scale(1.04); z-index: 5; box-shadow: 0 0 0 3px #16160f, 0 0 0 5px #fff, 0 8px 18px #000a !important; }
 #mn .hm-btn.pf::before { left: 20px; }
+
+/* リーチ棒(1000点棒): リーチした人の前に出す。供託の本数ぶんの棒は、真ん中の表示に出す */
+.rstick { position: absolute; width: 80px; height: auto; z-index: 4; filter: drop-shadow(0 1px 2px #000a); pointer-events: none; }
+.rstick.rs0 { left: 348px; top: 230px; }
+.rstick.rs2 { left: 348px; top: 147px; transform: rotate(180deg); }
+.rstick.rs1 { width: 60px; left: 464px; top: 189px; transform: rotate(90deg); }
+.rstick.rs3 { width: 60px; left: 196px; top: 189px; transform: rotate(90deg); }
+.ctr .dr.wall { transform: translateX(-6px); }
+.ctr .k small { display: flex; align-items: center; gap: 6px; }
+.ctr .k .ks { display: inline-flex; flex-direction: column; gap: 3px; font-size: 14px; }
+.ctr .k .ks img { width: 44px; height: auto; display: block; }

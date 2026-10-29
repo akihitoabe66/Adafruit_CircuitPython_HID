@@ -481,7 +481,7 @@
       }
       const doras = stk.join('');
       const dora2 = '';
-      const sub = [game.kyotaku ? `供託${game.kyotaku}` : ''].filter(Boolean).join(' ');
+      const sub = game.kyotaku ? `供託<span class="ks">${'<img src="img/tenbo_1000.png" alt="" draggable="false">'.repeat(Math.min(game.kyotaku, 5))}${game.kyotaku > 5 ? `×${game.kyotaku}` : ''}</span>` : '';
       const ctr = `<div class="ctr"><div class="txt"><div class="k">${game.kyokuLabel().replace(' ', '<br>')}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.live.length}<small>枚</small></div></div><div class="dr wall">${doras}</div></div>`;
       return ctr + [0, 1, 2, 3].map((s) => this.block(game, s)).join('');
     },
@@ -516,7 +516,8 @@
       const mt = s === 0 ? [30, 40] : [17, 23];
       const melds = p.melds.length ? `<div class="melds m${s}">${p.melds.map((m) => `<div class="mg">${m.tiles.map((h, i) => (m.kind === 'ankan' && (i === 0 || i === 3) ? this.seatTile(h.t, ROT, mt[0], mt[1], { cls: 'bkt' }).replace(/<img[^>]*>/, '') : this.seatTile(h.t, ROT, mt[0], mt[1], { side: h === m.called, red: h.red }))).join('')}</div>`).join('')}</div>` : '';
       const plq = `<div class="plq seatc${s} p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn" style="font-size:${p.name.length <= 4 ? 17 : p.name.length <= 5 ? 16 : 14}px">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}</div>`;
-      return `<div class="blk" data-seat="${s}">${river}${hand}${melds}${plq}</div>`;
+      const rstick = p.riichi ? `<img class="rstick rs${s}" src="img/tenbo_1000.png" alt="リーチ棒" draggable="false">` : '';
+      return `<div class="blk" data-seat="${s}">${river}${hand}${melds}${plq}${rstick}</div>`;
     },
 
     mineHTML(game) {
