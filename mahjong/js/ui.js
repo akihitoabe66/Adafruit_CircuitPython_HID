@@ -1330,9 +1330,18 @@
       this.coachHtml = '';
       this.refreshCoach();
       if (game.honba === 0 && game.kyoku === 0) return Promise.resolve(); // 最初の局は、スタート演出(東一局・勝負!)で見せたので、ここでは出さない
-      const fx = $('#fx');
-      fx.innerHTML = `<div class="banner" style="--c:#ffcc4d">${game.kyokuLabel()}<small>親: ${game.players[game.dealer].name} ／ ドラ表示牌: ${MJ.tileName(game.doraInd[0].t)}</small></div>`;
-      return new Promise((r) => setTimeout(() => { fx.innerHTML = ''; r(); }, game.fast ? 0 : (game.honba === 0 && game.kyoku === 0 ? 3400 : 1800))); // 最初の局は、読めるように長めに
+      // 局のはじまり: 枠が、上から雀卓の中心へたたきつけられる(約1.7秒)。親は顔つき。ドラ表示牌は、次の画面の山で見える
+      if (game.fast) return Promise.resolve();
+      const sc = $('#sc'); if (!sc) return Promise.resolve();
+      const dl = game.players[game.dealer];
+      const face = dl.char && dl.char.face ? `<img class="ky-face" src="${dl.char.face}" alt="" draggable="false">` : '';
+      const el = document.createElement('div');
+      el.className = 'ky-slam';
+      el.innerHTML = `<div class="ky-ring"></div><div class="ky-box"><div class="ky-t${game.honba ? ' hb' : ''}">${game.kyokuLabel()}</div><div class="ky-d">${face}<span><small>親</small><br>${dl.name}</span></div></div><div class="ky-flash"></div>`;
+      sc.appendChild(el);
+      sc.classList.remove('ky-shake'); void sc.offsetWidth; sc.classList.add('ky-shake');
+      setTimeout(() => MJ.SFX.play('slam'), 160);
+      return new Promise((r) => setTimeout(() => { el.remove(); sc.classList.remove('ky-shake'); r(); }, 1700));
     },
 
     /* ---------- 結果 ---------- */

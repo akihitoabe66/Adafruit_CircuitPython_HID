@@ -130,6 +130,7 @@
         case 'win': [523, 659, 784, 1047].forEach((f, i) => T(f, 0.3, 'triangle', 0.26, null, i * 0.12)); T(1047, 0.7, 'sine', 0.2, null, 0.5); T(784, 0.7, 'sine', 0.16, null, 0.5); break;
         case 'lose': [392, 349, 294, 220].forEach((f, i) => T(f, 0.32, 'sine', 0.24, null, i * 0.16)); break;
         case 'drawgame': T(330, 0.3, 'sine', 0.2); T(294, 0.5, 'sine', 0.2, null, 0.22); break;
+        case 'slam': T(150, 0.22, 'sine', 0.9, 38); N(0.25, 2400, 0.5, 0.7, 0, 'lowpass'); T(90, 0.18, 'triangle', 0.55, 45); break; // 局のはじまりの「ダンッ!」
         case 'start': T(196, 1.2, 'sine', 0.3, 190); T(392, 1.0, 'sine', 0.16, null, 0.0); T(588, 0.8, 'sine', 0.1); N(0.12, 4000, 0.2, 1, 0, 'highpass'); break;
         case 'end': [392, 523, 659, 784, 1047].forEach((f, i) => T(f, 0.34, 'square', 0.12, null, i * 0.12)); T(1047, 0.9, 'triangle', 0.22, null, 0.6); break;
         case 'ok': T(660, 0.12, 'triangle', 0.25); T(990, 0.28, 'triangle', 0.25, null, 0.1); break;
