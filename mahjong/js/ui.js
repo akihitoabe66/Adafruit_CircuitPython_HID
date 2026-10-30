@@ -1435,11 +1435,16 @@
       if (!w.tsumo) pts = `${fmt(w.pay.ron)}点(${w.loser.name}から)`;
       else if (win.seat === game.dealer) pts = `${fmt(w.pay.each)}点オール`;
       else pts = `${fmt(w.pay.fromOther)}・${fmt(w.pay.fromDealer)}点`;
+      // 供託(場のリーチ棒)・本場の説明: 点数の表の増減(+3,300など)と、数字が合うように、内訳を見せる
+      const base = !w.tsumo ? w.pay.ron : (win.seat === game.dealer ? w.pay.each * 3 : w.pay.fromOther * 2 + w.pay.fromDealer);
+      const kt = w.kyotaku || 0;
+      const sticks = '<img class="sp-st" src="img/tenbo_1000.png" alt="リーチ棒" draggable="false">'.repeat(Math.min(kt, 4)) + (kt > 4 ? `×${kt}` : '');
+      const plus = (kt || w.honba) ? `<div class="score-plus">${kt ? `<div class="sp-row">＋ <b>供託</b> ${sticks} ${kt}本 = <b>${fmt(kt * 1000)}点</b></div><div class="sp-note">リーチした人が場に出した点棒(1本1,000点)。上がった人が、全部もらえます。</div>` : ''}${w.honba ? `<div class="sp-note">本場 ${w.honba}本: ロンは1本300点、ツモは各100点が、上の点数に入っています。</div>` : ''}${kt ? `<div class="sp-total">もらえる点: ${fmt(base)} + ${fmt(kt * 1000)} = <b>${fmt(base + kt * 1000)}点</b></div>` : ''}</div>` : '';
       return `<div class="win-cols"><div class="win-l"><div class="win-head">${this.faceImg(win.char) || '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): <span class="gl-skip">${w.loser.name}</span>`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.winWords(MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || '', w.tsumo)}」</div>`}</div></div>
       <div class="win-hand">${concealed}${melds}${winT}</div>
       <div>ドラ表示牌: ${dora}${ura}</div></div>
       <div class="win-r"><table class="yakus">${rows.replace(/門前清自摸和/g, '門前清自摸和(メンゼンツモ)')}</table>
-      <div class="score-big">${r.yakuman ? r.limit : `${r.han}飜 ${r.fu}符${r.limit ? ' ' + r.limit : ''}`} → ${pts}</div></div></div>
+      <div class="score-big">${r.yakuman ? r.limit : `${r.han}飜 ${r.fu}符${r.limit ? ' ' + r.limit : ''}`} → ${pts}</div>${plus}</div></div>
       `;
     },
 
@@ -1550,7 +1555,9 @@
           // 読み上げも、そのページの1人ぶんだけ(ページを開いたときに読む)
           res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `和了(${k + 1}人目)` : '和了', html: `<h2>${game.kyokuLabel()} 和了</h2>` + this.winHTML(game, w), onShow: nw > 1 ? () => this.announceWin(game, { wins: [w] }) : null }));
           res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `点数計算(${k + 1}人目)` : '点数計算', html: this.winExplHTML(game, w) }));
-          pages.push({ t: '持ち点', html: `<h2>${game.kyokuLabel()} の結果</h2>${this.scoreTable(game, res)}` });
+          const kw = res.wins && res.wins.find((x) => x.kyotaku > 0);
+          const kn = kw ? `<div class="sc-note">${kw.winner.name}の増減には、供託(場のリーチ棒)${kw.kyotaku}本=${fmt(kw.kyotaku * 1000)}点が入っています。</div>` : '';
+          pages.push({ t: '持ち点', html: `<h2>${game.kyokuLabel()} の結果</h2>${this.scoreTable(game, res)}${kn}` });
           const rv = res.loseReview ? MJ.Coach.loseReview(game, res) : res.review ? MJ.Coach.reviewText(res.review) : '';
           if (rv) this.splitReview(rv).forEach((h, i, a) => pages.push({ t: `振り返り`, html: h, rv: true }));
         } else {

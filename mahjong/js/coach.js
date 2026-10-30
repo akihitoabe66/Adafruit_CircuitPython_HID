@@ -647,6 +647,10 @@
     if (!win.tsumo) lines.push(`<b>⑤ 支払い</b>: ${dealer ? '親のロン' : '子のロン'}=基本点×${dealer ? 6 : 4} = ${r.basic * (dealer ? 6 : 4)} → 100点単位で切り上げ ${hon} = <b>${p.ron}点</b>`);
     else if (dealer) lines.push(`<b>⑤ 支払い</b>: 親のツモ=子3人が基本点×2 ずつ = <b>${p.each}点オール</b>(100点単位切り上げ${hon ? '・' + hon : ''})`);
     else lines.push(`<b>⑤ 支払い</b>: 子のツモ=親が基本点×2 (<b>${p.fromDealer}点</b>)、子が基本点×1 (<b>${p.fromOther}点</b>)(100点単位切り上げ${hon ? '・' + hon : ''})`);
+    if (win.kyotaku) { // 場のリーチ棒(供託)は、上がった人がもらう
+      const base = !win.tsumo ? p.ron : (dealer ? p.each * 3 : p.fromOther * 2 + p.fromDealer);
+      lines.push(`<b>⑥ 供託(リーチ棒)</b>: 場に <b>${win.kyotaku}本</b>(${win.kyotaku * 1000}点)。上がった人がもらえる → ${base} + ${win.kyotaku * 1000} = <b>${base + win.kyotaku * 1000}点</b>`);
+    }
     return lines;
   };
 
