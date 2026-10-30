@@ -1154,7 +1154,7 @@
       const SFXN = { '花': 'call', 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' };
       MJ.SFX.play(SFXN[text]);
       MJ.SFX.voice(text, p);
-      const face = this.faceImg(p.char);
+      const face = this.faceImg(p.char, '', p.seat);
       // 顔は、鳴き・リーチ・和了のこの瞬間にだけ、その席のそばに大きく出す
       const host = $('#says');
       host.querySelectorAll('.shout').forEach((x) => x.remove());
