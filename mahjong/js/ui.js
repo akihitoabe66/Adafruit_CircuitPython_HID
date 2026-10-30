@@ -1182,7 +1182,7 @@
       const st = (p.char && p.char.style) || 'balanced';
       const pool = (L[h.kind] || L.riichi)[st] || (L[h.kind] || L.riichi).balanced;
       const line = h.kind === 'riichi' && p.char && ID[p.char.id] && Math.random() < 0.6 ? ID[p.char.id] : pool[Math.floor(Math.random() * pool.length)];
-      this.speak(game, p, line);
+      this.speak(game, p, line, 6000); // 捨てる瞬間(doDiscard)に消える
       if (h.kind === 'riichi' && this.hintOn) setTimeout(() => { if (this.game === game) this.teacherSay(`${p.name}が長考しています。テンパイかもしれません。`, 'warn', 4500); }, 600);
     },
     /* 季節牌を引いたとき: 「花」と短く知らせる(その人の席のそばに、顔と文字) */
@@ -1315,7 +1315,9 @@
       MJ.SFX.play('select');
       setTimeout(() => el.remove(), 2200);
     },
-    speak(game, p, text) {
+    /* 出ているCPUの吹き出し(.say)を、すぐ消す(次の牌が捨てられたとき・捨てる瞬間) */
+    clearSays() { const host = $('#says'); if (host) host.querySelectorAll('.say').forEach((x) => x.remove()); },
+    speak(game, p, text, ms = 3600) {
       // セリフは、話しているキャラの顔と吹き出しを、その席のそばに短く出す
       const host = $('#says');
       if (host.querySelector(`.shout.sh${p.seat}`) || ($('#screen-game .cutin') && +$('#screen-game .cutin').dataset.seat === p.seat)) return; // 宣言や特別なセリフの最中は、同じ人の吹き出しを出さない
@@ -1324,7 +1326,7 @@
       el.className = `say sy${p.seat}`;
       el.innerHTML = `${this.faceImg(p.char, '', p.seat)}<div class="sb2"><small>${p.name}</small>${text}</div>`; // 顔(首元まで)の切り抜き(輪郭だけ・丸い枠なし)
       host.appendChild(el);
-      setTimeout(() => el.remove(), 3600);
+      setTimeout(() => el.remove(), ms);
     },
     /* 顔のカットイン(特別なセリフ) */
     cutin(game, p, text) {

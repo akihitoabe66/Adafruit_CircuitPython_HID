@@ -337,6 +337,7 @@
     }
 
     async doDiscard(p, tile, riichi) {
+      if (this.ui && this.ui.clearSays) this.ui.clearSays(); // 牌を捨てる瞬間に、出ている吹き出し(考え中のセリフなど)を消して、捨て牌を見せる
       if (p.isHuman) this.recordHumanReview(p, tile);
       const i = p.hand.indexOf(tile);
       p.hand.splice(i, 1);

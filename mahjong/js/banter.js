@@ -347,8 +347,16 @@
       const cut = text[0] === '!';
       if (cut) text = text.slice(1);
       lastAt = now;
-      if (cut) game.ui.cutin(game, p, text); else game.ui.speak(game, p, text);
+      if (cut) game.ui.cutin(game, p, text); else game.ui.speak(game, p, text, opt.ms || 3600);
       return true;
+    },
+    /* 牌を捨てたときのひとこと: 捨てた牌がまず見えるように、約0.8秒あとに出す(高速は0.4秒後)。待ち時間は増やさない(タイマーだけ)。
+       そのあいだに次の牌が捨てられたら、出さない。出ている時間は、約2.4秒(高速は1.6秒) */
+    later(game, fn) {
+      const sp = MJ.cpuSpeed ? MJ.cpuSpeed() : 'normal';
+      if (game.fast) return;
+      const mark = game.lastDiscard;
+      setTimeout(() => { if (game.stopped || game.lastDiscard !== mark) return; fn(sp === 'fast' ? { ms: 1600 } : { ms: 2400 }); }, sp === 'fast' ? 400 : 800);
     },
 
     brag(p) { const set = L[p.char && p.char.id]; return set && set.brag ? pick(set.brag) : ''; },
@@ -395,6 +403,7 @@
       if (Math.random() < 0.6) setTimeout(() => B.say(game, B.anyCpu(game), 'start', { force: true }), 900);
     },
     discard(game, p, tile) {
+      const fastK = MJ.cpuSpeed && MJ.cpuSpeed() === 'fast' ? 0.5 : 1; // 高速では、ひとことの頻度を約半分に
       if (p.isHuman) {
         const t = tile.t;
         let kind = null, prob = 0;
@@ -404,12 +413,12 @@
         else if (t >= 27) { kind = 'honor'; prob = 0.22; }
         else if (t % 9 === 0 || t % 9 === 8) { kind = 'term'; prob = 0.1; }
         else { kind = 'mid'; prob = 0.05; }
-        if (Math.random() < prob) B.say(game, B.anyCpu(game), kind);
-        else if (Math.random() < 0.05) B.say(game, B.anyCpu(game), 'taunt');
+        if (Math.random() < prob * fastK) { const who = B.anyCpu(game); B.later(game, (o) => B.say(game, who, kind, o)); }
+        else if (Math.random() < 0.05 * fastK) { const who = B.anyCpu(game); B.later(game, (o) => B.say(game, who, 'taunt', o)); }
       } else {
-        const r = Math.random();
-        if (r < 0.09) B.say(game, p, 'idle');
-        else if (r < 0.135) B.say(game, p, 'taunt');
+        const r = Math.random() / fastK;
+        if (r < 0.09) B.later(game, (o) => B.say(game, p, 'idle', o));
+        else if (r < 0.135) B.later(game, (o) => B.say(game, p, 'taunt', o));
       }
     },
     riichi(game, p) {
