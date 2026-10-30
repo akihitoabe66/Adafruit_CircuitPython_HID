@@ -630,6 +630,7 @@
     teacherSay(text, mood, ms = 6000, kind = 'tip') {
       const host = $('#says'); if (!host) return;
       this.clearDock();
+      this._clearBubbles(); this._vPend = null; { const ci = $('#screen-game .cutin'); if (ci) ci.remove(); } // 麻雀先生が優先: 出ているCPUのセリフは、すぐ消す
       const tok = (this._tdTok = (this._tdTok || 0) + 1);
       const el = document.createElement('div');
       el.className = 'tdock'; el.dataset.kind = kind;
@@ -1157,6 +1158,7 @@
       MJ.SFX.play(SFXN[text]);
       MJ.SFX.voice(text, p);
       const face = this.faceImg(p.char, '', p.seat);
+      this._clearBubbles(); this._vPend = null; this._vEnd = Date.now() + ({ think: 1300, normal: 1000, fast: 520 })[MJ.cpuSpeed()] + 350; // 宣言の最中は、ほかのセリフを出さない
       // 顔は、鳴き・リーチ・和了のこの瞬間にだけ、その席のそばに大きく出す
       const host = $('#says');
       host.querySelectorAll('.shout').forEach((x) => x.remove());
@@ -1183,7 +1185,7 @@
       const pool = (L[h.kind] || L.riichi)[st] || (L[h.kind] || L.riichi).balanced;
       const line = h.kind === 'riichi' && p.char && ID[p.char.id] && Math.random() < 0.6 ? ID[p.char.id] : pool[Math.floor(Math.random() * pool.length)];
       this.speak(game, p, line, 6000); // 捨てる瞬間(doDiscard)に消える
-      if (h.kind === 'riichi' && this.hintOn) setTimeout(() => { if (this.game === game) this.teacherSay(`${p.name}が長考しています。テンパイかもしれません。`, 'warn', 4500); }, 600);
+      if (h.kind === 'riichi' && this.hintOn) this._hesTeacher = `${p.name}が長考していました。テンパイかもしれません。`; // 捨てたあとに言う(CPUのセリフと重ならない)
     },
     /* 季節牌を引いたとき: 「花」と短く知らせる(その人の席のそばに、顔と文字) */
     flowerFx(game, p) { return game.fast ? Promise.resolve() : this.banner(game, p, '花'); },
@@ -1316,8 +1318,30 @@
       setTimeout(() => el.remove(), 2200);
     },
     /* 出ているCPUの吹き出し(.say)を、すぐ消す(次の牌が捨てられたとき・捨てる瞬間) */
-    clearSays() { const host = $('#says'); if (host) host.querySelectorAll('.say').forEach((x) => x.remove()); },
-    speak(game, p, text, ms = 3600) {
+    _clearBubbles() { const host = $('#says'); if (host) host.querySelectorAll('.say').forEach((x) => x.remove()); this._vEnd = 0; },
+    clearSays() {
+      this._clearBubbles();
+      if (this._hesTeacher) { const t = this._hesTeacher; this._hesTeacher = null; setTimeout(() => { if (this.hintOn) this.teacherSay(t, 'warn', 4500); }, 450); } // 捨てたあとに、麻雀先生がひとこと(考え中のセリフと重ならない)
+    },
+    /* セリフは、同時に1人だけ: CPUの吹き出し・カットイン・麻雀先生・宣言のどれかが出ているあいだは、次のCPUのセリフは待つ。
+       約2.5秒待っても出せなければ、やめる(古いセリフを出さない)。麻雀先生は、いつも優先(出ているCPUのセリフは、すぐ消える)。 */
+    voiceBusy() { return Date.now() < (this._vEnd || 0) || !!document.querySelector('#says .tdock, #says .shout'); },
+    voicePlay(run, ms, prio = 1) {
+      const go = (item) => { this._vEnd = Date.now() + item.ms + 350; item.run(); };
+      const item = { run, ms, prio, at: Date.now() };
+      if (!this.voiceBusy()) return go(item);
+      if (this._vPend && this._vPend.prio > prio) return; // もっと大事なセリフが待っている
+      this._vPend = item;
+      const flush = () => {
+        const it = this._vPend; if (!it) return;
+        if (Date.now() - it.at > 2500) { this._vPend = null; return; }
+        if (this.voiceBusy()) { this._vTm = setTimeout(flush, 250); return; }
+        this._vPend = null; go(it);
+      };
+      clearTimeout(this._vTm); this._vTm = setTimeout(flush, 250);
+    },
+    speak(game, p, text, ms = 3600) { this.voicePlay(() => this._speakNow(game, p, text, ms), ms); },
+    _speakNow(game, p, text, ms = 3600) {
       // セリフは、話しているキャラの顔と吹き出しを、その席のそばに短く出す
       const host = $('#says');
       if (host.querySelector(`.shout.sh${p.seat}`) || ($('#screen-game .cutin') && +$('#screen-game .cutin').dataset.seat === p.seat)) return; // 宣言や特別なセリフの最中は、同じ人の吹き出しを出さない
@@ -1329,7 +1353,8 @@
       setTimeout(() => el.remove(), ms);
     },
     /* 顔のカットイン(特別なセリフ) */
-    cutin(game, p, text) {
+    cutin(game, p, text) { this.voicePlay(() => this._cutinNow(game, p, text), 2600, 2); },
+    _cutinNow(game, p, text) {
       const host = $('#screen-game');
       const old = host.querySelector('.cutin');
       if (old) old.remove();
