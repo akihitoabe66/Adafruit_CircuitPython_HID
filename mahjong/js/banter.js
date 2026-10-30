@@ -355,7 +355,17 @@
     later(game, fn) {
       const sp = MJ.cpuSpeed ? MJ.cpuSpeed() : 'normal';
       if (game.fast || sp === 'fast') return;
-      setTimeout(() => { if (game.stopped) return; fn({}); }, 800);
+      const mark = game.lastDiscard, t0 = Date.now();
+      // 交通整理: 鳴く・ロンの判断が終わるまで待つ。鳴かれた・ロンされたら、出さない(ポン・チーのセリフが出る)。先に進んでいたら、古いので出さない
+      const tick = () => {
+        if (game.stopped || game.lastDiscard !== mark) return;
+        if (mark && mark.d && mark.d.called) return;
+        const age = Date.now() - t0;
+        if (game.reacting) { if (age > 3500) return; setTimeout(tick, 250); return; }
+        if (age < 800) { setTimeout(tick, 800 - age); return; }
+        fn({});
+      };
+      setTimeout(tick, 800);
     },
 
     brag(p) { const set = L[p.char && p.char.id]; return set && set.brag ? pick(set.brag) : ''; },

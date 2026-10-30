@@ -451,7 +451,12 @@
       return o;
     }
 
+    /* 牌が捨てられたあとの、ロン・ポン・チー・カンの判断。そのあいだは reacting(捨て牌のひとことは、終わるまで待つ) */
     async reactions(p, tile) {
+      this.reacting = true;
+      try { return await this._reactions(p, tile); } finally { this.reacting = false; }
+    }
+    async _reactions(p, tile) {
       const decs = [];
       for (let k = 1; k <= 3; k++) {
         const q = this.players[(p.seat + k) % 4];
