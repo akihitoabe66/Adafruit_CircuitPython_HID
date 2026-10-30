@@ -223,10 +223,29 @@
       // 考える時間にゆらぎを持たせる: 引いた牌をそのまま切るときは短め、手を入れかえるときは長め。ときどき、じっくり考える
       const r = Math.random();
       const swap = act.tile && p.drawn && act.tile !== p.drawn;
-      let ms = swap ? 1100 + r * 1000 : 700 + r * 600;
-      if (r > 0.88) ms += 1200 + Math.random() * 1200;
+      const sp = MJ.cpuSpeed();
+      let ms;
+      if (sp === 'fast') ms = (swap ? 300 : 200) + r * 80; // 高速: トントントンと進む
+      else if (sp === 'think') { // 思考: ゆっくり。ためらいが、セリフで見える
+        ms = swap ? 2000 + r * 1000 : 1500 + r * 900;
+        if (r > 0.88) ms += 1000 + Math.random() * 1000;
+        const h = this.ui && this.ui.hesitate ? this.hesitation(p, act, opts) : null;
+        if (h) { ms = Math.max(ms, h.ms); this.ui.hesitate(this, p, h); }
+      } else { // ふつう(人間らしい間)
+        ms = swap ? 1100 + r * 1000 : 700 + r * 600;
+        if (r > 0.88) ms += 1200 + Math.random() * 1200;
+      }
       await this.wait(ms);
       return act;
+    }
+    /* 思考モード: CPUがためらう場面 → リーチを迷う(テンパイ) / リーチ者がいるときに、現物でない牌を切る */
+    hesitation(p, act, opts) {
+      if (opts && opts.riichi && opts.riichi.length && !p.riichi) return { kind: 'riichi', ms: 2800 + Math.random() * 900 };
+      if (act.tile && !p.riichi && Math.random() < 0.45) {
+        const t = act.tile.t;
+        if (this.players.some((q) => q !== p && q.riichi && !q.discardTypes.has(t))) return { kind: 'danger', ms: 2300 + Math.random() * 700 };
+      }
+      return null;
     }
 
     /* 麻雀先生の評価に使う、あなたの1局ぶんの記録(直近20局) */
@@ -271,7 +290,7 @@
         for (;;) {
           const opts = this.selfOptions(p, { afterCall, rinshan });
           let act;
-          if (p.riichi && !opts.tsumo && !opts.ankan.length) { await this.wait(p.isHuman ? 1100 : 1000 + Math.random() * 300); act = { act: 'discard', tile: p.drawn }; }
+          if (p.riichi && !opts.tsumo && !opts.ankan.length) { await this.wait(p.isHuman ? 1100 : (MJ.cpuSpeed() === 'fast' ? 220 : 1000 + Math.random() * 300)); act = { act: 'discard', tile: p.drawn }; }
           else act = await this.decideSelf(p, opts, { afterCall, rinshan });
           if (this.stopped) return { type: 'draw', dealerTenpai: false };
           if (act.act === 'tsumo') return this.winTsumo(p, opts.tsumo, rinshan);
@@ -340,7 +359,7 @@
         await this.banner(p, 'リーチ');
         if (this.ui && MJ.Banter) MJ.Banter.riichi(this, p);
       } else this.sync();
-      if (!p.isHuman) await this.wait(120);
+      if (!p.isHuman) await this.wait(MJ.cpuSpeed() === 'fast' ? 40 : 120);
     }
 
     recordHumanReview(p, tile) {

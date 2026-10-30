@@ -202,7 +202,7 @@
       const rows = [['bgm', 'BGM'], ['sfx', '効果音'], ['voice', '声']];
       const draw = () => {
         const L = this.volLevels();
-        const html = `<div class="vp"><div class="vp-t">🔊 音のせってい</div>${rows.map(([k, n]) => `<div class="vp-r"><span class="vp-l">${n}</span><button class="vp-b" type="button" data-vk="${k}" data-vd="-1">◀</button><span class="vp-bar"><i style="width:${L[k] * 10}%"></i></span><button class="vp-b" type="button" data-vk="${k}" data-vd="1">▶</button><span class="vp-n">${L[k]}</span></div>`).join('')}<div class="vp-h">0にすると、その音が消えます。対局は、とじるまで止まります。</div><div class="res-foot"><button class="btn pri big" id="vp-close" type="button">とじる</button></div></div>`;
+        const html = `<div class="vp"><div class="vp-t">🔊 音のせってい</div>${rows.map(([k, n]) => `<div class="vp-r"><span class="vp-l">${n}</span><button class="vp-b" type="button" data-vk="${k}" data-vd="-1">◀</button><span class="vp-bar"><i style="width:${L[k] * 10}%"></i></span><button class="vp-b" type="button" data-vk="${k}" data-vd="1">▶</button><span class="vp-n">${L[k]}</span></div>`).join('')}<div class="vp-r vp-spd"><span class="vp-l">CPU</span><button class="vp-b" type="button" id="vp-spd">⏱ 速さ: ${MJ.CPU_SPEED_JP[MJ.cpuSpeed()]}</button></div><div class="vp-h">0にすると、その音が消えます。対局は、とじるまで止まります。</div><div class="res-foot"><button class="btn pri big" id="vp-close" type="button">とじる</button></div></div>`;
         this.overlay(html, { plain: true });
       };
       const close = () => { MJ.paused = false; this.closeOverlay(); };
@@ -219,6 +219,7 @@
           if (nb && MJ.Pad && MJ.Pad.setCur) MJ.Pad.setCur(nb);
           return;
         }
+        if (e.target.closest('#vp-spd')) { MJ.cycleCpuSpeed(); draw(); const nb = o.querySelector('#vp-spd'); if (nb && MJ.Pad && MJ.Pad.setCur) MJ.Pad.setCur(nb); return; }
         if (e.target.closest('#vp-close')) close();
       };
     },
@@ -1168,7 +1169,20 @@
       el.style.setProperty('--c', col);
       el.innerHTML = `${face}<div class="sw">${text}</div><small>${p.name}</small>`;
       host.appendChild(el);
-      return new Promise((r) => setTimeout(() => { el.remove(); r(); }, game.fast ? 0 : 1000));
+      return new Promise((r) => setTimeout(() => { el.remove(); r(); }, game.fast ? 0 : ({ think: 1300, normal: 1000, fast: 520 })[MJ.cpuSpeed()]));
+    },
+    /* 思考モード: CPUのためらい(吹き出し)。リーチを迷うときは、麻雀先生が「長考しています」と知らせる */
+    hesitate(game, p, h) {
+      const L = {
+        riichi: { attack: ['リーチ…いくか?', 'ここは勝負か…', 'うーん…リーチだな'], balanced: ['うーん…リーチするか、迷うな', 'ダマにするか…リーチか…'], defense: ['むむ…ここは慎重に…', 'リーチは…どうしたものか'] },
+        danger: { attack: ['ここは…通るか?', 'えい…これで!'], balanced: ['うーん…この牌は…', 'これは…通るかな…'], defense: ['これは危ない…', 'むむ…この牌か…'] },
+      };
+      const ID = { 1: 'ふむ…リーチか、ダマか…ほっほっほ', 2: 'うーん…ここは桜吹雪を見せるか?', 5: 'うむ…是非に及ばず…リーチか?', 6: 'ええい、リーチじゃ!…いや、待て…', 7: '鳴かぬなら…待つか、リーチか…', 9: 'うーん…どうしたもんぜよ…', 11: '…リーチ、いくか' };
+      const st = (p.char && p.char.style) || 'balanced';
+      const pool = (L[h.kind] || L.riichi)[st] || (L[h.kind] || L.riichi).balanced;
+      const line = h.kind === 'riichi' && p.char && ID[p.char.id] && Math.random() < 0.6 ? ID[p.char.id] : pool[Math.floor(Math.random() * pool.length)];
+      this.speak(game, p, line);
+      if (h.kind === 'riichi' && this.hintOn) setTimeout(() => { if (this.game === game) this.teacherSay(`${p.name}が長考しています。テンパイかもしれません。`, 'warn', 4500); }, 600);
     },
     /* 季節牌を引いたとき: 「花」と短く知らせる(その人の席のそばに、顔と文字) */
     flowerFx(game, p) { return game.fast ? Promise.resolve() : this.banner(game, p, '花'); },

@@ -42,6 +42,12 @@
     try { Object.assign(MJ.RULES, JSON.parse(localStorage.getItem('mj_rules') || '{}')); } catch (e) { /* ignore */ }
     return MJ.RULES;
   };
+  /* CPUの速さ: 思考(ためらいが見える・ゆっくり) / ふつう(人間らしい間) / 高速(トントン進む) */
+  MJ.CPU_SPEEDS = ['think', 'normal', 'fast'];
+  MJ.CPU_SPEED_JP = { think: '思考', normal: 'ふつう', fast: '高速' };
+  MJ.cpuSpeed = () => { let v = 'normal'; try { v = localStorage.getItem('mj_cpuspeed') || 'normal'; } catch (e) { /* ignore */ } return MJ.CPU_SPEEDS.includes(v) ? v : 'normal'; };
+  MJ.setCpuSpeed = (v) => { try { localStorage.setItem('mj_cpuspeed', v); } catch (e) { /* ignore */ } };
+  MJ.cycleCpuSpeed = () => { const o = MJ.CPU_SPEEDS; const n = o[(o.indexOf(MJ.cpuSpeed()) + 1) % o.length]; MJ.setCpuSpeed(n); return n; };
   MJ.saveRules = () => { try { localStorage.setItem('mj_rules', JSON.stringify(MJ.RULES)); } catch (e) { /* ignore */ } };
   MJ.rulesSummary = () => {
     const R = MJ.RULES;

@@ -275,6 +275,7 @@
     MJ.UI.overlay(`<h2>設定</h2><div class="st-list">
       <button class="btn big" id="st-audio">🔊 音の大きさ</button>
       <button class="btn big" id="st-think"></button>
+      <button class="btn big" id="st-spd"></button>
       <button class="btn big" id="st-fx"></button>
       <button class="btn big" id="st-save"></button>
       <button class="btn big" id="st-notes">📖 麻雀参考書</button>
@@ -290,6 +291,7 @@
     const thBtn = o.querySelector('#st-think');
     const thSync = () => { thBtn.textContent = '💬 悩んだときのひとこと: ' + TL[MJ.UI.thinkMode()]; };
     thSync();
+    const spB = o.querySelector('#st-spd'); const spS = () => { spB.textContent = '⏱ CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()]; }; spS(); spB.addEventListener('click', () => { MJ.cycleCpuSpeed(); spS(); });
     const fxB = o.querySelector('#st-fx'); const fxS = () => { fxB.textContent = '⚡ 派手な上がり演出: ' + (MJ.UI.winFxOn() ? 'あり' : 'なし'); }; fxS(); fxB.addEventListener('click', () => { MJ.UI.setWinFx(!MJ.UI.winFxOn()); fxS(); });
     const svB = o.querySelector('#st-save'); const svS = () => { svB.textContent = '💾 自動セーブ(つづき): ' + (MJ.Rank.saveOn() ? 'あり' : 'なし'); }; svS(); svB.addEventListener('click', () => { MJ.Rank.setSaveOn(!MJ.Rank.saveOn()); svS(); });
     thBtn.addEventListener('click', () => { const o2 = ['normal', 'slow', 'off']; MJ.UI.setThinkMode(o2[(o2.indexOf(MJ.UI.thinkMode()) + 1) % 3]); thSync(); });

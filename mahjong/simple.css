@@ -1127,3 +1127,14 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 }
 @media (prefers-reduced-motion: reduce) { #sc.ky-shake { animation: none; } .ky-box { animation: none; opacity: 1; } .ky-ring, .ky-flash { display: none; } }
 .ky-t.hb { font-size: 40px; }
+
+/* 音のせってい: CPUの速さの行 */
+.vp-r.vp-spd { grid-template-columns: 96px 1fr; margin: 6px 0; }
+.vp-r.vp-spd .vp-b { font-size: 26px; height: 52px; }
+/* 設定: ボタンが11個になったので、4列×3段に(スクロールなし・もどるに重ならない) */
+.st-list { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.st-list .btn { font-size: 18px; padding: 12px 6px; min-height: 62px; }
+/* 音のせってい: CPUの速さの行を足したぶん、全体を少しつめる */
+.vp-t { font-size: 26px; margin-bottom: 0; }
+.vp-r { margin: 6px 0; } .vp-b { height: 48px; } .vp-l { font-size: 26px; } .vp-bar { height: 22px; }
+.vp-r.vp-spd .vp-b { height: 46px; font-size: 24px; } .vp-h { font-size: 16px; margin: 2px 0 4px; }
