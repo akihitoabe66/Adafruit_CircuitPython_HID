@@ -10,7 +10,9 @@
   MJ.isTerminal = (t) => t < 27 && (t % 9 === 0 || t % 9 === 8);
   MJ.isDragon = (t) => t >= 31;
   MJ.isWind = (t) => t >= 27 && t <= 30;
-  MJ.tileName = (t) => (t >= 27 ? MJ.HONOR_CH[t - 27] : (t % 9) + 1 + ['萬', '筒', '索'][(t / 9) | 0]);
+  MJ.FLOWER_CH = ['春', '夏', '秋', '冬'];
+  MJ.isFlower = (t) => t >= 34;
+  MJ.tileName = (t) => (t >= 34 ? MJ.FLOWER_CH[t - 34] + '(季節牌)' : t >= 27 ? MJ.HONOR_CH[t - 27] : (t % 9) + 1 + ['萬', '筒', '索'][(t / 9) | 0]);
   MJ.windName = (w) => ['東', '南', '西', '北'][w];
   MJ.doraOf = (ind) => {
     if (ind < 27) return ind % 9 === 8 ? ind - 8 : ind + 1;
@@ -34,7 +36,7 @@
   /* セーブのリセット: 対局成績・練習問題の記録・自分のキャラクターを消す */
   MJ.resetSave = () => { ['mj_stats', 'mj_drill', 'mj_dlog', 'mj_hlog', 'mj_you', 'mj_rank', 'mj_save'].forEach((k) => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }); youMem = 0; };
   /* ---- ルール設定(ブラウザに保存。対局開始時の値が使われる) ---- */
-  MJ.RULE_DEFAULTS = { length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: false, doubleRon: true, kuikae: false, kazoe: true, start: 25000 };
+  MJ.RULE_DEFAULTS = { length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: false, doubleRon: true, kuikae: false, kazoe: true, flower: false, start: 25000 };
   MJ.RULES = Object.assign({}, MJ.RULE_DEFAULTS);
   MJ.loadRules = () => {
     try { Object.assign(MJ.RULES, JSON.parse(localStorage.getItem('mj_rules') || '{}')); } catch (e) { /* ignore */ }
@@ -43,7 +45,7 @@
   MJ.saveRules = () => { try { localStorage.setItem('mj_rules', JSON.stringify(MJ.RULES)); } catch (e) { /* ignore */ } };
   MJ.rulesSummary = () => {
     const R = MJ.RULES;
-    return [{ east: '東風戦', south: '東南戦', single: '一局戦' }[R.length] || '東風戦', R.kuitan ? '喰いタンあり' : '喰いタンなし', R.aka ? '赤' + R.aka : '赤なし', R.ippatsu ? '一発あり' : '一発なし', R.ura ? '裏ドラあり' : '裏ドラなし', R.start + '点持ち'].join('・');
+    return [{ east: '東風戦', south: '東南戦', single: '一局戦' }[R.length] || '東風戦', R.kuitan ? '喰いタンあり' : '喰いタンなし', R.aka ? '赤' + R.aka : '赤なし', R.ippatsu ? '一発あり' : '一発なし', R.ura ? '裏ドラあり' : '裏ドラなし', R.flower ? '季節牌あり' : '季節牌なし', R.start + '点持ち'].join('・');
   };
   MJ.isRedId = (id) => MJ.RULES.aka > 0 && (id === 16 || id === 52 || id === 88);
 
@@ -54,10 +56,20 @@
     }
     return a;
   };
-  MJ.buildWall = () => {
+  /* 山: ふつうは136枚。季節牌(花牌)ありのときだけ、春夏秋冬の4枚を足す。季節牌は、王牌(ドラ表示牌・嶺上牌)には入らないように、生きている山へ入れ替える */
+  MJ.buildWall = (opt = {}) => {
     const w = [];
     for (let id = 0; id < 136; id++) w.push({ id, t: id >> 2, red: MJ.isRedId(id) });
-    return MJ.shuffle(w);
+    if (opt.flower) for (let k = 0; k < 4; k++) w.push({ id: 136 + k, t: 34 + k, red: false, flower: true });
+    MJ.shuffle(w);
+    if (opt.flower) {
+      for (let i = 0; i < 14; i++) {
+        if (!w[i].flower) continue;
+        let j; do { j = 14 + Math.floor(Math.random() * (w.length - 14)); } while (w[j].flower);
+        const tmp = w[i]; w[i] = w[j]; w[j] = tmp;
+      }
+    }
+    return w;
   };
 
   /* ---------- SVG ---------- */

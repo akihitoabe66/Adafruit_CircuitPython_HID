@@ -515,7 +515,7 @@
       // 公開した面子(席の手前)。鳴いた牌は横向き
       const mt = s === 0 ? [30, 40] : [17, 23];
       const melds = p.melds.length ? `<div class="melds m${s}">${p.melds.map((m) => `<div class="mg">${m.tiles.map((h, i) => (m.kind === 'ankan' && (i === 0 || i === 3) ? this.seatTile(h.t, ROT, mt[0], mt[1], { cls: 'bkt' }).replace(/<img[^>]*>/, '') : this.seatTile(h.t, ROT, mt[0], mt[1], { side: h === m.called, red: h.red }))).join('')}</div>`).join('')}</div>` : '';
-      const plq = `<div class="plq seatc${s} p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn" style="font-size:${p.name.length <= 4 ? 17 : p.name.length <= 5 ? 16 : 14}px">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}</div>`;
+      const plq = `<div class="plq seatc${s} p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}${p.flowers && p.flowers.length ? ' hasfl' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn" style="font-size:${p.name.length <= 4 ? 17 : p.name.length <= 5 ? 16 : 14}px">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}${p.flowers && p.flowers.length ? `<span class="fls" title="季節牌 ${p.flowers.length}枚">${p.flowers.map((h) => `<img src="img/tiles/${h.t}.png" alt="${MJ.tileName(h.t)}" draggable="false">`).join('')}</span>` : ''}</div>`;
       const rstick = p.riichi ? `<img class="rstick rs${s}" src="img/tenbo_1000.png" alt="リーチ棒" draggable="false">` : '';
       return `<div class="blk" data-seat="${s}">${river}${hand}${melds}${plq}${rstick}</div>`;
     },
@@ -1153,8 +1153,8 @@
     },
     banner(game, p, text, opt) {
       if ((text === 'ロン' || text === 'ツモ') && !game.fast && this.winFxOn()) return this.winFx(game, p, text, opt); // 上がりは、雷つきの派手な演出
-      const col = text === 'リーチ' ? '#ff5b8a' : text === 'ロン' || text === 'ツモ' ? '#ff7b5a' : '#c48bff';
-      const SFXN = { 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' };
+      const col = text === '花' ? '#ff9ac4' : text === 'リーチ' ? '#ff5b8a' : text === 'ロン' || text === 'ツモ' ? '#ff7b5a' : '#c48bff';
+      const SFXN = { '花': 'call', 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' };
       MJ.SFX.play(SFXN[text]);
       MJ.SFX.voice(text, p);
       const face = this.faceImg(p.char);
@@ -1173,6 +1173,8 @@
       host.appendChild(el);
       return new Promise((r) => setTimeout(() => { el.remove(); r(); }, game.fast ? 0 : 1000));
     },
+    /* 季節牌を引いたとき: 「花」と短く知らせる(その人の席のそばに、顔と文字) */
+    flowerFx(game, p) { return game.fast ? Promise.resolve() : this.banner(game, p, '花'); },
     /* 上がりの演出: 画面が暗くなる → 顔とセリフの帯 → 当たり牌に雷 → 大きな顔と「ロン!!!」(約4.8秒。クリック・Aでとばせる) */
     winTarget(game, p, text) {
       // 雷の落ち先(設計座標 720×428): ロンは放銃した人の河の最後の牌、ツモは上がった人の手牌
@@ -1371,7 +1373,7 @@
       const v = w.view;
       const concealed = v.concealed.map((h) => MJ.tileHTML(h.t, 't-m', '', h.red)).join('');
       const winT = w.winTile ? `<span class="gap"></span>${MJ.tileHTML(w.winTile.t, 't-m hl', '', w.winTile.red)}` : '';
-      const melds = v.melds.map((m) => `<span class="gap"></span>` + m.tiles.map((h, i) => (m.kind === 'ankan' && (i === 0 || i === 3) ? MJ.backHTML('t-m') : MJ.tileHTML(h.t, 't-m', '', h.red))).join('')).join('');
+      const melds = v.melds.map((m) => `<span class="gap"></span>` + m.tiles.map((h, i) => (m.kind === 'ankan' && (i === 0 || i === 3) ? MJ.backHTML('t-m') : MJ.tileHTML(h.t, 't-m', '', h.red))).join('')).join('') + (v.flowers && v.flowers.length ? '<span class="gap"></span>' + v.flowers.map((h) => MJ.tileHTML(h.t, 't-m flw')).join('') : '');
       const dora = game.doraInd.map((d) => MJ.tileHTML(d.t, 't-m', '', d.red)).join('');
       const ura = w.ura.length && MJ.RULES.ura ? '　裏ドラ表示牌: ' + w.ura.map((d) => MJ.tileHTML(d.t, 't-m', '', d.red)).join('') : '';
       const rows = r.yaku.map((y) => `<tr><td>${y.n}</td><td>${r.yakuman ? '役満' : y.h + '飜'}</td></tr>`).join('');

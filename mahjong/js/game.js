@@ -77,7 +77,7 @@
     kyokuLabel() { const K = ['一', '二', '三', '四', '五', '六', '七', '八', '九']; return `${MJ.windName(this.roundWind)}${K[this.kyoku % 4]}局${this.honba ? ' ' + (K[this.honba - 1] || this.honba) + '本場' : ''}`; }
 
     setupHand() {
-      const wall = MJ.buildWall();
+      const wall = MJ.buildWall({ flower: !!MJ.RULES.flower });
       this.dead = wall.splice(0, 14);
       this.live = wall;
       this.rin = this.dead.slice(0, 4);
@@ -93,6 +93,7 @@
       this.humanLog = [];
       for (const p of this.players) {
         p.hand = this.live.splice(0, 13);
+        p.flowers = [];
         p.melds = [];
         p.discards = [];
         p.discardTypes = new Set();
@@ -105,16 +106,34 @@
         p.kuikae = [];
         p.drawn = null;
         p.lastSay = '';
+        this.takeFlowers(p, true);
         this.sortHand(p);
       }
+    }
+    /* 季節牌: 手牌に入った季節牌は、その場で脇に出し(抜き)、山の最後尾から1枚補う。1枚ごとに1飜(花牌)。補った牌も季節牌なら、くり返す */
+    takeFlowers(p, quiet) {
+      let n = 0;
+      for (;;) {
+        const i = p.hand.findIndex((h) => h.t >= 34);
+        if (i < 0) break;
+        p.flowers.push(p.hand.splice(i, 1)[0]); n++;
+        const r = this.live.pop();
+        if (r) p.hand.push(r);
+      }
+      return n;
     }
     sortHand(p) { p.hand.sort((a, b) => a.t - b.t || a.id - b.id); }
 
     draw(p) {
-      const t = this.live.shift();
+      let t = this.live.shift();
+      let fl = 0;
+      while (t && t.t >= 34) { p.flowers.push(t); fl++; t = this.live.pop(); } // 引いたのが季節牌なら、脇に出して、山の最後尾から補う
+      this.lastFlowers = fl;
+      if (!t) return false; // 補う牌がない(山が尽きた)
       p.hand.push(t);
       p.drawn = t;
       if (p.isHuman) this.sfx('draw');
+      return true;
     }
     drawRinshan(p) {
       const t = this.rin[this.rinCount++];
@@ -136,6 +155,7 @@
         roundWind: this.roundWind, seatWind: this.seatWindOf(p),
         haitei: tsumo && this.live.length === 0 && !extra.rinshan,
         houtei: !tsumo && this.live.length === 0,
+        flowers: (p.flowers || []).length,
         rinshan: !!extra.rinshan,
         dora: this.doraInd.map((d) => MJ.doraOf(d.t)),
         ura: p.riichi ? this.uraAll.slice(0, this.doraInd.length).map((d) => MJ.doraOf(d.t)) : [],
@@ -230,7 +250,8 @@
         const afterCall = drawMode === 'none';
         if (drawMode === 'normal') {
           if (this.live.length === 0) return this.exhaustive();
-          this.draw(p);
+          if (this.draw(p) === false) return this.exhaustive();
+          if (this.lastFlowers && this.ui && this.ui.flowerFx) await this.ui.flowerFx(this, p, this.lastFlowers);
           if (this.ui && MJ.Banter && MJ.Banter.ippatsuAvoided) MJ.Banter.ippatsuAvoided(this, p);
         } else if (drawMode === 'rinshan') { this.drawRinshan(p); rinshan = true; }
         drawMode = 'normal';
@@ -480,7 +501,7 @@
     /* ---------- 和了 ---------- */
     handView(p, winTile, tsumo) {
       const concealed = p.hand.filter((h) => !(tsumo && h === p.drawn)).slice().sort((a, b) => a.t - b.t || a.id - b.id);
-      return { concealed, melds: p.melds.map((m) => ({ kind: m.kind, t: m.t, tiles: m.tiles.slice() })), winTile };
+      return { concealed, melds: p.melds.map((m) => ({ kind: m.kind, t: m.t, tiles: m.tiles.slice() })), flowers: (p.flowers || []).slice(), winTile };
     }
 
     async winTsumo(p, res, rinshan) {

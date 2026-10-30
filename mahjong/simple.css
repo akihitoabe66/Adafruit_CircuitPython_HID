@@ -1077,3 +1077,15 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 #dr .dr-top h2 { overflow: visible !important; text-overflow: clip !important; }
 .ev-r.ev-g { grid-template-columns: 180px 1fr 56px 112px; } .ev-t { font-size: 13px; color: #cfe; text-align: right; }
 .ev-plan { font-size: 15px; font-weight: 900; color: #ffe27a; margin-top: 6px; }
+
+/* 季節牌(花牌): 名札のそばに、小さく並べる */
+.plq .fls { display: inline-flex; gap: 1px; margin-left: 4px; flex: none; }
+.plq .fls img { width: 15px; height: 20px; display: block; }
+.plq.p0.hasfl { width: 262px; left: 454px; } .plq.p0 .fls img { width: 17px; height: 23px; }
+.t-m.flw { opacity: .95; }
+
+/* ルール設定: 12項目(6段)を、スクロールなしで収める */
+.rl-grid { gap: 4px 12px; }
+.rl-row { padding: 2px 10px; }
+.rl-h select { padding: 1px 6px; }
+.rl-n { margin-top: 0; line-height: 1.2; }

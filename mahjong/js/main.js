@@ -226,6 +226,7 @@
       ${row('ダブロン', tog('doubleRon', 'あり', 'なし(頭ハネ)'), '同じ牌で複数人がロンできるとき、全員の和了を認めるか。')}
       ${row('喰い替え', tog('kuikae', '許可', '禁止'), '鳴いた直後に、鳴いた牌と同じ(近い)牌を切ること。')}
       ${row('数え役満', tog('kazoe', 'あり', 'なし(三倍満止まり)'), '13飜以上を役満として扱うか。')}
+      ${row('季節牌(花牌)', tog('flower', 'あり', 'なし'), 'ありなら、春夏秋冬の4枚を山に加える。1枚で1飜。')}
       ${row('持ち点', sel('start', [[25000, '25,000点'], [30000, '30,000点'], [35000, '35,000点']]), '開始時の持ち点。')}
     </div><div class="res-foot"><button class="btn" id="rl-reset">初期値に戻す</button><button class="btn pri" id="rl-close">閉じる</button></div>`, { plain: true });
     const root = document.querySelector('#overlay');

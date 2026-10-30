@@ -171,6 +171,7 @@
       if (u) { yaku.push({ n: '裏ドラ', h: u, dora: true }); han += u; }
     }
     if (ctx.aka) { yaku.push({ n: '赤ドラ', h: ctx.aka, dora: true }); han += ctx.aka; }
+    if (ctx.flowers) { yaku.push({ n: '花牌(季節牌)', h: ctx.flowers, dora: true }); han += ctx.flowers; }
     const basic = MJ.basicPoints(han, fu);
     return Object.assign({ yakuman: null, yaku, han, fu, fuDetails: fd, basic, limit: MJ.limitName(han, basic, 0), score: basic * 10 + han }, extra);
   }
