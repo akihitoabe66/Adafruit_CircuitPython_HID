@@ -47,6 +47,7 @@
       }
       for (;;) {
         if (this.ui && MJ.Rank) MJ.Rank.write(this); // 局のはじめごとに、自動セーブ
+        if (this.handCount > 0 && this.ui) this.blankTable(); // 次の局の配牌まで、前の局の牌を見せない
         if (this.handCount > 0 && this.ui && this.ui.dice) { await this.ui.dice(this, false); if (this.stopped) return null; } // 局のはじめ: 親がサイコロを振る
         const r = await this.playHand();
         if (this.stopped) return null;
@@ -74,9 +75,17 @@
       }
     }
 
+    /* 局と局のあいだ: 前の局の手牌・河・副露・ドラ表示牌を、卓から消す(次の配牌までの間に、前の局の牌が見えて紛らわしいため) */
+    blankTable() {
+      for (const p of this.players) { p.hand = []; p.melds = []; p.discards = []; p.flowers = []; p.riichi = false; p.drawn = null; p.discardTypes = new Set(); }
+      this.doraInd = []; this.lastDiscard = null; this.blank = true;
+      this.sync();
+    }
+
     kyokuLabel() { const K = ['一', '二', '三', '四', '五', '六', '七', '八', '九']; return `${MJ.windName(this.roundWind)}${K[this.kyoku % 4]}局${this.honba ? ' ' + (K[this.honba - 1] || this.honba) + '本場' : ''}`; }
 
     setupHand() {
+      this.blank = false;
       const wall = MJ.buildWall({ flower: !!MJ.RULES.flower });
       this.dead = wall.splice(0, 14);
       this.live = wall;

@@ -479,7 +479,7 @@
       const doras = `<img class="wb" src="img/wall.png" alt="" draggable="false">${ov}`;
       const dora2 = '';
       const sub = game.kyotaku ? `供託<span class="ks">${'<img src="img/tenbo_1000.png" alt="" draggable="false">'.repeat(Math.min(game.kyotaku, 5))}${game.kyotaku > 5 ? `×${game.kyotaku}` : ''}</span>` : '';
-      const ctr = `<div class="ctr"><div class="txt"><div class="k">${game.kyokuLabel().replace(' ', '<br>')}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.live.length}<small>枚</small></div></div><div class="dr wall wimg">${doras}</div></div>`;
+      const ctr = `<div class="ctr"><div class="txt"><div class="k">${game.kyokuLabel().replace(' ', '<br>')}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.blank ? '-' : game.live.length}<small>枚</small></div></div><div class="dr wall wimg">${doras}</div></div>`;
       return ctr + [0, 1, 2, 3].map((s) => this.block(game, s)).join('');
     },
     block(game, s) {
