@@ -1091,7 +1091,7 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 .rl-n { margin-top: 0; line-height: 1.2; }
 
 /* 王牌(壁牌): 絵の上に、ドラ表示牌を重ねる */
-.ctr .dr.wall.wimg { position: relative; display: block; width: 134px; height: 54px; padding: 0; margin: 0; gap: 0; transform: translateX(-8px); }
+.ctr .dr.wall.wimg { position: relative; display: block; width: 130px; height: 52px; padding: 0; margin: 0; gap: 0; transform: translateX(-8px); }
 .ctr .dr.wall.wimg .wb { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: auto; }
 .ctr .dr.wall.wimg .wo { position: absolute; display: block; box-sizing: border-box; background: #f3ecd4; border: 1px solid #8a96a8; border-radius: 2px; overflow: hidden; }
 .ctr .dr.wall.wimg .wo img { display: block; width: 100%; height: 100%; object-fit: fill; }
