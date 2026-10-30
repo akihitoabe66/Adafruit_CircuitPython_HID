@@ -1321,7 +1321,7 @@
     _clearBubbles() { const host = $('#says'); if (host) host.querySelectorAll('.say').forEach((x) => x.remove()); this._vEnd = 0; },
     /* 牌を捨てる瞬間: その人の「考え中のセリフ」だけを消す。ほかのセリフは、読み終わるまで消さない */
     /* 「解説」ボタンの中身: 麻雀先生のイラスト + 解説(開いているときは「✕ 閉じる」) */
-    coachBtnHTML(on) { return on ? '✕ 閉じる' : '<img class="cb-ico" src="img/teacher/t11.png" alt="" draggable="false"><span>解説</span>'; },
+    coachBtnHTML(on) { return on ? '✕ 閉じる' : '<img class="cb-ico" src="img/teacher/t12.png" alt="" draggable="false"><span>解説</span>'; },
     clearSays() {
       const host = $('#says'); if (host) { const hs = host.querySelectorAll('.say[data-hes]'); if (hs.length) { hs.forEach((x) => x.remove()); this._vEnd = 0; } }
       if (this._hesTeacher) { const t = this._hesTeacher; this._hesTeacher = null; setTimeout(() => { if (this.hintOn) this.teacherSay(t, 'warn', 4500); }, 450); } // 捨てたあとに、麻雀先生がひとこと(考え中のセリフと重ならない)
