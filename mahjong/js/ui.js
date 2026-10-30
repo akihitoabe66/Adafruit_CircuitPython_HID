@@ -473,16 +473,13 @@
     },
     tableHTML(game) {
       // 本物の麻雀のように、王牌を、上下2段に重ねた7つの山で見せる。左から 槓ドラ④③②①、ドラ表示牌、嶺上牌2つ。表の牌は、めくれている表示牌だけ
-      const stk = [];
-      for (let i = 0; i < 7; i++) {
-        const di = 4 - i; // 左から4番目(0始まり)がドラ表示牌 = doraInd[0]。左へ、槓ドラ
-        const up = di >= 0 && di < game.doraInd.length ? MJ.tileHTML(game.doraInd[di].t, '', '', game.doraInd[di].red) : MJ.backHTML();
-        stk.push(`<span class="stk"><span class="dn">${MJ.backHTML()}</span><span class="up">${up}</span></span>`);
-      }
-      const doras = stk.join('');
+      // 王牌: 絵(img/wall.png)の上に、めくれているドラ表示牌を重ねる。ドラが増えたら、左へ1つずつ、青い牌を切り抜いて(クリーム色に)表示牌を重ねる
+      const W = 219, H = 88, X0 = 3.4, PX = 30.1, CW = 29.2, Y0 = 4.4, CH = 39.4;
+      const ov = game.doraInd.slice(0, 5).map((d, k) => `<span class="wo" style="left:${((X0 + (4 - k) * PX) / W * 100).toFixed(2)}%;top:${(Y0 / H * 100).toFixed(2)}%;width:${(CW / W * 100).toFixed(2)}%;height:${(CH / H * 100).toFixed(2)}%">${MJ.tileSVG(d.t, d.red)}</span>`).join('');
+      const doras = `<img class="wb" src="img/wall.png" alt="" draggable="false">${ov}`;
       const dora2 = '';
       const sub = game.kyotaku ? `供託<span class="ks">${'<img src="img/tenbo_1000.png" alt="" draggable="false">'.repeat(Math.min(game.kyotaku, 5))}${game.kyotaku > 5 ? `×${game.kyotaku}` : ''}</span>` : '';
-      const ctr = `<div class="ctr"><div class="txt"><div class="k">${game.kyokuLabel().replace(' ', '<br>')}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.live.length}<small>枚</small></div></div><div class="dr wall">${doras}</div></div>`;
+      const ctr = `<div class="ctr"><div class="txt"><div class="k">${game.kyokuLabel().replace(' ', '<br>')}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.live.length}<small>枚</small></div></div><div class="dr wall wimg">${doras}</div></div>`;
       return ctr + [0, 1, 2, 3].map((s) => this.block(game, s)).join('');
     },
     block(game, s) {
