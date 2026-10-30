@@ -5,15 +5,16 @@
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
 
 
+  const num = (k, d) => { const v = load(k, d); return typeof v === 'number' && isFinite(v) ? v : d; }; // 壊れた値(null・NaN)が保存されていても、初期値に戻す
   let ctx = null, master = null, bus = null, lim0 = null;
   const S = (MJ.SFX = {
     on: load('mj_sfx', true),
     voiceOn: load('mj_voice', true),
-    vol: load('mj_sfxvol2', 0.8),
-    readVol: load('mj_readvol', 0.8),
-    readRate: load('mj_readrate', 1),
+    vol: num('mj_sfxvol2', 0.8),
+    readVol: num('mj_readvol', 0.8),
+    readRate: num('mj_readrate', 1),
     readVoice: load('mj_readvoice', ''),
-    callVol: load('mj_callvol', 0.3),
+    callVol: num('mj_callvol', 0.3),
     yakuRead: load('mj_yakuread', true),
 
     getCtx() { return ctx; },
@@ -39,10 +40,10 @@
     setOn(v) { S.on = v; save('mj_sfx', v); },
     setVoice(v) { S.voiceOn = v; save('mj_voice', v); if (!v && G.speechSynthesis) G.speechSynthesis.cancel(); },
     setYakuRead(v) { S.yakuRead = v; save('mj_yakuread', v); },
-    setCallVol(v) { S.callVol = v; save('mj_callvol', v); },
-    setReadVol(v) { S.readVol = v; save('mj_readvol', v); },
+    setCallVol(v) { if (!isFinite(v)) return; S.callVol = v; save('mj_callvol', v); },
+    setReadVol(v) { if (!isFinite(v)) return; S.readVol = v; save('mj_readvol', v); },
     setReadRate(v) { S.readRate = v; save('mj_readrate', v); },
-    setVol(v) { S.vol = v; save('mj_sfxvol2', v); if (master) master.gain.value = v; },
+    setVol(v) { if (!isFinite(v)) return; S.vol = v; save('mj_sfxvol2', v); if (master) master.gain.value = v; },
 
     /* ---- 部品 ---- */
     tone(f, dur, type = 'sine', vol = 0.3, to = null, at = 0) {

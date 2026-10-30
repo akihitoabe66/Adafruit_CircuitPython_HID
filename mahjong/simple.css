@@ -1138,3 +1138,7 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 .vp-t { font-size: 26px; margin-bottom: 0; }
 .vp-r { margin: 6px 0; } .vp-b { height: 48px; } .vp-l { font-size: 26px; } .vp-bar { height: 22px; }
 .vp-r.vp-spd .vp-b { height: 46px; font-size: 24px; } .vp-h { font-size: 16px; margin: 2px 0 4px; }
+
+/* CPUの速さのボタンは、右の矢印(▶)の右端までの長さ。数字の列には、のばさない */
+.vp-r.vp-spd { grid-template-columns: 96px 56px 1fr 56px 44px; }
+.vp-r.vp-spd .vp-sp { grid-column: 2 / 5; }
