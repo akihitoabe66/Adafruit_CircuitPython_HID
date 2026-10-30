@@ -347,16 +347,15 @@
       const cut = text[0] === '!';
       if (cut) text = text.slice(1);
       lastAt = now;
-      if (cut) game.ui.cutin(game, p, text); else game.ui.speak(game, p, text, opt.ms || 3600);
+      if (cut) game.ui.cutin(game, p, text); else game.ui.speak(game, p, text, opt.ms);
       return true;
     },
-    /* 牌を捨てたときのひとこと: 捨てた牌がまず見えるように、約0.8秒あとに出す(高速は0.4秒後)。待ち時間は増やさない(タイマーだけ)。
-       そのあいだに次の牌が捨てられたら、出さない。出ている時間は、約2.4秒(高速は1.6秒) */
+    /* 牌を捨てたときのひとこと: 捨てた牌がまず見えるように、約0.8秒あとに出す。待ち時間は増やさない(タイマーだけ)。
+       出したら、読み終わるまで(2.8〜4.8秒)消さない。高速は、読み切れないので、ひとことを出さない */
     later(game, fn) {
       const sp = MJ.cpuSpeed ? MJ.cpuSpeed() : 'normal';
-      if (game.fast) return;
-      const mark = game.lastDiscard;
-      setTimeout(() => { if (game.stopped || game.lastDiscard !== mark) return; fn(sp === 'fast' ? { ms: 1600 } : { ms: 2400 }); }, sp === 'fast' ? 400 : 800);
+      if (game.fast || sp === 'fast') return;
+      setTimeout(() => { if (game.stopped) return; fn({}); }, 800);
     },
 
     brag(p) { const set = L[p.char && p.char.id]; return set && set.brag ? pick(set.brag) : ''; },
@@ -403,7 +402,7 @@
       if (Math.random() < 0.6) setTimeout(() => B.say(game, B.anyCpu(game), 'start', { force: true }), 900);
     },
     discard(game, p, tile) {
-      const fastK = MJ.cpuSpeed && MJ.cpuSpeed() === 'fast' ? 0.5 : 1; // 高速では、ひとことの頻度を約半分に
+      const fastK = 1;
       if (p.isHuman) {
         const t = tile.t;
         let kind = null, prob = 0;

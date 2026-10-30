@@ -1184,7 +1184,7 @@
       const st = (p.char && p.char.style) || 'balanced';
       const pool = (L[h.kind] || L.riichi)[st] || (L[h.kind] || L.riichi).balanced;
       const line = h.kind === 'riichi' && p.char && ID[p.char.id] && Math.random() < 0.6 ? ID[p.char.id] : pool[Math.floor(Math.random() * pool.length)];
-      this.speak(game, p, line, 6000); // 捨てる瞬間(doDiscard)に消える
+      this.speak(game, p, line, 6000, true); // 捨てる瞬間(doDiscard)に消える
       if (h.kind === 'riichi' && this.hintOn) this._hesTeacher = `${p.name}が長考していました。テンパイかもしれません。`; // 捨てたあとに言う(CPUのセリフと重ならない)
     },
     /* 季節牌を引いたとき: 「花」と短く知らせる(その人の席のそばに、顔と文字) */
@@ -1319,8 +1319,9 @@
     },
     /* 出ているCPUの吹き出し(.say)を、すぐ消す(次の牌が捨てられたとき・捨てる瞬間) */
     _clearBubbles() { const host = $('#says'); if (host) host.querySelectorAll('.say').forEach((x) => x.remove()); this._vEnd = 0; },
+    /* 牌を捨てる瞬間: その人の「考え中のセリフ」だけを消す。ほかのセリフは、読み終わるまで消さない */
     clearSays() {
-      this._clearBubbles();
+      const host = $('#says'); if (host) { const hs = host.querySelectorAll('.say[data-hes]'); if (hs.length) { hs.forEach((x) => x.remove()); this._vEnd = 0; } }
       if (this._hesTeacher) { const t = this._hesTeacher; this._hesTeacher = null; setTimeout(() => { if (this.hintOn) this.teacherSay(t, 'warn', 4500); }, 450); } // 捨てたあとに、麻雀先生がひとこと(考え中のセリフと重ならない)
     },
     /* セリフは、同時に1人だけ: CPUの吹き出し・カットイン・麻雀先生・宣言のどれかが出ているあいだは、次のCPUのセリフは待つ。
@@ -1340,14 +1341,17 @@
       };
       clearTimeout(this._vTm); this._vTm = setTimeout(flush, 250);
     },
-    speak(game, p, text, ms = 3600) { this.voicePlay(() => this._speakNow(game, p, text, ms), ms); },
-    _speakNow(game, p, text, ms = 3600) {
+    /* 読む時間: 短いセリフでも2.8秒、長いセリフは文字数に応じて、最大4.8秒 */
+    readMs(text) { return Math.max(2800, Math.min(4800, Math.round(1300 + String(text).replace(/<[^>]*>/g, '').length * 110))); },
+    speak(game, p, text, ms, hes) { ms = ms || this.readMs(text); this.voicePlay(() => this._speakNow(game, p, text, ms, hes), ms); },
+    _speakNow(game, p, text, ms = 3600, hes = false) {
       // セリフは、話しているキャラの顔と吹き出しを、その席のそばに短く出す
       const host = $('#says');
       if (host.querySelector(`.shout.sh${p.seat}`) || ($('#screen-game .cutin') && +$('#screen-game .cutin').dataset.seat === p.seat)) return; // 宣言や特別なセリフの最中は、同じ人の吹き出しを出さない
       host.querySelectorAll(`.say.sy${p.seat}`).forEach((x) => x.remove());
       const el = document.createElement('div');
       el.className = `say sy${p.seat}`;
+      if (hes) el.dataset.hes = '1';
       el.innerHTML = `${this.faceImg(p.char, '', p.seat)}<div class="sb2"><small>${p.name}</small>${text}</div>`; // 顔(首元まで)の切り抜き(輪郭だけ・丸い枠なし)
       host.appendChild(el);
       setTimeout(() => el.remove(), ms);
