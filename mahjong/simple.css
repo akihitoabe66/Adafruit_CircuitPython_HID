@@ -1095,3 +1095,6 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 .ctr .dr.wall.wimg .wb { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: auto; }
 .ctr .dr.wall.wimg .wo { position: absolute; display: block; box-sizing: border-box; background: #f3ecd4; border: 1px solid #8a96a8; border-radius: 2px; overflow: hidden; }
 .ctr .dr.wall.wimg .wo img { display: block; width: 100%; height: 100%; object-fit: fill; }
+/* リーチ棒: 4方向とも、同じ大きさ(長さ60px)にそろえる。中心の位置は、そのまま */
+.rstick.rs0 { width: 60px; left: 358px; top: 231px; }
+.rstick.rs2 { width: 60px; left: 358px; top: 148px; }
