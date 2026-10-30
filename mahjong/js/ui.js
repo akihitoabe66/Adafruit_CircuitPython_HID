@@ -60,7 +60,7 @@
       });
       $('#btn-danger').addEventListener('click', () => this.setDanger(!this.dangerOn));
       $('#btn-tl').addEventListener('click', () => this.showTimeline());
-      $('#btn-coach').addEventListener('click', () => { const on = document.body.classList.toggle('coach-open'); $('#btn-coach').textContent = on ? '✕ 閉じる' : '🎓 解説'; this.fitCoachText($('#coach')); });
+      $('#btn-coach').addEventListener('click', () => { const on = document.body.classList.toggle('coach-open'); $('#btn-coach').innerHTML = this.coachBtnHTML(on); this.fitCoachText($('#coach')); });
       window.addEventListener('resize', () => { this.relayout(); this.fitOverlay(); });
       window.addEventListener('orientationchange', () => setTimeout(() => this.relayout(), 250));
       $('#opt-reveal').addEventListener('change', (e) => { this.reveal = e.target.checked; document.body.classList.toggle('reveal-on', this.reveal); if (this.game) this.render(this.game); });
@@ -112,7 +112,7 @@
       });
       this.syncAudio();
       // 解説ボタンの文字は、窓がどの方法で開閉されても(外をタッチ・✕・ボタン)、実際の状態に合わせる
-      new MutationObserver(() => { const b = $('#btn-coach'); if (b) b.textContent = document.body.classList.contains('coach-open') ? '✕ 閉じる' : '🎓 解説'; }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      new MutationObserver(() => { const b = $('#btn-coach'); if (b) b.innerHTML = this.coachBtnHTML(document.body.classList.contains('coach-open')); }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
       $('#btn-hint').addEventListener('click', () => this.toggleHint());
       $('#btn-teach').addEventListener('click', () => this.setTeacher(!this.hintOn)); // 対局中に、麻雀先生(ヒント)の あり / なし を切り替える
       document.addEventListener('click', (e) => { if (e.target.closest('[data-hintoggle]')) this.toggleHint(); });
@@ -1320,6 +1320,8 @@
     /* 出ているCPUの吹き出し(.say)を、すぐ消す(次の牌が捨てられたとき・捨てる瞬間) */
     _clearBubbles() { const host = $('#says'); if (host) host.querySelectorAll('.say').forEach((x) => x.remove()); this._vEnd = 0; },
     /* 牌を捨てる瞬間: その人の「考え中のセリフ」だけを消す。ほかのセリフは、読み終わるまで消さない */
+    /* 「解説」ボタンの中身: 麻雀先生のイラスト + 解説(開いているときは「✕ 閉じる」) */
+    coachBtnHTML(on) { return on ? '✕ 閉じる' : '<img class="cb-ico" src="img/teacher/t11.png" alt="" draggable="false"><span>解説</span>'; },
     clearSays() {
       const host = $('#says'); if (host) { const hs = host.querySelectorAll('.say[data-hes]'); if (hs.length) { hs.forEach((x) => x.remove()); this._vEnd = 0; } }
       if (this._hesTeacher) { const t = this._hesTeacher; this._hesTeacher = null; setTimeout(() => { if (this.hintOn) this.teacherSay(t, 'warn', 4500); }, 450); } // 捨てたあとに、麻雀先生がひとこと(考え中のセリフと重ならない)

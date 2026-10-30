@@ -1142,3 +1142,8 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 /* CPUの速さのボタンは、右の矢印(▶)の右端までの長さ。数字の列には、のばさない */
 .vp-r.vp-spd { grid-template-columns: 96px 56px 1fr 56px 44px; }
 .vp-r.vp-spd .vp-sp { grid-column: 2 / 5; }
+
+/* 解説ボタン: 麻雀先生のイラスト */
+#btn-coach { display: flex; align-items: center; justify-content: center; gap: 6px; }
+#btn-coach .cb-ico { height: 100%; max-height: 52px; width: auto; flex: none; margin: -6px 0; filter: drop-shadow(0 1px 1px #0008); }
+#btn-coach > * { pointer-events: none; } /* 押した場所は、いつもボタンそのもの(中身を入れかえても、押した判定が壊れない) */
