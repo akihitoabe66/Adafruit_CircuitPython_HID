@@ -87,8 +87,11 @@
     }
   };
   /* 最初に選ぶ場所(自分の番ならおすすめの牌、鳴けるなら最初の鳴きボタン) */
+  /* タイトル画面(ダイアログなし)では、初めはどのボタンも光らせない。Aで「はじめる」。方向キーでBGM・おわるが光る */
+  const onTitle = () => { const t = $('#screen-title'), ov = $('#overlay'); return !!(t && !t.classList.contains('hidden') && (!ov || ov.classList.contains('hidden'))); };
   const pickDefault = () => {
     const U = MJ.UI;
+    if (onTitle()) return null;
     if (U && U.game && !$('#screen-game').classList.contains('hidden') && $('#overlay').classList.contains('hidden')) {
       const cq = $('.cq-btn.b-pass') || $('.cq-btn[data-act]'); // 初めは「見送る」
       if (cq && visible(cq)) return cq;
@@ -136,6 +139,13 @@
 
   const move = (dx, dy) => {
     const cur = P.cur && P.cur.isConnected && visible(P.cur) ? P.cur : null;
+    if (onTitle()) {
+      const bell = $('#bell'), ex = $('#btn-exit');
+      if (!cur || !cur.matches('#bell, #btn-exit')) { setCur(dy < 0 ? bell : (dy > 0 || dx > 0) ? ex : null); return; } // ←だけは何も光らせない
+      if (dx < 0) { setCur(null); return; } // ←で光を消す(Aで、はじめる に戻る)
+      if (dy < 0) setCur(bell); else if (dy > 0) setCur(ex);
+      return;
+    }
     if (!cur) { setCur(pickDefault()); return; }
     // 音量などのスライダーは、左右で値を変える
     if (cur.matches('input[type=range]') && dx) {
@@ -177,7 +187,7 @@
     const U = MJ.UI;
     const click = (sel) => { const e = $(sel); if (e && !e.disabled && visible(e)) { e.click(); return true; } return false; };
     switch (name) {
-      case 'a': if (P.cur && P.cur.isConnected) { if (U && U.sel && U.sel.type === 'self' && P.cur.matches('.hand .tile[data-id]')) U.picked = +P.cur.dataset.id; /* パッドでは、牌にカーソルを合わせてAで、すぐ捨てる */ P.cur.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); } else setCur(pickDefault()); break;
+      case 'a': if (onTitle() && !(P.cur && P.cur.isConnected && P.cur.matches('#bell, #btn-exit'))) { click('#btn-start'); } else if (P.cur && P.cur.isConnected) { if (U && U.sel && U.sel.type === 'self' && P.cur.matches('.hand .tile[data-id]')) U.picked = +P.cur.dataset.id; /* パッドでは、牌にカーソルを合わせてAで、すぐ捨てる */ P.cur.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); } else setCur(pickDefault()); break;
       case 'b': {
         if (MJ.Rank && MJ.Rank.isOpen()) { MJ.Rank.back(); return; }
         // 用語・役の説明(シート/一覧)が開いているときは、まずそれだけを閉じる(下の画面は、そのまま)
@@ -201,6 +211,7 @@
           click('#btn-quit'); P.lockUntil = Date.now() + 600; // 対局中の「戻る」は、中断の確認を出す
           return;
         }
+        if (onTitle() && P.cur && P.cur.matches('#bell, #btn-exit')) { setCur(null); return; } // 光っているときのBは、光を消すだけ
         P.goBack(); return;
         // それ以外の画面(クイズ・ノートなど)では「戻る」を探す
         const back = [...document.querySelectorAll('.screen:not(.hidden) button')].find((x) => /戻る|もどる|メニューへ|タイトルへ/.test(x.textContent) && visible(x));
@@ -263,7 +274,7 @@
     if (!P.on) {
       P.on = true; document.body.classList.add('pad-on');
       const had = P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur); // すでに選択中のボタンがあれば、そこから動かす / 決定する
-      if (!had) { setCur(pickDefault()); if (name !== 'a' && name !== 'b') return; }
+      if (!had) { setCur(pickDefault()); if (name !== 'a' && name !== 'b' && !onTitle()) return; }
     } // 最初の1回: カーソルを出す(方向キーはそれだけ。Aはそのまま決定する)
     if (P.cur && !(P.cur.isConnected && visible(P.cur) && inScope(P.cur))) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; setCur(pickDefault()); }
     if (name === 'left' || name === 'right' || name === 'up' || name === 'down') {

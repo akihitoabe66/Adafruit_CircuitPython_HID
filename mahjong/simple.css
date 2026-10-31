@@ -1175,3 +1175,8 @@ body.fx-lite .ky-box { animation-name: kySlamLite !important; }
 /* 設定: ボタンが13個(4列×4段)になったので、1つの高さを詰めて、もどるに重ならないようにする */
 .st-list { gap: 6px; margin: 4px 0; }
 .st-list .btn { min-height: 48px !important; padding: 6px 6px !important; font-size: 17px !important; line-height: 1.15; }
+
+/* ===== タイトル画面: 光る枠は四角ではなく、ボタンの形に沿う(白いふち+青い光) ===== */
+body.pad-on #screen-title .tt-go.pf, body.pad-on #screen-title .tt-bgm.pf { outline: none !important; box-shadow: none !important; }
+#screen-title .tt-go.pf img, #screen-title .tt-bgm.pf img { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 3px #fff) drop-shadow(0 0 9px #3d86ff) drop-shadow(0 0 16px #3d86ff) drop-shadow(0 4px 6px #000a); }
+body.pad-on #screen-title .tt-exit.pf { background: linear-gradient(#6b4a2a, #3e2a14); color: #f3e3b0; border-color: #fff; outline: none !important; box-shadow: 0 0 0 2px #fff, 0 0 14px 4px #3d86ff !important; transform: scale(1.07); }
