@@ -976,7 +976,7 @@ body.tbl .river.dense .tile.rch { width: 26px; height: 20px; }
 #drill-quiz.has-board #dq-board, #dq-board { top: 158px; height: 148px; }
 
 /* よみこみ中の表示(タイトルの絵や牌が、そろうまで) */
-body:not(.title-ready) #screen-title::after { content: "よみこみ中…"; position: absolute; left: 0; right: 0; top: 46%; text-align: center; color: #cfe6da; font-size: 26px; font-weight: 700; letter-spacing: .2em; opacity: .85; }
+body:not(.title-ready) #screen-title::after { content: "準備中…"; position: absolute; left: 0; right: 0; top: 46%; text-align: center; color: #cfe6da; font-size: 26px; font-weight: 700; letter-spacing: .2em; opacity: 0; animation: loadIn .3s 1.2s both; } /* すぐ終わる時は出さない(1.2秒以上かかる時だけ) */
 /* 案: 左右・対面の鳴きの置き場所(重ならないように) */
 .melds.m2 { left: auto; right: 112px; top: 34px; flex-direction: row-reverse; }
 .melds.m1 { left: 626px; top: 72px; }
@@ -1227,21 +1227,17 @@ body:not(.land) #coach { visibility: hidden; }
 @keyframes drawIn { 0% { transform: translateY(-38px); opacity: 0; } 25% { opacity: 1; } 75% { transform: translateY(3px); } 100% { transform: none; } }
 #mine .hand .tile.draw-in { animation: drawIn .15s cubic-bezier(.3, 0, .6, 1) both; }
 /* 手番の名札: 光らせず、少し大きく+黄色い枠 */
-.plq.p0.act, .plq.act { box-shadow: inset 8px 0 0 var(--c), 0 0 0 3px #ffd35a !important; scale: 1.05; }
 /* ポン・チーの確認: 出る時に透けない・動かない(最初から、はっきり出す) */
 .callq { animation: none !important; opacity: 1 !important; }
 .callq .cq-btns .cq-btn { transition: none; }
 .callq.locked .cq-btn { opacity: .85; }
 /* 準備中の表示(演出の動きが始まる前) */
-.in-load { display: none; position: absolute; inset: 0; place-items: center; font-size: 5cqw; font-weight: 900; color: #fff; letter-spacing: .15em; z-index: 3; }
+.in-load { opacity: 0; animation: loadIn .3s .9s both; display: none; position: absolute; inset: 0; place-items: center; font-size: 5cqw; font-weight: 900; color: #fff; letter-spacing: .15em; z-index: 3; }
 #intro.pre .in-load { display: grid; }
 
 
 /* ===== 軽量化・見やすさ(第3弾) ===== */
 /* 自分の番: 自分の名札を黄色く塗って少し大きく。ほかの人の名札は少し暗く */
-.plq.p0.act { background: #ffd23f !important; color: #1b1b12 !important; box-shadow: 0 0 0 3px #fff !important; scale: 1.04; }
-.plq.p0.act * { color: #1b1b12 !important; }
-body.my-turn .plq:not(.p0) { opacity: .6; }
 /* ポン・チー・ロンのボタン: 全部白。種類は上の色の帯で。選ばれたら黄色(下の .pf の規則) */
 .callq .cq-btn { position: relative; }
 .callq .cq-btn.b-call, .callq .cq-btn.b-ron, .callq .cq-btn.b-pass { background: #f3f1e8; border: 3px solid #fff; color: #2b2b22; }
@@ -1261,7 +1257,7 @@ body.my-turn .plq:not(.p0) { opacity: .6; }
 /* リーチできる時の知らせ */
 .myturn.rch { background: #e3361f; color: #fff; }
 /* サイコロの準備中 */
-#dice.pre::after { content: "じゅんび中…"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 5vw; font-weight: 900; color: #fff; letter-spacing: .15em; }
+#dice.pre::after { content: "準備中…"; opacity: 0; animation: loadIn .3s .9s both; position: absolute; inset: 0; display: grid; place-items: center; font-size: 5vw; font-weight: 900; color: #fff; letter-spacing: .15em; }
 
 
 /* キャラクターの表示を、少し小さく(発言・宣言・カットイン) */
@@ -1277,3 +1273,20 @@ body.my-turn .plq:not(.p0) { opacity: .6; }
 body.pad-on .pm-hint { display: inline-block; }
 /* 結果などのページ式ダイアログ: 用語のリンクはなくす(ふりがなは残す) */
 .gl-off { border-bottom: 0 !important; text-decoration: none !important; background: none !important; pointer-events: none !important; cursor: default !important; }
+
+
+/* ===== 色には意味を持たせる: 黄色は「いま選んでいる(カーソル)」だけ。操作できるボタンの黄色い枠・黄色い塗りをやめる ===== */
+@keyframes loadIn { from { opacity: 0; } to { opacity: .9; } }
+#side-in .sd-act .act.b-tsumo.on { box-shadow: 0 0 0 3px #fff; }
+#side-in .sd-act .act.b-call.on { box-shadow: 0 0 0 3px #fff; }
+#side-in .sd-act .act.b-riichi.on { border-color: #fff; box-shadow: 0 0 0 2px #fff; }
+#side-in .sd-act .act.b-dis.on { background: linear-gradient(#4fc58a, #1f8f5a); color: #fff; }
+.sd-act .wait { border-color: #7fd0b4; }
+.sd-act .wait h5 { color: #bfe8d8; }
+/* 誰の番か: 4人とも同じ表示。番の人だけ、はっきり明るく・白い枠・少し大きく。ほかの人は暗い */
+.plq { opacity: .7; }
+.plq.act { opacity: 1; scale: 1.06; box-shadow: inset 8px 0 0 var(--c), 0 0 0 3px #fff !important; z-index: 3; }
+
+.myturn { background: #fff; color: #12304a; }
+.myturn.rch { background: #e3361f; color: #fff; }
+.myturn.kan { background: #2a63c9; color: #fff; }

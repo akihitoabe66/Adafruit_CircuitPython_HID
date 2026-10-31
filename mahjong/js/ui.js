@@ -975,7 +975,7 @@
         this.riichiMode = false; this.picked = null;
         this.startThink(game, p);
         document.body.classList.add('my-turn');
-        this.myTurnMark(opts && opts.riichi && opts.riichi.length && !p.riichi ? 'テンパイ! リーチできます' : null);
+        this.myTurnMark(opts && opts.riichi && opts.riichi.length && !p.riichi ? 'テンパイ! リーチできます' : opts && ((opts.ankan && opts.ankan.length) || (opts.kakan && opts.kakan.length)) ? 'カンできます(右上のボタン)' : null);
         if (opts && opts.riichi && opts.riichi.length && !p.riichi && MJ.Pad && MJ.Pad.focusRiichi) setTimeout(() => MJ.Pad.focusRiichi(), 30); // リーチできる時は、リーチのボタンから(引いた牌を、うっかり切らないように)
         requestAnimationFrame(() => { const t = $('#mine .hand .tile.drawn:not(.ph)'); if (t) { t.classList.add('draw-in'); setTimeout(() => t.classList.remove('draw-in'), 400); } }); // 引いた牌が、山から右はしへ置かれる動き
         if (MJ.Pad && MJ.Pad.focusHand) setTimeout(() => MJ.Pad.focusHand(), 0); // 自分の番: カーソルを、引いた牌に
@@ -1337,7 +1337,7 @@
     myTurnMark(text) {
       const sc = $('#sc'); if (!sc) return;
       sc.querySelectorAll('.myturn').forEach((x) => x.remove());
-      const el = document.createElement('div'); el.className = 'myturn' + (text ? ' rch' : ''); el.textContent = text || 'あなたの番です';
+      const el = document.createElement('div'); el.className = 'myturn' + (text ? (/カン/.test(text) ? ' kan' : ' rch') : ''); el.textContent = text || 'あなたの番です';
       sc.appendChild(el); setTimeout(() => el.remove(), text ? 2600 : 1700);
     },
     alertWin(text) {
