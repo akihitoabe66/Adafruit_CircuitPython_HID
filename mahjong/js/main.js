@@ -445,7 +445,7 @@
   /* 画像を読み込んで、デコードまで終わらせる(失敗しても止まらない)。読み込んだ絵は MJ.preloaded に持っておく */
   const loadImg = (u) => new Promise((ok) => { const im = new Image(); im.decoding = 'async'; im.onload = () => { (im.decode ? im.decode() : Promise.resolve()).then(ok, ok); }; im.onerror = ok; im.src = u; MJ.preloaded.push(im); });
   /* 背景の絵は、データとして取り寄せて、CSS変数に入れる(CSSの背景の読み込みが遅れたり、抜けたりしないように) */
-  const loadArt = (u, v) => fetch(u).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); }).then((b) => { const url = URL.createObjectURL(b); document.documentElement.style.setProperty(v, `url(${url})`); (MJ.artUrl = MJ.artUrl || {})[v] = url; return loadImg(url); }).catch(() => loadImg(u));
+  const loadArt = (u, v) => (MJ.isFile ? Promise.reject(new Error('file')) : fetch(u)).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); }).then((b) => { const url = URL.createObjectURL(b); document.documentElement.style.setProperty(v, `url(${url})`); (MJ.artUrl = MJ.artUrl || {})[v] = url; return loadImg(url); }).catch(() => { if (MJ.isFile) { document.documentElement.style.setProperty(v, `url(${u})`); (MJ.artUrl = MJ.artUrl || {})[v] = u; } return loadImg(u); });
   const pool = (urls, n) => new Promise((done) => { let k = 0, run = 0; const go = () => { if (k >= urls.length && run === 0) return done(); while (run < n && k < urls.length) { run++; loadImg(urls[k++]).then(() => { run--; go(); }); } }; go(); });
   /* 全画面で必要な絵(牌・顔・麻雀先生・背景・ボタン)は、タイトルを出す前に全部そろえる */
   const ESSENTIAL = (() => {

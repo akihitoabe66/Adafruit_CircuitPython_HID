@@ -2,6 +2,17 @@
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
 
+  /* ファイルとして開いたとき(オフライン版: file://)は、fetch が使えないので、同じ形で使える XMLHttpRequest に切り替える */
+  MJ.isFile = typeof location !== 'undefined' && location.protocol === 'file:';
+  MJ.fetch = (u, opt) => {
+    if (!MJ.isFile) return fetch(u, opt);
+    return new Promise((ok, ng) => {
+      const x = new XMLHttpRequest(); x.open('GET', u); x.responseType = 'arraybuffer';
+      x.onload = () => { const r = x.response; ok({ ok: x.status === 0 || (x.status >= 200 && x.status < 300), status: x.status, arrayBuffer: () => Promise.resolve(r), blob: () => Promise.resolve(new Blob([r])), text: () => Promise.resolve(new TextDecoder().decode(r)), json: () => Promise.resolve(JSON.parse(new TextDecoder().decode(r))) }); };
+      x.onerror = () => ng(new Error('xhr'));
+      x.send();
+    });
+  };
   MJ.HONOR_CH = ['東', '南', '西', '北', '白', '發', '中'];
   MJ.isNum = (t) => t < 27;
   MJ.suitOf = (t) => (t < 27 ? (t / 9) | 0 : 3);

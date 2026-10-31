@@ -15,7 +15,7 @@
   /* 取り寄せた曲は Blob(端末内のデータ)にして、再生はそこから行う。ネットを通さないので、押した瞬間に鳴る */
   const warmed = new Set(), blobs = {}, pending = {};
   const warm = (src) => {
-    if (blobs[src] || typeof fetch === 'undefined' || typeof URL === 'undefined') return Promise.resolve();
+    if (MJ.isFile || blobs[src] || typeof fetch === 'undefined' || typeof URL === 'undefined') return Promise.resolve(); // ファイルとして開いたときは、ディスクから直接読めるので、先読みしない
     if (pending[src]) return pending[src];
     pending[src] = fetch(src, { priority: 'low' }).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); })
       .then((b) => { blobs[src] = URL.createObjectURL(b); warmed.add(src); })

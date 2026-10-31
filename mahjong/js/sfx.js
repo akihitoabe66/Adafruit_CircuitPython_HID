@@ -110,7 +110,7 @@
       const c = (S._clip[name] = S._clip[name] || {});
       if (c.p) return c.p;
       c.p = (!ctx || typeof fetch === 'undefined') ? Promise.resolve(null)
-        : fetch(`audio/voice/${name}.mp3`).then((r) => { if (!r.ok) throw new Error('x'); return r.arrayBuffer(); }).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng)))
+        : MJ.fetch(`audio/voice/${name}.mp3`).then((r) => { if (!r.ok) throw new Error('x'); return r.arrayBuffer(); }).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng)))
           .then((buf) => { c.buf = buf; return buf; }).catch(() => { c.fail = true; return null; });
       return c.p;
     },
@@ -234,7 +234,7 @@
       if (S._vbuf[k] !== undefined) return S._vbuf[k];
       S._vbuf[k] = null;
       if (!ctx || typeof fetch === 'undefined') { delete S._vbuf[k]; return null; }
-      fetch(`audio/voice/${k}.mp3`).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng)))
+      MJ.fetch(`audio/voice/${k}.mp3`).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng)))
         .then((buf) => { S._vbuf[k] = buf; }).catch(() => { /* 読み込めなければ無音 */ });
       return null;
     },
@@ -250,14 +250,14 @@
     loadYk() {
       if (S._yk !== null || typeof fetch === 'undefined') return;
       S._yk = {};
-      fetch('audio/yk/manifest.json').then((r) => r.json()).then((m) => { S._yk = m; }).catch(() => { S._yk = {}; });
+      MJ.fetch('audio/yk/manifest.json').then((r) => r.json()).then((m) => { S._yk = m; }).catch(() => { S._yk = {}; });
     },
     ykHas(key) { return !!(S._yk && S._yk[key]); },
     _ykGet(key) {
       const fn = S._yk && S._yk[key];
       if (!fn || !ctx) return Promise.resolve(null);
       if (S._ykBuf[key]) return S._ykBuf[key];
-      S._ykBuf[key] = fetch(`audio/yk/${fn}`).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng))).catch(() => null);
+      S._ykBuf[key] = MJ.fetch(`audio/yk/${fn}`).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng))).catch(() => null);
       return S._ykBuf[key];
     },
     /* keys: 'y:タンヤオ' などの並び。null は少し間をあける。つなげて鳴らす。鳴らせたら true */
