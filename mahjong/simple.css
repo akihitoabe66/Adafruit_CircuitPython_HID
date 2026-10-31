@@ -222,10 +222,10 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 .win-head .big { font-size: 26px; }
 
 /* ===== 対局スタート演出 ===== */
-#intro { position: absolute; inset: 0; z-index: 90; background: radial-gradient(ellipse at 50% 45%, #2a7a5c, #0f3a2c 80%); display: grid; place-items: center; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; color: #fff; animation: inFade .2s both; }
+#intro { container-type: size; position: absolute; inset: 0; z-index: 90; background: radial-gradient(ellipse at 50% 45%, #2a7a5c, #0f3a2c 80%); display: grid; place-items: center; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; color: #fff; animation: inFade .2s both; }
 #intro.out { opacity: 0; transition: opacity .25s; }
 @keyframes inFade { from { opacity: 0; } to { opacity: 1; } }
-.in-stage { position: relative; width: min(var(--vw, 100vw), calc(var(--vh, 100vh) * 1.7778)); aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; }
+.in-stage { position: relative; width: min(100cqw, calc(100cqh * 1.7778)); aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; }
 .in-seats { position: absolute; inset: 0; }
 .in-seat { position: absolute; display: flex; flex-direction: column; align-items: center; opacity: 0; width: 20cqw; }
 .in-seat img { height: 17cqw; width: auto; display: block; filter: none; }
@@ -352,7 +352,6 @@ img.tcut { height: 84px; width: auto; display: block; flex: none; filter: drop-s
 .plq .pn, .plq i { flex: none; }
 
 /* スマホ縦持ち: 画面全体が90°回って表示されるので、スタート演出の大きさも、回したあとの画面に合わせる(ゲーム画面と同じ大きさ) */
-body.rot .in-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
 
 /* iPhone・iPad: 読み上げ(端末の音声合成)は、AirPlayのテレビに出ず手元の端末から鳴ってしまうため、ボタンごと出さない */
 body.ios .rd, body.ios .rf, body.ios .vpick, body.ios label.vol:has([data-audio=rrate]) { display: none !important; }
@@ -649,10 +648,9 @@ body.no-ruby rt { display: none; }
 .ctr .txt { width: 118px; }
 
 /* サイコロ演出(js/dice.js)。横960を基準に、--u で拡大・縮小する */
-#dice { position: absolute; inset: 0; z-index: 90; background: radial-gradient(ellipse at 50% 45%, #1d5a46, #0f3a2d 80%); display: grid; place-items: center; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; color: #fff; animation: inFade .2s both; }
+#dice { container-type: size; position: absolute; inset: 0; z-index: 90; background: radial-gradient(ellipse at 50% 45%, #1d5a46, #0f3a2d 80%); display: grid; place-items: center; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; color: #fff; animation: inFade .2s both; }
 #dice.out { opacity: 0; transition: opacity .25s; }
-.dc-stage { position: relative; width: min(var(--vw, 100vw), calc(var(--vh, 100vh) * 1.7778)); aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; }
-body.rot .dc-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
+.dc-stage { position: relative; width: min(100cqw, calc(100cqh * 1.7778)); aspect-ratio: 16 / 9; container-type: inline-size; overflow: hidden; }
 .dc-in { --u: calc(100cqw / 960); position: absolute; inset: 0; }
 .dc-pc { position: absolute; width: calc(var(--u) * 190); display: grid; justify-items: center; gap: calc(var(--u) * 4); transition: opacity .25s; }
 .dc-pc img { height: calc(var(--u) * 104); width: auto; display: block; }
@@ -1195,3 +1193,14 @@ html.res-on body { min-height: 0 !important; position: fixed; left: 0; top: 0; w
 /* 河(捨て牌): 本物の麻雀と同じく、左(その席から見て左)から並べる。最後の段が短くても、中央に寄せない */
 body.tbl .river, .river { justify-items: start; justify-content: start; text-align: left; }
 .river .rrow { justify-self: start; margin: 0; }
+
+/* サイコロ・親の光を軽くする: ぼかし・光の影(filter)をやめ、ふつうの色と枠で見せる */
+.dc-sh { filter: none; background: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, .7), rgba(0, 0, 0, 0) 70%); }
+.dc-pc.hit img, .dc-pc.hit img.fcut { filter: none; transform: scale(1.1); }
+.dc-pc.hit .dc-nm { background: #3a2f0a; box-shadow: 0 0 0 calc(var(--u) * 3) #f2c230; }
+/* 平らなサイコロ(豪華以外): 立体の回転をやめる */
+#dice.flat .dc-slot { perspective: none; }
+#dice.flat .dc-cam { transform: none; transform-style: flat; }
+#dice.flat .dc-cube { transform: none !important; transition: none !important; transform-style: flat; }
+#dice.flat .dc-f { display: none; transform: none; backface-visibility: visible; box-shadow: 0 calc(var(--u) * 4) calc(var(--u) * 6) rgba(0, 0, 0, .35); }
+#dice.flat .dc-f.on { display: grid; }

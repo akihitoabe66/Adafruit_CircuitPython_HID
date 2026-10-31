@@ -41,10 +41,13 @@
         const begin = () => {
           host.appendChild(el);
           D.active = true;
+          const flat = !(MJ.FX && MJ.FX.level() === 'full'); // 豪華以外は、立体の回転をやめて、平らな目の入れ替わりで見せる(軽い)
+          el.classList.toggle('flat', flat);
+          const flatT = [];
           let done = false, go = null, quick = false, tossed = false; const waiters = [];
           const wt = (ms) => new Promise((r) => { if (quick) { r(); return; } const t = setTimeout(r, ms); waiters.push(() => { clearTimeout(t); r(); }); }); // Aで、待ちをとばせる待ち
           // 回っているサイコロを、いますぐ出た目で止める
-          const settle = () => { [0, 1].forEach((i) => { const cu = $('#dcc' + i); if (cu) cu.style.transition = 'none'; ['dcx', 'dcy', 'dcs'].forEach((k) => { const e = $('#' + k + i); if (e && e.getAnimations) e.getAnimations().forEach((a) => { try { a.finish(); } catch (er) { /* ignore */ } }); }); }); };
+          const settle = () => { if (flat) { flatT.splice(0).forEach(clearTimeout); [a, b].forEach((v, i) => flatShow(i, v)); } [0, 1].forEach((i) => { const cu = $('#dcc' + i); if (cu) cu.style.transition = 'none'; ['dcx', 'dcy', 'dcs'].forEach((k) => { const e = $('#' + k + i); if (e && e.getAnimations) e.getAnimations().forEach((a) => { try { a.finish(); } catch (er) { /* ignore */ } }); }); }); };
           const finish = () => {
             if (done) return; done = true; D.active = false; D.skip = null;
             el.classList.add('out');
@@ -55,9 +58,19 @@
           const seats = (f) => el.querySelectorAll('.dc-pc').forEach((e) => f(e, +e.dataset.i));
           const cap = (h) => { const c = $('#dc-cap'); if (!c) return; c.innerHTML = !h ? '' : h.indexOf('<span') === 0 ? h : '<span>' + h + '</span>'; c.classList.remove('in'); void c.offsetWidth; c.classList.add('in'); };
           const winds = (d) => seats((e, i) => { const w = e.querySelector('.dc-w'); const k = (i - d + 4) % 4; w.textContent = WINDS[k]; w.classList.toggle('east', k === 0); });
+          const flatShow = (i, v) => { const cu = $('#dcc' + i); if (!cu) return; cu.querySelectorAll('.dc-f').forEach((f) => f.classList.toggle('on', f.classList.contains('dc-f' + v))); };
           const toss = (i, v) => {
             const cu = $('#dcc' + i), dx = $('#dcx' + i), dy = $('#dcy' + i), sh = $('#dcs' + i);
             if (!cu) return;
+            if (flat) { // 平らな見せ方: 目が次々に入れ替わりながら、はずんで止まる
+              [dx, dy, sh].forEach((e) => { e.classList.remove('go'); void e.offsetWidth; });
+              dx.style.setProperty('--sxn', i ? 330 : 420);
+              [dx, dy, sh].forEach((e) => e.classList.add('go'));
+              let t = 0, last = 0;
+              for (const gap of [60, 70, 80, 95, 115, 140, 170, 210, 260]) { t += gap; let r = 1 + Math.floor(Math.random() * 6); if (r === last) r = (r % 6) + 1; last = r; const rr = r; flatT.push(setTimeout(() => flatShow(i, rr), t)); }
+              flatT.push(setTimeout(() => flatShow(i, v), t + 300));
+              return;
+            }
             [dx, dy, sh].forEach((e) => { e.classList.remove('go'); void e.offsetWidth; });
             dx.style.setProperty('--sxn', i ? 330 : 420);
             cu.style.transition = 'none'; cu.style.transform = 'rotateY(0deg) rotateX(0deg) rotateZ(0deg)'; void cu.offsetWidth;
@@ -66,6 +79,7 @@
             cu.style.transform = `rotateY(${yaw}deg) rotateX(${f[0] + 720 + i * 360}deg) rotateZ(${f[1] + 360}deg)`;
             [dx, dy, sh].forEach((e) => e.classList.add('go'));
           };
+          if (flat) [0, 1].forEach((i) => flatShow(i, 1));
           // 置いてあるサイコロは、はじめは 1 と 1
           [0, 1].forEach((i) => { const cu = $('#dcc' + i); cu.style.transition = 'none'; cu.style.transform = 'rotateY(0deg) rotateX(0deg) rotateZ(0deg)'; });
 

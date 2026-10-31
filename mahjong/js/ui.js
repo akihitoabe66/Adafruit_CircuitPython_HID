@@ -112,7 +112,7 @@
       });
       this.syncAudio();
       // 解説ボタンの文字は、窓がどの方法で開閉されても(外をタッチ・✕・ボタン)、実際の状態に合わせる
-      new MutationObserver(() => { const b = $('#btn-coach'); if (b) b.innerHTML = this.coachBtnHTML(document.body.classList.contains('coach-open')); }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      new MutationObserver(() => { const b = $('#btn-coach'); const op = document.body.classList.contains('coach-open'); if (op && this._coachDirty && this.game) { try { this.refreshCoach(); } catch (e) { /* ignore */ } } if (b) b.innerHTML = this.coachBtnHTML(op); }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
       $('#btn-hint').addEventListener('click', () => this.toggleHint());
       $('#btn-teach').addEventListener('click', () => this.setTeacher(!this.hintOn)); // 対局中に、麻雀先生(ヒント)の あり / なし を切り替える
       document.addEventListener('click', (e) => { if (e.target.closest('[data-hintoggle]')) this.toggleHint(); });
@@ -1001,6 +1001,9 @@
       const g = this.game;
       const el = $('#coach');
       if (!g) return;
+      // 解説パネルが閉じている間は、中身を作らない(文字の大きさ合わせは重いので、開いたときに1回だけ)
+      if (!document.body.classList.contains('coach-open')) { this._coachDirty = true; return; }
+      this._coachDirty = false;
       const m = MJ.Coach.MODES[g.mode];
       let body;
       if (!this.coachActive()) body = this.factsHtml(g);
@@ -1120,7 +1123,11 @@
       el.classList.remove('tight'); el.style.overflowY = '';
       el.style.fontSize = px + 'px';
       const over = () => el.scrollHeight > el.clientHeight + 1;
-      while (over() && px > 10) { px -= 0.5; el.style.fontSize = px + 'px'; }
+      if (over()) { // 収まる最大の大きさを、二分探索で見つける(1つずつ下げるより、計算の回数が少ない)
+        let lo = 10, hi = px;
+        while (hi - lo > 0.5) { const mid = Math.round((hi + lo) / 1) / 2; el.style.fontSize = mid + 'px'; if (over()) hi = mid; else lo = mid; }
+        px = lo; el.style.fontSize = px + 'px';
+      }
       // 1枚のカードでも収まらないときは補足(小さい注釈)を省き、それでも駄目なときだけスクロールできるようにする(文字は切らない)
       if (over()) { el.classList.add('tight'); if (over()) el.style.overflowY = 'auto'; }
     },
@@ -1129,11 +1136,17 @@
     fitTip() {
       const el = $('#tipline');
       if (!el) return;
+      if (MJ.Dice && MJ.Dice.active) return; // サイコロの間は、裏の画面の文字合わせはしない(重いので、終わってから)
       el.style.fontSize = '';
       el.querySelectorAll('.cmp').forEach((c) => { c.style.display = ''; });
       const over = () => el.scrollHeight > el.clientHeight + 1;
       let px = parseFloat(getComputedStyle(el).fontSize) || 15;
-      const shrink = (min) => { while (over() && px > min) { px -= 0.5; el.style.fontSize = px + 'px'; } };
+      const shrink = (min) => {
+        if (!over() || px <= min) return;
+        let lo = min, hi = px; el.style.fontSize = lo + 'px';
+        while (hi - lo > 0.5) { const mid = Math.round(lo + hi) / 2; el.style.fontSize = mid + 'px'; if (over()) hi = mid; else lo = mid; }
+        px = lo; el.style.fontSize = px + 'px';
+      };
       shrink(13);
       // まだ収まらなければ補足の比較行を省き、それでも駄目なら文字をさらに小さく(文章を途中で切らない)
       if (over()) { const c = el.querySelector('.cmp'); if (c) c.style.display = 'none'; }

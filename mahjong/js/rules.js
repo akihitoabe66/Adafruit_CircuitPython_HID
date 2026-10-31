@@ -10,32 +10,69 @@
   };
 
   /* ---------- 向聴数 ---------- */
+  /* 通常形の向聴数。色ごとに(面子数・ターツ数・雀頭)の組み合わせを数えて覚えておき(同じ形は2度計算しない)、4色ぶんを合わせる。
+     以前の、34種を一度に調べる方法と、答えは同じ。手牌によっては数秒かかることがあったため、置き換えた */
+  const suitMemo = new Map();
+  function suitCombos(c, off, n, num) {
+    let key = 0;
+    for (let i = 0; i < n; i++) key = key * 5 + c[off + i];
+    if (!num) key += 2500000;
+    let r = suitMemo.get(key);
+    if (r) return r;
+    const a = [];
+    for (let i = 0; i < n; i++) a.push(c[off + i]);
+    const seen = new Set();
+    const vis = new Set(); // 同じ状態(残りの牌・面子・ターツ・雀頭)に何度も来ないように覚える
+    (function rec(i, m, t, j) {
+      while (i < n && a[i] === 0) i++;
+      if (i >= n) { seen.add(m * 64 + Math.min(t, 4) * 2 + j); return; }
+      let ek = 0; for (let x = i; x < n; x++) ek = ek * 5 + a[x];
+      const vk = (((ek * 10 + i) * 5 + m) * 8 + Math.min(t, 7)) * 2 + j;
+      if (vis.has(vk)) return; vis.add(vk);
+      if (a[i] >= 3) { a[i] -= 3; rec(i, m + 1, t, j); a[i] += 3; }
+      if (num && i <= n - 3 && a[i + 1] > 0 && a[i + 2] > 0) {
+        a[i]--; a[i + 1]--; a[i + 2]--; rec(i, m + 1, t, j); a[i]++; a[i + 1]++; a[i + 2]++;
+      }
+      if (a[i] >= 2) {
+        if (!j) { a[i] -= 2; rec(i, m, t, 1); a[i] += 2; }
+        a[i] -= 2; rec(i, m, t + 1, j); a[i] += 2;
+      }
+      if (num && i <= n - 2 && a[i + 1] > 0) { a[i]--; a[i + 1]--; rec(i, m, t + 1, j); a[i]++; a[i + 1]++; }
+      if (num && i <= n - 3 && a[i + 2] > 0) { a[i]--; a[i + 2]--; rec(i, m, t + 1, j); a[i]++; a[i + 2]++; }
+      a[i]--; rec(i, m, t, j); a[i]++;
+    })(0, 0, 0, 0);
+    r = [...seen];
+    if (suitMemo.size > 200000) suitMemo.clear();
+    suitMemo.set(key, r);
+    return r;
+  }
   function stdShanten(c, f) {
-    let best = 8;
-    function rec(i, m, t, j) {
-      while (i < 34 && c[i] === 0) i++;
-      if (i >= 34) {
-        const s = 8 - 2 * m - Math.min(t, 4 - m) - j;
-        if (s < best) best = s;
-        return;
+    // 状態: 面子数 m(0〜4) × ターツ数 t(0〜4) × 雀頭 j(0/1) を、50個の旗で持つ
+    let cur = new Uint8Array(50);
+    cur[Math.min(f, 4) * 10] = 1;
+    const OFF = [0, 9, 18, 27], N = [9, 9, 9, 7];
+    for (let p = 0; p < 4; p++) {
+      const cs = suitCombos(c, OFF[p], N[p], p < 3);
+      const nx = new Uint8Array(50);
+      for (let s = 0; s < 50; s++) {
+        if (!cur[s]) continue;
+        const m0 = (s / 10) | 0, t0 = ((s % 10) >> 1), j0 = s & 1;
+        for (let k = 0; k < cs.length; k++) {
+          const q = cs[k], j1 = q & 1;
+          if (j0 && j1) continue;
+          const m = m0 + (q >> 6); if (m > 4) continue;
+          nx[m * 10 + Math.min(4, t0 + ((q >> 1) & 31)) * 2 + (j0 | j1)] = 1;
+        }
       }
-      const num = i < 27,
-        r = i % 9;
-      if (c[i] >= 3) { c[i] -= 3; rec(i, m + 1, t, j); c[i] += 3; }
-      if (num && r <= 6 && c[i + 1] > 0 && c[i + 2] > 0) {
-        c[i]--; c[i + 1]--; c[i + 2]--;
-        rec(i, m + 1, t, j);
-        c[i]++; c[i + 1]++; c[i + 2]++;
-      }
-      if (c[i] >= 2) {
-        if (!j) { c[i] -= 2; rec(i, m, t, 1); c[i] += 2; }
-        c[i] -= 2; rec(i, m, t + 1, j); c[i] += 2;
-      }
-      if (num && r <= 7 && c[i + 1] > 0) { c[i]--; c[i + 1]--; rec(i, m, t + 1, j); c[i]++; c[i + 1]++; }
-      if (num && r <= 6 && c[i + 2] > 0) { c[i]--; c[i + 2]--; rec(i, m, t + 1, j); c[i]++; c[i + 2]++; }
-      c[i]--; rec(i, m, t, j); c[i]++;
+      cur = nx;
     }
-    rec(0, f, 0, 0);
+    let best = 8;
+    for (let s = 0; s < 50; s++) {
+      if (!cur[s]) continue;
+      const m = (s / 10) | 0, t = ((s % 10) >> 1), j = s & 1;
+      const sh = 8 - 2 * m - Math.min(t, 4 - m) - j;
+      if (sh < best) best = sh;
+    }
     return best;
   }
   function chiitoiShanten(c) {
