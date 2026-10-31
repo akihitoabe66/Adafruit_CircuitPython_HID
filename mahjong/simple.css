@@ -1191,3 +1191,7 @@ html.res-on body { min-height: 0 !important; position: fixed; left: 0; top: 0; w
 .myturn { position: absolute; right: 22px; top: 246px; z-index: 35; padding: 4px 16px; border-radius: 999px; font-size: 22px; font-weight: 900; color: #1b1b12; background: #ffd23f; box-shadow: 0 3px 10px #000a; pointer-events: none; animation: myturn 1.7s both; }
 @keyframes myturn { 0% { opacity: 0; transform: translateY(8px); } 12% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
 #mine .hand .tile.drawn:not(.ph) { filter: drop-shadow(0 0 5px #ffd23f) drop-shadow(0 0 2px #ffd23f); }
+
+/* 河(捨て牌): 本物の麻雀と同じく、左(その席から見て左)から並べる。最後の段が短くても、中央に寄せない */
+body.tbl .river, .river { justify-items: start; justify-content: start; text-align: left; }
+.river .rrow { justify-self: start; margin: 0; }
