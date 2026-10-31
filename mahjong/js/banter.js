@@ -344,10 +344,9 @@
       h.push(text); if (h.length > 8) h.shift();
       const others = game.players.filter((q) => q !== p);
       text = text.replace(/\{n\}/g, () => pick(others).name).replace(/\{r\}/g, opt.r || pick(others).name).replace(/\{k\}/g, opt.k || pick(others).name);
-      const cut = text[0] === '!';
-      if (cut) text = text.slice(1);
+      if (text[0] === '!') text = text.slice(1); // 「!」で始まるセリフも、ふつうの吹き出しで出す(カットインは、リーチ・ポン・ロンなど、何かが起きた時だけ)
       lastAt = now;
-      if (cut) game.ui.cutin(game, p, text); else game.ui.speak(game, p, text, opt.ms);
+      game.ui.speak(game, p, text, opt.ms);
       return true;
     },
     /* 牌を捨てたときのひとこと: 捨てた牌がまず見えるように、約0.8秒あとに出す。待ち時間は増やさない(タイマーだけ)。
