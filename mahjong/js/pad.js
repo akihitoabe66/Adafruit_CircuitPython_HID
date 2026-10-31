@@ -278,20 +278,44 @@
   }, true);
   G.addEventListener('pointerdown', () => { P.dev = 'mouse'; if (P.on) { P.on = false; document.body.classList.remove('pad-on'); if (P.cur) P.cur.classList.remove('pf'); } }, true);
 
-  /* ゲームパッド(標準配置: 0=A 1=B 2=X 3=Y 4=LB 5=RB 8=Select 9=Start 12-15=十字) */
-  const MAP = { 0: 'a', 1: 'b', 12: 'up', 13: 'down', 14: 'left', 15: 'right' };
+  /* ゲームパッドのボタンの割り当て。
+     標準配置(Xbox型): 0=A(決定) 1=B(もどる) 12-15=十字。
+     古いUSBコントローラー(スーファミ型など)は、「標準」でない並びで届く: 多くは 0=X 1=A(右) 2=B(下) 3=Y なので、A(右)=決定、B(下)=もどる にする。
+     合わないときは、設定の「コントローラー」で、ボタンをおぼえさせられる */
+  const PM = 'mj_padmap';
+  const loadMap = () => { try { return JSON.parse(localStorage.getItem(PM) || '{}') || {}; } catch (e) { return {}; } };
+  P.mapFor = (gp) => { const m = loadMap()[gp.id]; if (m && isFinite(m.a) && isFinite(m.b)) return { a: +m.a, b: +m.b, learned: true }; return gp.mapping === 'standard' ? { a: 0, b: 1, learned: false } : { a: 1, b: 2, learned: false }; };
+  P.saveMap = (gp, k, idx) => { const all = loadMap(); const cur = Object.assign({}, P.mapFor(gp)); delete cur.learned; cur[k] = idx; all[gp.id] = cur; try { localStorage.setItem(PM, JSON.stringify(all)); } catch (e) { /* ignore */ } };
+  P.resetMap = () => { try { localStorage.removeItem(PM); } catch (e) { /* ignore */ } };
+  P.pads = () => [...((navigator.getGamepads && navigator.getGamepads()) || [])].filter((g) => g && g.connected);
+  P.learn = null; // { k: 'a'|'b', cb } 割り当てを、おぼえさせている最中
   const held = {};
   const poll = () => {
     const pads = (navigator.getGamepads && navigator.getGamepads()) || [];
     const now = performance.now();
     for (const gp of pads) {
       if (!gp || !gp.connected) continue;
+      const pressed = []; gp.buttons.forEach((b, i) => { if (b.pressed || b.value > 0.6) pressed.push(i); });
+      P.lastPressed = pressed.length ? { id: gp.id, idx: pressed } : P.lastPressed;
+      if (P.learn) { // 割り当てのおぼえ中: 押していたボタンを離してから、次に押したボタンを、そのまま割り当てる(ふつうの操作はしない)
+        if (!P.learn.ready) { if (!pressed.length) P.learn.ready = true; continue; }
+        if (pressed.length) { const L = P.learn; P.learn = null; P.saveMap(gp, L.k, pressed[0]); P.settle = true; if (L.cb) L.cb(gp, pressed[0]); }
+        continue;
+      }
+      if (P.settle) { if (!pressed.length) P.settle = false; continue; } // おぼえさせた直後: そのボタンを離すまでは、ふつうの操作として扱わない
+      const pm = P.mapFor(gp);
+      const MAP = { [pm.a]: 'a', [pm.b]: 'b' };
+      if (gp.mapping === 'standard') Object.assign(MAP, { 12: 'up', 13: 'down', 14: 'left', 15: 'right' });
       const down = {};
       gp.buttons.forEach((b, i) => { if (MAP[i] && (b.pressed || b.value > 0.6)) down[MAP[i]] = true; });
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+      if (gp.mapping !== 'standard' && gp.axes.length > 9 && isFinite(gp.axes[9]) && Math.abs(gp.axes[9]) < 1.2 && Math.abs(gp.axes[9]) > 0.05) { // 十字キーが、ハット(軸9)で届くコントローラー
+        const h = gp.axes[9], q = [-1, -5 / 7, -3 / 7, -1 / 7, 1 / 7, 3 / 7, 5 / 7, 1].map((v) => Math.abs(h - v)); const k = q.indexOf(Math.min(...q));
+        if (k === 0 || k === 1 || k === 7) down.up = true; if (k >= 1 && k <= 3) down.right = true; if (k >= 3 && k <= 5) down.down = true; if (k >= 5) down.left = true;
+      }
       if (ax < -0.6) down.left = true; else if (ax > 0.6) down.right = true;
       if (ay < -0.6) down.up = true; else if (ay > 0.6) down.down = true;
-      Object.keys(MAP).map((k) => MAP[k]).forEach((n) => {
+      ['a', 'b', 'up', 'down', 'left', 'right'].forEach((n) => {
         const k = gp.index + n;
         if (down[n]) {
           const h = held[k];

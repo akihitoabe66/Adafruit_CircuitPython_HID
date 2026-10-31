@@ -219,6 +219,25 @@
     },
   });
 
+  /* コントローラーの設定: 決定・もどるのボタンを、おぼえさせる(古いUSBコントローラーは、ボタンの並びが、標準と違うことがある) */
+  function showPadSetup(msg) {
+    const P = MJ.Pad, pads = P ? P.pads() : [];
+    const gp = pads[0];
+    const m = gp ? P.mapFor(gp) : null;
+    const nm = (i) => `ボタン${i + 1}`;
+    const info = gp ? `<b>${gp.id.replace(/\(.*$/, '').slice(0, 40)}</b><br>決定(A)= <b>${nm(m.a)}</b> ／ もどる(B)= <b>${nm(m.b)}</b>(${m.learned ? 'おぼえさせた割り当て' : '自動'})<br>押したボタン: <b id="pd-live">-</b>` : 'コントローラーが見つかりません。<br>コントローラーのボタンを1回押してから、もう一度ひらいてください。';
+    MJ.UI.overlay(`<div class="cf"><h2 style="font-size:24px;margin:0 0 4px">🎮 コントローラーの設定</h2><p style="font-size:18px;line-height:1.4;margin:4px 0">${msg ? `<span style="color:#ffe27a">${msg}</span><br>` : ''}${info}</p><div class="cf-btns" style="flex-wrap:wrap;gap:8px"><button class="btn" id="pd-a" ${gp ? '' : 'disabled'}>決定にするボタンを、おぼえる</button><button class="btn" id="pd-b" ${gp ? '' : 'disabled'}>もどるにするボタンを、おぼえる</button><button class="btn" id="pd-r">自動にもどす</button><button class="btn pri" id="pd-x">とじる</button></div></div>`, { plain: true });
+    const learn = (k, label) => {
+      MJ.UI.overlay(`<div class="cf"><h2 style="font-size:26px">🎮 ${label}にするボタンを、押してください</h2><p style="font-size:18px">コントローラーのボタンを、1つ押します。<br>(押していたボタンは、いったん離してください)</p><div class="cf-btns"><button class="btn" id="pd-c">やめる</button></div></div>`, { plain: true });
+      document.querySelector('#pd-c').addEventListener('click', () => { P.learn = null; showPadSetup(); });
+      P.learn = { k, ready: false, cb: (g, idx) => showPadSetup(`${label}を、ボタン${idx + 1} にしました`) };
+    };
+    document.querySelector('#pd-a').addEventListener('click', () => learn('a', '決定'));
+    document.querySelector('#pd-b').addEventListener('click', () => learn('b', 'もどる'));
+    document.querySelector('#pd-r').addEventListener('click', () => { P.resetMap(); showPadSetup('自動の割り当てにもどしました'); });
+    document.querySelector('#pd-x').addEventListener('click', () => showSettings());
+    if (gp) { const t = setInterval(() => { const l = document.querySelector('#pd-live'); if (!l) return clearInterval(t); const lp = P.pads()[0]; if (lp) { const ps = []; lp.buttons.forEach((b, i) => { if (b.pressed || b.value > 0.6) ps.push('ボタン' + (i + 1)); }); l.textContent = ps.length ? ps.join('・') : '-'; } }, 120); }
+  }
   /* ルール設定: 変更はすぐ保存され、次の対局から使われる */
   function showRules() {
     const R = MJ.RULES;
@@ -287,6 +306,7 @@
       <button class="btn big" id="st-spd"></button>
       <button class="btn big" id="st-fx"></button>
       <button class="btn big" id="st-fxl"></button>
+      <button class="btn big" id="st-pad">🎮 コントローラー</button>
       <button class="btn big" id="st-perf">📈 動作の測定</button>
       <button class="btn big" id="st-save"></button>
       <button class="btn big" id="st-notes">📖 麻雀参考書</button>
@@ -303,6 +323,7 @@
     const thSync = () => { thBtn.textContent = '💬 悩んだときのひとこと: ' + TL[MJ.UI.thinkMode()]; };
     thSync();
     const fxLB = o.querySelector('#st-fxl'); const fxLS = () => { fxLB.textContent = '✨ 演出: ' + MJ.FX.JP[MJ.FX.level()] + (MJ.FX.isAuto() ? '(自動)' : ''); }; fxLS(); fxLB.addEventListener('click', () => { MJ.FX.cycle(); fxLS(); });
+    o.querySelector('#st-pad').addEventListener('click', () => showPadSetup());
     o.querySelector('#st-perf').addEventListener('click', async () => {
       const t0 = performance.now(); MJ.UI.overlay('<div class="cf"><h2>📈 動作の測定中…(約5秒)</h2><p>そのまま、お待ちください。</p></div>', { plain: true });
       const fr = await MJ.FX.measure(5); const ms = Math.round(performance.now() - t0);
