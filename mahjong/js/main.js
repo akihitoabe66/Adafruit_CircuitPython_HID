@@ -468,7 +468,11 @@
     for (const a of [1, 2, 3]) for (const b of [1, 2, 3, 4, 5, 6]) u.push(`img/teacher/t${a}${b}.webp`);
     return u;
   })();
-  MJ.essentialReady = Promise.all([loadArt('img/title_art.webp', '--art-title'), loadArt('img/menu_bg.webp', '--art-menu'), pool(ESSENTIAL, 6)]);
+  /* タイトルに必要な絵(背景・ロゴ・ボタン)だけで、タイトルをすぐ出す。そのほか(牌・顔・ホームの背景など)は、タイトルを出したあと、裏で読み込む */
+  const TITLE = ['img/btn_start.webp', 'img/bgm_on.png', 'img/bgm_off.png', 'img/logo.webp'];
+  const REST = ESSENTIAL.filter((x) => !TITLE.includes(x));
+  MJ.titleReady = Promise.all([loadArt('img/title_art.webp', '--art-title'), pool(TITLE, 4)]);
+  MJ.essentialReady = MJ.titleReady.then(() => Promise.all([loadArt('img/menu_bg.webp', '--art-menu'), pool(REST, 4)]));
   MJ.laterReady = MJ.essentialReady.then(() => pool(LATER, 4));
   function preload() { /* (以前の先読みは、上の MJ.essentialReady / MJ.laterReady が行う) */ }
   init();
@@ -492,7 +496,7 @@
     let fired = false;
     const once = () => { if (!fired) { fired = true; done(); } };
     // 背景の絵・ボタン・牌・顔など、全画面で使う絵が、すべて読み込まれて(デコードまで終わって)から出す
-    MJ.essentialReady.then(once);
+    MJ.titleReady.then(once); // タイトルは、タイトルの絵だけでもう出す(ほかは、裏で読み込み中)
     MJ.essentialReady.then(() => { if (MJ.FX) MJ.FX.autoDetect(); }); // 重い端末なら、自動で演出を軽量に
     // タイトルが落ち着いたら、押す前に、重い準備を済ませておく(音の出口・ホームの背景の変換と、最初の描画)
     MJ.essentialReady.then(() => setTimeout(() => {

@@ -1262,3 +1262,9 @@ body.my-turn .plq:not(.p0) { opacity: .6; }
 .myturn.rch { background: #e3361f; color: #fff; }
 /* サイコロの準備中 */
 #dice.pre::after { content: "じゅんび中…"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 5vw; font-weight: 900; color: #fff; letter-spacing: .15em; }
+
+
+/* キャラクターの表示を、少し小さく(発言・宣言・カットイン) */
+.say img.fcut, .say img.fyou { height: 96px !important; }
+.shout img.fcut, .shout img.fyou { height: 100px; }
+.cutin img.fcut, .cutin img.fyou { height: 110px; }
