@@ -88,9 +88,51 @@
   };
   const grpKey = () => `${MJ.Res.level()}|${MJ.FX.level()}|${innerWidth}x${innerHeight}`;
   const grp = () => { const k = grpKey(); return data[k] || (data[k] = { s: {}, t: {} }); };
+  /* ===== 処理ごとの時間の計測(50ms以上、メインスレッドを止めた処理を特定するため) =====
+     ① 関数の時間: 主な処理を包んで、呼び出し回数・平均・最大・50ms超の回数を数える
+     ② Long Animation Frames(Edge/Chromeにある): 50ms以上かかった「1コマ」の中の、スクリプトごとの時間・レイアウト/描画の時間 */
+  MJ.perf.wrap = (obj, name, label) => {
+    const f = obj && obj[name]; if (typeof f !== 'function' || f._pw) return;
+    const w = function () {
+      const t0 = performance.now(); let r;
+      try { r = f.apply(this, arguments); } finally { MJ.perf.fn(label, performance.now() - t0); }
+      return r;
+    };
+    w._pw = 1; obj[name] = w;
+  };
+  MJ.perf.fn = (label, ms) => {
+    if (!MJ.perf.rec || ms < 1) return;
+    const g = MJ.perf.rec.group(), t = g.fn || (g.fn = {}), r = t[label] || (t[label] = { n: 0, sum: 0, mx: 0, c: 0 });
+    r.n++; r.sum += ms; if (ms > r.mx) r.mx = ms; if (ms >= 50) r.c++;
+  };
+  MJ.perf.installWraps = () => {
+    const W = MJ.perf.wrap;
+    if (MJ.App) { W(MJ.App, 'show', '画面を出す(App.show)'); W(MJ.App, 'launch', '対局を始める(App.launch)'); }
+    if (MJ.UI) ['render', 'layout', 'refreshCoach', 'overlay', 'fitOverlay', 'buildDanger', 'askSelf', 'askReact', 'showResult2', 'gameEnd', 'kyokuSlam', 'fitTip', 'growFont', 'pageCoach'].forEach((n) => W(MJ.UI, n, 'UI.' + n));
+    if (MJ.AI) ['chooseSelf', 'chooseReact', 'callEval'].forEach((n) => W(MJ.AI, n, 'AI.' + n));
+    if (MJ.Coach) ['selfAdvice', 'reactAdvice'].forEach((n) => W(MJ.Coach, n, 'Coach.' + n));
+    if (MJ.Game && MJ.Game.prototype) ['setupHand', 'draw'].forEach((n) => W(MJ.Game.prototype, n, 'Game.' + n));
+    if (MJ.Intro) W(MJ.Intro, 'play', '勝負!の演出を作る');
+    if (MJ.Dice) W(MJ.Dice, 'play', 'サイコロを作る');
+    if (MJ.Rank) ['record', 'write'].forEach((n) => W(MJ.Rank, n, 'Rank.' + n));
+    if (MJ.SFX) ['prepare', 'unlock', 'play'].forEach((n) => W(MJ.SFX, n, 'SFX.' + n));
+    if (MJ.Audio) ['_load', 'setScene'].forEach((n) => W(MJ.Audio, n, 'Audio.' + n));
+  };
+  window.addEventListener('load', () => setTimeout(() => { try { MJ.perf.installWraps(); } catch (e) { /* ignore */ } }, 300));
+  try {
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) {
+        if (e.duration < 50 || !MJ.perf.rec) continue;
+        const g = MJ.perf.rec.group(), a = g.loaf || (g.loaf = []);
+        a.push({ d: Math.round(e.duration), b: Math.round(e.blockingDuration || 0), sl: Math.round(e.styleAndLayoutStart ? e.startTime + e.duration - e.styleAndLayoutStart : 0), rd: Math.round(e.renderStart ? e.startTime + e.duration - e.renderStart : 0), sc: MJ.perf.rec.scene(), ctx: MJ.perf.last, s: (e.scripts ? Array.from(e.scripts) : []).sort((x, y) => y.duration - x.duration).slice(0, 2).map((x) => `${x.invoker || x.sourceFunctionName || '?'} ${String(x.sourceURL || '').split('/').pop().split('?')[0]}:${x.sourceCharPosition >= 0 ? x.sourceCharPosition : ''} ${Math.round(x.duration)}ms${x.forcedStyleAndLayoutDuration ? ' 強制レイアウト' + Math.round(x.forcedStyleAndLayoutDuration) + 'ms' : ''}`) });
+        a.sort((x, y) => y.d - x.d); if (a.length > 6) a.length = 6;
+      }
+    }).observe({ type: 'long-animation-frame', buffered: false });
+  } catch (e) { /* 対応していないブラウザでは、記録なし */ }
   MJ.perf.rec = {
     data: () => data, scene: sceneOf,
     reset() { data = {}; saveRec(); },
+    group: () => grp(),
     ev(name, ms) { const g = grp(); const t = g.t[name] || (g.t[name] = { n: 0, sum: 0, mx: 0 }); t.n++; t.sum += ms; if (ms > t.mx) t.mx = ms; },
   };
   { // コマの間隔を、場面ごとに数える(隠れている間・長い放置は数えない)

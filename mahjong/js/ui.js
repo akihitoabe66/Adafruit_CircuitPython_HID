@@ -990,13 +990,20 @@
         if (opts && opts.riichi && opts.riichi.length && !p.riichi && MJ.Pad && MJ.Pad.focusRiichi) setTimeout(() => MJ.Pad.focusRiichi(), 30); // リーチできる時は、リーチのボタンから(引いた牌を、うっかり切らないように)
         requestAnimationFrame(() => { const t = $('#mine .hand .tile.drawn:not(.ph)'); if (t) { t.classList.add('draw-in'); setTimeout(() => t.classList.remove('draw-in'), 400); } }); // 引いた牌が、山から右はしへ置かれる動き
         if (MJ.Pad && MJ.Pad.focusHand) setTimeout(() => MJ.Pad.focusHand(), 0); // 自分の番: カーソルを、引いた牌に
-        this.adv = this.coachActive() || game.mode !== 'free' ? MJ.Coach.selfAdvice(game, p, opts, st) : null;
-        this.maybeAim(game, p);
-        this.coachHtml = this.adv ? this.adv.html : '';
-        this.summary = this.adv ? this.adv.summary || '' : '';
-        this.buildDanger(game, p);
-        this.render(game);
-        this.refreshCoach();
+        const mySel = this.sel, needAdv = this.coachActive() || game.mode !== 'free';
+        const fill = () => {
+          if (this.sel !== mySel) return; // もう切ったあとなら、やらない
+          this.adv = needAdv ? MJ.Coach.selfAdvice(game, p, opts, st) : null;
+          this.maybeAim(game, p);
+          this.coachHtml = this.adv ? this.adv.html : '';
+          this.summary = this.adv ? this.adv.summary || '' : '';
+          this.buildDanger(game, p);
+          this.render(game);
+          this.refreshCoach();
+        };
+        this.adv = null; this.coachHtml = ''; this.summary = ''; this.dng = null;
+        if (needAdv || this.dangerOn) { this.render(game); setTimeout(fill, 40); } // まず、手牌だけをすぐ出す(おすすめ・危険度の計算は、そのあと。計算が重い端末でも、牌が出るのが遅れない)
+        else fill();
       });
     },
     askReact(game, q, o) {

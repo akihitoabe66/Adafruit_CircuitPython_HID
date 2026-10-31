@@ -332,11 +332,26 @@
     const rsB = o.querySelector('#st-res'); const rsS = () => { rsB.textContent = '🖥 画質: ' + MJ.Res.JP[MJ.Res.level()]; }; rsS(); rsB.addEventListener('click', () => { MJ.Res.cycle(); rsS(); });
     o.querySelector('#st-pad').addEventListener('click', () => showPadSetup());
     /* 通しの記録: 遊んだ分の、場面ごとのコマ数・止まりを、画質×演出ごとに見る(写真に撮って送れるよう、1画面にまとめる) */
-    const showRec = (gi, armed) => {
+    const showRec = (gi, armed, view) => {
       const D = MJ.perf.rec.data();
       const keys = Object.keys(D).map((k) => ({ k, n: Object.values(D[k].s).reduce((a, r) => a + r.n, 0) })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n).map((x) => x.k);
       const i = keys.length ? Math.max(0, Math.min(keys.length - 1, gi || 0)) : 0;
       const k = keys[i];
+      if (view === 'fn' && k) {
+        const Gd = D[k], fn = Object.keys(Gd.fn || {}).map((nm) => Object.assign({ nm }, Gd.fn[nm])).sort((a, b) => b.mx - a.mx).slice(0, 11);
+        const lf = (Gd.loaf || []).slice(0, 4);
+        const tdn = 'style="padding:1px 8px;text-align:right;white-space:nowrap"', tln = 'style="padding:1px 8px;text-align:left;white-space:nowrap"';
+        const rowsF = fn.map((x) => `<tr><td ${tln}>${x.nm}</td><td ${tdn}>${x.n}</td><td ${tdn}>${Math.round(x.sum / x.n)}</td><td ${tdn}><b>${Math.round(x.mx)}</b></td><td ${tdn}>${x.c}</td></tr>`).join('');
+        const rowsL = lf.map((x) => `<div style="font-size:12px;margin:2px 0;color:#ffd9a0">${x.sc} 1コマ${x.d}ms(スクリプト以外のブロック${x.b}ms・レイアウト${x.sl}ms・描画${x.rd}ms)直前: ${x.ctx}<br>　${x.s.join(' ／ ') || '(スクリプトの内訳なし)'}</div>`).join('');
+        const [rl, fl, wh] = k.split('|');
+        MJ.UI.overlay(`<div class="modal" style="width:min(900px,96%);text-align:left;padding:10px 14px"><h2 style="font-size:20px;margin:0 0 2px">🔬 処理の内訳</h2><div style="font-size:13px;margin:2px 0;color:#a9c4b8">画質: ${MJ.Res.JP[rl] || rl} ／ 演出: ${MJ.FX.JP[fl] || fl} ／ 画面 ${wh}</div>` +
+          `<table style="font-size:13px;line-height:1.25;border-collapse:collapse;margin:4px 0"><tr style="color:#a9c4b8"><td ${tln}>処理(最大の長い順)</td><td ${tdn}>回数</td><td ${tdn}>平均ms</td><td ${tdn}>最大ms</td><td ${tdn}>50ms超</td></tr>${rowsF || `<tr><td ${tln}>(まだ記録がありません)</td></tr>`}</table>` +
+          `<div style="font-size:13px;margin-top:4px;color:#a9c4b8">50ms以上かかった「1コマ」の内訳(長い順・Edge/Chromeの機能):</div>${rowsL || '<div style="font-size:12px">(なし、または、この環境では取れません)</div>'}` +
+          `<div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="rc-back">◀ 戻る</button><button class="btn pri" id="rc-close" style="margin-left:auto">とじる</button></div></div>`, { raw: true, plain: true });
+        document.querySelector('#rc-back').addEventListener('click', () => showRec(gi, false));
+        document.querySelector('#rc-close').addEventListener('click', () => showSettings());
+        return;
+      }
       const ORDER = ['タイトル', 'ホーム', '相手えらび', 'サイコロ', '勝負!の演出', '東○局の叩きつけ', '対局(自分の番)', '対局(CPUの番)', 'ロン・ツモの演出', 'ダイアログ', 'クイズ', '勉強', 'そのほか'];
       let body = '<p style="font-size:16px;margin:6px 0">まだ記録がありません。しばらく遊んでから、開いてください。</p>', head = '';
       if (k) {
@@ -351,9 +366,10 @@
       }
       const dev = `CPU ${navigator.hardwareConcurrency || '?'}コア ／ メモリ ${navigator.deviceMemory || '?'}GB`;
       const wl = k && D[k].w && D[k].w.length ? `<div style="font-size:13px;margin:2px 0;color:#ffd9a0">大きな止まり: ${D[k].w.map((x) => `${x[1]} ${x[0]}ms(直前: ${x[2]})`).join(' ／ ')}</div>` : '';
-      MJ.UI.overlay(`<div class="modal" style="width:min(900px,96%);text-align:left;padding:10px 14px"><h2 style="font-size:20px;margin:0 0 2px">📊 通しの記録</h2><div style="font-size:14px;margin:2px 0">${head} ／ ${dev}</div>${body}${wl}<div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="rc-prev">◀ 前の設定</button><button class="btn" id="rc-next">次の設定 ▶</button><button class="btn danger" id="rc-reset">${armed ? 'もう一度で消す' : '記録を消す'}</button><button class="btn pri" id="rc-close" style="margin-left:auto">とじる</button></div></div>`, { raw: true, plain: true });
+      MJ.UI.overlay(`<div class="modal" style="width:min(900px,96%);text-align:left;padding:10px 14px"><h2 style="font-size:20px;margin:0 0 2px">📊 通しの記録</h2><div style="font-size:14px;margin:2px 0">${head} ／ ${dev}</div>${body}${wl}<div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="rc-prev">◀ 前の設定</button><button class="btn" id="rc-next">次の設定 ▶</button><button class="btn" id="rc-fn">🔬 処理の内訳</button><button class="btn danger" id="rc-reset">${armed ? 'もう一度で消す' : '記録を消す'}</button><button class="btn pri" id="rc-close" style="margin-left:auto">とじる</button></div></div>`, { raw: true, plain: true });
       document.querySelector('#rc-prev').addEventListener('click', () => showRec(keys.length ? (i - 1 + keys.length) % keys.length : 0));
       document.querySelector('#rc-next').addEventListener('click', () => showRec(keys.length ? (i + 1) % keys.length : 0));
+      document.querySelector('#rc-fn').addEventListener('click', () => showRec(i, false, 'fn'));
       document.querySelector('#rc-reset').addEventListener('click', () => { if (armed) { MJ.perf.rec.reset(); showRec(0); } else showRec(i, true); });
       document.querySelector('#rc-close').addEventListener('click', () => showSettings());
     };
