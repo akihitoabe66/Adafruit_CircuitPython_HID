@@ -1371,6 +1371,27 @@
       host.appendChild(el);
       setTimeout(() => el.remove(), 2600);
     },
+    /* 局のはじまり(東二局〜): サイコロの前に、枠が上から雀卓の中心へたたきつけられる。全体2.5秒。
+       最初のコマから見えるように、顔の絵を先に読み込み、前の局の卓が消えた画面を描いてから、動かしはじめる */
+    async kyokuSlam(game) {
+      if (game.fast) return;
+      const sc = $('#sc'); if (!sc) return;
+      const dl = game.players[game.dealer];
+      const src = dl.char && dl.char.face ? dl.char.face : '';
+      if (src) await new Promise((r) => { const im = new Image(); const t = setTimeout(r, 700); im.onload = im.onerror = () => { clearTimeout(t); r(); }; im.src = src; });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); // 卓が空になった画面が、先に描かれる
+      if (game.stopped) return;
+      const face = src ? `<img class="ky-face" src="${src}" alt="" draggable="false">` : '';
+      const el = document.createElement('div');
+      el.className = 'ky-slam';
+      el.innerHTML = `<div class="ky-ring"></div><div class="ky-box"><div class="ky-t${game.honba ? ' hb' : ''}">${game.kyokuLabel()}</div><div class="ky-d">${face}<span><small>親</small><br>${dl.name}</span></div></div><div class="ky-flash"></div>`;
+      sc.appendChild(el);
+      void el.offsetWidth; // 動きは、ここから(落ちてくるところから)
+      sc.classList.remove('ky-shake'); void sc.offsetWidth; sc.classList.add('ky-shake');
+      setTimeout(() => MJ.SFX.play('slam'), 160);
+      await new Promise((r) => setTimeout(r, 2500));
+      el.remove(); sc.classList.remove('ky-shake');
+    },
     handStart(game) {
       if (this.hintOn && game.honba === 0 && game.kyoku === 0) setTimeout(() => this.teacherSay('ついています。迷ったら、おしえます!', 'greet', 7000), 800);
       MJ.SFX.play('start');
@@ -1378,18 +1399,7 @@
       this.coachHtml = '';
       this.refreshCoach();
       if (game.honba === 0 && game.kyoku === 0) return Promise.resolve(); // 最初の局は、スタート演出(東一局・勝負!)で見せたので、ここでは出さない
-      // 局のはじまり: 枠が、上から雀卓の中心へたたきつけられる(約1.7秒)。親は顔つき。ドラ表示牌は、次の画面の山で見える
-      if (game.fast) return Promise.resolve();
-      const sc = $('#sc'); if (!sc) return Promise.resolve();
-      const dl = game.players[game.dealer];
-      const face = dl.char && dl.char.face ? `<img class="ky-face" src="${dl.char.face}" alt="" draggable="false">` : '';
-      const el = document.createElement('div');
-      el.className = 'ky-slam';
-      el.innerHTML = `<div class="ky-ring"></div><div class="ky-box"><div class="ky-t${game.honba ? ' hb' : ''}">${game.kyokuLabel()}</div><div class="ky-d">${face}<span><small>親</small><br>${dl.name}</span></div></div><div class="ky-flash"></div>`;
-      sc.appendChild(el);
-      sc.classList.remove('ky-shake'); void sc.offsetWidth; sc.classList.add('ky-shake');
-      setTimeout(() => MJ.SFX.play('slam'), 160);
-      return new Promise((r) => setTimeout(() => { el.remove(); sc.classList.remove('ky-shake'); r(); }, 1700));
+      return Promise.resolve();
     },
 
     /* ---------- 結果 ---------- */
