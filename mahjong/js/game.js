@@ -268,6 +268,7 @@
       if (this.ui) await this.ui.handStart(this);
       if (this.ui && MJ.Banter) MJ.Banter.handStart(this);
       this.sync();
+      if (this.ui && this.ui.padHand) this.ui.padHand(); // コントローラーのカーソルを、手牌に
       let cur = this.dealer;
       let drawMode = 'normal'; // normal | none (鳴き後) | rinshan
       for (;;) {

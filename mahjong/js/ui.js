@@ -319,7 +319,7 @@
     attach(game) {
       this.game = game;
       // 前の対局の盤面・手牌が残って見えないよう、最初に空にする(配牌が終わるまで盤面は出さない)
-      ['#table', '#mine', '#says', '#sd-act', '#sd-info', '#fx'].forEach((s) => { const e = $(s); if (e) e.innerHTML = ''; });
+      ['#table', '#mine', '#says', '#sd-act', '#sd-info', '#fx'].forEach((s) => { const e = $(s); if (e) { e.innerHTML = ''; e._h = null; } });
       document.body.classList.add('dealing');
       this.sel = null; this.bubbles = {}; this.adv = null; this.picked = null; this.riichiMode = false; this.reactHtml = '';
       this.hintOn = game.mode !== 'free';
@@ -433,6 +433,9 @@
     fitHeight() {},
 
     /* ---------- 描画 ---------- */
+    /* 配牌のあと: カーソルを手牌に置く(CPUが先のときも、最初から見える) */
+    padHand() { if (MJ.Pad && MJ.Pad.focusHand) MJ.Pad.focusHand(); },
+    paint(el, html) { if (!el || el._h === html) return; el.innerHTML = html; el._h = html; },
     render(game) {
       if (this.game !== game) return;
       this.layout();
@@ -442,10 +445,14 @@
         if (s0.type === 'self' && s0.opts && s0.opts.tsumo) { this._alertSel = s0; this.alertWin('ツモれる!'); }
         else if (s0.type === 'react' && s0.o && s0.o.ron) { this._alertSel = s0; this.alertWin('ロンできる!'); }
       }
-      $('#table').innerHTML = this.tableHTML(game);
-      $('#mine').innerHTML = this.mineHTML(game);
-      $('#sd-act').innerHTML = this.sideHTML(game);
-      $('#sd-info').innerHTML = `<b>${game.kyokuLabel().replace(' ', '<br>')}</b><span>${{ single: '一局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`;
+      MJ.perf.mark('卓の描き直し');
+      // 変わった所だけ描き直す(同じ内容なら、触らない。手牌の光(カーソル)が、そのたびに、ぴょこっと動くのを防ぎ、重さも減る)
+      const T = $('#table'); const parts = this.tableParts(game);
+      while (T.children.length < parts.length) { const d = document.createElement('div'); d.className = 'tp'; T.appendChild(d); }
+      parts.forEach((h, i) => this.paint(T.children[i], h));
+      this.paint($('#mine'), this.mineHTML(game));
+      this.paint($('#sd-act'), this.sideHTML(game));
+      this.paint($('#sd-info'), `<b>${game.kyokuLabel().replace(' ', '<br>')}</b><span>${{ single: '一局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`);
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
       this.fitTip();
       if (this.sel && this.sel.type === 'react' && document.querySelector('.callq .cq-btn[data-ids]')) this.hlCall(null); // 鳴きの確認が出たら、最初の鳴き方の牌を光らせる
@@ -473,7 +480,9 @@
       const bw = flat ? w : h, bh = flat ? h : w;
       return `<div class="tile st${o.cls ? ' ' + o.cls : ''}${o.red ? ' aka' : ''}" style="width:${bw}px;height:${bh}px" data-t="${t}"><img src="${MJ.tileSrc(t, o.red)}" alt="" draggable="false" style="width:${w}px;height:${h}px;transform:translate(-50%,-50%) rotate(${a}deg)"></div>`;
     },
-    tableHTML(game) {
+    tableParts(game) { return this._tableParts(game); },
+    tableHTML(game) { return this._tableParts(game).join(''); },
+    _tableParts(game) {
       // 本物の麻雀のように、王牌を、上下2段に重ねた7つの山で見せる。左から 槓ドラ④③②①、ドラ表示牌、嶺上牌2つ。表の牌は、めくれている表示牌だけ
       // 王牌: 絵(img/wall.png)の上に、めくれているドラ表示牌を重ねる。ドラが増えたら、左へ1つずつ、青い牌を切り抜いて(クリーム色に)表示牌を重ねる
       const W = 219, H = 88, X0 = 3.4, PX = 30.1, CW = 29.2, Y0 = 4.4, CH = 39.4;
@@ -482,7 +491,7 @@
       const dora2 = '';
       const sub = game.kyotaku ? `供託<span class="ks">${'<img src="img/tenbo_1000.png" alt="" draggable="false">'.repeat(Math.min(game.kyotaku, 5))}${game.kyotaku > 5 ? `×${game.kyotaku}` : ''}</span>` : '';
       const ctr = `<div class="ctr"><div class="txt"><div class="k">${game.kyokuLabel().replace(' ', '<br>')}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.blank ? '-' : game.live.length}<small>枚</small></div></div><div class="dr wall wimg">${doras}</div></div>`;
-      return ctr + [0, 1, 2, 3].map((s) => this.block(game, s)).join('');
+      return [ctr, ...[0, 1, 2, 3].map((s) => this.block(game, s))];
     },
     block(game, s) {
       const p = game.players[s];
@@ -963,6 +972,7 @@
         this.sel = { type: 'self', p, opts, st, res };
         this.riichiMode = false; this.picked = null;
         this.startThink(game, p);
+        if (MJ.Pad && MJ.Pad.focusHand) setTimeout(() => MJ.Pad.focusHand(), 0); // 自分の番: カーソルを、引いた牌に
         this.adv = this.coachActive() || game.mode !== 'free' ? MJ.Coach.selfAdvice(game, p, opts, st) : null;
         this.maybeAim(game, p);
         this.coachHtml = this.adv ? this.adv.html : '';

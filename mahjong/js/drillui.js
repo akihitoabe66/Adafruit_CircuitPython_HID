@@ -201,7 +201,7 @@
     },
     prefetch() {
       clearTimeout(this._pt);
-      this._pt = setTimeout(() => { try { if (!this.pre) this.pre = this.makeAuto(); } catch (e) { this.pre = null; } }, 400);
+      this._pt = setTimeout(() => { try { if (!this.pre) this.pre = this.makeAuto(); } catch (e) { this.pre = null; } }, 3000);
     },
 
     next() {

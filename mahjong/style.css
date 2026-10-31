@@ -1217,3 +1217,5 @@ body.tbl .sd-tools .gsetp { width: 560px; left: -580px; top: 4px; max-height: no
 
 /* 対局の準備中は、盤面を出さない(前の対局の牌が一瞬見えないように) */
 body.dealing #sc, body.dealing #side-in .sd-act { visibility: hidden; }
+
+#table > .tp { display: contents; }

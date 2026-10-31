@@ -41,4 +41,21 @@
     },
   };
   MJ.FX.apply();
+
+  /* 動作の記録: 画面が0.05秒以上、止まった(長い処理)ときを、直前の操作の名前つきで、記録する。設定の「動作の測定」で見られる */
+  const T0 = performance.now();
+  MJ.perf = {
+    long: [], steps: [], last: '起動',
+    mark(name) { this.last = name; },
+    /* 「はじめる」を押してからの内訳 */
+    step(name) { this.steps.push([name, Math.round(performance.now())]); if (this.steps.length > 40) this.steps.shift(); },
+  };
+  try {
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) {
+        MJ.perf.long.push({ at: Math.round((e.startTime) / 100) / 10, dur: Math.round(e.duration), ctx: MJ.perf.last, scene: ['title', 'menu', 'game', 'drill', 'study'].find((s) => document.body.classList.contains('on-' + s)) || '' });
+        if (MJ.perf.long.length > 60) MJ.perf.long.shift();
+      }
+    }).observe({ entryTypes: ['longtask'] });
+  } catch (e) { /* 対応していないブラウザでは、記録なし */ }
 })(typeof window !== 'undefined' ? window : globalThis);

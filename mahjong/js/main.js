@@ -17,12 +17,13 @@
   const App = (MJ.App = {
     mode: 'free', picks: [], length: 'east', game: null, lastCfg: null,
 
-    show(id) {
+    show(id, opt = {}) {
+      MJ.perf.mark('画面: ' + id);
       MJ.UI.applyRot();
       document.body.classList.toggle('on-menu', id === 'menu');
       document.body.classList.toggle('on-title', id === 'title');
       document.body.classList.toggle('on-game', id === 'game' || id === 'drill' || id === 'study');
-      if (id !== 'game' || this.game) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : id === 'study' ? 'study' : id === 'drill' ? 'quiz' : 'home');
+      if (!opt.quiet && (id !== 'game' || this.game)) MJ.Audio.setScene(id === 'game' ? 'game' : id === 'title' ? 'title' : id === 'study' ? 'study' : id === 'drill' ? 'quiz' : 'home');
       SCREENS.forEach((s) => $('#screen-' + s).classList.toggle('hidden', s !== id));
       if (id === 'game') MJ.UI.fitStage();
       if (id === 'menu') { if (MJ.Rank) MJ.Rank.syncMenu(); App.fitMenu(); if (MJ.DrillUI && MJ.DrillUI.prefetch) { MJ.DrillUI.mode = MJ.DrillUI.mode; MJ.DrillUI.prefetch(); } } // ホームにいるあいだに、クイズの1問目を作っておく
@@ -33,6 +34,14 @@
     },
 
     /* ホーム画面を、スクロールなしの1画面に収める(設計座標 832×428 を拡大縮小) */
+    /* ホームを、見えない状態で一度だけ描いておく(はじめて押した瞬間の、描画の重さを減らす) */
+    prewarmMenu() {
+      const el = $('#screen-menu');
+      if (!el || !el.classList.contains('hidden') || !document.body.classList.contains('on-title')) return;
+      el.classList.remove('hidden'); el.style.cssText = 'opacity:.01;pointer-events:none;z-index:-5';
+      this.fitMenu();
+      requestAnimationFrame(() => requestAnimationFrame(() => { el.style.cssText = ''; el.classList.add('hidden'); }));
+    },
     fitMenu() {
       const el = $('#screen-menu');
       if (!el || el.classList.contains('hidden')) return;
@@ -298,9 +307,14 @@
       const t0 = performance.now(); MJ.UI.overlay('<div class="cf"><h2>📈 動作の測定中…(約5秒)</h2><p>そのまま、お待ちください。</p></div>', { plain: true });
       const fr = await MJ.FX.measure(5); const ms = Math.round(performance.now() - t0);
       const ua = navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 60);
-      const rows = fr ? fr.map((v, i) => `${i + 1}秒目: ${Math.round(v)} コマ/秒`).join('<br>') : '測れませんでした(画面が隠れていました)';
+      const rows = fr ? '1秒ごと: ' + fr.map((v) => Math.round(v)).join(' / ') : '測れませんでした(画面が隠れていました)';
       const avg = fr ? Math.round(fr.reduce((a, b) => a + b, 0) / fr.length) : '-';
-      MJ.UI.overlay(`<div class="cf"><h2>📈 動作の測定の結果</h2><p style="font-size:22px;line-height:1.5">平均 <b>${avg}</b> コマ/秒(60に近いほど、なめらか)<br>${rows}<br>演出: ${MJ.FX.JP[MJ.FX.level()]}${MJ.FX.isAuto() ? '(自動)' : ''} ／ 画面 ${innerWidth}×${innerHeight} ／ CPU ${navigator.hardwareConcurrency || '?'}コア ／ メモリ ${navigator.deviceMemory || '?'}GB<br><small>${ua}</small></p><div class="cf-btns"><button class="btn pri" id="pf-close">とじる</button></div></div>`, { plain: true });
+      const SC = { title: 'タイトル', menu: 'ホーム', game: '対局・クイズ・勉強' };
+      const lg = MJ.perf.long.filter((x) => x.dur >= 50).slice(-6).reverse();
+      const longRows = lg.length ? lg.map((x) => `${x.at}秒 ${x.dur}ミリ秒止まった(${SC[x.scene] || x.scene}・直前: ${x.ctx})`).join('<br>') : 'なし(50ミリ秒以上の止まりは、記録されていません)';
+      const st = MJ.perf.steps, base = st.length ? st[0][1] : 0;
+      const stepRows = st.length ? st.map((x, i) => `${x[0]}: +${x[1] - base}ミリ秒`).join(' → ') : '(「はじめる」を押すと、ここに内訳が出ます)';
+      MJ.UI.overlay(`<div class="cf"><h2 style="font-size:22px;margin:0 0 2px">📈 動作の測定の結果</h2><p style="font-size:17px;line-height:1.3;margin:2px 0">平均 <b>${avg}</b> コマ/秒(60に近いほど、なめらか)<br>${rows}<br>演出: ${MJ.FX.JP[MJ.FX.level()]}${MJ.FX.isAuto() ? '(自動)' : ''} ／ 画面 ${innerWidth}×${innerHeight} ／ CPU ${navigator.hardwareConcurrency || '?'}コア ／ メモリ ${navigator.deviceMemory || '?'}GB</p><p style="font-size:15px;line-height:1.3;text-align:left;margin:4px 0"><b>止まった記録</b>(新しい順)<br>${longRows}<br><b>「はじめる」の内訳</b><br>${stepRows}</p><div class="cf-btns"><button class="btn pri" id="pf-close">とじる</button></div></div>`, { plain: true });
       document.querySelector('#pf-close').addEventListener('click', () => showSettings());
     });
     const spB = o.querySelector('#st-spd'); const spS = () => { spB.textContent = '⏱ CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()]; }; spS(); spB.addEventListener('click', () => { MJ.cycleCpuSpeed(); spS(); });
@@ -352,8 +366,8 @@
     ['11', '14', '21', '36'].forEach((n) => { const im = new Image(); im.src = `img/teacher/t${n}.webp`; MJ.preloaded.push(im); }); // 麻雀先生の顔は、起動してすぐ読み込む
     MJ.SFX.loadYk(); // 上がったときの役・点数の読み上げ(収録音声)
     // 最初の操作でBGMを開始。iPhoneは pointerdown/touchstart では許可されないため、指を離した時(touchend/click)でも毎回試す
-    let spk = false;
-    const unlock = () => { MJ.SFX.unlock(); MJ.Audio.resume(); if (!spk && !MJ.SFX.isIOS && window.speechSynthesis && window.SpeechSynthesisUtterance && /^(click|touchend|keydown)$/.test(event.type)) { spk = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); } catch (e) {} } }; // 読み上げの音声を最初のタップで有効にする(CPU同士の結果でも読めるように)
+    // 読み上げ(音声合成)の準備は、最初のタップでは行わない: Windowsでは、はじめて使うとき、数秒、画面が止まることがあるため。いちばん最初に読み上げるときに、準備される
+    const unlock = () => { MJ.SFX.unlock(); MJ.Audio.resume(); };
     ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((ev) => document.addEventListener(ev, unlock, { capture: true, passive: true }));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) MJ.Audio.resume(); });
     document.addEventListener('click', (e) => {
@@ -361,7 +375,18 @@
       if (e.target.closest('button, summary, .char, .mode-card')) MJ.SFX.play('click');
     }, true);
     App.buildMenu();
-    $('#btn-start').addEventListener('click', () => { MJ.SFX.unlock(); MJ.SFX.play('start'); Promise.race([MJ.menuReady || Promise.resolve(), new Promise((r) => setTimeout(r, 2500))]).then(() => { App.show('menu'); MJ.Rank.syncMenu(); setTimeout(() => MJ.Rank.daily(), 500); }); }); // メニューの背景が読み込まれてから移る
+    $('#btn-start').addEventListener('click', () => {
+      MJ.perf.mark('はじめる'); MJ.perf.step('押した');
+      const go = () => {
+        App.show('menu', { quiet: true }); MJ.perf.step('ホームを出した');
+        requestAnimationFrame(() => requestAnimationFrame(() => { // 最初の1コマが描かれたあとに、音を鳴らす
+          MJ.perf.step('ホームの1コマ目');
+          MJ.SFX.unlock(); MJ.SFX.play('start'); MJ.perf.step('音の準備');
+          setTimeout(() => { MJ.Audio.setScene('home'); MJ.perf.step('BGMを開始'); MJ.Rank.syncMenu(); setTimeout(() => MJ.Rank.daily(), 500); }, 60);
+        }));
+      };
+      Promise.race([MJ.menuReady || Promise.resolve(), new Promise((r) => setTimeout(r, 2500))]).then(go);
+    }); // メニューの背景が読み込まれてから移る
     $('#bell').addEventListener('click', () => MJ.Audio.setOn(!MJ.Audio.on) || MJ.UI.syncAudio());
     // 「おわる」は、AndroidとパソコンのSteamだけ(iPhoneとFire TVには、アプリを自分で終了する仕組みがないので出さない)
     const ua = navigator.userAgent || '';
@@ -397,7 +422,7 @@
   /* 画像を読み込んで、デコードまで終わらせる(失敗しても止まらない)。読み込んだ絵は MJ.preloaded に持っておく */
   const loadImg = (u) => new Promise((ok) => { const im = new Image(); im.decoding = 'async'; im.onload = () => { (im.decode ? im.decode() : Promise.resolve()).then(ok, ok); }; im.onerror = ok; im.src = u; MJ.preloaded.push(im); });
   /* 背景の絵は、データとして取り寄せて、CSS変数に入れる(CSSの背景の読み込みが遅れたり、抜けたりしないように) */
-  const loadArt = (u, v) => fetch(u).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); }).then((b) => { const url = URL.createObjectURL(b); document.documentElement.style.setProperty(v, `url(${url})`); return loadImg(url); }).catch(() => loadImg(u));
+  const loadArt = (u, v) => fetch(u).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); }).then((b) => { const url = URL.createObjectURL(b); document.documentElement.style.setProperty(v, `url(${url})`); (MJ.artUrl = MJ.artUrl || {})[v] = url; return loadImg(url); }).catch(() => loadImg(u));
   const pool = (urls, n) => new Promise((done) => { let k = 0, run = 0; const go = () => { if (k >= urls.length && run === 0) return done(); while (run < n && k < urls.length) { run++; loadImg(urls[k++]).then(() => { run--; go(); }); } }; go(); });
   /* 全画面で必要な絵(牌・顔・麻雀先生・背景・ボタン)は、タイトルを出す前に全部そろえる */
   const ESSENTIAL = (() => {
@@ -444,6 +469,12 @@
     // 背景の絵・ボタン・牌・顔など、全画面で使う絵が、すべて読み込まれて(デコードまで終わって)から出す
     MJ.essentialReady.then(once);
     MJ.essentialReady.then(() => { if (MJ.FX) MJ.FX.autoDetect(); }); // 重い端末なら、自動で演出を軽量に
+    // タイトルが落ち着いたら、押す前に、重い準備を済ませておく(音の出口・ホームの背景の変換と、最初の描画)
+    MJ.essentialReady.then(() => setTimeout(() => {
+      MJ.perf.mark('先読み'); try { MJ.SFX.prepare(); } catch (e) { /* ignore */ }
+      const u = MJ.artUrl && MJ.artUrl['--art-menu']; if (u) { const im = new Image(); im.src = u; if (im.decode) im.decode().catch(() => {}); }
+      setTimeout(() => App.prewarmMenu && App.prewarmMenu(), 600);
+    }, 1500));
     MJ.menuReady = MJ.essentialReady;
     setTimeout(once, 20000); // 回線がとても遅いときだけ、あきらめて先に出す
   })();

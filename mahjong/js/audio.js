@@ -17,13 +17,19 @@
   const warm = (src) => {
     if (blobs[src] || typeof fetch === 'undefined' || typeof URL === 'undefined') return Promise.resolve();
     if (pending[src]) return pending[src];
-    pending[src] = fetch(src).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); })
+    pending[src] = fetch(src, { priority: 'low' }).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); })
       .then((b) => { blobs[src] = URL.createObjectURL(b); warmed.add(src); })
       .catch(() => { /* 取り寄せに失敗したら、通常どおりネットから再生する */ })
       .then(() => { delete pending[src]; });
     return pending[src];
   };
   MJ.warmAudio = (list) => list.reduce((p, s) => p.then(() => warm(s)), Promise.resolve());
+  /* 先読みは、画面が落ち着いてから、1曲ずつ間をあけて行う(取り寄せと変換が、操作とぶつからないように) */
+  let laterT = null;
+  MJ.warmAudioLater = (list, delay = 5000, gap = 2500) => {
+    clearTimeout(laterT);
+    laterT = setTimeout(() => { list.reduce((p, s) => p.then(() => (blobs[s] ? null : warm(s).then(() => new Promise((r) => setTimeout(r, gap))))), Promise.resolve()); }, delay);
+  };
 
   const A = (MJ.Audio = {
     on: load('mj_bgm', true),
@@ -74,7 +80,7 @@
       const pool = ready.length ? ready : cand.filter((s) => s !== last);
       last = pool[Math.floor(Math.random() * pool.length)];
       A._load(last, true); // 1局のあいだは、同じ曲をくり返す。局が終わって結果画面を閉じたら、新しい曲に変わる
-      MJ.warmAudio([...GAME, ...LATE, 'audio/result_win.mp3', 'audio/result_win2.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3']);
+      MJ.warmAudioLater([...GAME, ...LATE, 'audio/result_win.mp3', 'audio/result_win2.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3'], 8000, 3000);
     },
     /* 結果画面の専用BGM: 'win'(自分の和了) / 'lose'(マイナス) / 'draw'(流局)。閉じると対局BGMに戻る */
     playResult(kind) {
@@ -95,7 +101,7 @@
       A.scene = scene;
       if (scene === 'title') MJ.warmAudio([HOME, STUDY, QUIZ]); // タイトルの間に、ホーム・勉強・クイズの曲を取り寄せ始める(画面が変わってすぐ鳴らせるように)
       if (scene === 'title' || !A.on) { A.stop(); return; }
-      if (scene === 'home') MJ.warmAudio([STUDY, QUIZ, ...GAME]); // ホームの間に、勉強の曲と対局曲を取り寄せる
+      if (scene === 'home') MJ.warmAudioLater([STUDY, QUIZ, ...GAME], 5000, 2500); // ホームが落ち着いてから、勉強の曲と対局曲を、1曲ずつ取り寄せる
       if (scene === 'home' || scene === 'study' || scene === 'quiz') { const tr = scene === 'study' ? STUDY : scene === 'quiz' ? QUIZ : HOME; if (changed || (el && el.dataset.track !== tr)) A._load(tr, true); }
       else if (changed && !(el && el.dataset.track && (GAME.includes(el.dataset.track) || LATE.includes(el.dataset.track)) && !el.paused)) A._playGame();
     },

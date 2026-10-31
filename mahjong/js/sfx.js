@@ -20,7 +20,9 @@
     getCtx() { return ctx; },
     getBus() { return lim0; }, // BGMも、効果音・声と同じリミッターを通す
 
-    unlock() {
+    /* 音の出口は、最初の操作の前に、静かに作っておく(はじめて押した瞬間に、画面が止まらないように) */
+    prepare() { this._make(); },
+    _make() {
       try {
         if (!ctx) {
           const AC = G.AudioContext || G.webkitAudioContext;
@@ -34,6 +36,11 @@
             lim0 = lim; master.connect(lim); lim.connect(bus); bus.connect(ctx.destination);
           }
         }
+      } catch (e) { /* ignore */ }
+    },
+    unlock() {
+      try {
+        this._make();
         if (ctx && ctx.state === 'suspended') ctx.resume();
       } catch (e) { /* ignore */ }
     },

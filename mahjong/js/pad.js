@@ -77,6 +77,7 @@
     if (P.cur) P.cur.classList.remove('pf');
     P.cur = el || null;
     P.desc = descOf(el);
+    if (el && el.matches('.hand .tile[data-id]')) P.idx = [...document.querySelectorAll('.hand .tile[data-id]')].indexOf(el); else P.idx = -1; // 手牌の何番目か(捨てたあとも、同じ位置にカーソルを残す)
     if (el) {
       el.classList.add('pf');
       if (el.matches('.cq-btn') && MJ.UI && MJ.UI.hlCall) MJ.UI.hlCall(el);
@@ -115,8 +116,21 @@
     if (P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur)) { clearPf(P.cur); P.cur.classList.add('pf'); return; }
     if (P.cur) { P.cur.classList.remove('pf'); P.cur = null; }
     let el = P.desc ? $(P.desc) : null;
+    if (!(el && visible(el) && inScope(el)) && P.idx >= 0) { // 手牌のカーソルの牌がなくなった(捨てた・変わった): 同じ位置の牌に、カーソルを残す(別の所へ、ぴょこっと飛ばない)
+      const ts = [...document.querySelectorAll('.hand .tile[data-id]')].filter(visible);
+      if (ts.length) el = ts[Math.min(P.idx, ts.length - 1)];
+    }
     if (!(el && visible(el) && inScope(el))) el = pickDefault();
     setCur(el);
+  };
+  /* 対局のはじまり・自分の番のはじまり: カーソルを、手牌に置く(いちばん右の牌 = 引いた牌。おすすめがあれば、その牌) */
+  P.focusHand = () => {
+    if (!P.on) return;
+    const U = MJ.UI;
+    if (!(U && U.game && !$('#screen-game').classList.contains('hidden') && $('#overlay').classList.contains('hidden'))) return;
+    if ($('.callq') && visible($('.callq'))) return; // 鳴きの確認が出ているときは、そのボタン
+    const t = $('.hand .tile.rec') || $('.hand .tile.drawn:not(.ph)') || [...document.querySelectorAll('.hand .tile[data-id]')].filter(visible).pop();
+    if (t && visible(t)) setCur(t);
   };
 
   const move = (dx, dy) => {
