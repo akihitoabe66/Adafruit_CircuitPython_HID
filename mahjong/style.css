@@ -1016,7 +1016,8 @@ body.tbl #table { border: 0; background: none; box-shadow: none; padding: 0; bor
 .plq.p2 { left: 536px; width: 180px; }
 
 /* コントローラー操作のカーソル(白い枠) */
-body.pad-on .pf { outline: 4px solid #fff !important; outline-offset: 2px; box-shadow: 0 0 0 7px #3d86ffcc, 0 0 22px 6px #3d86ff !important; position: relative; z-index: 12; }
+body.pad-on .pf { outline: 4px solid #fff !important; outline-offset: 2px; box-shadow: 0 0 0 7px #3d86ffcc, 0 0 22px 6px #3d86ff !important; z-index: 12; }
+body.pad-on .pf.pf-rel { position: relative; } /* 位置が決まっていない(static)ボタンだけ、前に出す。もともと位置を決めている(absoluteなど)ボタンは、動かさない */
 body.pad-on .hand .tile.pf { transform: translateY(-8px); }
 body.pad-on #side-in .pf, body.pad-on #overlay .pf { z-index: 12; }
 

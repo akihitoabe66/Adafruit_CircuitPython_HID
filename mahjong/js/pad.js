@@ -70,15 +70,16 @@
     return null;
   };
   // 光っている(.pf)のは、いつも1つだけ。画面の切り替えで残った古い光を、まとめて消す
-  const clearPf = (keep) => { document.querySelectorAll('.pf').forEach((x) => { if (x !== keep) x.classList.remove('pf'); }); };
+  const clearPf = (keep) => { document.querySelectorAll('.pf').forEach((x) => { if (x !== keep) { x.classList.remove('pf'); x.classList.remove('pf-rel'); } }); };
   P.clearPf = clearPf;
   const setCur = (el) => {
     clearPf(el);
-    if (P.cur) P.cur.classList.remove('pf');
+    if (P.cur) { P.cur.classList.remove('pf'); P.cur.classList.remove('pf-rel'); }
     P.cur = el || null;
     P.desc = descOf(el);
     if (el && el.matches('.hand .tile[data-id]')) P.idx = [...document.querySelectorAll('.hand .tile[data-id]')].indexOf(el); else P.idx = -1; // 手牌の何番目か(捨てたあとも、同じ位置にカーソルを残す)
     if (el) {
+      el.classList.toggle('pf-rel', getComputedStyle(el).position === 'static');
       el.classList.add('pf');
       if (el.matches('.cq-btn') && MJ.UI && MJ.UI.hlCall) MJ.UI.hlCall(el);
       try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* ignore */ }
