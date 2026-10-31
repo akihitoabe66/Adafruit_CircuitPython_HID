@@ -972,6 +972,7 @@
         this.sel = { type: 'self', p, opts, st, res };
         this.riichiMode = false; this.picked = null;
         this.startThink(game, p);
+        this.myTurnMark();
         if (MJ.Pad && MJ.Pad.focusHand) setTimeout(() => MJ.Pad.focusHand(), 0); // 自分の番: カーソルを、引いた牌に
         this.adv = this.coachActive() || game.mode !== 'free' ? MJ.Coach.selfAdvice(game, p, opts, st) : null;
         this.maybeAim(game, p);
@@ -1316,6 +1317,13 @@
       });
     },
     /* 「ツモれる!」「ロンできる!」: 上がれるときに、気づかず通り過ぎないよう、画面の真ん中に大きく出す */
+    /* 自分の番が来たことを、短く知らせる(カーソルとは別の表示。引いた牌も金色に光る) */
+    myTurnMark() {
+      const sc = $('#sc'); if (!sc) return;
+      sc.querySelectorAll('.myturn').forEach((x) => x.remove());
+      const el = document.createElement('div'); el.className = 'myturn'; el.textContent = 'あなたの番です';
+      sc.appendChild(el); setTimeout(() => el.remove(), 1700);
+    },
     alertWin(text) {
       const sc = $('#sc');
       if (!sc) return;

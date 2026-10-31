@@ -1186,3 +1186,8 @@ body.pad-on #screen-title .tt-exit.pf { background: linear-gradient(#6b4a2a, #3e
 
 /* 画質(ふつう/かるい): 小さい解像度で描いて、拡大して見せる */
 html.res-on body { min-height: 0 !important; position: fixed; left: 0; top: 0; width: calc(100vw / var(--rk)); height: calc(100vh / var(--rk)); transform: scale(var(--rk)); transform-origin: 0 0; overflow: hidden; }
+
+/* 自分の番: 「あなたの番です」(短く出て消える)と、引いた牌の金色の光(カーソルの青い枠とは別) */
+.myturn { position: absolute; right: 22px; top: 246px; z-index: 35; padding: 4px 16px; border-radius: 999px; font-size: 22px; font-weight: 900; color: #1b1b12; background: #ffd23f; box-shadow: 0 3px 10px #000a; pointer-events: none; animation: myturn 1.7s both; }
+@keyframes myturn { 0% { opacity: 0; transform: translateY(8px); } 12% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+#mine .hand .tile.drawn:not(.ph) { filter: drop-shadow(0 0 5px #ffd23f) drop-shadow(0 0 2px #ffd23f); }
