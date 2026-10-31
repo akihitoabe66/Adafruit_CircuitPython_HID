@@ -258,7 +258,7 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 @keyframes inBurst { 0% { opacity: 0; transform: scale(.3) rotate(0); } 12% { opacity: 1; } 100% { opacity: 0; transform: scale(1) rotate(40deg); } }
 @keyframes inFlash { 0% { opacity: .6; } 100% { opacity: 0; } }
 @keyframes inShake { 0%, 100% { transform: none; } 15% { transform: translate(-1.1cqw, .5cqw); } 30% { transform: translate(1.1cqw, -.5cqw); } 45% { transform: translate(-.7cqw, -.4cqw); } 60% { transform: translate(.7cqw, .4cqw); } 80% { transform: translate(-.3cqw, 0); } }
-@media (prefers-reduced-motion: reduce) { #intro .in-burst, #intro .in-flash, #intro .in-stage { animation: none !important; } }
+
 
 /* 吹き出し(顔つき)の置き場所: 3人が同時に話しても、重ならないようにずらす */
 .say.sy3 { left: 50px; top: 100px; max-width: 235px; }
@@ -270,7 +270,7 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 /* 桜吹雪 */
 .in-petal { position: absolute; top: -3cqw; width: var(--sz); height: calc(var(--sz) * .75); border-radius: 100% 0 100% 0; background: linear-gradient(135deg, #ffe3ec, #ff9bb8); opacity: 0; pointer-events: none; z-index: 5; animation: inPetal 3s linear both; }
 @keyframes inPetal { 0% { opacity: 0; transform: translate(0, 0) rotate(var(--r)); } 10% { opacity: .95; } 50% { transform: translate(calc(var(--dx) * .5 + 3cqw), 30cqw) rotate(calc(var(--r) + 200deg)); } 100% { opacity: 0; transform: translate(var(--dx), 62cqw) rotate(calc(var(--r) + 420deg)); } }
-@media (prefers-reduced-motion: reduce) { .in-petal { display: none; } }
+
 .cq-note { font-size: 18px; background: rgba(0, 0, 0, .62); padding: 2px 12px; border-radius: 8px; max-width: 560px; text-align: center; }
 
 /* ホーム・タイトルの桜吹雪(ゆっくり) */
@@ -278,7 +278,7 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 .mn-petal { position: absolute; top: -20px; width: calc(var(--sz) * 1.5); height: calc(var(--sz) * 1.1); border-radius: 100% 0 100% 0; background: linear-gradient(135deg, #ffe9f0, #ff8fb0); opacity: 0; animation: mnPetal 14s linear infinite; }
 @keyframes mnPetal { 0% { opacity: 0; transform: translate(0, 0) rotate(var(--r)); } 8% { opacity: .75; } 45% { opacity: .75; transform: translate(calc(var(--dx) * .5 + 4vw), 46vh) rotate(calc(var(--r) + 160deg)); } 75% { opacity: .35; transform: translate(calc(var(--dx) * .8 + 3vw), 76vh) rotate(calc(var(--r) + 270deg)); } 100% { opacity: 0; transform: translate(var(--dx), 98vh) rotate(calc(var(--r) + 340deg)); } }
 #screen-menu #mn, #screen-title #tt { position: absolute; z-index: 1; }
-@media (prefers-reduced-motion: reduce) { .mn-petal { animation: none; opacity: 0; } }
+
 
 /* 右の列の「ツモ・リーチ・カン・ポン・チー」: できるときは、はっきり色が付く(元の指定が弱くて、色が付いていなかった) */
 #side-in .sd-act .act.on { color: #fff; }
@@ -702,7 +702,6 @@ body.rot .dc-stage { width: min(var(--vh), calc(var(--vw) * 1.7778)); }
   100% { transform: translateY(0); }
 }
 @keyframes dcFs { 0% { opacity: 0; transform: scale(.4); } 44% { opacity: .5; transform: scale(1); } 60% { opacity: .25; transform: scale(.7); } 76% { opacity: .5; transform: scale(1); } 100% { opacity: .4; transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { .dc-press, .dc-cap.in { animation: none; } }
 
 /* 文字を大きく: 流局の画面(顔の下の文字)と、振り返りの説明 */
 .dr-n { font-size: 20px !important; } .dr-s { font-size: 18px !important; } .dr-d { font-size: 26px !important; } .dr-t { font-size: 21px !important; color: #d4e4dc; }
@@ -814,7 +813,6 @@ body.on-title #menu-bg::after, body.rot.on-title #menu-bg::after { display: none
   78% { opacity: .5; transform: translate(calc(var(--dx) * .85 + 4cqw), 82cqh) rotate(calc(var(--r) + 480deg)); }
   100% { opacity: 0; transform: translate(var(--dx), 100cqh) rotate(calc(var(--r) + 600deg)); }
 }
-@media (prefers-reduced-motion: reduce) { .tt-petals { display: none; } }
 
 /* ===== 新しいメニュー画面: 背景は絵。左に、ロゴと「メニューを選択してください。」(同じ中心線)。右に、いままでと同じ4つのボタン ===== */
 body.on-menu #menu-bg, body.rot.on-menu #menu-bg { background: #0a0f1c var(--art-menu, url(img/menu_bg.webp)) 50% 40% / cover no-repeat !important; opacity: 1; }
@@ -965,7 +963,6 @@ rt { white-space: nowrap; }
 @keyframes wxFace { 0% { opacity: 0; transform: translateX(40%); } 8% { opacity: 1; transform: none; } 82% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 @keyframes wxStamp { 0% { opacity: 0; transform: scale(2.6) rotate(-6deg); } 7% { opacity: 1; transform: scale(.94) rotate(0); } 11% { transform: scale(1.04); } 15% { transform: scale(1); } 82% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes wxFade { 0% { opacity: 0; transform: translateY(8px); } 10% { opacity: 1; transform: none; } 82% { opacity: 1; } 100% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .winfx.wx { animation: none; } }
 /* 河が19枚以上: 小さくして8枚ずつ(3段に収める) */
 body.tbl .river.dense .tile { width: 20px; height: 26px; }
 body.tbl .river.dense .tile.rch { width: 26px; height: 20px; }
@@ -1125,7 +1122,6 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 @keyframes kyShake {
   0%, 6.1% { translate: 0 0; } 6.8% { translate: 0 14px; } 8.2% { translate: -12px -8px; } 9.9% { translate: 10px 7px; } 11.6% { translate: -8px -5px; } 13.3% { translate: 5px 3px; } 15% { translate: -3px -2px; } 17%, 100% { translate: 0 0; }
 }
-@media (prefers-reduced-motion: reduce) { #sc.ky-shake { animation: none; } .ky-box { animation: none; opacity: 1; } .ky-ring, .ky-flash { display: none; } }
 .ky-t.hb { font-size: 40px; }
 
 /* 音のせってい: CPUの速さの行 */
@@ -1161,3 +1157,16 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 #btn-coach .cb-ico { max-height: 38px; margin: -3px 0; }
 
 .ky-box { will-change: transform, opacity; }
+
+/* ===== 演出の強さ(設定の「演出」): 豪華 / ふつう / 軽量 ===== */
+/* ふつう: 桜は少なめ(8枚)。画面の揺れ・ぼかしは、なし */
+body.fx-normal .mn-petal:nth-child(n+9), body.fx-normal .tt-petals i:nth-child(n+9), body.fx-normal .in-petal:nth-child(n+9) { display: none; }
+body.fx-normal #sc.ky-shake, body.fx-normal #intro .in-stage { animation: none !important; }
+body.fx-normal .ky-box, body.fx-normal .ky-ring { filter: none !important; }
+/* 軽量: 桜・ぼかし・影・揺れ・閃光を、すべてなしに */
+body.fx-lite .mn-petals, body.fx-lite .tt-petals, body.fx-lite .in-petal, body.fx-lite .ky-ring, body.fx-lite .ky-flash,
+body.fx-lite #intro .in-burst, body.fx-lite #intro .in-flash, body.fx-lite .wx-flash, body.fx-lite .wx-bolts { display: none !important; }
+body.fx-lite #sc.ky-shake, body.fx-lite #intro .in-stage { animation: none !important; }
+body.fx-lite *, body.fx-lite *::before, body.fx-lite *::after { filter: none !important; backdrop-filter: none !important; text-shadow: none !important; will-change: auto !important; }
+body.fx-lite .ky-box { animation-name: kySlamLite !important; }
+@keyframes kySlamLite { 0% { opacity: 0; transform: translateY(-60px); } 12% { opacity: 1; transform: translateY(0); } 90% { opacity: 1; } 100% { opacity: 0; } }

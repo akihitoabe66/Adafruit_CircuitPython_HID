@@ -277,6 +277,7 @@
       <button class="btn big" id="st-think"></button>
       <button class="btn big" id="st-spd"></button>
       <button class="btn big" id="st-fx"></button>
+      <button class="btn big" id="st-fxl"></button>
       <button class="btn big" id="st-save"></button>
       <button class="btn big" id="st-notes">📖 麻雀参考書</button>
       <button class="btn big" data-open-yaku>📖 役一覧</button>
@@ -291,6 +292,7 @@
     const thBtn = o.querySelector('#st-think');
     const thSync = () => { thBtn.textContent = '💬 悩んだときのひとこと: ' + TL[MJ.UI.thinkMode()]; };
     thSync();
+    const fxLB = o.querySelector('#st-fxl'); const fxLS = () => { fxLB.textContent = '✨ 演出: ' + MJ.FX.JP[MJ.FX.level()] + (MJ.FX.isAuto() ? '(自動)' : ''); }; fxLS(); fxLB.addEventListener('click', () => { MJ.FX.cycle(); fxLS(); });
     const spB = o.querySelector('#st-spd'); const spS = () => { spB.textContent = '⏱ CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()]; }; spS(); spB.addEventListener('click', () => { MJ.cycleCpuSpeed(); spS(); });
     const fxB = o.querySelector('#st-fx'); const fxS = () => { fxB.textContent = '⚡ 派手な上がり演出: ' + (MJ.UI.winFxOn() ? 'あり' : 'なし'); }; fxS(); fxB.addEventListener('click', () => { MJ.UI.setWinFx(!MJ.UI.winFxOn()); fxS(); });
     const svB = o.querySelector('#st-save'); const svS = () => { svB.textContent = '💾 自動セーブ(つづき): ' + (MJ.Rank.saveOn() ? 'あり' : 'なし'); }; svS(); svB.addEventListener('click', () => { MJ.Rank.setSaveOn(!MJ.Rank.saveOn()); svS(); });
@@ -337,7 +339,7 @@
     MJ.DrillUI.init();
     MJ.Study.init();
     if (MJ.SFX.isIOS) document.body.classList.add('ios'); // iPhone・iPad: 音声合成の読み上げは、AirPlayのテレビに出ないので、読み上げボタンを出さない
-    ['11', '14', '21', '36'].forEach((n) => { const im = new Image(); im.src = `img/teacher/t${n}.png`; MJ.preloaded.push(im); }); // 麻雀先生の顔は、起動してすぐ読み込む
+    ['11', '14', '21', '36'].forEach((n) => { const im = new Image(); im.src = `img/teacher/t${n}.webp`; MJ.preloaded.push(im); }); // 麻雀先生の顔は、起動してすぐ読み込む
     MJ.SFX.loadYk(); // 上がったときの役・点数の読み上げ(収録音声)
     // 最初の操作でBGMを開始。iPhoneは pointerdown/touchstart では許可されないため、指を離した時(touchend/click)でも毎回試す
     let spk = false;
@@ -390,20 +392,20 @@
   /* 全画面で必要な絵(牌・顔・麻雀先生・背景・ボタン)は、タイトルを出す前に全部そろえる */
   const ESSENTIAL = (() => {
     const u = [];
-    for (let i = 0; i < 34; i++) u.push(`img/tiles/${i}.png`);
-    ['r4', 'r13', 'r22'].forEach((n) => u.push(`img/tiles/${n}.png`));
-    for (let i = 1; i <= MJ.CHARS.length; i++) { u.push(`img/chars/face/${pad2(i)}.png`); u.push(`img/chars/${pad2(i)}.jpg`); }
-    ['11', '14', '21', '36'].forEach((n) => u.push(`img/teacher/t${n}.png`));
-    try { const yi = pad2(MJ.youIndex()); u.push(`img/you/${yi}.jpg`, `img/you/${yi}.png`); } catch (e) { /* ignore */ } // いまの、あなたの絵(成績・段位の画面・対局)
-    ['img/btn_start.png', 'img/bgm_on.png', 'img/bgm_off.png', 'img/logo.png', 'img/rank_bg.webp', 'img/cert.webp'].forEach((x) => u.push(x));
+    for (let i = 0; i < 34; i++) u.push(`img/tiles/${i}.webp`);
+    ['r4', 'r13', 'r22'].forEach((n) => u.push(`img/tiles/${n}.webp`));
+    for (let i = 1; i <= MJ.CHARS.length; i++) { u.push(`img/chars/face/${pad2(i)}.webp`); u.push(`img/chars/${pad2(i)}.webp`); }
+    ['11', '14', '21', '36'].forEach((n) => u.push(`img/teacher/t${n}.webp`));
+    try { const yi = pad2(MJ.youIndex()); u.push(`img/you/${yi}.webp`); } catch (e) { /* ignore */ } // いまの、あなたの絵(成績・段位の画面・対局)
+    ['img/btn_start.webp', 'img/bgm_on.png', 'img/bgm_off.png', 'img/logo.webp', 'img/rank_bg.webp', 'img/cert.webp'].forEach((x) => u.push(x));
     return u;
   })();
   /* そのほか(左右反転の顔・あなたの絵・麻雀先生の表情)は、タイトルのあと、裏で読み込む */
   const LATER = (() => {
     const u = [];
-    for (let i = 1; i <= MJ.CHARS.length; i++) u.push(`img/chars/face/${pad2(i)}_f.png`);
-    for (let i = 1; i <= 18; i++) { u.push(`img/you/${pad2(i)}.png`); u.push(`img/you/${pad2(i)}.jpg`); }
-    for (const a of [1, 2, 3]) for (const b of [1, 2, 3, 4, 5, 6]) u.push(`img/teacher/t${a}${b}.png`);
+    for (let i = 1; i <= MJ.CHARS.length; i++) u.push(`img/chars/face/${pad2(i)}_f.webp`);
+    for (let i = 1; i <= 18; i++) { u.push(`img/you/${pad2(i)}.webp`); }
+    for (const a of [1, 2, 3]) for (const b of [1, 2, 3, 4, 5, 6]) u.push(`img/teacher/t${a}${b}.webp`);
     return u;
   })();
   MJ.essentialReady = Promise.all([loadArt('img/title_art.webp', '--art-title'), loadArt('img/menu_bg.webp', '--art-menu'), pool(ESSENTIAL, 6)]);
@@ -431,6 +433,7 @@
     const once = () => { if (!fired) { fired = true; done(); } };
     // 背景の絵・ボタン・牌・顔など、全画面で使う絵が、すべて読み込まれて(デコードまで終わって)から出す
     MJ.essentialReady.then(once);
+    MJ.essentialReady.then(() => { if (MJ.FX) MJ.FX.autoDetect(); }); // 重い端末なら、自動で演出を軽量に
     MJ.menuReady = MJ.essentialReady;
     setTimeout(once, 20000); // 回線がとても遅いときだけ、あきらめて先に出す
   })();

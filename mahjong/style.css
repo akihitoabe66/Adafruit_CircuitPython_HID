@@ -266,7 +266,6 @@ body.on-menu { background: transparent; }
   #menu-bg { background-size: auto 66%; background-position: 0% 0%; background-color: #070a1c; animation: bgpan 50s ease-in-out infinite alternate; }
   @keyframes bgpan { to { background-position: 100% 0%; } }
 }
-@media (prefers-reduced-motion: reduce) { #menu-bg { animation: none !important; background-position: 55% 0% !important; } }
 .menu-wrap { min-height: calc(100vh - 28px); display: flex; flex-direction: column; justify-content: flex-end; }
 .menu-spacer { flex: 1; min-height: 28vh; }
 h1.title { font-size: clamp(30px, 7vw, 56px); margin: 4px 0 2px; letter-spacing: .06em; color: #fff; text-shadow: 0 3px 0 #0009, 0 0 24px #ffcc4d99; }
@@ -310,7 +309,6 @@ body.on-title #menu-bg::after { background: linear-gradient(180deg, rgba(7, 10, 
 .title-wrap .title { margin: 0; }
 .start { font-size: clamp(22px, 5vw, 30px); padding: 14px 52px; border-radius: 999px; letter-spacing: .12em; box-shadow: 0 8px 26px #000a, 0 0 28px #ffcc4d88; animation: startpulse 1.8s ease-in-out infinite; }
 @keyframes startpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-@media (prefers-reduced-motion: reduce) { .start { animation: none; } }
 .bell { position: absolute; top: 10px; right: 12px; z-index: 6; display: flex; gap: 8px; align-items: center; background: #0b1d18d9; color: #fff; border: 1px solid #3c7a67; border-radius: 999px; padding: 8px 16px 8px 12px; font-weight: 800; font-size: 14px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .bell .bi { font-size: 20px; }
 .bell[aria-pressed="false"] { color: #a9c2b8; border-color: #555; }

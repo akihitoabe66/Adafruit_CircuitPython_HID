@@ -78,7 +78,7 @@
       const opps = Object.keys(s.opp).map((id) => ({ c: MJ.CHARS.find((x) => x.id === +id), o: s.opp[id] })).filter((x) => x.c).sort((a, b) => b.o.n - a.o.n);
       const pages = Math.max(1, Math.ceil(opps.length / 3));
       const cur = opps.slice(pg * 3, pg * 3 + 3);
-      const you = `img/you/${String(MJ.youIndex()).padStart(2, '0')}.jpg`;
+      const you = `img/you/${String(MJ.youIndex()).padStart(2, '0')}.webp`;
       const bars = s.ranks.map((n, i) => `<div><span>${i + 1}位</span><b>${n}回</b><div class="b2"><u style="width:${total ? Math.round(n / total * 100) : 0}%"></u></div></div>`).join('');
       const rows = cur.map((x) => `<div class="cpu"><img src="${x.c.face}" alt=""><div class="n">${x.c.short}<small>対戦 ${x.o.n}回</small></div><div class="w">あなたの勝ち ${x.o.w}<small>勝率 ${Math.round(x.o.w / x.o.n * 100)}%</small></div></div>`).join('') || '<div class="cpu none">まだ、対戦の記録がありません</div>';
       p.innerHTML = `<div class="rk-st rk-stats"><div class="rk-ttl">📊 対戦成績</div><div class="me"><img src="${you}" alt=""><div class="dan">${f.name}</div><div class="sm">平均順位 ${avg}位</div></div>
@@ -89,7 +89,7 @@
     /* 認定証: 「あなた 殿」と、あなたの絵が入る */
     drawCert(p, opt) {
       const name = opt.dan || R.label();
-      const you = `img/you/${String(MJ.youIndex()).padStart(2, '0')}.jpg`;
+      const you = `img/you/${String(MJ.youIndex()).padStart(2, '0')}.webp`;
       p.innerHTML = `<div class="rk-st rk-cert"><div class="cert"><img src="img/cert.webp" alt="段位認定証"><span class="cd">${name}</span><span class="cn">あなた</span><div class="cph" style="background-image:url(${you})"></div></div><div class="rk-btns bot"><button class="rk-b main" data-rk="${opt.after ? 'close' : 'back'}" type="button">${opt.after ? 'つぎへ' : '◀ もどる'}</button></div></div>`;
     },
     /* 1日の最初の1回だけ、「あなたの段位」を見せる(まだ1戦も打っていないときは出さない) */

@@ -514,7 +514,7 @@
       // 公開した面子(席の手前)。鳴いた牌は横向き
       const mt = s === 0 ? [30, 40] : [17, 23];
       const melds = p.melds.length ? `<div class="melds m${s}">${p.melds.map((m) => `<div class="mg">${m.tiles.map((h, i) => (m.kind === 'ankan' && (i === 0 || i === 3) ? this.seatTile(h.t, ROT, mt[0], mt[1], { cls: 'bkt' }).replace(/<img[^>]*>/, '') : this.seatTile(h.t, ROT, mt[0], mt[1], { side: h === m.called, red: h.red }))).join('')}</div>`).join('')}</div>` : '';
-      const plq = `<div class="plq seatc${s} p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}${p.flowers && p.flowers.length ? ' hasfl' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn" style="font-size:${p.name.length <= 4 ? 17 : p.name.length <= 5 ? 16 : 14}px">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}${p.flowers && p.flowers.length ? `<span class="fls" title="季節牌 ${p.flowers.length}枚">${p.flowers.map((h) => `<img src="img/tiles/${h.t}.png" alt="${MJ.tileName(h.t)}" draggable="false">`).join('')}</span>` : ''}</div>`;
+      const plq = `<div class="plq seatc${s} p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}${p.flowers && p.flowers.length ? ' hasfl' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn" style="font-size:${p.name.length <= 4 ? 17 : p.name.length <= 5 ? 16 : 14}px">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}${p.flowers && p.flowers.length ? `<span class="fls" title="季節牌 ${p.flowers.length}枚">${p.flowers.map((h) => `<img src="img/tiles/${h.t}.webp" alt="${MJ.tileName(h.t)}" draggable="false">`).join('')}</span>` : ''}</div>`;
       const rstick = p.riichi ? `<img class="rstick rs${s}" src="img/tenbo_1000.png" alt="リーチ棒" draggable="false">` : '';
       return `<div class="blk" data-seat="${s}">${river}${hand}${melds}${plq}${rstick}</div>`;
     },
@@ -613,7 +613,7 @@
       let pick = a[Math.floor(Math.random() * a.length)];
       if (a.length > 1 && pick === last[mood]) pick = a[(a.indexOf(pick) + 1) % a.length];
       last[mood] = pick;
-      return `<img class="tcut ${cls}" src="img/teacher/t${pick}.png" alt="">`;
+      return `<img class="tcut ${cls}" src="img/teacher/t${pick}.webp" alt="">`;
     },
     /* 麻雀先生が、ときどき出てきて「目指す手」を教える(麻雀先生ありのときだけ。25秒以上あけて、確率でたまに) */
     maybeAim(game, p) {
@@ -1141,7 +1141,7 @@
     /* ---------- 演出 ---------- */
     /* キャラの顔: どこでも同じ「輪郭の切り抜き(首元まで・丸い枠なし)」。自分のシルエットだけは正方形の画像 */
     faceImg(ch, cls = '', seat = -1) {
-      if (ch && ch.face) return `<img class="fcut ${cls}" src="${seat >= 0 && MJ.faceFlipped(ch, seat) ? ch.face.replace(/\.png$/, '_f.png') : ch.face}" alt="">`;
+      if (ch && ch.face) return `<img class="fcut ${cls}" src="${seat >= 0 && MJ.faceFlipped(ch, seat) ? ch.face.replace(/\.webp$/, '_f.webp') : ch.face}" alt="">`;
       if (ch && ch.img) return `<img class="fyou ${cls}" src="${ch.img}" alt="">`;
       return '';
     },
@@ -1321,7 +1321,7 @@
     _clearBubbles() { const host = $('#says'); if (host) host.querySelectorAll('.say').forEach((x) => x.remove()); this._vEnd = 0; },
     /* 牌を捨てる瞬間: その人の「考え中のセリフ」だけを消す。ほかのセリフは、読み終わるまで消さない */
     /* 「解説」ボタンの中身: 麻雀先生のイラスト + 解説(開いているときは「✕ 閉じる」) */
-    coachBtnHTML(on) { return on ? '✕ 閉じる' : '<img class="cb-ico" src="img/teacher/t12.png" alt="" draggable="false"><span>解説</span>'; },
+    coachBtnHTML(on) { return on ? '✕ 閉じる' : '<img class="cb-ico" src="img/teacher/t12.webp" alt="" draggable="false"><span>解説</span>'; },
     clearSays() {
       const host = $('#says'); if (host) { const hs = host.querySelectorAll('.say[data-hes]'); if (hs.length) { hs.forEach((x) => x.remove()); this._vEnd = 0; } }
       if (this._hesTeacher) { const t = this._hesTeacher; this._hesTeacher = null; setTimeout(() => { if (this.hintOn) this.teacherSay(t, 'warn', 4500); }, 450); } // 捨てたあとに、麻雀先生がひとこと(考え中のセリフと重ならない)

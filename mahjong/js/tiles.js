@@ -120,7 +120,7 @@
   }
 
   /* 赤ドラは、文字が赤い専用の牌の絵(r4/r13/r22)を使う */
-  MJ.tileSrc = (t, red) => (red && (t === 4 || t === 13 || t === 22) ? `img/tiles/r${t}.png` : `img/tiles/${t}.png`);
+  MJ.tileSrc = (t, red) => (red && (t === 4 || t === 13 || t === 22) ? `img/tiles/r${t}.webp` : `img/tiles/${t}.webp`);
   MJ.tileSVG = (t, red) => `<img src="${MJ.tileSrc(t, red)}" alt="${MJ.tileName(t)}${red ? '(赤)' : ''}" draggable="false">`;
 
   /* HTML文字列 (cls: 追加クラス) */
