@@ -819,8 +819,8 @@ body.on-menu #menu-bg::after, body.rot.on-menu #menu-bg::after { display: none !
 #mn .mk-logo { display: block; width: 262px; height: auto; filter: drop-shadow(0 4px 10px #000a); pointer-events: none; }
 #mn .mk-head { box-sizing: border-box; width: 290px; text-align: center; padding: 8px 12px 10px; border-radius: 18px; background: linear-gradient(180deg, rgba(14, 22, 38, .78), rgba(14, 22, 38, .68)); border: 6px solid #ffe14a; box-shadow: 0 0 16px rgba(255, 225, 74, .55), 0 6px 18px #000a; font-weight: 900; font-size: 40px; line-height: 1.25; color: #fff; text-shadow: 0 2px 0 #0008; letter-spacing: .02em; }
 #mn .mk-head b { color: #ffe14a; font-weight: 900; }
-#mn .hm-btn { left: 344px; right: 22px; height: 74px; font-size: 42px; font-weight: 900; -webkit-text-stroke: .7px currentColor; box-shadow: 0 6px 16px #0008; }
-#hm-play { top: 24px; } #hm-quiz { top: 114px; } #hm-study { top: 204px; } #hm-set { top: 294px; }
+#mn .hm-btn { left: 384px; right: 40px; height: 58px; font-size: 34px; font-weight: 900; -webkit-text-stroke: .7px currentColor; box-shadow: 0 6px 16px #0008; }
+#hm-play { top: 60px; } #hm-quiz { top: 142px; } #hm-study { top: 224px; } #hm-set { top: 306px; }
 
 /* 対局中の音量の板 */
 #side-in .sm-menu { width: 62px; font-size: 13px; padding: 0; }

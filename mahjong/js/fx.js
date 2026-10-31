@@ -44,15 +44,15 @@
 
   /* 画質: 画面を小さい解像度で描いて、拡大して見せる(フルHDなどの大きい画面で、描く量を減らして軽くする)。
      きれい=そのまま / ふつう=高さ720で描く / かるい=高さ540で描く。ゲームの中身は、画面いっぱいに同じ形で出る */
-  const RK = 'mj_res', RBASE = { full: 0, mid: 720, low: 540 };
+  const RK = 'mj_res', RBASE = { full: 0, mid: 720, low: 540, lower: 432, lowest: 360 };
   MJ.Res = {
-    LEVELS: ['full', 'mid', 'low'], JP: { full: 'きれい', mid: 'ふつう', low: 'かるい' },
+    LEVELS: ['full', 'mid', 'low', 'lower', 'lowest'], JP: { full: 'きれい', mid: 'ふつう', low: 'かるい', lower: 'もっとかるい', lowest: 'いちばんかるい' },
     level() { const v = get(RK); return RBASE[v] != null ? v : 'full'; },
     k() { const b = RBASE[this.level()]; if (!b) return 1; const H = Math.min(innerWidth, innerHeight) > 0 && innerHeight > innerWidth ? innerWidth : innerHeight; const k = H / b; return k > 1.05 ? k : 1; },
     W() { return innerWidth / this.k(); }, H() { return innerHeight / this.k(); }, // ゲームが見る「画面の大きさ」
     apply() { const k = this.k(), d = document.documentElement; d.style.setProperty('--rk', k.toFixed(4)); d.classList.toggle('res-on', k > 1); if (MJ.UI && MJ.UI.relayout) { try { MJ.UI.relayout(); } catch (e) { /* ignore */ } } },
     set(l) { put(RK, l); this.apply(); requestAnimationFrame(() => window.dispatchEvent(new Event('resize'))); }, // 切り替えた直後に、各画面(ホーム・勉強・クイズ・ダイアログ)の拡大率を計算し直す
-    cycle() { const n = this.LEVELS[(this.LEVELS.indexOf(this.level()) + 1) % 3]; this.set(n); return n; },
+    cycle() { const n = this.LEVELS[(this.LEVELS.indexOf(this.level()) + 1) % this.LEVELS.length]; this.set(n); return n; },
   };
   MJ.Res.apply();
   window.addEventListener('resize', () => MJ.Res.apply());
