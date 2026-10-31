@@ -1,5 +1,6 @@
 /* 段位・対戦成績・認定証と、自動セーブ(つづき)。
-   段位: 初段から始まり、十段の先が名人。東風戦・東南戦を最後まで打った対局で点が入る(1位+30 / 2位+15 / 3位+5 / 4位+0)。下がらない。
+   段位: 無段から始まり、初段〜十段、その先が名人。東南戦は 1位+30 / 2位+15 / 3位+5 / 4位-10、東風戦はその半分。麻雀クイズ10問正解で+2点(1日+6点まで)、点数計算の勉強は、各カテゴリの最初のチャレンジ正解で+3点。
+   降段: 三段以上は、その段の入口から40点下回ると1つ下がる(初段・二段は下がらない。初段になったあとは、無段に戻らない)。
    セーブ: 局のはじめごとに自動で保存し、「つづきから」で、その局のはじめから再開する(牌は配り直す)。 */
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
@@ -7,36 +8,81 @@
   const RK = 'mj_rank', SV = 'mj_save', AS = 'mj_autosave';
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
-  /* 段位の表: [名前, 必要な累計点] */
-  const DAN = [['初段', 0], ['二段', 200], ['三段', 400], ['四段', 600], ['五段', 800], ['六段', 1000], ['七段', 1200], ['八段', 1400], ['九段', 1600], ['十段', 1800], ['名人', 2200]];
-  const PTS = [30, 15, 5, 0];
+  /* 段位の表: [名前, 必要な累計点]。無段(0点)から始まる */
+  const DAN = [['無段', 0], ['初段', 100], ['二段', 250], ['三段', 450], ['四段', 700], ['五段', 1000], ['六段', 1350], ['七段', 1750], ['八段', 2150], ['九段', 2550], ['十段', 2950], ['名人', 3400]];
+  const PTS = { south: [30, 15, 5, -10], east: [15, 8, 3, -5] }; // 東風戦は、東南戦の半分
+  const DEMOTE_FROM = 3, DEMOTE_GAP = 40; // 三段以上は、入口から40点下回ると降段
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
-  const base = () => ({ pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '' });
+  const base = () => ({ pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '', dan: 0, v: 2, qc: 0, qday: '', qpt: 0, st: {} });
   const idxOf = (pt) => { let k = 0; DAN.forEach((d, i) => { if (pt >= d[1]) k = i; }); return k; };
+  /* 点を足して、昇段・降段を決める。{ before, after } は段位の番号 */
+  const addPt = (s, delta) => {
+    const before = s.dan;
+    s.pt = Math.max(0, s.pt + delta);
+    let d = s.dan;
+    while (d < DAN.length - 1 && s.pt >= DAN[d + 1][1]) d++;
+    while (d >= DEMOTE_FROM && s.pt < DAN[d][1] - DEMOTE_GAP) d--;
+    s.dan = d;
+    return { before, after: d };
+  };
+  const msgOf = (r) => (r.after > r.before ? `🎉 ${DAN[r.after][0]}に昇段しました!` : r.after < r.before ? `${DAN[r.after][0]}に降段しました。` : '');
 
   const R = (MJ.Rank = {
     DAN, _imgs: {},
-    get() { return Object.assign(base(), load(RK, {})); },
+    get() {
+      const s = Object.assign(base(), load(RK, {}));
+      if (s.v !== 2) { s.dan = Math.max(s.games ? 1 : 0, idxOf(s.pt)); s.v = 2; save(RK, s); } // 前の版のデータ: 初段以上は、そのまま引き継ぐ
+      return s;
+    },
     info() {
-      const s = R.get(), i = idxOf(s.pt), nxt = DAN[i + 1];
-      return { s, i, base: DAN[i][1], next_pt: nxt ? nxt[1] : 0, name: DAN[i][0], next: nxt ? nxt[0] : null, left: nxt ? nxt[1] - s.pt : 0, prog: nxt ? (s.pt - DAN[i][1]) / (nxt[1] - DAN[i][1]) : 1 };
+      const s = R.get(), i = s.dan, nxt = DAN[i + 1];
+      return { s, i, base: DAN[i][1], next_pt: nxt ? nxt[1] : 0, name: DAN[i][0], next: nxt ? nxt[0] : null, left: nxt ? Math.max(0, nxt[1] - s.pt) : 0, prog: nxt ? Math.max(0, Math.min(1, (s.pt - DAN[i][1]) / (nxt[1] - DAN[i][1]))) : 1 };
     },
     label() { return R.info().name; },
-    /* 対局が最後まで終わったとき。東風戦・東南戦だけを数える。段位が上がった(または最初の認定の)ときは、その段位名を返す */
+    /* 対局が最後まで終わったとき。東風戦・東南戦だけを数える。結果(もらった点・段位の変わり方)を返す。数えない対局は null */
     record(game, final) {
       if (!game || game.length === 'single') return null;
       const me = final.results.find((r) => r.p.seat === 0);
       if (!me) return null;
-      const s = R.get(), before = idxOf(s.pt);
-      s.pt += PTS[me.rank - 1] || 0; s.games++; s.ranks[me.rank - 1]++;
+      const s = R.get(), tbl = PTS[game.length === 'east' ? 'east' : 'south'], delta = tbl[me.rank - 1] || 0;
+      const ch = addPt(s, delta); s.games++; s.ranks[me.rank - 1]++;
       final.results.forEach((r) => {
         if (r.p.seat === 0 || !r.p.char || !r.p.char.id) return;
         const o = (s.opp[r.p.char.id] = s.opp[r.p.char.id] || { n: 0, w: 0 });
         o.n++; if (me.rank < r.rank) o.w++;
       });
       save(RK, s);
-      const after = idxOf(s.pt);
-      return s.games === 1 || after > before ? DAN[after][0] : null;
+      const f = R.info();
+      return { delta, pt: s.pt, name: f.name, next: f.next, left: f.left, promoted: ch.after > ch.before, demoted: ch.after < ch.before, msg: msgOf(ch), dan: ch.after > ch.before ? DAN[ch.after][0] : null };
+    },
+    /* 「+15点 初段まであと85点」の1行(対局終了の画面に出す) */
+    gainLine(r) {
+      if (!r) return '';
+      const sign = r.delta >= 0 ? '+' : '';
+      return `<div class="rk-gain"><b>${sign}${r.delta}点</b> ${r.next ? `${r.next}まであと${r.left}点` : 'いちばん上の段位です'}${r.msg ? `<div class="rk-up">${r.msg}</div>` : ''}</div>`;
+    },
+    /* 麻雀クイズに正解したとき: 10問正解ごとに+2点(1日+6点まで) */
+    quizOk() {
+      const s = R.get(); s.qc = (s.qc || 0) + 1; let note = null;
+      if (s.qc >= 10) {
+        s.qc = 0;
+        const t = today(); if (s.qday !== t) { s.qday = t; s.qpt = 0; }
+        if (s.qpt < 6) { s.qpt += 2; const ch = addPt(s, 2); note = { pt: 2, why: 'クイズ10問正解', ch }; }
+      }
+      save(RK, s); if (note) R.notify(note);
+    },
+    /* 点数計算の勉強のチャレンジに正解したとき: 各カテゴリの最初の1回だけ+3点 */
+    studyOk(cat) {
+      const s = R.get(); if (!cat || s.st[cat]) return;
+      s.st[cat] = 1; const ch = addPt(s, 3); save(RK, s);
+      R.notify({ pt: 3, why: '点数計算の勉強', ch });
+    },
+    /* ポイントが入った理由を、短く出す。段位が変わったときは、認定証(昇段)を出す */
+    notify(n) {
+      const f = R.info();
+      if (MJ.UI && MJ.UI.toast) MJ.UI.toast(`+${n.pt}点 ${n.why}${f.next ? `(${f.next}まであと${f.left}点)` : ''}${msgOf(n.ch) ? ' ' + msgOf(n.ch) : ''}`);
+      R.syncMenu();
+      if (n.ch.after > n.ch.before) setTimeout(() => R.open('cert', { dan: DAN[n.ch.after][0], after: true }), 1800);
     },
     syncMenu() { const b = $('#hm-rec'); if (b) b.innerHTML = `<span>🏅</span> 成績・<b>${R.label()}</b>`; },
 
@@ -67,7 +113,7 @@
         px(355, 445, f.name.length > 2 ? 52 : 70, f.name) + px(705, 349, 40, f.name, 'dk') +
         (f.next ? px(1068, 358, 28, f.next) + px(1093, 446, f.left >= 1000 ? 40 : 48, String(f.left), 'num') : px(1090, 446, 34, 'いちばん上')) +
         `<div class="rk-bar" style="left:${(531 / 14.04).toFixed(2)}%;top:${(506 / 7.68).toFixed(2)}%;width:${(350 / 14.04).toFixed(2)}%;height:${(46 / 7.68).toFixed(2)}%"><i style="width:${Math.max(f.prog > 0 ? 4 : 0, Math.round(f.prog * 100))}%"></i></div>` + (f.next ? px(706, 529, 26, `${f.s.pt - f.base} / ${f.next_pt - f.base} 点`, 'num') : '') + px(1037, 563, f.name.length > 2 ? 24 : 31, f.name.split('').join('<br>'), 'v') + px(705, 622, 24, `${f.s.games} 戦 打ちました`) +
-        `<div class="rk-btns">${opt.auto ? '' : '<button class="rk-b" data-rk="stats" type="button">対戦成績</button>'}${f.s.games && !opt.auto ? '<button class="rk-b" data-rk="cert" type="button">認定証</button>' : ''}<button class="rk-b main" data-rk="close" type="button">${opt.auto ? 'すすむ' : '◀ もどる'}</button></div></div>`;
+        `<div class="rk-btns">${opt.auto ? '' : '<button class="rk-b" data-rk="stats" type="button">対戦成績</button>'}${f.i >= 1 && !opt.auto ? '<button class="rk-b" data-rk="cert" type="button">認定証</button>' : ''}<button class="rk-b main" data-rk="close" type="button">${opt.auto ? 'すすむ' : '◀ もどる'}</button></div></div>`;
       p.querySelector('.rk-st').style.setProperty('--w', '1');
       if (opt.auto) R._t = setTimeout(R.close, 3200);
     },
@@ -88,9 +134,10 @@
     },
     /* 認定証: 「あなた 殿」と、あなたの絵が入る */
     drawCert(p, opt) {
+      if (opt.after) setTimeout(() => { try { MJ.SFX.play('slam'); } catch (e) { /* ignore */ } }, 900); // ハンコが「バンッ!」と押される音(画面の動きは、ハンコが落ちる約0.9秒後)
       const name = opt.dan || R.label();
       const you = `img/you/${String(MJ.youIndex()).padStart(2, '0')}.webp`;
-      p.innerHTML = `<div class="rk-st rk-cert"><div class="cert"><img src="img/cert.webp" alt="段位認定証"><span class="cd">${name}</span><span class="cn">あなた</span><div class="cph" style="background-image:url(${you})"></div></div><div class="rk-btns bot"><button class="rk-b main" data-rk="${opt.after ? 'close' : 'back'}" type="button">${opt.after ? 'つぎへ' : '◀ もどる'}</button></div></div>`;
+      p.innerHTML = `<div class="rk-st rk-cert"><div class="cert"><img src="img/cert.webp" alt="段位認定証"><span class="cd">${name}</span><span class="cn">あなた</span><div class="cph" style="background-image:url(${you})"></div>${opt.after ? '<div class="cstamp"><b>認定</b></div>' : ''}</div><div class="rk-btns bot"><button class="rk-b main" data-rk="${opt.after ? 'close' : 'back'}" type="button">${opt.after ? 'つぎへ' : '◀ もどる'}</button></div></div>`;
     },
     /* 1日の最初の1回だけ、「あなたの段位」を見せる(まだ1戦も打っていないときは出さない) */
     daily() {

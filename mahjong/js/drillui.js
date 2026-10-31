@@ -338,6 +338,7 @@
       c.n++; if (good) c.ok++;
       save(st);
       this.logAns(this.cat.id, good);
+      if (good && MJ.Rank) { try { if (/^st_/.test(this.cat.id)) MJ.Rank.studyOk(this.cat.id); else MJ.Rank.quizOk(); } catch (e) { /* ignore */ } } // 段位のポイント: 勉強のチャレンジ(各カテゴリの初回)+3 / クイズ10問ごとに+2
       if (this.mode === 'train') { const t = (this.trainRes[this.cat.id] = this.trainRes[this.cat.id] || { n: 0, ok: 0 }); t.n++; if (good) t.ok++; }
       MJ.SFX.play(good ? 'ok' : r.r === 'near' ? 'select' : 'ng');
       $('#drill-score').textContent = this.scoreText();

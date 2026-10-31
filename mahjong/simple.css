@@ -1293,3 +1293,10 @@ body.pad-on .pm-hint { display: inline-block; }
 
 /* 「勝負!」の演出: 背景の放射(バースト)とフラッシュをやめる(実機で、コマ数が36〜49fpsに落ちていたため) */
 #intro .in-burst, #intro .in-flash { display: none !important; }
+
+/* ===== 段位: 対局終了の「+15点 初段まであと85点」・認定証のハンコ(バンッ!) ===== */
+.rk-gain { margin: 8px 0 6px; padding: 8px 12px; border-radius: 10px; background: #0d2a22; border: 2px solid #5f8a79; font-size: 20px; text-align: center; }
+.rk-gain b { font-size: 26px; color: #fff; margin-right: 8px; }
+.rk-gain .rk-up { margin-top: 4px; font-weight: 900; color: #fff; }
+.rk-cert .cstamp { position: absolute; left: 13%; bottom: 13%; width: 14%; aspect-ratio: 1; border-radius: 50%; border: .5cqw solid #c8141c; color: #c8141c; display: grid; place-items: center; font-weight: 900; font-size: 3cqw; background: rgba(255, 255, 255, .12); transform: rotate(-12deg); opacity: 0; animation: cstampIn .35s .9s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes cstampIn { 0% { opacity: 0; transform: translateY(-30%) scale(3) rotate(-12deg); } 70% { opacity: 1; transform: scale(.94) rotate(-12deg); } 100% { opacity: .92; transform: rotate(-12deg); } }

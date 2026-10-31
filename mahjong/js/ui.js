@@ -1716,14 +1716,16 @@
         const me = final.results.find((r) => r.p.seat === 0);
         MJ.SFX.play(me.rank <= 2 ? 'end' : 'lose');
         const msg = me.rank === 1 ? '🎉 トップ!おめでとうございます!' : me.rank === 4 ? '残念…ラスでした。振り返って次に活かそう!' : `${me.rank}位でした。`;
+        let rk = null; try { rk = MJ.Rank && MJ.Rank.record(game, final); } catch (e) { /* ignore */ } // 段位のポイント(東風・東南だけ)
         const rows = final.results.map((r) => `<div class="rank"><div class="rk">${r.rank}</div>${MJ.UI.faceImg(r.p.char) || '<div style="font-size:30px;width:56px;text-align:center">🀄</div>'}<div><b>${r.p.name}</b></div><div class="rs">${fmt(r.p.score)}点</div></div>`).join('');
-        this.overlay(`<h2>対局終了</h2><p>${msg}</p><div class="ranks">${rows}</div><div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="end-menu">メニューへ</button><button class="btn pri" id="end-again">もう一度</button></div>`);
+        this.overlay(`<h2>対局終了</h2><p>${msg}</p><div class="ranks">${rows}</div>${MJ.Rank && rk ? MJ.Rank.gainLine(rk) : ''}<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="end-menu">メニューへ</button><button class="btn pri" id="end-again">もう一度</button></div>`);
         try {
           const st = JSON.parse(localStorage.getItem('mj_stats') || '{"games":0,"ranks":[0,0,0,0]}');
           st.games++; st.ranks[me.rank - 1]++;
           localStorage.setItem('mj_stats', JSON.stringify(st));
         } catch (e) { /* ignore */ }
-        try { const dan = MJ.Rank && MJ.Rank.record(game, final); if (dan) setTimeout(() => MJ.Rank.open('cert', { dan, after: true }), 700); } catch (e) { /* ignore */ } // 段位が上がったとき(最初の1戦も)、認定証を出す
+        if (rk && rk.promoted) setTimeout(() => MJ.Rank.open('cert', { dan: rk.dan, after: true }), 900); // 昇段したとき、認定証(ハンコの演出つき)を出す
+        if (MJ.Rank) MJ.Rank.syncMenu();
         $('#end-menu').addEventListener('click', () => { this.closeOverlay(); resolve(); MJ.App.toMenu(); });
         $('#end-again').addEventListener('click', () => { this.closeOverlay(); resolve(); MJ.App.again(); });
       });
