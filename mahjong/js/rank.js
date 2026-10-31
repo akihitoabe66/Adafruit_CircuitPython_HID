@@ -121,7 +121,7 @@
     const k = b.dataset.rk, o = R._opt || {};
     if (k === 'close') R.close();
     else if (k === 'stats') R.open('stats', { from: 'rank' });
-    else if (k === 'eval') { R.close(); MJ.App.show('drill'); MJ.DrillUI.mode = 'eval'; MJ.DrillUI.openEval('game'); }
+    else if (k === 'eval') { R.close(); MJ.App.show('drill'); MJ.DrillUI.mode = 'eval'; MJ.DrillUI.evBack = 'rank'; MJ.DrillUI.openEval('game'); }
     else if (k === 'cert') R.open('cert', { from: 'rank' });
     else if (k === 'back') R.back();
     else if (k === 'prev') R.open('stats', { from: o.from, page: Math.max(0, (o.page || 0) - 1) });

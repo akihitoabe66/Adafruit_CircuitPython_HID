@@ -427,7 +427,7 @@
       });
       $('#dq-opts').addEventListener('click', (e) => { const b = e.target.closest('.dq-opt'); if (b && !b.disabled) this.answerChoice(b.dataset.id); });
       $('#dq-ok').addEventListener('click', () => this.answerTile());
-      $('#dq-fb').addEventListener('click', (e) => { if (e.target.closest('.ev-go')) this.openEval(); else if (e.target.closest('#dq-next')) this.next(); else if (e.target.closest('#dq-nextp')) this.fbShow(this.fbI + 1); else if (e.target.closest('#dq-prev')) this.fbShow(this.fbI - 1); });
+      $('#dq-fb').addEventListener('click', (e) => { if (e.target.closest('.ev-go')) { this.evBack = 'quiz'; this.openEval('quiz'); } else if (e.target.closest('#dq-next')) this.next(); else if (e.target.closest('#dq-nextp')) this.fbShow(this.fbI + 1); else if (e.target.closest('#dq-prev')) this.fbShow(this.fbI - 1); });
       $('#drill-home').addEventListener('click', (e) => { const b = e.target.closest('[data-ev]'); if (!b) return; if (b.dataset.ev === 'train') this.startTrain(b.dataset.src); else this.openEval(b.dataset.tab); });
       $('#drill-title').addEventListener('click', (e) => { const t = e.target.closest('.tabx'); if (t) this.openEval(t.dataset.tab); });
       $('#drill-back').addEventListener('click', () => { if (this.mode === 'eval') return MJ.App.show('menu'); if (this.backTo === 'study') MJ.Study.open(); else MJ.App.show('menu'); });

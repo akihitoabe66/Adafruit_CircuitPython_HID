@@ -186,7 +186,7 @@
         const ov = $('#overlay');
         if (ov && !ov.classList.contains('hidden')) {
           const btns = [...ov.querySelectorAll('button')].filter((b) => visible(b));
-          const hit = btns.find((b) => /続ける|つづける|閉じる|キャンセル|とじる/.test(b.textContent)) || btns.find((b) => /^(もどる|戻る|OK)$/.test(b.textContent.trim())) || btns.find((b) => /やめる/.test(b.textContent)) || btns.find((b) => b.id === 'pm-prev' && b.style.visibility !== 'hidden');
+          const hit = btns.find((b) => /続ける|つづける|閉じる|キャンセル|とじる/.test(b.textContent)) || btns.find((b) => /^[◀←]?\s*(もどる|戻る)$|^OK$/.test(b.textContent.trim())) || btns.find((b) => /やめる/.test(b.textContent)) || btns.find((b) => b.id === 'pm-prev' && b.style.visibility !== 'hidden');
           if (hit) { hit.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); }
           return;
         }
@@ -198,10 +198,10 @@
             if (U.riichiMode) { click('[data-act=riichi]'); return; }
             if (U.picked != null) { U.picked = null; U.render(U.game); return; }
           }
-          click('#btn-quit'); // 対局中の「戻る」は、中断の確認を出す
+          click('#btn-quit'); P.lockUntil = Date.now() + 600; // 対局中の「戻る」は、中断の確認を出す
           return;
         }
-        if (!$('#screen-title').classList.contains('hidden') || !$('#screen-menu').classList.contains('hidden')) { MJ.App.confirmExit(); return; } // タイトル/ホーム: 終了の確認
+        P.goBack(); return;
         // それ以外の画面(クイズ・ノートなど)では「戻る」を探す
         const back = [...document.querySelectorAll('.screen:not(.hidden) button')].find((x) => /戻る|もどる|メニューへ|タイトルへ/.test(x.textContent) && visible(x));
         if (back) back.click();
@@ -222,9 +222,44 @@
     const s = P.saved; P.saved = null;
     if (s && s.isConnected && visible(s) && inScope(s)) { clearPf(s); P.cur = s; P.desc = descOf(s); s.classList.add('pf'); } else P.preselect(true);
   };
+  /* Bボタンで戻るときの確認。「つづける」が最初に選ばれ、出た直後の0.6秒は、ボタンを受け付けない(連打で、うっかり戻らないように) */
+  P.confirmBack = (msg, yesLabel, onYes) => {
+    const U = MJ.UI;
+    U.overlay(`<div class="cf"><h2>${msg}</h2><div class="cf-btns"><button class="btn danger" id="bk-yes" type="button">${yesLabel}</button><button class="btn pri" id="bk-no" type="button">つづける</button></div></div>`);
+    P.lockUntil = Date.now() + 600;
+    document.querySelector('#bk-no').addEventListener('click', () => U.closeOverlay());
+    document.querySelector('#bk-yes').addEventListener('click', () => { U.closeOverlay(); onYes(); });
+  };
+  /* 画面ごとの、Bボタン(戻る)の動き */
+  P.goBack = () => {
+    const shown = (id) => { const e = $(id); return e && !e.classList.contains('hidden'); };
+    const A = MJ.App, ask = P.confirmBack;
+    if (shown('#screen-title')) { A.confirmExit(); P.lockUntil = Date.now() + 600; return; }
+    if (shown('#screen-menu')) return ask('タイトルに戻りますか?', '戻る', () => A.show('title'));
+    if (shown('#screen-select')) return ask('ホームに戻りますか?<br>(選んだ相手は、消えます)', '戻る', () => { const b = $('#sel-back'); if (b) b.click(); });
+    if (shown('#screen-notes')) { const b = $('#notes-back'); if (b) b.click(); return; }
+    if (shown('#screen-study')) {
+      const S = MJ.Study;
+      if (S.lesson) { if (S.page > 0) { S.page--; S.render(); return; } return ask('勉強の一覧に戻りますか?', '戻る', () => { S.lesson = null; S.render(); }); }
+      return ask('ホームに戻りますか?', '戻る', () => A.show('menu'));
+    }
+    if (shown('#screen-drill')) {
+      const D = MJ.DrillUI;
+      if (D.mode === 'eval') { // 麻雀先生の評価・特訓の結果: 確認なしで、1つ前へ
+        if (D.view === 'result') return D.openEval(D.trainSrc);
+        if (D.evBack === 'rank') return A.show('menu');
+        return D.openAuto();
+      }
+      if (D.mode === 'train') return ask('特訓をやめますか?', 'やめる', () => D.openEval(D.trainSrc));
+      return ask(D.backTo === 'study' ? '勉強の一覧に戻りますか?' : 'ホームに戻りますか?', '戻る', () => { const b = $('#drill-back'); if (b) b.click(); });
+    }
+    const back = [...document.querySelectorAll('.screen:not(.hidden) button')].find((x) => /戻る|もどる|メニューへ|タイトルへ/.test(x.textContent) && visible(x));
+    if (back) back.click();
+  };
   const act = (name) => {
     P.dev = 'pad';
     if (P.lockLeft() > 0) return;
+    if (P.lockUntil && Date.now() < P.lockUntil) return; // 確認が出た直後は、受け付けない
     if (!P.on) {
       P.on = true; document.body.classList.add('pad-on');
       const had = P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur); // すでに選択中のボタンがあれば、そこから動かす / 決定する
@@ -291,9 +326,12 @@
   P.pads = () => [...((navigator.getGamepads && navigator.getGamepads()) || [])].filter((g) => g && g.connected);
   P.learn = null; // { k: 'a'|'b', cb } 割り当てを、おぼえさせている最中
   const held = {};
-  const poll = () => {
+  let lastPoll = 0;
+  const pollOnce = () => {
     const pads = (navigator.getGamepads && navigator.getGamepads()) || [];
     const now = performance.now();
+    if (!document.hidden && lastPoll && now - lastPoll > 120 && MJ.perf) { MJ.perf.gaps.push({ at: Math.round(now / 100) / 10, gap: Math.round(now - lastPoll), ctx: MJ.perf.last }); if (MJ.perf.gaps.length > 30) MJ.perf.gaps.shift(); }
+    lastPoll = now;
     for (const gp of pads) {
       if (!gp || !gp.connected) continue;
       const pressed = []; gp.buttons.forEach((b, i) => { if (b.pressed || b.value > 0.6) pressed.push(i); });
@@ -326,9 +364,10 @@
         } else delete held[k];
       });
     }
-    G.requestAnimationFrame(poll);
   };
-  if (navigator.getGamepads) G.requestAnimationFrame(poll);
+  // 入力の読み取りは、画面を描くタイミングだけに頼らず、10ミリ秒ごとにも行う(画面の描画が遅れても、入力の取りこぼし・遅れを小さくする)
+  const poll = () => { pollOnce(); G.requestAnimationFrame(poll); };
+  if (navigator.getGamepads) { G.requestAnimationFrame(poll); setInterval(pollOnce, 10); }
   G.addEventListener('gamepadconnected', () => { if (MJ.UI && MJ.UI.toast) MJ.UI.toast('コントローラーを認識しました。十字キー=えらぶ / A=決定 / B=もどる'); });
 
   /* 画面が組み替わってカーソルが消えたら、近い場所に戻す */

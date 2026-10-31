@@ -45,7 +45,7 @@
   /* 動作の記録: 画面が0.05秒以上、止まった(長い処理)ときを、直前の操作の名前つきで、記録する。設定の「動作の測定」で見られる */
   const T0 = performance.now();
   MJ.perf = {
-    long: [], steps: [], last: '起動',
+    long: [], steps: [], gaps: [], last: '起動',
     mark(name) { this.last = name; },
     /* 「はじめる」を押してからの内訳 */
     step(name) { this.steps.push([name, Math.round(performance.now())]); if (this.steps.length > 40) this.steps.shift(); },

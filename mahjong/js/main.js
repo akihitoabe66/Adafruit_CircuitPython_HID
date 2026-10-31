@@ -333,9 +333,11 @@
       const SC = { title: 'タイトル', menu: 'ホーム', game: '対局・クイズ・勉強' };
       const lg = MJ.perf.long.filter((x) => x.dur >= 50).slice(-6).reverse();
       const longRows = lg.length ? lg.map((x) => `${x.at}秒 ${x.dur}ミリ秒止まった(${SC[x.scene] || x.scene}・直前: ${x.ctx})`).join('<br>') : 'なし(50ミリ秒以上の止まりは、記録されていません)';
+      const gp = MJ.perf.gaps.slice(-4).reverse();
+      const gapRows = gp.length ? gp.map((x) => `${x.at}秒 ${x.gap}ミリ秒(直前: ${x.ctx})`).join('<br>') : 'なし';
       const st = MJ.perf.steps, base = st.length ? st[0][1] : 0;
       const stepRows = st.length ? st.map((x, i) => `${x[0]}: +${x[1] - base}ミリ秒`).join(' → ') : '(「はじめる」を押すと、ここに内訳が出ます)';
-      MJ.UI.overlay(`<div class="cf"><h2 style="font-size:22px;margin:0 0 2px">📈 動作の測定の結果</h2><p style="font-size:17px;line-height:1.3;margin:2px 0">平均 <b>${avg}</b> コマ/秒(60に近いほど、なめらか)<br>${rows}<br>演出: ${MJ.FX.JP[MJ.FX.level()]}${MJ.FX.isAuto() ? '(自動)' : ''} ／ 画面 ${innerWidth}×${innerHeight} ／ CPU ${navigator.hardwareConcurrency || '?'}コア ／ メモリ ${navigator.deviceMemory || '?'}GB</p><p style="font-size:15px;line-height:1.3;text-align:left;margin:4px 0"><b>止まった記録</b>(新しい順)<br>${longRows}<br><b>「はじめる」の内訳</b><br>${stepRows}</p><div class="cf-btns"><button class="btn pri" id="pf-close">とじる</button></div></div>`, { plain: true });
+      MJ.UI.overlay(`<div class="cf"><h2 style="font-size:22px;margin:0 0 2px">📈 動作の測定の結果</h2><p style="font-size:17px;line-height:1.3;margin:2px 0">平均 <b>${avg}</b> コマ/秒(60に近いほど、なめらか)<br>${rows}<br>演出: ${MJ.FX.JP[MJ.FX.level()]}${MJ.FX.isAuto() ? '(自動)' : ''} ／ 画面 ${innerWidth}×${innerHeight} ／ CPU ${navigator.hardwareConcurrency || '?'}コア ／ メモリ ${navigator.deviceMemory || '?'}GB</p><p style="font-size:15px;line-height:1.3;text-align:left;margin:4px 0"><b>止まった記録</b>(新しい順)<br>${longRows}<br><b>コントローラーの入力が遅れた記録</b><br>${gapRows}<br><b>「はじめる」の内訳</b><br>${stepRows}</p><div class="cf-btns"><button class="btn pri" id="pf-close">とじる</button></div></div>`, { plain: true });
       document.querySelector('#pf-close').addEventListener('click', () => showSettings());
     });
     const spB = o.querySelector('#st-spd'); const spS = () => { spB.textContent = '⏱ CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()]; }; spS(); spB.addEventListener('click', () => { MJ.cycleCpuSpeed(); spS(); });
