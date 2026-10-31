@@ -835,7 +835,7 @@
       if (!s) return;
       const a = b.dataset.act;
       if (s.type === 'self') {
-        if (a === 'riichi') { this.riichiMode = !this.riichiMode; this.picked = null; this.render(this.game); return; }
+        if (a === 'riichi') { this.riichiMode = !this.riichiMode; this.picked = null; this.render(this.game); if (MJ.Pad && MJ.Pad.afterRiichi) setTimeout(() => MJ.Pad.afterRiichi(this.riichiMode), 0); return; }
         if (a === 'discard') { const h = s.p.hand.find((x) => x.id === this.picked); if (h && this.allowed(s, h)) this.finish({ act: this.riichiMode ? 'riichi' : 'discard', tile: h }); return; }
         if (a === 'tsumo') return this.finish({ act: 'tsumo' });
         if (a === 'ankan' || a === 'kakan') return this.finish({ act: a, t: +b.dataset.t });
@@ -847,6 +847,7 @@
     finish(act) {
       const s = this.sel;
       this.stopThink();
+      document.body.classList.remove('my-turn');
       this.sel = null; this.picked = null; this.riichiMode = false; this.adv = null; this.dng = null; this.hiType = null;
       this.reactHtml = '';
       s.res(act);
@@ -972,7 +973,9 @@
         this.sel = { type: 'self', p, opts, st, res };
         this.riichiMode = false; this.picked = null;
         this.startThink(game, p);
-        this.myTurnMark();
+        document.body.classList.add('my-turn');
+        this.myTurnMark(opts && opts.riichi && opts.riichi.length && !p.riichi ? 'テンパイ! リーチできます' : null);
+        if (opts && opts.riichi && opts.riichi.length && !p.riichi && MJ.Pad && MJ.Pad.focusRiichi) setTimeout(() => MJ.Pad.focusRiichi(), 30); // リーチできる時は、リーチのボタンから(引いた牌を、うっかり切らないように)
         requestAnimationFrame(() => { const t = $('#mine .hand .tile.drawn:not(.ph)'); if (t) { t.classList.add('draw-in'); setTimeout(() => t.classList.remove('draw-in'), 400); } }); // 引いた牌が、山から右はしへ置かれる動き
         if (MJ.Pad && MJ.Pad.focusHand) setTimeout(() => MJ.Pad.focusHand(), 0); // 自分の番: カーソルを、引いた牌に
         this.adv = this.coachActive() || game.mode !== 'free' ? MJ.Coach.selfAdvice(game, p, opts, st) : null;
@@ -1259,10 +1262,8 @@
       const fx = document.createElement('div');
       fx.className = 'winfx wx' + (multi ? ' wx-multi' : '');
       fx.style.setProperty('--tx', tg.x + 'px'); fx.style.setProperty('--ty', tg.y + 'px');
-      fx.innerHTML = `<div class="wx-dim"></div><div class="wx-spot"></div>
-        <svg class="wx-bolts" viewBox="0 0 720 428" preserveAspectRatio="none">${bolt(9, -18)}${bolt(4, 46)}${bolt(13, 6)}</svg>
-        <div class="wx-mark"></div><div class="wx-flash"></div>
-        <div class="wx-band"></div><div class="wx-speed"></div>
+      fx.innerHTML = `<div class="wx-dim"></div>
+        <div class="wx-band"></div>
         ${multi ? this.faceImg(b.char, 'wx-face wx-f2', b.seat) : ''}${this.faceImg(a.char, 'wx-face', a.seat)}
         <div class="wx-who">${nm(a)}</div>${multi ? `<div class="wx-who wx-who2">${nm(b)}</div>` : ''}
         <div class="wx-word">${word}</div>
@@ -1277,11 +1278,11 @@
         fx.addEventListener('click', finish);
         document.addEventListener('keydown', onKey, true);
         const SFXK = text === 'ロン' ? 'ron' : 'tsumo';
-        T.push(setTimeout(() => { hit(true); MJ.SFX.thunder(1); }, 500));
-        T.push(setTimeout(() => { MJ.SFX.don(0.9); MJ.SFX.voice(text, a); MJ.SFX.play(SFXK); }, 1000));
-        if (multi) T.push(setTimeout(() => MJ.SFX.voice(text, b), 1500));
-        T.push(setTimeout(() => hit(false), 1500));
-        T.push(setTimeout(finish, 3000));
+        T.push(setTimeout(() => { hit(true); }, 250));
+        T.push(setTimeout(() => { MJ.SFX.don(0.9); MJ.SFX.voice(text, a); MJ.SFX.play(SFXK); }, 350));
+        if (multi) T.push(setTimeout(() => MJ.SFX.voice(text, b), 900));
+        T.push(setTimeout(() => hit(false), 1100));
+        T.push(setTimeout(finish, 1900));
       });
     },
     winFxOn() { try { return localStorage.getItem('mj_winfx') !== 'off'; } catch (e) { return true; } },
@@ -1332,11 +1333,11 @@
     },
     /* 「ツモれる!」「ロンできる!」: 上がれるときに、気づかず通り過ぎないよう、画面の真ん中に大きく出す */
     /* 自分の番が来たことを、短く知らせる(カーソルとは別の表示。引いた牌も金色に光る) */
-    myTurnMark() {
+    myTurnMark(text) {
       const sc = $('#sc'); if (!sc) return;
       sc.querySelectorAll('.myturn').forEach((x) => x.remove());
-      const el = document.createElement('div'); el.className = 'myturn'; el.textContent = 'あなたの番です';
-      sc.appendChild(el); setTimeout(() => el.remove(), 1700);
+      const el = document.createElement('div'); el.className = 'myturn' + (text ? ' rch' : ''); el.textContent = text || 'あなたの番です';
+      sc.appendChild(el); setTimeout(() => el.remove(), text ? 2600 : 1700);
     },
     alertWin(text) {
       const sc = $('#sc');

@@ -2,7 +2,7 @@
    2つのサイコロが落ちてはずみ、合計を、あなたから反時計まわりに数える。Aボタン・クリック・Enter で振る/すすむ */
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
-  const settleThen = (host, el, fn) => { try { el.classList.add('pre'); host.appendChild(el); } catch (e) { /* ignore */ } requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { el.classList.remove('pre'); fn(); }, 380))); }; // 画面が切り替わって落ち着いてから、アニメを始める(読み込み中に始まって、とんで見えるのを防ぐ)
+  const settleThen = (host, el, fn) => { try { el.classList.add('pre'); if (!el.isConnected) host.appendChild(el); } catch (e) { /* ignore */ } requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { el.classList.remove('pre'); fn(); }, 380))); }; // 画面が切り替わって落ち着いてから、アニメを始める(読み込み中に始まって、とんで見えるのを防ぐ)
   const $ = (s) => document.querySelector(s);
   const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
   const FIN = { 1: [0, 0], 2: [90, 0], 3: [0, -90], 4: [0, 90], 5: [-90, 0], 6: [180, 0] }; // 上の面を v にする回転(X, Z)
@@ -36,10 +36,11 @@
           `<div class="dc-tray"><div class="dc-slot">${die(0, 48, 30)}${die(1, 160, 18)}</div></div><div class="dc-hint"><i>A</i> すすむ</div></div></div>`;
         const srcs = [...el.querySelectorAll('img')].map((x) => x.getAttribute('src'));
         const ready = Promise.all(srcs.map((u) => new Promise((ok) => { const im = new Image(); im.onload = im.onerror = ok; im.src = u; if (im.complete) ok(); })));
+        el.classList.add('pre'); host.appendChild(el); // 準備を待つ間も、先にこの画面で覆っておく(後ろの対局画面や右のメニューが、一瞬見えないように)
         Promise.race([ready, wait(3000)]).then(() => settleThen(host, el, begin));
 
         const begin = () => {
-          host.appendChild(el);
+          if (!el.isConnected) host.appendChild(el);
           D.active = true;
           const flat = !(MJ.FX && MJ.FX.level() === 'full'); // 豪華以外は、立体の回転をやめて、平らな目の入れ替わりで見せる(軽い)
           el.classList.toggle('flat', flat);

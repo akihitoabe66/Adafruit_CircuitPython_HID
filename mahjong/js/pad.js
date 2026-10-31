@@ -137,9 +137,23 @@
     const t = $('.hand .tile.rec') || $('.hand .tile.drawn:not(.ph)') || [...document.querySelectorAll('.hand .tile[data-id]')].filter(visible).pop();
     if (t && visible(t)) setCur(t);
   };
+  /* リーチできる時: リーチのボタンへ / リーチを押したあと: 切れる牌(候補)へ。取り消したら、リーチのボタンへ戻る */
+  P.focusRiichi = () => {
+    if (!P.on) return;
+    const b = $('#sd-act [data-act=riichi]');
+    if (b && !b.disabled && visible(b)) setCur(b);
+  };
+  P.afterRiichi = (on) => {
+    if (!P.on) return;
+    if (on) {
+      const c = [...document.querySelectorAll('.hand .tile.rch-ok')];
+      const t = c.find((e) => e.classList.contains('drawn')) || c[c.length - 1];
+      if (t) setCur(t);
+    } else P.focusRiichi();
+  };
   /* 手牌の上で「下」: 引いた牌(いちばん右)へ、すぐ戻る */
   P.toDrawn = () => {
-    const t = $('.hand .tile.drawn:not(.ph)') || [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph')).pop();
+    const t = $('.hand .tile.drawn:not(.ph):not(.dis)') || [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && !e.classList.contains('dis')).pop();
     if (t) { setCur(t); return true; }
     return false;
   };
@@ -157,7 +171,7 @@
     if (dy > 0 && cur.matches('.hand .tile[data-id]') && P.toDrawn()) return; // 手牌の上で「下」= 引いた牌へ戻る
     // 手牌の左右: 位置を計算せず、隣の牌へ直接移る(速い)。左端からさらに左は右のボタン列へ、右のボタン列からさらに右は左端の牌へ(ぐるっと一周)
     if (dx && cur.matches('.hand .tile[data-id]')) {
-      const ts = [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph'));
+      const ts = [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && !e.classList.contains('dis')); // 切れない牌(暗い牌)は、飛ばす
       const i = ts.indexOf(cur);
       if (i >= 0 && ts[i + dx]) { setCur(ts[i + dx]); return; }
       if (dx < 0) { const b = [...document.querySelectorAll('#sd-act [data-act], #btn-coach, #btn-tools')].find((e) => !e.disabled && visible(e)); if (b) { setCur(b); return; } }
