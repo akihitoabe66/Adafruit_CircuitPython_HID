@@ -439,6 +439,7 @@
     render(game) {
       if (this.game !== game) return;
       this.layout();
+      if (MJ.perf && MJ.perf._handAt && game.players[0] && game.players[0].hand.length >= 13) { const t0 = MJ.perf._handAt; MJ.perf._handAt = 0; requestAnimationFrame(() => requestAnimationFrame(() => { if (MJ.perf.rec) MJ.perf.rec.ev('配牌→手牌が見える', performance.now() - t0); })); }
       document.body.classList.remove('dealing');
       const s0 = this.sel;
       if (s0 && this._alertSel !== s0) { // 上がれるとき(ツモ・ロン)は、大きく知らせる

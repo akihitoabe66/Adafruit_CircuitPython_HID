@@ -65,6 +65,49 @@
     /* 「はじめる」を押してからの内訳 */
     step(name) { this.steps.push([name, Math.round(performance.now())]); if (this.steps.length > 40) this.steps.shift(); },
   };
+  /* ===== 通しの記録: 遊びながら、場面ごとのコマ数・止まりを、画質×演出ごとに集めておく(設定の「📊 通しの記録」で見られる / 保存されるので、起動し直しても続く) ===== */
+  const REC = 'mj_perfrec';
+  let data = {};
+  try { data = JSON.parse(localStorage.getItem(REC) || '{}') || {}; } catch (e) { data = {}; }
+  const saveRec = () => { try { localStorage.setItem(REC, JSON.stringify(data)); } catch (e) { /* ignore */ } };
+  const shown = (id) => { const e = document.getElementById('screen-' + id); return e && !e.classList.contains('hidden'); };
+  const sceneOf = () => {
+    if (document.getElementById('dice')) return 'サイコロ';
+    if (document.getElementById('intro')) return '勝負!の演出';
+    if (document.querySelector('.ky-slam')) return '東○局の叩きつけ';
+    if (document.querySelector('.winfx')) return 'ロン・ツモの演出';
+    const ov = document.getElementById('overlay'); if (ov && !ov.classList.contains('hidden')) return 'ダイアログ';
+    const b = document.body.classList;
+    if (b.contains('on-title')) return 'タイトル';
+    if (b.contains('on-menu')) return 'ホーム';
+    if (shown('game')) return MJ.UI && MJ.UI.sel && MJ.UI.sel.type === 'self' ? '対局(自分の番)' : '対局(CPUの番)';
+    if (shown('drill')) return 'クイズ';
+    if (shown('study')) return '勉強';
+    if (shown('select')) return '相手えらび';
+    return 'そのほか';
+  };
+  const grpKey = () => `${MJ.Res.level()}|${MJ.FX.level()}|${innerWidth}x${innerHeight}`;
+  const grp = () => { const k = grpKey(); return data[k] || (data[k] = { s: {}, t: {} }); };
+  MJ.perf.rec = {
+    data: () => data, scene: sceneOf,
+    reset() { data = {}; saveRec(); },
+    ev(name, ms) { const g = grp(); const t = g.t[name] || (g.t[name] = { n: 0, sum: 0, mx: 0 }); t.n++; t.sum += ms; if (ms > t.mx) t.mx = ms; },
+  };
+  { // コマの間隔を、場面ごとに数える(隠れている間・長い放置は数えない)
+    let last = 0, tick = 0;
+    const f = (t) => {
+      const dt = t - last; last = t;
+      if (!document.hidden && dt > 0 && dt < 5000 && MJ.Res && MJ.FX) {
+        const sc = sceneOf(), g = grp(), r = g.s[sc] || (g.s[sc] = { n: 0, sum: 0, a: 0, b: 0, c: 0, mx: 0 });
+        r.n++; r.sum += dt; if (dt > 33.5) r.a++; if (dt > 50) r.b++; if (dt > 100) r.c++; if (dt > r.mx) r.mx = dt;
+      }
+      requestAnimationFrame(f);
+    };
+    requestAnimationFrame((t) => { last = t; requestAnimationFrame(f); });
+    setInterval(() => { if (++tick) saveRec(); }, 5000);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) saveRec(); });
+    window.addEventListener('pagehide', saveRec);
+  }
   try {
     new PerformanceObserver((list) => {
       for (const e of list.getEntries()) {

@@ -19,6 +19,7 @@
 
     show(id, opt = {}) {
       MJ.perf.mark('画面: ' + id);
+      { const t0 = performance.now(), nm = { title: 'タイトル', menu: 'ホーム', select: '相手えらび', game: '対局', drill: 'クイズ', study: '勉強', notes: '参考書' }[id] || id; requestAnimationFrame(() => requestAnimationFrame(() => { if (MJ.perf.rec) MJ.perf.rec.ev('切り替え→' + nm, performance.now() - t0); })); }
       MJ.UI.applyRot();
       document.body.classList.toggle('on-menu', id === 'menu');
       document.body.classList.toggle('on-title', id === 'title');
@@ -309,6 +310,7 @@
       <button class="btn big" id="st-res"></button>
       <button class="btn big" id="st-pad">🎮 コントローラー</button>
       <button class="btn big" id="st-perf">📈 動作の測定</button>
+      <button class="btn big" id="st-rec">📊 通しの記録</button>
       <button class="btn big" id="st-save"></button>
       <button class="btn big" id="st-notes">📖 麻雀参考書</button>
       <button class="btn big" data-open-yaku>📖 役一覧</button>
@@ -326,6 +328,32 @@
     const fxLB = o.querySelector('#st-fxl'); const fxLS = () => { fxLB.textContent = '✨ 演出: ' + MJ.FX.JP[MJ.FX.level()] + (MJ.FX.isAuto() ? '(自動)' : ''); }; fxLS(); fxLB.addEventListener('click', () => { MJ.FX.cycle(); fxLS(); });
     const rsB = o.querySelector('#st-res'); const rsS = () => { rsB.textContent = '🖥 画質: ' + MJ.Res.JP[MJ.Res.level()]; }; rsS(); rsB.addEventListener('click', () => { MJ.Res.cycle(); rsS(); });
     o.querySelector('#st-pad').addEventListener('click', () => showPadSetup());
+    /* 通しの記録: 遊んだ分の、場面ごとのコマ数・止まりを、画質×演出ごとに見る(写真に撮って送れるよう、1画面にまとめる) */
+    const showRec = (gi, armed) => {
+      const D = MJ.perf.rec.data();
+      const keys = Object.keys(D).map((k) => ({ k, n: Object.values(D[k].s).reduce((a, r) => a + r.n, 0) })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n).map((x) => x.k);
+      const i = keys.length ? Math.max(0, Math.min(keys.length - 1, gi || 0)) : 0;
+      const k = keys[i];
+      const ORDER = ['タイトル', 'ホーム', '相手えらび', 'サイコロ', '勝負!の演出', '東○局の叩きつけ', '対局(自分の番)', '対局(CPUの番)', 'ロン・ツモの演出', 'ダイアログ', 'クイズ', '勉強', 'そのほか'];
+      let body = '<p style="font-size:16px;margin:6px 0">まだ記録がありません。しばらく遊んでから、開いてください。</p>', head = '';
+      if (k) {
+        const [rl, fl, wh] = k.split('|'), G = D[k];
+        head = `${i + 1}/${keys.length} ／ 画質: <b>${MJ.Res.JP[rl] || rl}</b> ／ 演出: <b>${MJ.FX.JP[fl] || fl}</b> ／ 画面 ${wh}`;
+        const sc = Object.keys(G.s).filter((n) => G.s[n].n >= 20).sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+        const td = 'style="padding:1px 8px;text-align:right;white-space:nowrap"', tl = 'style="padding:1px 8px;text-align:left;white-space:nowrap"';
+        const rows = sc.map((n) => { const r = G.s[n], fps = Math.round(1000 * r.n / r.sum), bad = (100 * r.a / r.n).toFixed(1); return `<tr><td ${tl}>${n}</td><td ${td}>${r.n}</td><td ${td}><b>${fps}</b></td><td ${td}>${bad}%</td><td ${td}>${r.c}</td><td ${td}>${Math.round(r.mx)}</td></tr>`; }).join('');
+        const tr = Object.keys(G.t).sort().map((n) => { const t = G.t[n]; return `<tr><td ${tl}>${n}</td><td ${td}>${t.n}</td><td ${td}><b>${Math.round(t.sum / t.n)}</b></td><td ${td}>${Math.round(t.mx)}</td></tr>`; }).join('');
+        body = `<table style="font-size:14px;line-height:1.25;border-collapse:collapse;margin:4px 0"><tr style="color:#a9c4b8"><td ${tl}>場面</td><td ${td}>コマ数</td><td ${td}>平均fps</td><td ${td}>遅いコマ</td><td ${td}>100ms超</td><td ${td}>最大ms</td></tr>${rows}</table>` +
+          (tr ? `<table style="font-size:14px;line-height:1.25;border-collapse:collapse;margin:4px 0"><tr style="color:#a9c4b8"><td ${tl}>画面の切り替え(押してから描かれるまで)</td><td ${td}>回数</td><td ${td}>平均ms</td><td ${td}>最大ms</td></tr>${tr}</table>` : '');
+      }
+      const dev = `CPU ${navigator.hardwareConcurrency || '?'}コア ／ メモリ ${navigator.deviceMemory || '?'}GB`;
+      MJ.UI.overlay(`<div class="modal" style="width:min(900px,96%);text-align:left;padding:10px 14px"><h2 style="font-size:20px;margin:0 0 2px">📊 通しの記録</h2><div style="font-size:14px;margin:2px 0">${head} ／ ${dev}</div>${body}<div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap"><button class="btn" id="rc-prev">◀ 前の設定</button><button class="btn" id="rc-next">次の設定 ▶</button><button class="btn danger" id="rc-reset">${armed ? 'もう一度で消す' : '記録を消す'}</button><button class="btn pri" id="rc-close" style="margin-left:auto">とじる</button></div></div>`, { raw: true, plain: true });
+      document.querySelector('#rc-prev').addEventListener('click', () => showRec(keys.length ? (i - 1 + keys.length) % keys.length : 0));
+      document.querySelector('#rc-next').addEventListener('click', () => showRec(keys.length ? (i + 1) % keys.length : 0));
+      document.querySelector('#rc-reset').addEventListener('click', () => { if (armed) { MJ.perf.rec.reset(); showRec(0); } else showRec(i, true); });
+      document.querySelector('#rc-close').addEventListener('click', () => showSettings());
+    };
+    o.querySelector('#st-rec').addEventListener('click', () => showRec(0));
     o.querySelector('#st-perf').addEventListener('click', async () => {
       const t0 = performance.now(); MJ.UI.overlay('<div class="cf"><h2>📈 動作の測定中…(約5秒)</h2><p>そのまま、お待ちください。</p></div>', { plain: true });
       const fr = await MJ.FX.measure(5); const ms = Math.round(performance.now() - t0);

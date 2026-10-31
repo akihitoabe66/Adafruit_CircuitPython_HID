@@ -264,6 +264,7 @@
 
     /* ---------- 1局 ---------- */
     async playHand() {
+      if (this.ui && MJ.perf) MJ.perf._handAt = performance.now(); // 配牌から、手牌が画面に見えるまでを測る
       this.setupHand();
       if (this.ui) await this.ui.handStart(this);
       if (this.ui && MJ.Banter) MJ.Banter.handStart(this);
