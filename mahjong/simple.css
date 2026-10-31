@@ -1204,3 +1204,6 @@ body.tbl .river, .river { justify-items: start; justify-content: start; text-ali
 #dice.flat .dc-cube { transform: none !important; transition: none !important; transform-style: flat; }
 #dice.flat .dc-f { display: none; transform: none; backface-visibility: visible; box-shadow: 0 calc(var(--u) * 4) calc(var(--u) * 6) rgba(0, 0, 0, .35); }
 #dice.flat .dc-f.on { display: grid; }
+
+/* サイコロの駒を小さく(一辺を約66%): 受け皿の中に余裕をもって収まり、描く面積も約43%に。はずむ高さ・飛んでくる距離も、一緒に小さくなる */
+.dc-die { transform: scale(.66); transform-origin: 50% 50%; }
