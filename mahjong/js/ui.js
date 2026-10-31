@@ -352,7 +352,7 @@
     relayout() { this.applyRot(); if (this.game) { this.layoutKey = ''; this.render(this.game); } },
     /* 縦持ちのスマホは、タイトルからすべての画面を90°回して横画面で表示する(設定で縦のままにもできる) */
     applyRot() {
-      const RW = window.innerWidth, RH = window.innerHeight;
+      const RW = MJ.Res ? MJ.Res.W() : window.innerWidth, RH = MJ.Res ? MJ.Res.H() : window.innerHeight;
       const rot = RH > RW; // 縦持ちは常に横画面(90°回転)で表示する
       document.body.classList.toggle('rot', rot);
       const rs = document.documentElement.style;
@@ -372,7 +372,7 @@
        スマホ横=16:9〜19.5:9。比率が合わない分は黒帯(暗い背景)にして、画面内にスクロールなしで収める */
     /* ステージの大きさを決めて el に適用する(対局・練習問題で共通) */
     stageFor(el) {
-      let W = window.innerWidth, H = window.innerHeight;
+      let W = MJ.Res ? MJ.Res.W() : window.innerWidth, H = MJ.Res ? MJ.Res.H() : window.innerHeight;
       const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
       const rot = this.applyRot(); // 回転は #app 全体に掛かる(CSS)。ここでは回転後の大きさで計算するだけ
       const RW = W, RH = H; // 実際の画面サイズ

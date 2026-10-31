@@ -2,6 +2,7 @@
    演出の設定(mj_fx): big=派手(揺れ・光・火花) / normal=ふつう(揺れと光なし。標準) / off=なし。Aボタン・クリック・Enter でとばせる */
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
+  const settleThen = (host, el, fn) => { try { el.classList.add('pre'); host.appendChild(el); } catch (e) { /* ignore */ } requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { el.classList.remove('pre'); fn(); }, 380))); }; // 画面が切り替わって落ち着いてから、アニメを始める(読み込み中に始まって、とんで見えるのを防ぐ)
   const $ = (s) => document.querySelector(s);
   const KEY = 'mj_fx';
   const LABEL = { big: '派手', normal: 'ふつう', off: 'なし' };
@@ -45,7 +46,7 @@
         // 顔の絵が読み込まれてから始める(顔が遅れて出て、文字のアニメだけ先に始まらないように)
         const srcs = [...el.querySelectorAll('img')].map((x) => x.getAttribute('src'));
         const ready = Promise.all(srcs.map((u) => new Promise((ok) => { const im = new Image(); im.onload = im.onerror = ok; im.src = u; if (im.complete) ok(); })));
-        Promise.race([ready, new Promise((ok) => setTimeout(ok, 3000))]).then(() => begin());
+        Promise.race([ready, new Promise((ok) => setTimeout(ok, 3000))]).then(() => settleThen(host, el, begin));
         const begin = () => {
         host.appendChild(el);
         I.active = true;

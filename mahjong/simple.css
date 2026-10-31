@@ -261,9 +261,9 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 
 
 /* 吹き出し(顔つき)の置き場所: 3人が同時に話しても、重ならないようにずらす */
-.say.sy3 { left: 50px; top: 100px; max-width: 235px; }
+.say.sy3 { left: 50px; top: 110px; max-width: 235px; }
 .say.sy2 { left: 230px; top: 14px; max-width: 280px; }
-.say.sy1 { left: 440px; top: 150px; max-width: 270px; }
+.say.sy1 { left: 440px; top: 110px; max-width: 270px; }
 .say .sb2 { font-size: 17px; }
 .say img.fcut { height: 112px; }
 
@@ -292,7 +292,7 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 .shout small { display: none; }
 .shout { width: auto; height: auto; display: flex; align-items: flex-end; gap: 6px; }
 .shout .sw { position: static; font-size: 58px; line-height: 1; padding-bottom: 14px; }
-.shout.sh1 { left: auto; right: 46px; top: 80px; }
+.shout.sh1 { left: auto; right: 46px; top: 90px; }
 .shout.sh3 { left: 14px; top: 90px; }
 .shout.sh2 { left: 220px; top: 14px; }
 .shout.sh0 { left: 200px; top: 220px; }
@@ -1180,3 +1180,9 @@ body.fx-lite .ky-box { animation-name: kySlamLite !important; }
 body.pad-on #screen-title .tt-go.pf, body.pad-on #screen-title .tt-bgm.pf { outline: none !important; box-shadow: none !important; }
 #screen-title .tt-go.pf img, #screen-title .tt-bgm.pf img { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 3px #fff) drop-shadow(0 0 9px #3d86ff) drop-shadow(0 0 16px #3d86ff) drop-shadow(0 4px 6px #000a); }
 body.pad-on #screen-title .tt-exit.pf { background: linear-gradient(#6b4a2a, #3e2a14); color: #f3e3b0; border-color: #fff; outline: none !important; box-shadow: 0 0 0 2px #fff, 0 0 14px 4px #3d86ff !important; transform: scale(1.07); }
+
+/* 始まる前の待ち: 画面を覆ったまま、アニメは止めておく */
+#intro.pre *, #dice.pre * { animation-play-state: paused !important; }
+
+/* 画質(ふつう/かるい): 小さい解像度で描いて、拡大して見せる */
+html.res-on body { min-height: 0 !important; position: fixed; left: 0; top: 0; width: calc(100vw / var(--rk)); height: calc(100vh / var(--rk)); transform: scale(var(--rk)); transform-origin: 0 0; overflow: hidden; }

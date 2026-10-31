@@ -306,6 +306,7 @@
       <button class="btn big" id="st-spd"></button>
       <button class="btn big" id="st-fx"></button>
       <button class="btn big" id="st-fxl"></button>
+      <button class="btn big" id="st-res"></button>
       <button class="btn big" id="st-pad">🎮 コントローラー</button>
       <button class="btn big" id="st-perf">📈 動作の測定</button>
       <button class="btn big" id="st-save"></button>
@@ -323,6 +324,7 @@
     const thSync = () => { thBtn.textContent = '💬 悩んだときのひとこと: ' + TL[MJ.UI.thinkMode()]; };
     thSync();
     const fxLB = o.querySelector('#st-fxl'); const fxLS = () => { fxLB.textContent = '✨ 演出: ' + MJ.FX.JP[MJ.FX.level()] + (MJ.FX.isAuto() ? '(自動)' : ''); }; fxLS(); fxLB.addEventListener('click', () => { MJ.FX.cycle(); fxLS(); });
+    const rsB = o.querySelector('#st-res'); const rsS = () => { rsB.textContent = '🖥 画質: ' + MJ.Res.JP[MJ.Res.level()]; }; rsS(); rsB.addEventListener('click', () => { MJ.Res.cycle(); rsS(); });
     o.querySelector('#st-pad').addEventListener('click', () => showPadSetup());
     o.querySelector('#st-perf').addEventListener('click', async () => {
       const t0 = performance.now(); MJ.UI.overlay('<div class="cf"><h2>📈 動作の測定中…(約5秒)</h2><p>そのまま、お待ちください。</p></div>', { plain: true });

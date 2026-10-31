@@ -7,7 +7,7 @@
   const FOCUSABLE = 'button, [data-act], .hand .tile[data-id], .pm-arrow, #dq-hand .hand .tile.ok[data-i], summary, input, select, a[href], .mode-card, [data-mode], .char, [data-pj], [data-pg], [data-readfrom], [data-dtab], [data-open-gloss], [data-open-yaku], [data-open-credits], .gl, [tabindex]';
   const P = (MJ.Pad = { on: false, cur: null, desc: null, dev: 'mouse' });
   /* 鳴き・ロンの確認が出た直後は、パッド/キーを受け付けない(連打で押してしまうのを防ぐ)。マウス・タッチは対象外 */
-  const LOCK_MS = 2000;
+  const LOCK_MS = 600;
   P.lockLeft = () => {
     const U = MJ.UI;
     if (!(U && U.sel && U.sel.type === 'react' && P.dev === 'pad')) return 0;
@@ -83,7 +83,7 @@
       el.classList.add('pf');
       if (el.matches('.cq-btn') && MJ.UI && MJ.UI.hlCall) MJ.UI.hlCall(el);
       try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* ignore */ }
-      if (el.matches('.hand .tile[data-id]') && MJ.UI && MJ.UI.showInfo) { try { MJ.UI.showInfo(+el.dataset.id); } catch (e) { /* ignore */ } }
+      if (el.matches('.hand .tile[data-id]') && MJ.UI && MJ.UI.showInfo) { const id = +el.dataset.id; clearTimeout(P._si); P._si = setTimeout(() => { try { MJ.UI.showInfo(id); } catch (e) { /* ignore */ } }, 90); } // 説明は、動きが止まってから出す(連続して動かす時に重くならない)
     }
   };
   /* 最初に選ぶ場所(自分の番ならおすすめの牌、鳴けるなら最初の鳴きボタン) */
@@ -147,6 +147,17 @@
       return;
     }
     if (!cur) { setCur(pickDefault()); return; }
+    // 手牌の左右: 位置を計算せず、隣の牌へ直接移る(速い)。左端からさらに左は右のボタン列へ、右のボタン列からさらに右は左端の牌へ(ぐるっと一周)
+    if (dx && cur.matches('.hand .tile[data-id]')) {
+      const ts = [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph'));
+      const i = ts.indexOf(cur);
+      if (i >= 0 && ts[i + dx]) { setCur(ts[i + dx]); return; }
+      if (dx < 0) { const b = [...document.querySelectorAll('#sd-act [data-act], #btn-coach, #btn-tools')].find((e) => !e.disabled && visible(e)); if (b) { setCur(b); return; } }
+    }
+    if (dx > 0 && cur.closest('#side-in') && !$('#sd-tools:not(.hidden)') && !(MJ.UI && MJ.UI.sel && MJ.UI.sel.type === 'react')) {
+      const side = [...document.querySelectorAll('#side-in button')].filter(visible), ys = side.map((e) => rectOf(e).right);
+      if (rectOf(cur).right >= Math.max(...ys) - 2) { const t = [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && visible(e))[0]; if (t) { setCur(t); return; } }
+    }
     // 音量などのスライダーは、左右で値を変える
     if (cur.matches('input[type=range]') && dx) {
       const step = (+cur.step || 0.05) * dx, v = Math.max(+cur.min, Math.min(+cur.max, +cur.value + step));
@@ -208,7 +219,7 @@
             if (U.riichiMode) { click('[data-act=riichi]'); return; }
             if (U.picked != null) { U.picked = null; U.render(U.game); return; }
           }
-          click('#btn-quit'); P.lockUntil = Date.now() + 600; // 対局中の「戻る」は、中断の確認を出す
+          click('#btn-quit');
           return;
         }
         if (onTitle() && P.cur && P.cur.matches('#bell, #btn-exit')) { setCur(null); return; } // 光っているときのBは、光を消すだけ
@@ -237,7 +248,6 @@
   P.confirmBack = (msg, yesLabel, onYes) => {
     const U = MJ.UI;
     U.overlay(`<div class="cf"><h2>${msg}</h2><div class="cf-btns"><button class="btn danger" id="bk-yes" type="button">${yesLabel}</button><button class="btn pri" id="bk-no" type="button">つづける</button></div></div>`);
-    P.lockUntil = Date.now() + 600;
     document.querySelector('#bk-no').addEventListener('click', () => U.closeOverlay());
     document.querySelector('#bk-yes').addEventListener('click', () => { U.closeOverlay(); onYes(); });
   };
@@ -245,7 +255,7 @@
   P.goBack = () => {
     const shown = (id) => { const e = $(id); return e && !e.classList.contains('hidden'); };
     const A = MJ.App, ask = P.confirmBack;
-    if (shown('#screen-title')) { A.confirmExit(); P.lockUntil = Date.now() + 600; return; }
+    if (shown('#screen-title')) { A.confirmExit(); return; }
     if (shown('#screen-menu')) return ask('タイトルに戻りますか?', '戻る', () => A.show('title'));
     if (shown('#screen-select')) return ask('ホームに戻りますか?<br>(選んだ相手は、消えます)', '戻る', () => { const b = $('#sel-back'); if (b) b.click(); });
     if (shown('#screen-notes')) { const b = $('#notes-back'); if (b) b.click(); return; }
@@ -371,7 +381,7 @@
           const h = held[k];
           const dir = /^(left|right|up|down)$/.test(n);
           if (!h) { held[k] = { t: now, last: now }; act(n); }
-          else if (dir && now - h.t > 380 && now - h.last > 120) { h.last = now; act(n); }
+          else if (dir && now - h.t > 260 && now - h.last > 70) { h.last = now; act(n); }
         } else delete held[k];
       });
     }

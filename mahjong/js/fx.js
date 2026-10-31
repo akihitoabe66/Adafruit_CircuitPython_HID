@@ -42,6 +42,21 @@
   };
   MJ.FX.apply();
 
+  /* 画質: 画面を小さい解像度で描いて、拡大して見せる(フルHDなどの大きい画面で、描く量を減らして軽くする)。
+     きれい=そのまま / ふつう=高さ720で描く / かるい=高さ540で描く。ゲームの中身は、画面いっぱいに同じ形で出る */
+  const RK = 'mj_res', RBASE = { full: 0, mid: 720, low: 540 };
+  MJ.Res = {
+    LEVELS: ['full', 'mid', 'low'], JP: { full: 'きれい', mid: 'ふつう', low: 'かるい' },
+    level() { const v = get(RK); return RBASE[v] != null ? v : 'full'; },
+    k() { const b = RBASE[this.level()]; if (!b) return 1; const H = Math.min(innerWidth, innerHeight) > 0 && innerHeight > innerWidth ? innerWidth : innerHeight; const k = H / b; return k > 1.05 ? k : 1; },
+    W() { return innerWidth / this.k(); }, H() { return innerHeight / this.k(); }, // ゲームが見る「画面の大きさ」
+    apply() { const k = this.k(), d = document.documentElement; d.style.setProperty('--rk', k.toFixed(4)); d.classList.toggle('res-on', k > 1); if (MJ.UI && MJ.UI.relayout) { try { MJ.UI.relayout(); } catch (e) { /* ignore */ } } },
+    set(l) { put(RK, l); this.apply(); },
+    cycle() { const n = this.LEVELS[(this.LEVELS.indexOf(this.level()) + 1) % 3]; this.set(n); return n; },
+  };
+  MJ.Res.apply();
+  window.addEventListener('resize', () => MJ.Res.apply());
+
   /* 動作の記録: 画面が0.05秒以上、止まった(長い処理)ときを、直前の操作の名前つきで、記録する。設定の「動作の測定」で見られる */
   const T0 = performance.now();
   MJ.perf = {
