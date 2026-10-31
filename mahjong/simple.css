@@ -254,7 +254,7 @@ img.fyou { object-fit: cover; border-radius: 12px; aspect-ratio: 1; width: auto;
 @keyframes inL { from { opacity: 0; transform: translateX(-30cqw) rotate(-8deg); } to { opacity: 1; transform: none; } }
 @keyframes inR { from { opacity: 0; transform: translateX(30cqw) rotate(8deg); } to { opacity: 1; transform: none; } }
 @keyframes inT { from { opacity: 0; transform: translateY(-24cqw); } to { opacity: 1; transform: none; } }
-@keyframes inSlam { 0% { opacity: 0; transform: translateY(-50%) scale(4); } 14% { opacity: 1; transform: translateY(-50%) scale(.9); } 22% { transform: translateY(-50%) scale(1.06); } 30% { transform: translateY(-50%) scale(1); } 78% { opacity: 1; transform: translateY(-50%) scale(1); } 100% { opacity: 0; transform: translateY(-50%) scale(1.15); } }
+@keyframes inSlam { 0% { opacity: 0; transform: translateY(-50%) scale(2); } 14% { opacity: 1; transform: translateY(-50%) scale(.9); } 22% { transform: translateY(-50%) scale(1.06); } 30% { transform: translateY(-50%) scale(1); } 78% { opacity: 1; transform: translateY(-50%) scale(1); } 100% { opacity: 0; transform: translateY(-50%) scale(1.15); } }
 @keyframes inBurst { 0% { opacity: 0; transform: scale(.3) rotate(0); } 12% { opacity: 1; } 100% { opacity: 0; transform: scale(1) rotate(40deg); } }
 @keyframes inFlash { 0% { opacity: .6; } 100% { opacity: 0; } }
 @keyframes inShake { 0%, 100% { transform: none; } 15% { transform: translate(-1.1cqw, .5cqw); } 30% { transform: translate(1.1cqw, -.5cqw); } 45% { transform: translate(-.7cqw, -.4cqw); } 60% { transform: translate(.7cqw, .4cqw); } 80% { transform: translate(-.3cqw, 0); } }
@@ -1104,9 +1104,9 @@ body.rot .rk-cert { width: auto; height: min(calc(var(--vw) * .96), calc(var(--v
 .ky-ring { position: absolute; left: 190px; top: 126px; width: 340px; height: 134px; box-sizing: border-box; border: 4px solid #ffe08a; border-radius: 18px; opacity: 0; animation: kyRing 2.5s both; }
 .ky-flash { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, #fff8d8aa, #ffcc4d00 60%); opacity: 0; animation: kyFlash 2.5s both; }
 @keyframes kySlam {
-  0%   { opacity: 0; transform: translateY(-230px) scale(3.4); filter: blur(9px); box-shadow: 0 190px 110px #000a, inset 0 0 26px #ffcc4d44; animation-timing-function: cubic-bezier(.6, 0, 1, .5); }
+  0%   { opacity: 0; transform: translateY(-170px) scale(2); animation-timing-function: cubic-bezier(.6, 0, 1, .5); }
   2%   { opacity: 1; }
-  6.4% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); box-shadow: 0 6px 12px #000d, inset 0 0 26px #ffcc4d44; }
+  6.4% { opacity: 1; transform: translateY(0) scale(1); }
   7.5%  { transform: translateY(9px) scale(1.09, .84); }
   10.2%  { transform: translateY(-6px) scale(.96, 1.06); }
   12.9%  { transform: translateY(2px) scale(1.01, .98); }
@@ -1218,3 +1218,20 @@ body:not(.land) #coach { visibility: hidden; }
 /* 始まりの演出: 動きが始まる前は止めておく / 大きい文字は、はじめに1度だけ描いて使い回す */
 .ky-slam.pre *, .ky-slam.pre { animation-play-state: paused !important; }
 .in-word, .ky-box { will-change: transform, opacity; }
+
+
+/* ===== 軽量化: ぼかし・光の影・動く影をやめる ===== */
+* { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+/* 引いた牌: 光らせない。山から右はしへ「タンッ」と置かれる動きで知らせる(動くのは位置だけ) */
+#mine .hand .tile.drawn:not(.ph) { filter: none; }
+@keyframes drawIn { 0% { transform: translate(46px, -96px); opacity: 0; } 12% { opacity: 1; } 70% { transform: translate(0, 5px); } 100% { transform: none; } }
+#mine .hand .tile.draw-in { animation: drawIn .2s cubic-bezier(.3, 0, .6, 1) both; }
+/* 手番の名札: 光らせず、少し大きく+黄色い枠 */
+.plq.p0.act, .plq.act { box-shadow: inset 8px 0 0 var(--c), 0 0 0 3px #ffd35a !important; scale: 1.05; }
+/* ポン・チーの確認: 出る時に透けない・動かない(最初から、はっきり出す) */
+.callq { animation: none !important; opacity: 1 !important; }
+.callq .cq-btns .cq-btn { transition: none; }
+.callq.locked .cq-btn { opacity: .85; }
+/* 準備中の表示(演出の動きが始まる前) */
+.in-load { display: none; position: absolute; inset: 0; place-items: center; font-size: 5cqw; font-weight: 900; color: #fff; letter-spacing: .15em; z-index: 3; }
+#intro.pre .in-load { display: grid; }

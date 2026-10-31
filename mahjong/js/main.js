@@ -499,6 +499,20 @@
       MJ.perf.mark('先読み'); try { MJ.SFX.prepare(); } catch (e) { /* ignore */ }
       const u = MJ.artUrl && MJ.artUrl['--art-menu']; if (u) { const im = new Image(); im.src = u; if (im.decode) im.decode().catch(() => {}); }
       setTimeout(() => App.prewarmMenu && App.prewarmMenu(), 600);
+      // ホームにいる間に、牌・顔の画像を先に読み込んで、画面に出せる形にしておく(対局に入る時の準備を軽くする)。少しずつ、入力のじゃまにならないように
+      setTimeout(() => {
+        const L = [];
+        for (let t = 0; t < 38; t++) L.push(`img/tiles/${t}.webp`);
+        ['r4', 'r13', 'r22'].forEach((x) => L.push(`img/tiles/${x}.webp`));
+        (MJ.CHARS || []).forEach((c) => { if (c && c.face) L.push(c.face, c.face.replace(/\.webp$/, '_f.webp')); });
+        MJ._warm = MJ._warm || [];
+        let i = 0;
+        const step = () => {
+          for (let k = 0; k < 4 && i < L.length; k++, i++) { const im = new Image(); im.src = L[i]; MJ._warm.push(im); if (im.decode) im.decode().catch(() => {}); }
+          if (i < L.length) setTimeout(step, 80);
+        };
+        step();
+      }, 2500);
     }, 1500));
     MJ.menuReady = MJ.essentialReady;
     setTimeout(once, 20000); // 回線がとても遅いときだけ、あきらめて先に出す

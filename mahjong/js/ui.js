@@ -973,6 +973,7 @@
         this.riichiMode = false; this.picked = null;
         this.startThink(game, p);
         this.myTurnMark();
+        requestAnimationFrame(() => { const t = $('#mine .hand .tile.drawn:not(.ph)'); if (t) { t.classList.add('draw-in'); setTimeout(() => t.classList.remove('draw-in'), 400); } }); // 引いた牌が、山から右はしへ置かれる動き
         if (MJ.Pad && MJ.Pad.focusHand) setTimeout(() => MJ.Pad.focusHand(), 0); // 自分の番: カーソルを、引いた牌に
         this.adv = this.coachActive() || game.mode !== 'free' ? MJ.Coach.selfAdvice(game, p, opts, st) : null;
         this.maybeAim(game, p);

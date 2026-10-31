@@ -82,7 +82,7 @@
       el.classList.toggle('pf-rel', getComputedStyle(el).position === 'static');
       el.classList.add('pf');
       if (el.matches('.cq-btn') && MJ.UI && MJ.UI.hlCall) MJ.UI.hlCall(el);
-      try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* ignore */ }
+      if (!el.matches('.hand .tile')) { try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* ignore */ } } // 手牌の移動では、画面の位置合わせをしない(重い)
       if (el.matches('.hand .tile[data-id]') && MJ.UI && MJ.UI.showInfo) { const id = +el.dataset.id; clearTimeout(P._si); P._si = setTimeout(() => { try { MJ.UI.showInfo(id); } catch (e) { /* ignore */ } }, 90); } // 説明は、動きが止まってから出す(連続して動かす時に重くならない)
     }
   };
@@ -389,8 +389,11 @@
         if (down[n]) {
           const h = held[k];
           const dir = /^(left|right|up|down)$/.test(n);
-          if (!h) { held[k] = { t: now, last: now }; act(n); }
-          else if (dir && now - h.t > 260 && now - h.last > 70) { h.last = now; act(n); }
+          if (!h) { held[k] = { t: now, last: now, n: 0 }; act(n); }
+          else if (dir && now - h.t > 260) { // 押し続けている時間から、進む回数を決める(画面が一瞬止まっても、あとで追いついて、平均の速さは一定)
+            const due = Math.floor((now - h.t - 260) / 70) + 1, todo = Math.min(3, due - h.n);
+            if (todo > 0) { h.n = due; for (let q = 0; q < todo; q++) act(n); }
+          }
         } else delete held[k];
       });
     }
