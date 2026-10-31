@@ -161,10 +161,15 @@
   const move = (dx, dy) => {
     const cur = P.cur && P.cur.isConnected && visible(P.cur) ? P.cur : null;
     if (onTitle()) {
-      const bell = $('#bell'), ex = $('#btn-exit');
-      if (!cur || !cur.matches('#bell, #btn-exit')) { setCur(dy < 0 ? bell : (dy > 0 || dx > 0) ? ex : null); return; } // ←だけは何も光らせない
-      if (dx < 0) { setCur(null); return; } // ←で光を消す(Aで、はじめる に戻る)
-      if (dy < 0) setCur(bell); else if (dy > 0) setCur(ex);
+      // 3つのボタン: BGM(右上)・はじめる(下の中央)・おわる(右下)。初めは何も光らせない(Aで、はじめる)
+      const bell = $('#bell'), ex = $('#btn-exit'), st = $('#btn-start');
+      const at = cur && cur.matches('#bell, #btn-exit, #btn-start') ? cur.id : null;
+      let to = null;
+      if (!at) to = dy < 0 ? bell : (dy > 0 || dx > 0) ? ex : st; // 初めの1回: ↑=BGM / ↓→=おわる / ←=はじめる
+      else if (at === 'btn-start') to = dy < 0 ? bell : dx > 0 ? ex : dy > 0 ? ex : cur;
+      else if (at === 'bell') to = dy > 0 ? ex : dx < 0 ? st : cur;
+      else if (at === 'btn-exit') to = dy < 0 ? bell : dx < 0 ? st : cur;
+      if (to) setCur(to);
       return;
     }
     if (!cur) { setCur(pickDefault()); return; }
@@ -220,7 +225,7 @@
     const U = MJ.UI;
     const click = (sel) => { const e = $(sel); if (e && !e.disabled && visible(e)) { e.click(); return true; } return false; };
     switch (name) {
-      case 'a': if (onTitle() && !(P.cur && P.cur.isConnected && P.cur.matches('#bell, #btn-exit'))) { click('#btn-start'); } else if (P.cur && P.cur.isConnected) { if (U && U.sel && U.sel.type === 'self' && P.cur.matches('.hand .tile[data-id]')) U.picked = +P.cur.dataset.id; /* パッドでは、牌にカーソルを合わせてAで、すぐ捨てる */ P.cur.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); } else setCur(pickDefault()); break;
+      case 'a': if (onTitle() && !(P.cur && P.cur.isConnected && P.cur.matches('#bell, #btn-exit, #btn-start'))) { click('#btn-start'); } else if (P.cur && P.cur.isConnected) { if (U && U.sel && U.sel.type === 'self' && P.cur.matches('.hand .tile[data-id]')) U.picked = +P.cur.dataset.id; /* パッドでは、牌にカーソルを合わせてAで、すぐ捨てる */ P.cur.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); } else setCur(pickDefault()); break;
       case 'b': {
         if (MJ.Rank && MJ.Rank.isOpen()) { MJ.Rank.back(); return; }
         // 用語・役の説明(シート/一覧)が開いているときは、まずそれだけを閉じる(下の画面は、そのまま)
@@ -244,7 +249,7 @@
           click('#btn-quit');
           return;
         }
-        if (onTitle() && P.cur && P.cur.matches('#bell, #btn-exit')) { setCur(null); return; } // 光っているときのBは、光を消すだけ
+        if (onTitle() && P.cur && P.cur.matches('#bell, #btn-exit, #btn-start')) { setCur(null); return; } // 光っているときのBは、光を消すだけ
         P.goBack(); return;
         // それ以外の画面(クイズ・ノートなど)では「戻る」を探す
         const back = [...document.querySelectorAll('.screen:not(.hidden) button')].find((x) => /戻る|もどる|メニューへ|タイトルへ/.test(x.textContent) && visible(x));

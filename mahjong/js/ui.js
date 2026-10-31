@@ -1459,7 +1459,7 @@
       const o = $('#overlay');
       const ovi = o && o.querySelector('.ovi');
       if (!ovi || o.classList.contains('hidden')) return;
-      const S = this.S2 || 1;
+      const S = Math.max(0.6, (this.S2 || 1) * (ovi.querySelector('.cf, .cf-btns') ? 0.6 : 0.8)); // ダイアログは、画面全体の拡大率の約6〜8割(確認の小さいものは6割、設定などの一覧は8割で、文字は読みやすく)(画面いっぱいにならないように)
       ovi.style.width = o.clientWidth / S + 'px';
       ovi.style.height = o.clientHeight / S + 'px';
       ovi.style.transform = `scale(${S})`;
