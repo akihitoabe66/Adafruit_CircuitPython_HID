@@ -1268,3 +1268,7 @@ body.my-turn .plq:not(.p0) { opacity: .6; }
 .say img.fcut, .say img.fyou { height: 96px !important; }
 .shout img.fcut, .shout img.fyou { height: 100px; }
 .cutin img.fcut, .cutin img.fyou { height: 110px; }
+
+/* ページ式ダイアログ: 「ことばの意味」「スキップ」は小さめの控えめなボタン。コントローラーでは、↓を押した時だけ止まる */
+.pm-foot #pm-gl, .pm-foot #pm-skip { font-size: 15px !important; padding: 6px 14px !important; background: #3a4a46; opacity: .9; }
+.pm-foot #pm-gl { margin-right: 8px; }

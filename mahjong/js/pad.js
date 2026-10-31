@@ -54,6 +54,8 @@
     const out = [];
     scope().forEach((root) => root.querySelectorAll(FOCUSABLE).forEach((el) => {
       if (el.matches('[tabindex="-1"], input[type=hidden], .ph')) return;
+      if (el.classList.contains('off')) return; // 押せない(薄い)ボタンには、止まらない
+      if (el.matches('.gl') && el.closest('.modal.paged')) return; // 文章中の用語リンクは、コントローラーでは止まらない(マウス・タップは、そのまま)
       if (el.tagName === 'DETAILS') return;
       if (el.closest('.hidden') && !root.classList.contains('hidden')) return;
       if (visible(el)) out.push(el);
@@ -87,11 +89,16 @@
     }
   };
   /* 最初に選ぶ場所(自分の番ならおすすめの牌、鳴けるなら最初の鳴きボタン) */
+  /* ページ式のダイアログ(上がりの結果など): カーソルは、いつも「次へ」(最後のページは終わりのボタン)。←→でページをめくる */
+  const paged = () => { const ov = $('#overlay'); return ov && !ov.classList.contains('hidden') && !$('#gloss-sheet.on, #gloss-panel.on') && $('#overlay .modal.paged'); };
+  P.pagedMain = () => { const d = $('#pm-done'); return d && getComputedStyle(d).visibility !== 'hidden' ? d : $('#pm-next'); };
+  P.pagedFocus = () => { if (!P.on || !paged()) return; const t = P.pagedMain(); if (t && visible(t)) setCur(t); };
   /* タイトル画面(ダイアログなし)では、初めはどのボタンも光らせない。Aで「はじめる」。方向キーでBGM・おわるが光る */
   const onTitle = () => { const t = $('#screen-title'), ov = $('#overlay'); return !!(t && !t.classList.contains('hidden') && (!ov || ov.classList.contains('hidden'))); };
   const pickDefault = () => {
     const U = MJ.UI;
     if (onTitle()) return null;
+    if (paged()) { const t = P.pagedMain(); if (t) return t; }
     if (U && U.game && !$('#screen-game').classList.contains('hidden') && $('#overlay').classList.contains('hidden')) {
       const cq = $('.cq-btn.b-pass') || $('.cq-btn[data-act]'); // 初めは「見送る」
       if (cq && visible(cq)) return cq;
@@ -231,6 +238,7 @@
         // 用語・役の説明(シート/一覧)が開いているときは、まずそれだけを閉じる(下の画面は、そのまま)
         if (MJ.Gloss && $('#gloss-sheet.on')) { MJ.Gloss.closeSheet(); return; }
         if (MJ.Gloss && $('#gloss-panel.on')) { MJ.Gloss.panelBack(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); return; }
+        if (paged()) { const pv = $('#pm-prev'); if (pv && !pv.classList.contains('off')) pv.click(); setTimeout(P.pagedFocus, 0); return; } // ページ式: Bは前のページ(1ページ目では何もしない)
         const ov = $('#overlay');
         if (ov && !ov.classList.contains('hidden')) {
           const btns = [...ov.querySelectorAll('button')].filter((b) => visible(b));
@@ -315,6 +323,19 @@
       P.fromMouse = false;
     } // 最初の1回: カーソルを出す(方向キーはそれだけ。Aはそのまま決定する)
     if (P.cur && !(P.cur.isConnected && visible(P.cur) && inScope(P.cur))) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; setCur(pickDefault()); }
+    if (paged() && (name === 'left' || name === 'right' || name === 'up' || name === 'down')) {
+      const cur = P.cur && P.cur.isConnected ? P.cur : null;
+      const onMain = !cur || cur.matches('#pm-next, #pm-done, #pm-prev');
+      if (onMain) {
+        if (name === 'left' || name === 'right') { const b = $(name === 'left' ? '#pm-prev' : '#pm-next'); if (b && !b.classList.contains('off')) b.click(); setTimeout(P.pagedFocus, 0); return; }
+        if (name === 'down') { const g = $('#pm-gl'); if (g && visible(g)) setCur(g); return; }
+        return;
+      }
+      if (name === 'up') { P.pagedFocus(); return; }
+      if (name === 'right') { const k = $('#pm-skip'); if (cur.id === 'pm-gl' && k && visible(k)) setCur(k); return; }
+      if (name === 'left') { const g = $('#pm-gl'); if (cur.id === 'pm-skip' && g && visible(g)) setCur(g); return; }
+      return;
+    }
     if (name === 'left' || name === 'right' || name === 'up' || name === 'down') {
       const cq = $('.callq');
       if (cq && visible(cq)) { // 鳴きの確認: ◀▶でボタンを切り替える。チーが複数のときは、▼で牌の選択に入り、◀▶で牌(組み合わせ)を切り替える

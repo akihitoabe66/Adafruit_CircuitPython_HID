@@ -1555,7 +1555,7 @@
     /* ページ式のダイアログ(スクロールなしで画面に収める) */
     pagedModal(pages, onDone, lastLabel) {
       let cur = 0;
-      this.overlay(`<div class="modal paged"><div class="pm-top"><span class="pm-title"></span><span class="pm-dots">${pages.map(() => '<i></i>').join('')}</span></div><div class="pm-body">${pages.map((p) => `<div class="pm-page">${p.html}</div>`).join('')}</div><div class="pm-foot"><button class="btn" id="pm-skip">⏭ スキップ</button><button class="btn pri" id="pm-done"></button></div><button class="pm-arrow l" id="pm-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="pm-next" aria-label="次へ">▶</button></div>`, { plain: true, raw: true });
+      this.overlay(`<div class="modal paged"><div class="pm-top"><span class="pm-title"></span><span class="pm-dots">${pages.map(() => '<i></i>').join('')}</span></div><div class="pm-body">${pages.map((p) => `<div class="pm-page">${p.html}</div>`).join('')}</div><div class="pm-foot"><button class="btn" id="pm-gl" data-open-gloss type="button">📚 ことばの意味</button><button class="btn" id="pm-skip">⏭ スキップ</button><button class="btn pri" id="pm-done"></button></div><button class="pm-arrow l" id="pm-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="pm-next" aria-label="次へ">▶</button></div>`, { plain: true, raw: true });
       const modal = $('#overlay .modal');
       const body = modal.querySelector('.pm-body');
       const els = [...modal.querySelectorAll('.pm-page')];
@@ -1572,17 +1572,24 @@
         const pg = els[cur];
         const fit = () => {
           if (els[cur] !== pg) return;
-          // 枠に収まるまで文字サイズを下げる(iPhoneのSafariでも確実に効くよう zoom ではなく font-size で調整)
           pg.style.zoom = ''; pg.style.fontSize = '';
-          let fpx = parseFloat(getComputedStyle(pg).fontSize) || 16;
+          let hi = parseFloat(getComputedStyle(pg).fontSize) || 16;
           const fover = () => pg.scrollHeight * (parseFloat(pg.style.zoom) || 1) > body.clientHeight + 1;
-          while (fover() && fpx > 13) { fpx -= 0.5; pg.style.fontSize = fpx + 'px'; }
-          // それでも収まらなければ、スクロールさせず、全体を少しずつ縮めて1画面に収める(測り直しながら。ふりがなで行が高くなっても、必ず収める)
+          if (fover()) { // 収まる最大の文字の大きさを、二分探索で(13pxまで)
+            let lo = 13;
+            while (hi - lo > 0.5) { const mid = Math.round(lo + hi) / 2; pg.style.fontSize = mid + 'px'; if (fover()) hi = mid; else lo = mid; }
+            pg.style.fontSize = lo + 'px';
+          }
+          // それでも収まらなければ、全体を少しずつ縮めて1画面に収める
           if (fover()) { let z = 1; while (fover() && z > 0.5) { z = Math.round((z - 0.02) * 100) / 100; pg.style.zoom = String(z); } }
         };
+        // 文字の大きさが決まるまで、このページは見せない(出てから縮むのを見せない)。顔の画像が読み込まれるのも待つ(最大0.4秒)
+        pg.style.visibility = 'hidden';
         fit();
-        pg.querySelectorAll('img').forEach((im) => { if (!im.complete) im.addEventListener('load', fit, { once: true }); }); // 顔の画像が読み込まれて高さが変わっても、収め直す
-        setTimeout(fit, 350);
+        const wait = [...pg.querySelectorAll('img')].filter((im) => !im.complete);
+        const reveal = () => { if (els[cur] !== pg) return; fit(); pg.style.visibility = ''; };
+        if (wait.length) Promise.race([Promise.all(wait.map((im) => new Promise((r) => { im.addEventListener('load', r, { once: true }); im.addEventListener('error', r, { once: true }); }))), new Promise((r) => setTimeout(r, 400))]).then(reveal); else reveal();
+        if (MJ.Pad && MJ.Pad.pagedFocus) setTimeout(MJ.Pad.pagedFocus, 0); // カーソルは、いつも「次へ」(最後のページは、終わりのボタン)
         MJ.SFX.stopSpeak();
         if (pages[cur].onShow) pages[cur].onShow();
       };
