@@ -104,7 +104,7 @@
       const scene = wantTitle ? 'home' : scene0;
       const changed = A.scene !== scene0 || !el || el.paused;
       A.scene = scene0;
-      if (scene0 === 'title') MJ.warmAudio([HOME, STUDY, QUIZ]); // タイトルの間に、ホーム・勉強・クイズの曲を取り寄せ始める(画面が変わってすぐ鳴らせるように)
+      if (scene0 === 'title') { if (A.autoOK()) MJ.warmAudio([HOME]); else MJ.warmAudioLater([HOME], 1500, 0); } // タイトルの間は、ホームの曲だけ(勉強・クイズの曲は、ホームに入ってから)。回線が遅くても、タイトルの絵・スクリプトの読み込みをじゃましない // タイトルの間に、ホーム・勉強・クイズの曲を取り寄せ始める(画面が変わってすぐ鳴らせるように)
       if ((scene0 === 'title' && !wantTitle) || !A.on) { A.stop(); return; }
       if (scene === 'home') MJ.warmAudioLater([STUDY, QUIZ, ...GAME], 5000, 2500); // ホームが落ち着いてから、勉強の曲と対局曲を、1曲ずつ取り寄せる
       if (scene === 'home' || scene === 'study' || scene === 'quiz') { const tr = scene === 'study' ? STUDY : scene === 'quiz' ? QUIZ : HOME; if ((changed && !(el && !el.paused && el.dataset.track === tr)) || (el && el.dataset.track !== tr)) A._load(tr, true); }

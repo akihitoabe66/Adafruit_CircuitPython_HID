@@ -442,7 +442,7 @@
           setTimeout(() => { MJ.Audio.setScene('home'); MJ.perf.step('BGMを開始'); MJ.Rank.syncMenu(); setTimeout(() => MJ.Rank.daily(), 500); }, 60);
         }));
       };
-      Promise.race([MJ.menuReady || Promise.resolve(), new Promise((r) => setTimeout(r, 2500))]).then(go);
+      Promise.race([MJ.menuReady || Promise.resolve(), new Promise((r) => setTimeout(r, 900))]).then(go); // 背景が間に合わなくても、0.9秒で進む
     }); // メニューの背景が読み込まれてから移る
     $('#bell').addEventListener('click', () => MJ.Audio.setOn(!MJ.Audio.on) || MJ.UI.syncAudio());
     // 「おわる」は、AndroidとパソコンのSteamだけ(iPhoneとFire TVには、アプリを自分で終了する仕組みがないので出さない)
@@ -504,7 +504,8 @@
   const TITLE = ['img/btn_start.webp', 'img/bgm_on.png', 'img/bgm_off.png', 'img/logo.webp'];
   const REST = ESSENTIAL.filter((x) => !TITLE.includes(x));
   MJ.titleReady = Promise.all([loadArt('img/title_art.webp', '--art-title'), pool(TITLE, 4)]);
-  MJ.essentialReady = MJ.titleReady.then(() => Promise.all([loadArt('img/menu_bg.webp', '--art-menu'), pool(REST, 4)]));
+  MJ.menuBgReady = MJ.titleReady.then(() => loadArt('img/menu_bg.webp', '--art-menu')); // ホームの背景を先に(「はじめる」で待つのは、これだけ)
+  MJ.essentialReady = MJ.menuBgReady.then(() => pool(REST, 4)); // 牌・顔などは、そのあと裏で
   MJ.laterReady = MJ.essentialReady.then(() => pool(LATER, 4));
   function preload() { /* (以前の先読みは、上の MJ.essentialReady / MJ.laterReady が行う) */ }
   init();
@@ -550,7 +551,7 @@
         step();
       }, 2500);
     }, 1500));
-    MJ.menuReady = MJ.essentialReady;
+    MJ.menuReady = MJ.menuBgReady;
     setTimeout(once, 20000); // 回線がとても遅いときだけ、あきらめて先に出す
   })();
   // 起動直後(タイトルの間)に、ホーム曲を最優先で取り寄せる
