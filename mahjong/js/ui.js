@@ -1555,11 +1555,11 @@
     /* ページ式のダイアログ(スクロールなしで画面に収める) */
     pagedModal(pages, onDone, lastLabel) {
       let cur = 0;
-      this.overlay(`<div class="modal paged"><div class="pm-top"><span class="pm-title"></span><span class="pm-dots">${pages.map(() => '<i></i>').join('')}</span></div><div class="pm-body">${pages.map((p) => `<div class="pm-page">${p.html}</div>`).join('')}</div><div class="pm-foot"><button class="btn" id="pm-gl" data-open-gloss type="button">📚 ことばの意味</button><button class="btn" id="pm-skip">⏭ スキップ</button><button class="btn pri" id="pm-done"></button></div><button class="pm-arrow l" id="pm-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="pm-next" aria-label="次へ">▶</button></div>`, { plain: true, raw: true });
+      this.overlay(`<div class="modal paged"><div class="pm-top"><span class="pm-title"></span><span class="pm-dots">${pages.map(() => '<i></i>').join('')}</span></div><div class="pm-body">${pages.map((p) => `<div class="pm-page">${p.html}</div>`).join('')}</div><div class="pm-foot"><span class="pm-hint"><i>◀ ▶</i> ページ　<i>A</i> つぎへ</span><button class="btn" id="pm-skip">⏭ スキップ</button><button class="btn pri" id="pm-done"></button></div><button class="pm-arrow l" id="pm-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="pm-next" aria-label="次へ">▶</button></div>`, { plain: true, raw: true });
       const modal = $('#overlay .modal');
       const body = modal.querySelector('.pm-body');
       const els = [...modal.querySelectorAll('.pm-page')];
-      els.forEach((e) => MJ.Gloss.decorate(e));
+      els.forEach((e) => { MJ.Gloss.decorate(e); e.querySelectorAll('.gl').forEach((g) => g.classList.add('gl-off')); }); // ふりがなは付けて、用語のリンク(下線・押せる)だけをなくす
       const show = (i) => {
         cur = Math.max(0, Math.min(pages.length - 1, i));
         els.forEach((e, k) => { e.classList.toggle('on', k === cur); e.style.zoom = ''; });

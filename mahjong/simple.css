@@ -1272,3 +1272,8 @@ body.my-turn .plq:not(.p0) { opacity: .6; }
 /* ページ式ダイアログ: 「ことばの意味」「スキップ」は小さめの控えめなボタン。コントローラーでは、↓を押した時だけ止まる */
 .pm-foot #pm-gl, .pm-foot #pm-skip { font-size: 15px !important; padding: 6px 14px !important; background: #3a4a46; opacity: .9; }
 .pm-foot #pm-gl { margin-right: 8px; }
+.pm-hint { display: none; margin-right: auto; font-size: 15px; font-weight: 700; color: #a9c4b8; }
+.pm-hint i { font-style: normal; color: #ffd23f; margin-right: 4px; }
+body.pad-on .pm-hint { display: inline-block; }
+/* 結果などのページ式ダイアログ: 用語のリンクはなくす(ふりがなは残す) */
+.gl-off { border-bottom: 0 !important; text-decoration: none !important; background: none !important; pointer-events: none !important; cursor: default !important; }
