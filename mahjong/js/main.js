@@ -278,6 +278,7 @@
       <button class="btn big" id="st-spd"></button>
       <button class="btn big" id="st-fx"></button>
       <button class="btn big" id="st-fxl"></button>
+      <button class="btn big" id="st-perf">📈 動作の測定</button>
       <button class="btn big" id="st-save"></button>
       <button class="btn big" id="st-notes">📖 麻雀参考書</button>
       <button class="btn big" data-open-yaku>📖 役一覧</button>
@@ -293,6 +294,15 @@
     const thSync = () => { thBtn.textContent = '💬 悩んだときのひとこと: ' + TL[MJ.UI.thinkMode()]; };
     thSync();
     const fxLB = o.querySelector('#st-fxl'); const fxLS = () => { fxLB.textContent = '✨ 演出: ' + MJ.FX.JP[MJ.FX.level()] + (MJ.FX.isAuto() ? '(自動)' : ''); }; fxLS(); fxLB.addEventListener('click', () => { MJ.FX.cycle(); fxLS(); });
+    o.querySelector('#st-perf').addEventListener('click', async () => {
+      const t0 = performance.now(); MJ.UI.overlay('<div class="cf"><h2>📈 動作の測定中…(約5秒)</h2><p>そのまま、お待ちください。</p></div>', { plain: true });
+      const fr = await MJ.FX.measure(5); const ms = Math.round(performance.now() - t0);
+      const ua = navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 60);
+      const rows = fr ? fr.map((v, i) => `${i + 1}秒目: ${Math.round(v)} コマ/秒`).join('<br>') : '測れませんでした(画面が隠れていました)';
+      const avg = fr ? Math.round(fr.reduce((a, b) => a + b, 0) / fr.length) : '-';
+      MJ.UI.overlay(`<div class="cf"><h2>📈 動作の測定の結果</h2><p style="font-size:22px;line-height:1.5">平均 <b>${avg}</b> コマ/秒(60に近いほど、なめらか)<br>${rows}<br>演出: ${MJ.FX.JP[MJ.FX.level()]}${MJ.FX.isAuto() ? '(自動)' : ''} ／ 画面 ${innerWidth}×${innerHeight} ／ CPU ${navigator.hardwareConcurrency || '?'}コア ／ メモリ ${navigator.deviceMemory || '?'}GB<br><small>${ua}</small></p><div class="cf-btns"><button class="btn pri" id="pf-close">とじる</button></div></div>`, { plain: true });
+      document.querySelector('#pf-close').addEventListener('click', () => showSettings());
+    });
     const spB = o.querySelector('#st-spd'); const spS = () => { spB.textContent = '⏱ CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()]; }; spS(); spB.addEventListener('click', () => { MJ.cycleCpuSpeed(); spS(); });
     const fxB = o.querySelector('#st-fx'); const fxS = () => { fxB.textContent = '⚡ 派手な上がり演出: ' + (MJ.UI.winFxOn() ? 'あり' : 'なし'); }; fxS(); fxB.addEventListener('click', () => { MJ.UI.setWinFx(!MJ.UI.winFxOn()); fxS(); });
     const svB = o.querySelector('#st-save'); const svS = () => { svB.textContent = '💾 自動セーブ(つづき): ' + (MJ.Rank.saveOn() ? 'あり' : 'なし'); }; svS(); svB.addEventListener('click', () => { MJ.Rank.setSaveOn(!MJ.Rank.saveOn()); svS(); });

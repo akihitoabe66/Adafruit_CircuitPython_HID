@@ -1170,3 +1170,8 @@ body.fx-lite #sc.ky-shake, body.fx-lite #intro .in-stage { animation: none !impo
 body.fx-lite *, body.fx-lite *::before, body.fx-lite *::after { filter: none !important; backdrop-filter: none !important; text-shadow: none !important; will-change: auto !important; }
 body.fx-lite .ky-box { animation-name: kySlamLite !important; }
 @keyframes kySlamLite { 0% { opacity: 0; transform: translateY(-60px); } 12% { opacity: 1; transform: translateY(0); } 90% { opacity: 1; } 100% { opacity: 0; } }
+
+.st-list { grid-template-columns: repeat(4, 1fr); }
+/* 設定: ボタンが13個(4列×4段)になったので、1つの高さを詰めて、もどるに重ならないようにする */
+.st-list { gap: 6px; margin: 4px 0; }
+.st-list .btn { min-height: 48px !important; padding: 6px 6px !important; font-size: 17px !important; line-height: 1.15; }
