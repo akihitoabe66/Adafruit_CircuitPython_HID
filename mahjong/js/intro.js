@@ -63,7 +63,15 @@
         const at = (ms, f) => timers.push(setTimeout(f, ms));
         const dan = (clip, text, vol) => () => { try { MJ.SFX.don(1); if (clip) MJ.SFX.playClip(clip, text, vol); } catch (e) { /* ignore */ } };
         try { MJ.SFX.loadClip('intro_w2'); } catch (e) { /* ignore */ }
-        at(1500, dan(null, '', 0)); at(2600, dan(null, '', 0)); at(2430, () => { try { MJ.SFX.playClip('intro_w2', '勝負', 1); } catch (e) { /* ignore */ } }); // 声は、文字が出る少し前に始める // 「東一局」は声なし(ドンだけ)。「勝負!」だけ声を出す
+        { // 音は、文字の動きが実際に始まった時に鳴らす(画面が遅れても、音と絵がずれないように)。念のため、時間でも鳴らす
+          let f1 = false, f2 = false;
+          const s1 = () => { if (f1) return; f1 = true; dan(null, '', 0)(); };
+          const s2 = () => { if (f2) return; f2 = true; dan(null, '', 0)(); try { MJ.SFX.playClip('intro_w2', '勝負', 1); } catch (e) { /* ignore */ } };
+          const w1 = el.querySelector('#in-w1'), w2 = el.querySelector('#in-w2');
+          if (w1) w1.addEventListener('animationstart', s1, { once: true });
+          if (w2) w2.addEventListener('animationstart', s2, { once: true });
+          at(2200, s1); at(3400, s2);
+        } // 声は、文字が出る少し前に始める // 「東一局」は声なし(ドンだけ)。「勝負!」だけ声を出す
         at(2600, () => petals(el)); at(1500, () => petals(el, 14));
         at(4700, finish);
         el.addEventListener('click', finish);

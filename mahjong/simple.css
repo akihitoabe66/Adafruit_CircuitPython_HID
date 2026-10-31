@@ -1186,8 +1186,8 @@ body.pad-on #screen-title .tt-exit.pf { background: linear-gradient(#6b4a2a, #3e
 html.res-on body { min-height: 0 !important; position: fixed; left: 0; top: 0; width: calc(100vw / var(--rk)); height: calc(100vh / var(--rk)); transform: scale(var(--rk)); transform-origin: 0 0; overflow: hidden; }
 
 /* 自分の番: 「あなたの番です」(短く出て消える)と、引いた牌の金色の光(カーソルの青い枠とは別) */
-.myturn { position: absolute; right: 22px; top: 246px; z-index: 35; padding: 4px 16px; border-radius: 999px; font-size: 22px; font-weight: 900; color: #1b1b12; background: #ffd23f; box-shadow: 0 3px 10px #000a; pointer-events: none; animation: myturn 1.7s both; }
-@keyframes myturn { 0% { opacity: 0; transform: translateY(8px); } 12% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+.myturn { position: absolute; left: 311px; transform: translateX(-50%); top: 294px; z-index: 35; padding: 5px 26px; border-radius: 999px; font-size: 30px; white-space: nowrap; font-weight: 900; color: #1b1b12; background: #ffd23f; box-shadow: 0 3px 10px #000a; pointer-events: none; animation: myturn 1.7s both; }
+@keyframes myturn { 0% { opacity: 0; transform: translate(-50%, 10px); } 12% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; } }
 #mine .hand .tile.drawn:not(.ph) { filter: drop-shadow(0 0 5px #ffd23f) drop-shadow(0 0 2px #ffd23f); }
 
 /* 河(捨て牌): 本物の麻雀と同じく、左(その席から見て左)から並べる。最後の段が短くても、中央に寄せない */
@@ -1205,5 +1205,16 @@ body.tbl .river, .river { justify-items: start; justify-content: start; text-ali
 #dice.flat .dc-f { display: none; transform: none; backface-visibility: visible; box-shadow: 0 calc(var(--u) * 4) calc(var(--u) * 6) rgba(0, 0, 0, .35); }
 #dice.flat .dc-f.on { display: grid; }
 
-/* サイコロの駒を小さく(一辺を約66%): 受け皿の中に余裕をもって収まり、描く面積も約43%に。はずむ高さ・飛んでくる距離も、一緒に小さくなる */
-.dc-die { transform: scale(.66); transform-origin: 50% 50%; }
+/* サイコロの駒を小さく(一辺を約55%): 受け皿の中に余裕をもって収まり、描く面積も約43%に。はずむ高さ・飛んでくる距離も、一緒に小さくなる */
+.dc-die { transform: scale(.55); transform-origin: 50% 50%; }
+
+/* カーソルの牌が持ち上がる動きは、アニメなしで一瞬で(牌が引き直されても、上下にぴょこぴょこしない) */
+body.pad-on .hand .tile.pf { transition: none; }
+/* 解説パネル: 対局画面の配置が決まる前に、横から一瞬見えないように。開くときだけ動かす */
+body:not(.land) #coach { visibility: hidden; }
+.land #coach { transition: none; }
+.land.coach-open #coach { animation: coachIn .18s ease-out; }
+@keyframes coachIn { from { transform: translateX(105%); } to { transform: none; } }
+/* 始まりの演出: 動きが始まる前は止めておく / 大きい文字は、はじめに1度だけ描いて使い回す */
+.ky-slam.pre *, .ky-slam.pre { animation-play-state: paused !important; }
+.in-word, .ky-box { will-change: transform, opacity; }

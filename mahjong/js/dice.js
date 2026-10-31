@@ -107,7 +107,11 @@
             cap('');
             try { MJ.SFX.unlock(); } catch (e) { /* ignore */ }
             toss(0, a); await wt(160); toss(1, b); tossed = true; if (quick) settle();
-            [0, 0.44, 0.6, 0.76, 0.86].forEach((p, k) => tick(k ? 0.8 : 1, 0.16 + 1.55 * p));
+            { // 転がる音は、サイコロの動きが実際に始まった時から数える(画面が遅れても、はずむ音と絵がずれないように)
+              let ticked = false; const startTicks = () => { if (ticked) return; ticked = true; [0, 0.44, 0.6, 0.76, 0.86].forEach((p, k) => tick(k ? 0.8 : 1, 0.02 + 1.55 * p)); };
+              const dy1 = $('#dcy1'); if (dy1) dy1.addEventListener('animationstart', startTicks, { once: true });
+              setTimeout(startTicks, 400);
+            }
             await wt(1900); if (done) return; if (quick) settle();
             try { MJ.SFX.noise(0.12, 3500, 0.5, 1, 0, 'bandpass'); MJ.SFX.tone(880, 0.25, 'triangle', 0.18, 0); } catch (e) { /* ignore */ }
             if (first) cap('あなたから 数えます');

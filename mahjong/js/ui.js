@@ -1416,10 +1416,17 @@
       const el = document.createElement('div');
       el.className = 'ky-slam';
       el.innerHTML = `<div class="ky-ring"></div><div class="ky-box"><div class="ky-t${game.honba ? ' hb' : ''}">${game.kyokuLabel()}</div><div class="ky-d">${face}<span><small>親</small><br>${dl.name}</span></div></div><div class="ky-flash"></div>`;
+      el.classList.add('pre'); // 描画の準備ができるまで、動きは止めておく(落ちてくる最初の動きが、飛ばされないように)
       sc.appendChild(el);
-      void el.offsetWidth; // 動きは、ここから(落ちてくるところから)
+      void el.offsetWidth;
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 200))));
+      if (game.stopped) { el.remove(); return; }
+      const box = el.querySelector('.ky-box');
+      let hit = false; const bang = () => { if (hit) return; hit = true; setTimeout(() => MJ.SFX.play('slam'), 160); }; // 音は、画面の動きが実際に始まった時から数える
+      if (box) box.addEventListener('animationstart', bang, { once: true });
+      setTimeout(bang, 400);
+      el.classList.remove('pre');
       sc.classList.remove('ky-shake'); void sc.offsetWidth; sc.classList.add('ky-shake');
-      setTimeout(() => MJ.SFX.play('slam'), 160);
       await new Promise((r) => setTimeout(r, 2500));
       el.remove(); sc.classList.remove('ky-shake');
     },
