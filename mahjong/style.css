@@ -565,7 +565,7 @@ body:not(.desk):not(.land):not(.coach-open) #coach > .cc.on { margin: 0; }
 /* ---- 縦持ちスマホで横画面レイアウトを90°回して表示 ---- */
 body.on-game { background: radial-gradient(ellipse at 50% 50%, #0d2a23 0%, #040d0c 62%, #010405 100%); }
 body.on-game::before { content: ''; position: fixed; inset: 0; z-index: -1; background: repeating-linear-gradient(135deg, rgba(255,255,255,.025) 0 2px, transparent 2px 14px); pointer-events: none; }
-body.rot #overlay, body.rot #gloss-sheet, body.rot #gloss-panel, body.rot #toast { inset: auto; left: 0; top: 0; width: var(--vh); height: var(--vw); transform-origin: 0 0; transform: translate(var(--vw), 0) rotate(90deg); }
+body.rot #overlay, body.rot #ncl, body.rot #gloss-sheet, body.rot #gloss-panel, body.rot #toast { inset: auto; left: 0; top: 0; width: var(--vh); height: var(--vw); transform-origin: 0 0; transform: translate(var(--vw), 0) rotate(90deg); }
 body.rot #toast { width: auto; height: auto; }
 select.ac { background: #0b1d18; color: #fff; border: 1px solid #3c7a67; border-radius: 6px; padding: 3px 6px; font-size: 13px; }
 

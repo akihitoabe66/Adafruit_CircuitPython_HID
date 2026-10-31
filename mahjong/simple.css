@@ -1300,3 +1300,27 @@ body.pad-on .pm-hint { display: inline-block; }
 .rk-gain .rk-up { margin-top: 4px; font-weight: 900; color: #fff; }
 .rk-cert .cstamp { position: absolute; left: 13%; bottom: 13%; width: 14%; aspect-ratio: 1; border-radius: 50%; border: .5cqw solid #c8141c; color: #c8141c; display: grid; place-items: center; font-weight: 900; font-size: 3cqw; background: rgba(255, 255, 255, .12); transform: rotate(-12deg); opacity: 0; animation: cstampIn .35s .9s cubic-bezier(.2, 1.4, .4, 1) both; }
 @keyframes cstampIn { 0% { opacity: 0; transform: translateY(-30%) scale(3) rotate(-12deg); } 70% { opacity: 1; transform: scale(.94) rotate(-12deg); } 100% { opacity: .92; transform: rotate(-12deg); } }
+
+/* ===== 新しい相手の登場(段位が上がったとき) ===== */
+#ncl { position: fixed; inset: 0; z-index: 85; container-type: size; }
+.nc { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, #2a7a5c, #0f3a2c 80%); overflow: hidden; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif; color: #fff; }
+.nc-dim { position: absolute; inset: 0; background: #000; animation: ncDim 3s both; }
+.nc-who { position: absolute; left: 50%; top: 6cqh; height: 66cqh; transform: translateX(-50%); animation: ncRise 3s both; }
+.nc-who img { height: 100%; width: auto; display: block; animation: ncSil 3s both; }
+.nc-new { position: absolute; left: 50%; top: 8cqh; margin-left: 14cqh; font-weight: 900; font-size: 13cqh; color: #e5161d; -webkit-text-stroke: .8cqh #fff; paint-order: stroke fill; transform: rotate(-8deg); opacity: 0; animation: ncNew 3s both; }
+.nc-plate { position: absolute; left: 50%; top: 73cqh; transform: translateX(-50%); background: #0a0f14; border: .8cqh solid #ffd23f; border-radius: 2cqh; padding: .6cqh 6cqh; font-weight: 900; font-size: 7cqh; white-space: nowrap; text-align: center; opacity: 0; animation: ncPlate 3s both; }
+.nc-plate small { display: block; color: #ffd23f; font-size: 3.6cqh; }
+.nc-say { position: absolute; left: 0; right: 0; top: 88cqh; text-align: center; font-weight: 800; font-size: 4.4cqh; opacity: 0; animation: ncSay 3s both; padding: 0 4cqh; }
+.nc-cap { position: absolute; left: 3cqh; top: 2cqh; font-size: 3.6cqh; font-weight: 900; background: #000a; padding: .4cqh 2cqh; border-radius: 99px; }
+.nc-btn { position: absolute; right: 3cqh; bottom: 2.4cqh; font-size: 4.4cqh !important; padding: 1cqh 4cqh !important; opacity: 0; animation: ncSay 3s both; }
+@keyframes ncDim { 0%, 38% { opacity: .82; } 46%, 100% { opacity: 0; } }
+@keyframes ncRise { 0% { transform: translate(-50%, 30%); opacity: 0; } 30%, 36% { transform: translate(-50%, 0); opacity: 1; } 42% { transform: translate(-50%, 0) scale(1.08); } 50%, 100% { transform: translate(-50%, 0) scale(1); opacity: 1; } }
+@keyframes ncSil { 0%, 38% { filter: brightness(0); } 46%, 100% { filter: none; } }
+@keyframes ncNew { 0%, 40% { opacity: 0; transform: rotate(-8deg) scale(2.4); } 50%, 100% { opacity: 1; transform: rotate(-8deg) scale(1); } }
+@keyframes ncPlate { 0%, 55% { opacity: 0; transform: translate(-50%, 3cqh); } 68%, 100% { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes ncSay { 0%, 70% { opacity: 0; } 85%, 100% { opacity: 1; } }
+/* 相手えらび: まだ使えない人は、黒いシルエット */
+.char.locked img { filter: brightness(0) opacity(.85); }
+.char.locked .cn { color: #a9bfb3; }
+.char.locked { opacity: .8; }
+.char img { object-position: 50% 6%; }

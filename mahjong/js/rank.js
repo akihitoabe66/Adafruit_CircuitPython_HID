@@ -13,7 +13,7 @@
   const PTS = { south: [30, 15, 5, -10], east: [15, 8, 3, -5] }; // 東風戦は、東南戦の半分
   const DEMOTE_FROM = 3, DEMOTE_GAP = 40; // 三段以上は、入口から40点下回ると降段
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
-  const base = () => ({ pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '', dan: 0, v: 2, qc: 0, qday: '', qpt: 0, st: {} });
+  const base = () => ({ pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '', dan: 0, maxdan: 0, v: 2, qc: 0, qday: '', qpt: 0, st: {} });
   const idxOf = (pt) => { let k = 0; DAN.forEach((d, i) => { if (pt >= d[1]) k = i; }); return k; };
   /* 点を足して、昇段・降段を決める。{ before, after } は段位の番号 */
   const addPt = (s, delta) => {
@@ -22,16 +22,18 @@
     let d = s.dan;
     while (d < DAN.length - 1 && s.pt >= DAN[d + 1][1]) d++;
     while (d >= DEMOTE_FROM && s.pt < DAN[d][1] - DEMOTE_GAP) d--;
-    s.dan = d;
+    s.dan = d; if (d > (s.maxdan || 0)) s.maxdan = d;
     return { before, after: d };
   };
   const msgOf = (r) => (r.after > r.before ? `🎉 ${DAN[r.after][0]}に昇段しました!` : r.after < r.before ? `${DAN[r.after][0]}に降段しました。` : '');
 
+  MJ.DAN_NAME = (i) => DAN[i] ? DAN[i][0] : '';
   const R = (MJ.Rank = {
     DAN, _imgs: {},
     get() {
-      const s = Object.assign(base(), load(RK, {}));
-      if (s.v !== 2) { s.dan = Math.max(s.games ? 1 : 0, idxOf(s.pt)); s.v = 2; save(RK, s); } // 前の版のデータ: 初段以上は、そのまま引き継ぐ
+      const raw = load(RK, {}), s = Object.assign(base(), raw);
+      if (raw.v !== 2) { s.dan = Math.max(s.games ? 1 : 0, idxOf(s.pt)); s.v = 2; save(RK, s); } // 前の版のデータ: 初段以上は、そのまま引き継ぐ
+      if (!(s.maxdan >= s.dan)) s.maxdan = s.dan;
       return s;
     },
     info() {
@@ -53,8 +55,32 @@
       });
       save(RK, s);
       const f = R.info();
-      return { delta, pt: s.pt, name: f.name, next: f.next, left: f.left, promoted: ch.after > ch.before, demoted: ch.after < ch.before, msg: msgOf(ch), dan: ch.after > ch.before ? DAN[ch.after][0] : null };
+      return { delta, pt: s.pt, name: f.name, next: f.next, left: f.left, from: ch.before, to: ch.after, promoted: ch.after > ch.before, demoted: ch.after < ch.before, msg: msgOf(ch), dan: ch.after > ch.before ? DAN[ch.after][0] : null };
     },
+    /* 相手の解放: これまでに到達した最高の段位までの人が使える(降段しても、出てきた人は使えたまま) */
+    unlocked(id) { return MJ.unlockDan(id) <= R.get().maxdan; },
+    unlockedIds() { const m = R.get().maxdan; return MJ.CHARS.filter((c) => MJ.unlockDan(c.id) <= m).map((c) => c.id); },
+    /* 段位が from→to に上がったとき、新しく使える人 */
+    newIds(from, to) { const out = []; for (let i = from + 1; i <= to; i++) (MJ.UNLOCK[i] || []).forEach((id) => out.push(id)); return out; },
+    /* 登場の画面: 暗くなり、黒いシルエットがせり上がり、明るくなって「ドン!」NEW! → 名札 → ひとこと。1人ずつ */
+    reveal(ids, done) {
+      const list = ids.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean);
+      let i = 0;
+      const layer = () => { let l = $('#ncl'); if (!l) { l = document.createElement('div'); l.id = 'ncl'; document.body.appendChild(l); } return l; };
+      const next = () => {
+        const l = layer();
+        if (i >= list.length) { l.remove(); if (MJ.Pad && MJ.Pad.restoreCur) MJ.Pad.restoreCur(); if (done) done(); return; }
+        const c = list[i++], last = i >= list.length, B = MJ.Banter && MJ.Banter.lines[c.id], hello = (B && B.start && B.start[0]) || '';
+        const dn = MJ.unlockDan(c.id);
+        l.innerHTML = `<div class="nc"><div class="nc-dim"></div><div class="nc-who"><img src="${c.img}" alt=""></div><div class="nc-new">NEW!</div><div class="nc-plate"><small>${MJ.starStr(c.level)}</small>${c.short}</div><div class="nc-say">「${hello}」</div><div class="nc-cap">${dn ? MJ.DAN_NAME(dn) + 'で登場' : ''}　${i}/${list.length}</div><button class="btn pri nc-btn" id="nc-next" type="button">${last ? 'とじる' : 'つぎへ'}</button></div>`;
+        setTimeout(() => { try { MJ.SFX.play('slam'); } catch (e) { /* ignore */ } }, 1000);
+        const b = $('#nc-next'); if (b) b.addEventListener('click', next);
+        if (MJ.Pad && MJ.Pad.on && MJ.Pad.preselect) MJ.Pad.preselect(true);
+      };
+      if (MJ.Pad && MJ.Pad.saveCur) MJ.Pad.saveCur();
+      next();
+    },
+    revealIfNew(from, to) { const ids = R.newIds(from, to); if (ids.length) setTimeout(() => R.reveal(ids), 300); },
     /* 「+15点 初段まであと85点」の1行(対局終了の画面に出す) */
     gainLine(r) {
       if (!r) return '';
@@ -82,7 +108,7 @@
       const f = R.info();
       if (MJ.UI && MJ.UI.toast) MJ.UI.toast(`+${n.pt}点 ${n.why}${f.next ? `(${f.next}まであと${f.left}点)` : ''}${msgOf(n.ch) ? ' ' + msgOf(n.ch) : ''}`);
       R.syncMenu();
-      if (n.ch.after > n.ch.before) setTimeout(() => R.open('cert', { dan: DAN[n.ch.after][0], after: true }), 1800);
+      if (n.ch.after > n.ch.before) setTimeout(() => R.open('cert', { dan: DAN[n.ch.after][0], after: true, done: () => R.revealIfNew(n.ch.before, n.ch.after) }), 1800);
     },
     syncMenu() { const b = $('#hm-rec'); if (b) b.innerHTML = `<span>🏅</span> 成績・<b>${R.label()}</b>`; },
 

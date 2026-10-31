@@ -37,6 +37,7 @@
   };
   /* いま操作できる範囲: 説明パネル > ダイアログ > ゲーム/各画面 */
   const scope = () => {
+    const ncl = $('#ncl'); if (ncl) return [ncl]; // 新しい相手の登場の画面
     const gl = ['#rk-panel.on', '#gloss-panel.on', '#gloss-sheet.on', '#gloss-panel:not(.hidden)'].map((s) => $(s)).find(Boolean);
     if (gl) return [gl];
     const ov = $('#overlay');

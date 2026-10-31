@@ -1724,7 +1724,7 @@
           st.games++; st.ranks[me.rank - 1]++;
           localStorage.setItem('mj_stats', JSON.stringify(st));
         } catch (e) { /* ignore */ }
-        if (rk && rk.promoted) setTimeout(() => MJ.Rank.open('cert', { dan: rk.dan, after: true }), 900); // 昇段したとき、認定証(ハンコの演出つき)を出す
+        if (rk && rk.promoted) setTimeout(() => MJ.Rank.open('cert', { dan: rk.dan, after: true, done: () => MJ.Rank.revealIfNew(rk.from, rk.to) }), 900); // 昇段したとき、認定証(ハンコの演出つき)→新しい相手の登場
         if (MJ.Rank) MJ.Rank.syncMenu();
         $('#end-menu').addEventListener('click', () => { this.closeOverlay(); resolve(); MJ.App.toMenu(); });
         $('#end-again').addEventListener('click', () => { this.closeOverlay(); resolve(); MJ.App.again(); });

@@ -323,7 +323,7 @@
   /* ================= CPU 行動決定 ================= */
   A.chooseSelf = function (game, p, opts) {
     if (opts.tsumo) return { act: 'tsumo' };
-    const lv = p.char.level, st = p.char.style;
+    const lv = p.char.ai || p.char.level, st = p.char.style;
     const an = A.analyze(game, p, { know: lv >= 4 ? 2 : 1, deep: lv >= 4, deepN: lv >= 5 ? 6 : 4, budget: 120 });
     const { evals, minSh, opps } = an;
     if (!evals.length) return { act: 'discard', tile: p.drawn || p.hand[p.hand.length - 1] };
@@ -367,7 +367,7 @@
   };
 
   A.wantRiichi = function (game, p, e, an) {
-    const lv = p.char.level;
+    const lv = p.char.ai || p.char.level;
     // 待ち牌の残り枚数
     const c = an.c.slice();
     c[e.t]--;
@@ -416,7 +416,7 @@
   /* 鳴き・ロンへの反応 */
   A.chooseReact = function (game, p, opts) {
     if (opts.ron) return { act: 'ron' };
-    const lv = p.char.level, st = p.char.style;
+    const lv = p.char.ai || p.char.level, st = p.char.style;
     if (p.riichi || lv < 1) return { act: 'pass' };
     const cands = [];
     if (opts.pon) cands.push({ kind: 'pon' });

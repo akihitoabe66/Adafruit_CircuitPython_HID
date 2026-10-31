@@ -97,7 +97,7 @@
     },
     /* 相手は自動で決める(やさしめ〜中級の相手から3人) */
     startAuto(teacher) {
-      const easy = MJ.CHARS.filter((c) => c.level <= 3).map((c) => c.id);
+      const easy = MJ.CHARS.filter((c) => c.level <= 3 && MJ.Rank.unlocked(c.id)).map((c) => c.id);
       this.picks = MJ.shuffle(easy).slice(0, 3);
       MJ.RULES.length = 'east'; MJ.saveRules();
       this.lastCfg = { mode: 'free', teacher: !!teacher, picks: this.picks.slice(), length: 'east' };
@@ -119,14 +119,16 @@
       this.show('select');
     },
     renderChars() {
-      $('#chars').innerHTML = MJ.CHARS.map((c) => {
+      const R = MJ.Rank, order = MJ.CHARS.slice().sort((a, b) => ((R.unlocked(a.id) ? 0 : 1) - (R.unlocked(b.id) ? 0 : 1)) || a.level - b.level || a.id - b.id); // 使える人を先に、強さ順
+      $('#chars').innerHTML = order.map((c) => {
         const n = this.picks.indexOf(c.id) + 1;
-        return `<button class="char${n ? ' sel' : ''}" data-id="${c.id}" ${n ? `data-n="${n}"` : ''}><img src="${c.img}" alt=""><div class="cn">${c.name}</div><div class="cl"><span class="stars">${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)}</span>・${MJ.STYLE_JP[c.style]}</div></button>`;
+        if (!R.unlocked(c.id)) return `<button class="char locked" data-id="${c.id}" data-lock="1" type="button"><img src="${c.img}" alt=""><div class="cn">？？？</div><div class="cl">${MJ.DAN_NAME(MJ.unlockDan(c.id))}で登場</div></button>`;
+        return `<button class="char${n ? ' sel' : ''}" data-id="${c.id}" ${n ? `data-n="${n}"` : ''}><img src="${c.img}" alt=""><div class="cn">${c.name}</div><div class="cl"><span class="stars">${MJ.starStr(c.level)}</span>・${MJ.STYLE_JP[c.style]}</div></button>`;
       }).join('');
       $('#sel-bar').innerHTML = [0, 1, 2].map((i) => {
         const c = MJ.CHARS.find((x) => x.id === this.picks[i]);
         return c
-          ? `<button class="slot on" data-id="${c.id}" title="タップで外す"><img src="${c.img}" alt=""><span class="sn">${c.name.replace(/\(.*$/, '')}</span><span class="ss">${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)}</span><span class="sx">✕</span></button>`
+          ? `<button class="slot on" data-id="${c.id}" title="タップで外す"><img src="${c.img}" alt=""><span class="sn">${c.name.replace(/\(.*$/, '')}</span><span class="ss">${MJ.starStr(c.level)}</span><span class="sx">✕</span></button>`
           : `<div class="slot"><span class="sq">?</span><span class="sn">相手${i + 1}</span></div>`;
       }).join('');
       $('#sel-n').textContent = this.picks.length;
@@ -135,17 +137,18 @@
     confirmStart() {
       if (this.picks.length !== 3) return;
       const cs = this.picks.map((id) => MJ.CHARS.find((c) => c.id === id));
-      MJ.UI.overlay(`<div class="cfm"><h2>この3人と対戦しますか?</h2><div class="cfm-row">${cs.map((c) => `<div class="cfm-c"><img src="${c.img}" alt=""><b>${c.name.replace(/\(.*$/, '')}</b><span>${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)}</span></div>`).join('')}</div><p class="sub">${MJ.rulesSummary()}</p><div class="cfm-btns"><button class="btn big" id="cfm-cancel">キャンセル</button><button class="btn pri big" id="cfm-go">対局開始</button></div></div>`, { plain: true });
+      MJ.UI.overlay(`<div class="cfm"><h2>この3人と対戦しますか?</h2><div class="cfm-row">${cs.map((c) => `<div class="cfm-c"><img src="${c.img}" alt=""><b>${c.name.replace(/\(.*$/, '')}</b><span>${MJ.starStr(c.level)}</span></div>`).join('')}</div><p class="sub">${MJ.rulesSummary()}</p><div class="cfm-btns"><button class="btn big" id="cfm-cancel">キャンセル</button><button class="btn pri big" id="cfm-go">対局開始</button></div></div>`, { plain: true });
       document.querySelector('#cfm-cancel').addEventListener('click', () => MJ.UI.closeOverlay());
       document.querySelector('#cfm-go').addEventListener('click', () => { MJ.UI.closeOverlay(); this.start(); });
     },
     pickChar(id) {
+      if (!MJ.Rank.unlocked(id)) { const c0 = MJ.CHARS.find((x) => x.id === id); $('#char-detail').innerHTML = `<b>？？？</b>(${MJ.starStr(c0.level)})<br>${MJ.DAN_NAME(MJ.unlockDan(id))}になると、登場します。`; MJ.SFX.play('select'); return; }
       const i = this.picks.indexOf(id);
       if (i >= 0) this.picks.splice(i, 1);
       else if (this.picks.length < 3) this.picks.push(id);
       else { this.picks.shift(); this.picks.push(id); }
       const c = MJ.CHARS.find((x) => x.id === id);
-      $('#char-detail').innerHTML = `<b>${c.name}</b>(${'★'.repeat(c.level)}${'☆'.repeat(5 - c.level)}・${MJ.STYLE_JP[c.style]})<br>${c.desc}`;
+      $('#char-detail').innerHTML = `<b>${c.name}</b>(${MJ.starStr(c.level)}・${MJ.STYLE_JP[c.style]})<br>${c.desc}`;
       this.renderChars();
       if (this.picks.length === 3 && i < 0) this.confirmStart();
     },
@@ -455,12 +458,12 @@
     $('#notes-tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) App.showNote(b.dataset.n); });
     $('#sel-bar').addEventListener('click', (e) => { const b = e.target.closest('.slot.on'); if (b) App.pickChar(+b.dataset.id); });
     $('#sel-rand').addEventListener('click', () => {
-      App.picks = MJ.shuffle(MJ.CHARS.slice()).slice(0, 3).map((c) => c.id);
+      App.picks = MJ.shuffle(MJ.CHARS.filter((c) => MJ.Rank.unlocked(c.id))).slice(0, 3).map((c) => c.id);
       App.renderChars(); App.confirmStart();
     });
     $('#sel-reco').addEventListener('click', () => {
       const r = RECO[App.mode];
-      App.picks = r ? r.slice() : MJ.shuffle(MJ.CHARS.slice()).slice(0, 3).map((c) => c.id);
+      App.picks = r && r.every((id) => MJ.Rank.unlocked(id)) ? r.slice() : MJ.shuffle(MJ.CHARS.filter((c) => MJ.Rank.unlocked(c.id))).slice(0, 3).map((c) => c.id);
       App.renderChars(); App.confirmStart();
     });
     $('#btn-vol').addEventListener('click', () => MJ.UI.openVolume());
