@@ -96,17 +96,22 @@
       if (A.scene === 'game') A._playGame();
     },
     /* シーン切替: 'home' | 'game' */
-    setScene(scene) {
-      const changed = A.scene !== scene || !el || el.paused;
-      A.scene = scene;
-      if (scene === 'title') MJ.warmAudio([HOME, STUDY, QUIZ]); // タイトルの間に、ホーム・勉強・クイズの曲を取り寄せ始める(画面が変わってすぐ鳴らせるように)
-      if (scene === 'title' || !A.on) { A.stop(); return; }
+    /* 押さなくてもBGMを鳴らせる環境(Windows版のstart.batなど)か */
+    autoOK() { try { return !!(MJ.isFile || (navigator.getAutoplayPolicy && navigator.getAutoplayPolicy('mediaelement') === 'allowed')); } catch (e) { return false; } },
+    setScene(scene0) {
+      // 押さなくても鳴らせる環境では、タイトルが出たあと、ホームの曲を流す(タイトルの間も無音にしない)
+      const wantTitle = scene0 === 'title' && A.on && MJ.titleBgmOK && A.autoOK();
+      const scene = wantTitle ? 'home' : scene0;
+      const changed = A.scene !== scene0 || !el || el.paused;
+      A.scene = scene0;
+      if (scene0 === 'title') MJ.warmAudio([HOME, STUDY, QUIZ]); // タイトルの間に、ホーム・勉強・クイズの曲を取り寄せ始める(画面が変わってすぐ鳴らせるように)
+      if ((scene0 === 'title' && !wantTitle) || !A.on) { A.stop(); return; }
       if (scene === 'home') MJ.warmAudioLater([STUDY, QUIZ, ...GAME], 5000, 2500); // ホームが落ち着いてから、勉強の曲と対局曲を、1曲ずつ取り寄せる
-      if (scene === 'home' || scene === 'study' || scene === 'quiz') { const tr = scene === 'study' ? STUDY : scene === 'quiz' ? QUIZ : HOME; if (changed || (el && el.dataset.track !== tr)) A._load(tr, true); }
+      if (scene === 'home' || scene === 'study' || scene === 'quiz') { const tr = scene === 'study' ? STUDY : scene === 'quiz' ? QUIZ : HOME; if ((changed && !(el && !el.paused && el.dataset.track === tr)) || (el && el.dataset.track !== tr)) A._load(tr, true); }
       else if (changed && !(el && el.dataset.track && (GAME.includes(el.dataset.track) || LATE.includes(el.dataset.track)) && !el.paused)) A._playGame();
     },
     resume() {
-      if (!A.on || A.scene === 'title') return;
+      if (!A.on || (A.scene === 'title' && !(MJ.titleBgmOK && A.autoOK()))) return;
       const c = MJ.SFX && MJ.SFX.getCtx && MJ.SFX.getCtx();
       if (c && c.state !== 'running') { try { c.resume(); } catch (e) { /* ignore */ } }
       A.setScene(A.scene);

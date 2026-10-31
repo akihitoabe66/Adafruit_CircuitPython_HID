@@ -491,7 +491,7 @@
   window.addEventListener('resize', placeStart);
   window.addEventListener('orientationchange', () => setTimeout(placeStart, 250));
   (function titleReady() {
-    const done = () => { placeStart(); document.body.classList.add('title-ready'); };
+    const done = () => { placeStart(); document.body.classList.add('title-ready'); setTimeout(() => { MJ.titleBgmOK = true; if (document.body.classList.contains('on-title') && MJ.Audio) MJ.Audio.setScene('title'); }, 1000); }; // 押さなくてもBGMを鳴らせる環境では、タイトルが出て1秒後に曲を始める
     placeStart();
     let fired = false;
     const once = () => { if (!fired) { fired = true; done(); } };
