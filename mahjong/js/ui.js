@@ -1141,6 +1141,7 @@
     fitTip() {
       const el = $('#tipline');
       if (!el) return;
+      { const key = el.innerHTML + '|' + el.clientWidth + '|' + el.clientHeight; if (el._fitKey === key) return; el._fitKey = key; } // 同じ内容は、測り直さない
       if (MJ.Dice && MJ.Dice.active) return; // サイコロの間は、裏の画面の文字合わせはしない(重いので、終わってから)
       el.style.fontSize = '';
       el.querySelectorAll('.cmp').forEach((c) => { c.style.display = ''; });
@@ -1446,6 +1447,7 @@
     /* ---------- 結果 ---------- */
     overlay(html, opt = {}) {
       const o = $('#overlay');
+      if (MJ.perf) MJ.perf.mark('ダイアログ: ' + String(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 18));
       if (o.classList.contains('hidden') && MJ.Pad) MJ.Pad.saveCur(); // 閉じたときに、元の選択に戻す
       o.classList.remove('hidden');
       o.innerHTML = `<div class="ovi">${opt.raw ? html : `<div class="modal">${html}</div>`}</div>`;

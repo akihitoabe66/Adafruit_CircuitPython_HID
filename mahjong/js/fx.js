@@ -44,9 +44,9 @@
 
   /* 画質: 画面を小さい解像度で描いて、拡大して見せる(フルHDなどの大きい画面で、描く量を減らして軽くする)。
      きれい=そのまま / ふつう=高さ720で描く / かるい=高さ540で描く。ゲームの中身は、画面いっぱいに同じ形で出る */
-  const RK = 'mj_res', RBASE = { full: 0, mid: 720, low: 540, lower: 432, lowest: 360 };
+  const RK = 'mj_res', RBASE = { full: 0, mid: 720, low: 540 };
   MJ.Res = {
-    LEVELS: ['full', 'mid', 'low', 'lower', 'lowest'], JP: { full: 'きれい', mid: 'ふつう', low: 'かるい', lower: 'もっとかるい', lowest: 'いちばんかるい' },
+    LEVELS: ['full', 'mid', 'low'], JP: { full: 'きれい', mid: 'ふつう', low: 'かるい', lower: 'もっとかるい', lowest: 'いちばんかるい' }, // (もっとかるい・いちばんかるいは、実機の計測で逆に遅かったので、選べなくした。記録の表示のためだけに名前を残す)
     level() { const v = get(RK); return RBASE[v] != null ? v : 'full'; },
     k() { const b = RBASE[this.level()]; if (!b) return 1; const H = Math.min(innerWidth, innerHeight) > 0 && innerHeight > innerWidth ? innerWidth : innerHeight; const k = H / b; return k > 1.05 ? k : 1; },
     W() { return innerWidth / this.k(); }, H() { return innerHeight / this.k(); }, // ゲームが見る「画面の大きさ」
@@ -100,6 +100,7 @@
       if (!document.hidden && dt > 0 && dt < 5000 && MJ.Res && MJ.FX) {
         const sc = sceneOf(), g = grp(), r = g.s[sc] || (g.s[sc] = { n: 0, sum: 0, a: 0, b: 0, c: 0, mx: 0 });
         r.n++; r.sum += dt; if (dt > 33.5) r.a++; if (dt > 50) r.b++; if (dt > 100) r.c++; if (dt > r.mx) r.mx = dt;
+        if (dt > 200) { const w = g.w || (g.w = []); w.push([Math.round(dt), sc, MJ.perf.last || '']); w.sort((x, y) => y[0] - x[0]); if (w.length > 5) w.length = 5; } // 大きな止まりは、直前の操作の名前つきで、上位5件を覚える
       }
       requestAnimationFrame(f);
     };

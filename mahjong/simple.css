@@ -1290,3 +1290,6 @@ body.pad-on .pm-hint { display: inline-block; }
 .myturn { background: #fff; color: #12304a; }
 .myturn.rch { background: #e3361f; color: #fff; }
 .myturn.kan { background: #2a63c9; color: #fff; }
+
+/* 「勝負!」の演出: 背景の放射(バースト)とフラッシュをやめる(実機で、コマ数が36〜49fpsに落ちていたため) */
+#intro .in-burst, #intro .in-flash { display: none !important; }
