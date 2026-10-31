@@ -51,7 +51,7 @@
     k() { const b = RBASE[this.level()]; if (!b) return 1; const H = Math.min(innerWidth, innerHeight) > 0 && innerHeight > innerWidth ? innerWidth : innerHeight; const k = H / b; return k > 1.05 ? k : 1; },
     W() { return innerWidth / this.k(); }, H() { return innerHeight / this.k(); }, // ゲームが見る「画面の大きさ」
     apply() { const k = this.k(), d = document.documentElement; d.style.setProperty('--rk', k.toFixed(4)); d.classList.toggle('res-on', k > 1); if (MJ.UI && MJ.UI.relayout) { try { MJ.UI.relayout(); } catch (e) { /* ignore */ } } },
-    set(l) { put(RK, l); this.apply(); },
+    set(l) { put(RK, l); this.apply(); requestAnimationFrame(() => window.dispatchEvent(new Event('resize'))); }, // 切り替えた直後に、各画面(ホーム・勉強・クイズ・ダイアログ)の拡大率を計算し直す
     cycle() { const n = this.LEVELS[(this.LEVELS.indexOf(this.level()) + 1) % 3]; this.set(n); return n; },
   };
   MJ.Res.apply();
