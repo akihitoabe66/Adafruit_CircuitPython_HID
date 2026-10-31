@@ -283,8 +283,9 @@
     if (P.lockUntil && Date.now() < P.lockUntil) return; // 確認が出た直後は、受け付けない
     if (!P.on) {
       P.on = true; document.body.classList.add('pad-on');
-      const had = P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur); // すでに選択中のボタンがあれば、そこから動かす / 決定する
-      if (!had) { setCur(pickDefault()); if (name !== 'a' && name !== 'b' && !onTitle()) return; }
+      const had = !P.fromMouse && P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur); // すでに選択中のボタンがあれば、そこから動かす / 決定する(マウスを使ったあとは、最初の場所から出し直す)
+      if (!had) { setCur(pickDefault()); if (!onTitle() && (P.fromMouse ? name !== 'b' : name !== 'a' && name !== 'b')) { P.fromMouse = false; return; } }
+      P.fromMouse = false;
     } // 最初の1回: カーソルを出す(方向キーはそれだけ。Aはそのまま決定する)
     if (P.cur && !(P.cur.isConnected && visible(P.cur) && inScope(P.cur))) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; setCur(pickDefault()); }
     if (name === 'left' || name === 'right' || name === 'up' || name === 'down') {
@@ -333,7 +334,7 @@
     if (document.body.classList.contains('locked')) return;
     setCur(el);
   }, true);
-  G.addEventListener('pointerdown', () => { P.dev = 'mouse'; if (P.on) { P.on = false; document.body.classList.remove('pad-on'); if (P.cur) P.cur.classList.remove('pf'); } }, true);
+  G.addEventListener('pointerdown', () => { P.dev = 'mouse'; P.fromMouse = true; if (P.on) { P.on = false; document.body.classList.remove('pad-on'); if (P.cur) P.cur.classList.remove('pf'); } }, true);
 
   /* ゲームパッドのボタンの割り当て。
      標準配置(Xbox型): 0=A(決定) 1=B(もどる) 12-15=十字。
