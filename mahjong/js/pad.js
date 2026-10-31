@@ -101,6 +101,8 @@
     if (onTitle()) return null;
     if (paged()) return P.pagedMain();
     if (U && U.game && !$('#screen-game').classList.contains('hidden') && $('#overlay').classList.contains('hidden')) {
+      const rb = $('#sd-act [data-act=riichi]'); // リーチできる自分の番は、リーチのボタンから(引いた牌を、うっかり切らない)
+      if (rb && U.sel && U.sel.type === 'self' && !U.riichiMode && visible(rb)) return rb;
       const cq = $('.cq-btn.b-pass') || $('.cq-btn[data-act]'); // 初めは「見送る」
       if (cq && visible(cq)) return cq;
       const t = $('.hand .tile.rec') || $('.hand .tile.drawn:not(.ph)') || [...document.querySelectorAll('.hand .tile[data-id]')].pop();
@@ -320,7 +322,8 @@
     if (!P.on) {
       P.on = true; document.body.classList.add('pad-on');
       const had = !P.fromMouse && P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur); // すでに選択中のボタンがあれば、そこから動かす / 決定する(マウスを使ったあとは、最初の場所から出し直す)
-      if (!had) { setCur(pickDefault()); if (!onTitle() && (P.fromMouse ? name !== 'b' : name !== 'a' && name !== 'b')) { P.fromMouse = false; return; } }
+      const inGame = !$('#screen-game').classList.contains('hidden') && $('#overlay').classList.contains('hidden');
+      if (!had) { setCur(pickDefault()); if (!onTitle() && (inGame || (P.fromMouse ? name !== 'b' : name !== 'a' && name !== 'b'))) { P.fromMouse = false; return; } } // 対局中の最初の1回は、カーソルを出すだけ(Aで、いきなり牌を切らない)
       P.fromMouse = false;
     } // 最初の1回: カーソルを出す(方向キーはそれだけ。Aはそのまま決定する)
     if (P.cur && !(P.cur.isConnected && visible(P.cur) && inScope(P.cur))) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; setCur(pickDefault()); }

@@ -1238,11 +1238,11 @@ body:not(.land) #coach { visibility: hidden; }
 
 /* ===== 軽量化・見やすさ(第3弾) ===== */
 /* 自分の番: 自分の名札を黄色く塗って少し大きく。ほかの人の名札は少し暗く */
-/* ポン・チー・ロンのボタン: 全部白。種類は上の色の帯で。選ばれたら黄色(下の .pf の規則) */
+/* ポン・チー・見送る: 全部、同じ白いボタン(色で重要度を表さない)。ロンだけは赤で目立たせる。選ばれたら黄色(下の .pf の規則) */
 .callq .cq-btn { position: relative; }
-.callq .cq-btn.b-call, .callq .cq-btn.b-ron, .callq .cq-btn.b-pass { background: #f3f1e8; border: 3px solid #fff; color: #2b2b22; }
-.callq .cq-btn::before { content: ""; position: absolute; left: 8px; right: 8px; top: -3px; height: 7px; border-radius: 4px; background: #999; }
-.callq .cq-btn.b-call::before { background: #3d86ff; } .callq .cq-btn.b-ron::before { background: #e3361f; }
+.callq .cq-btn.b-call, .callq .cq-btn.b-pass { background: #f4f1e6; border: 3px solid #fff; color: #2b2b22; }
+.callq .cq-btn.b-ron { background: #e3361f; border: 3px solid #fff; color: #fff; }
+.callq .cq-btn::before { display: none; }
 /* ロン・ツモの演出: 稲妻・フラッシュ・スピード線・ゆれ・光を廃止し、小さく短く */
 .wx-bolts, .wx-flash, .wx-speed, .wx-spot, .wx-mark { display: none !important; }
 .winfx.wx { animation: none; }

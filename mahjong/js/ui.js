@@ -829,7 +829,18 @@
       const h = s.p.hand.find((x) => x.id === id);
       if (!h || !this.allowed(s, h)) return;
       if (!this.oneClick && this.picked !== id) { MJ.SFX.play('select'); this.picked = id; this.showInfo(id); this.render(this.game); return; }
+      if (this.askRiichi(s, h)) return;
       this.finish({ act: this.riichiMode ? 'riichi' : 'discard', tile: h });
+    },
+    /* リーチできる状態で、テンパイを保つ牌を切ろうとした時: 「リーチしますか?」と確かめる(リーチのつもりが、ふつうに切ってしまわないように) */
+    askRiichi(s, h) {
+      if (this.riichiMode || s.p.riichi || !(s.opts.riichi && s.opts.riichi.includes(h.t))) return false;
+      this.overlay(`<div class="cf"><h2>リーチをかけますか?</h2><p>${MJ.tileName(h.t)} を切ります。</p><div class="cf-btns"><button class="btn pri" id="rq-yes" type="button">リーチする</button><button class="btn" id="rq-no" type="button">リーチしないで切る</button><button class="btn" id="rq-back" type="button">もどる</button></div></div>`, { plain: true });
+      const done = (act) => { this.closeOverlay(); if (act) this.finish({ act, tile: h }); };
+      document.querySelector('#rq-yes').addEventListener('click', () => done('riichi'));
+      document.querySelector('#rq-no').addEventListener('click', () => done('discard'));
+      document.querySelector('#rq-back').addEventListener('click', () => done(null));
+      return true;
     },
     onAction(b) {
       const s = this.sel;
@@ -837,7 +848,7 @@
       const a = b.dataset.act;
       if (s.type === 'self') {
         if (a === 'riichi') { this.riichiMode = !this.riichiMode; this.picked = null; this.render(this.game); if (MJ.Pad && MJ.Pad.afterRiichi) setTimeout(() => MJ.Pad.afterRiichi(this.riichiMode), 0); return; }
-        if (a === 'discard') { const h = s.p.hand.find((x) => x.id === this.picked); if (h && this.allowed(s, h)) this.finish({ act: this.riichiMode ? 'riichi' : 'discard', tile: h }); return; }
+        if (a === 'discard') { const h = s.p.hand.find((x) => x.id === this.picked); if (h && this.allowed(s, h) && !this.askRiichi(s, h)) this.finish({ act: this.riichiMode ? 'riichi' : 'discard', tile: h }); return; }
         if (a === 'tsumo') return this.finish({ act: 'tsumo' });
         if (a === 'ankan' || a === 'kakan') return this.finish({ act: a, t: +b.dataset.t });
       } else {
