@@ -393,8 +393,8 @@
      合わないときは、設定の「コントローラー」で、ボタンをおぼえさせられる */
   const PM = 'mj_padmap';
   const loadMap = () => { try { return JSON.parse(localStorage.getItem(PM) || '{}') || {}; } catch (e) { return {}; } };
-  P.mapFor = (gp) => { const m = loadMap()[gp.id]; if (m && isFinite(m.a) && isFinite(m.b)) return { a: +m.a, b: +m.b, learned: true }; return gp.mapping === 'standard' ? { a: 0, b: 1, learned: false } : { a: 1, b: 2, learned: false }; };
-  P.saveMap = (gp, k, idx) => { const all = loadMap(); const cur = Object.assign({}, P.mapFor(gp)); delete cur.learned; cur[k] = idx; all[gp.id] = cur; try { localStorage.setItem(PM, JSON.stringify(all)); } catch (e) { /* ignore */ } };
+  P.mapFor = (gp) => { const m = loadMap()[gp.id]; if (m && isFinite(m.a) && isFinite(m.b)) return { a: +m.a, b: +m.b, learned: true, xa: m.xa, xb: m.xb }; return gp.mapping === 'standard' ? { a: 0, b: 1, learned: false } : { a: 1, b: 2, learned: false }; };
+  P.saveMap = (gp, k, idx) => { const all = loadMap(); const cur = Object.assign({}, P.mapFor(gp)); delete cur.learned; if (k === 'xa' || k === 'xb') { const o = k === 'xa' ? 'xb' : 'xa'; cur[o] = (cur[o] || []).filter((x) => x !== idx); cur[k] = (cur[k] || []).filter((x) => x !== idx).concat([idx]); } else cur[k] = idx; all[gp.id] = cur; try { localStorage.setItem(PM, JSON.stringify(all)); } catch (e) { /* ignore */ } };
   P.resetMap = () => { try { localStorage.removeItem(PM); } catch (e) { /* ignore */ } };
   P.pads = () => [...((navigator.getGamepads && navigator.getGamepads()) || [])].filter((g) => g && g.connected);
   P.learn = null; // { k: 'a'|'b', cb } 割り当てを、おぼえさせている最中
@@ -416,8 +416,9 @@
       }
       if (P.settle) { if (!pressed.length) P.settle = false; continue; } // おぼえさせた直後: そのボタンを離すまでは、ふつうの操作として扱わない
       const pm = P.mapFor(gp);
-      // スーファミ型などの、ほかのボタン: X・R・スタート=Aと同じ / Y・L・セレクト=Bと同じ(標準配置は X=2、ほかは X=0)
-      const MAP = { [gp.mapping === 'standard' ? 2 : 0]: 'a', 5: 'a', 9: 'a', 3: 'b', 4: 'b', 8: 'b' };
+      // スーファミ型などの、ほかのボタン: X・R・スタート=Aと同じ / Y・L・セレクト=Bと同じ。おぼえさせた分があれば、それを使う。なければ自動(標準配置は X=2、ほかは X=0。R=5・L=4・セレクト=6か8・スタート=7か9)
+      const MAP = { [gp.mapping === 'standard' ? 2 : 0]: 'a', 5: 'a', 7: 'a', 9: 'a', 3: 'b', 4: 'b', 6: 'b', 8: 'b' };
+      (pm.xa || []).forEach((i) => { MAP[i] = 'a'; }); (pm.xb || []).forEach((i) => { MAP[i] = 'b'; }); // おぼえさせたボタンは、自動より優先
       MAP[pm.a] = 'a'; MAP[pm.b] = 'b';
       if (gp.mapping === 'standard') Object.assign(MAP, { 12: 'up', 13: 'down', 14: 'left', 15: 'right' });
       const down = {};

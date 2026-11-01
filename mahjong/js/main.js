@@ -71,24 +71,26 @@
       const sv = MJ.Rank.hasSave();
       if (!sv) return this.askTeacher();
       const names = (sv.cfg.picks || []).map((id) => (MJ.CHARS.find((c) => c.id === id) || {}).short).filter(Boolean).join('・');
-      MJ.UI.overlay(`<div class="cf svd"><h2>前回のつづきがあります</h2><p>${sv.label}　あなた ${(sv.players[0] || 0).toLocaleString()}点<br>相手: ${names}</p><div class="cf-btns"><button class="btn pri" id="sv-cont" type="button">つづきから</button><button class="btn" id="sv-new" type="button">新しく始める</button></div></div>`, { plain: true });
+      MJ.UI.overlay(`<div class="cf svd"><h2>前回のつづきがあります</h2><p>${sv.label}　あなた ${(sv.players[0] || 0).toLocaleString()}点<br>相手: ${names}</p><div class="cf-btns"><button class="btn pri" id="sv-cont" type="button">つづきから</button><button class="btn" id="sv-new" type="button">新しく始める</button><button class="btn" id="sv-menu" type="button">◀ もどる</button></div></div>`, { plain: true });
+      document.querySelector('#sv-menu').addEventListener('click', () => MJ.UI.closeOverlay()); // ホームにもどる
       document.querySelector('#sv-cont').addEventListener('click', () => { MJ.UI.closeOverlay(); this.resume(sv); });
       document.querySelector('#sv-new').addEventListener('click', () => {
         MJ.UI.overlay('<div class="cf svd"><h2>新しく始めますか?</h2><p>前回のつづきは、消えます。</p><div class="cf-btns"><button class="btn pri" id="sv-back" type="button">もどる</button><button class="btn danger" id="sv-yes" type="button">新しく始める</button></div></div>', { plain: true });
         document.querySelector('#sv-back').addEventListener('click', () => this.playOrContinue());
-        document.querySelector('#sv-yes').addEventListener('click', () => { MJ.Rank.clearSave(); MJ.UI.closeOverlay(); this.askTeacher(); });
+        document.querySelector('#sv-yes').addEventListener('click', () => { MJ.UI.closeOverlay(); this.askTeacher('save'); }); // 前回のつづきは、実際に新しく始めた時に消える(麻雀先生の確認から、もどれるように)
       });
     },
     resume(sv) { this.lastCfg = Object.assign({}, sv.cfg); this.launch(this.lastCfg, sv); },
     /* 「麻雀をはじめる」を押したら、麻雀先生をつけるかをたずねる(最初の選択は「つけない」) */
-    askTeacher() {
+    askTeacher(from) {
       // 大きな見出し+麻雀先生の顔。絵が読み込まれてから、文字といっしょに出す(文字だけ先に出ないように)
-      const html = `<div class="cf tcd"><div class="tc-top">${MJ.UI.teacherImg('greet')}<div class="tc-q">麻雀先生を<br>つけますか?</div></div><div class="cf-btns"><button class="btn tc-b" id="tc-no">つけない</button><button class="btn tc-b" id="tc-yes">麻雀先生をつける</button></div></div>`;
+      const html = `<div class="cf tcd"><div class="tc-top">${MJ.UI.teacherImg('greet')}<div class="tc-q">麻雀先生を<br>つけますか?</div></div><div class="cf-btns"><button class="btn tc-b" id="tc-no">つけない</button><button class="btn tc-b" id="tc-yes">麻雀先生をつける</button><button class="btn tc-b tc-back" id="tc-back" type="button">◀ もどる</button></div></div>`;
       const src = (/src="([^"]+)"/.exec(html) || [])[1];
       let shown = false;
       const open = () => {
         if (shown) return; shown = true;
         MJ.UI.overlay(html, { plain: true });
+        document.querySelector('#tc-back').addEventListener('click', () => { MJ.UI.closeOverlay(); if (from === 'save') this.playOrContinue(); }); // 1つ前の画面へ(つづきの確認があったときは、そこへ。なければ、ホームへ)
         document.querySelector('#tc-no').addEventListener('click', () => { MJ.UI.closeOverlay(); this.startAuto(false); });
         document.querySelector('#tc-yes').addEventListener('click', () => { MJ.UI.closeOverlay(); this.startAuto(true); });
       };
@@ -97,6 +99,7 @@
     },
     /* 相手は自動で決める(やさしめ〜中級の相手から3人) */
     startAuto(teacher) {
+      MJ.Rank.clearSave(); // 新しく始める: 前回のつづきは、ここで消える
       const easy = MJ.CHARS.filter((c) => c.level <= 3 && MJ.Rank.unlocked(c.id)).map((c) => c.id);
       this.picks = MJ.shuffle(easy).slice(0, 3);
       MJ.RULES.length = 'east'; MJ.saveRules();
@@ -230,7 +233,7 @@
     const m = gp ? P.mapFor(gp) : null;
     const nm = (i) => `ボタン${i + 1}`;
     const info = gp ? `<b>${gp.id.replace(/\(.*$/, '').slice(0, 40)}</b>(${gp.mapping === 'standard' ? '標準の配置' : 'スーファミ型などの配置'}を、自動で見つけました)<br>決定(A)= <b>${nm(m.a)}</b> ／ もどる(B)= <b>${nm(m.b)}</b>(${m.learned ? 'おぼえさせた割り当て' : '自動'})<br><span style="font-size:15px">Aと同じ: X・R・スタート ／ Bと同じ: Y・L・セレクト</span><br>押したボタン: <b id="pd-live">-</b>` : 'コントローラーが見つかりません。<br>コントローラーのボタンを1回押してから、もう一度ひらいてください。';
-    MJ.UI.overlay(`<div class="cf"><h2 style="font-size:24px;margin:0 0 4px">🎮 コントローラーの設定</h2><p style="font-size:18px;line-height:1.4;margin:4px 0">${msg ? `<span style="color:#ffe27a">${msg}</span><br>` : ''}${info}</p><div class="cf-btns" style="flex-wrap:wrap;gap:8px"><button class="btn" id="pd-a" ${gp ? '' : 'disabled'}>決定にするボタンを、おぼえる</button><button class="btn" id="pd-b" ${gp ? '' : 'disabled'}>もどるにするボタンを、おぼえる</button><button class="btn" id="pd-r">自動にもどす</button><button class="btn pri" id="pd-x">とじる</button></div></div>`, { plain: true });
+    MJ.UI.overlay(`<div class="cf"><h2 style="font-size:24px;margin:0 0 4px">🎮 コントローラーの設定</h2><p style="font-size:18px;line-height:1.4;margin:4px 0">${msg ? `<span style="color:#ffe27a">${msg}</span><br>` : ''}${info}</p><div class="cf-btns" style="flex-wrap:wrap;gap:8px"><button class="btn" id="pd-a" ${gp ? '' : 'disabled'}>決定にするボタンを、おぼえる</button><button class="btn" id="pd-b" ${gp ? '' : 'disabled'}>もどるにするボタンを、おぼえる</button><button class="btn" id="pd-xa" ${gp ? '' : 'disabled'}>「Aと同じ」にするボタンを、足す</button><button class="btn" id="pd-xb" ${gp ? '' : 'disabled'}>「Bと同じ」にするボタンを、足す</button><button class="btn" id="pd-r">自動にもどす</button><button class="btn pri" id="pd-x">とじる</button></div></div>`, { plain: true });
     const learn = (k, label) => {
       MJ.UI.overlay(`<div class="cf"><h2 style="font-size:26px">🎮 ${label}にするボタンを、押してください</h2><p style="font-size:18px">コントローラーのボタンを、1つ押します。<br>(押していたボタンは、いったん離してください)</p><div class="cf-btns"><button class="btn" id="pd-c">やめる</button></div></div>`, { plain: true });
       document.querySelector('#pd-c').addEventListener('click', () => { P.learn = null; showPadSetup(); });
@@ -238,6 +241,8 @@
     };
     document.querySelector('#pd-a').addEventListener('click', () => learn('a', '決定'));
     document.querySelector('#pd-b').addEventListener('click', () => learn('b', 'もどる'));
+    document.querySelector('#pd-xa').addEventListener('click', () => learn('xa', '「Aと同じ(決定)」'));
+    document.querySelector('#pd-xb').addEventListener('click', () => learn('xb', '「Bと同じ(もどる)」'));
     document.querySelector('#pd-r').addEventListener('click', () => { P.resetMap(); showPadSetup('自動の割り当てにもどしました'); });
     document.querySelector('#pd-x').addEventListener('click', () => showSettings());
     if (gp) { const t = setInterval(() => { const l = document.querySelector('#pd-live'); if (!l) return clearInterval(t); const lp = P.pads()[0]; if (lp) { const ps = []; lp.buttons.forEach((b, i) => { if (b.pressed || b.value > 0.6) ps.push('ボタン' + (i + 1)); }); l.textContent = ps.length ? ps.join('・') : '-'; } }, 120); }

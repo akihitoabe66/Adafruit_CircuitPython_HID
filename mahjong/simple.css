@@ -1349,3 +1349,7 @@ body.simple-ui #mn #hm-play { padding: 0 !important; justify-content: center !im
 body.simple-ui #mn #hm-set { min-width: 0; }
 /* タイトルのBGMボタン: 右下の「ゲーム終了」と、同じ大きさ・同じ右端 */
 #screen-title .tt-bgm { width: 104px; right: 16px; }
+.tcd .cf-btns { flex-wrap: wrap; justify-content: center; }
+.tcd .cf-btns .btn.tc-back { min-width: 0; flex: 0 0 100%; order: 3; font-size: 22px !important; padding: 8px 18px !important; background: transparent; border: 2px solid #5f8a79; }
+.svd .cf-btns { flex-wrap: wrap; justify-content: center; }
+.svd #sv-menu { min-width: 0; flex: 0 0 100%; order: 3; font-size: 22px; padding: 8px 18px; background: transparent; border: 2px solid #5f8a79; }
