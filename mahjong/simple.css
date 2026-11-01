@@ -1353,3 +1353,12 @@ body.simple-ui #mn #hm-set { min-width: 0; }
 .tcd .cf-btns .btn.tc-back { min-width: 0; flex: 0 0 100%; order: 3; font-size: 22px !important; padding: 8px 18px !important; background: transparent; border: 2px solid #5f8a79; }
 .svd .cf-btns { flex-wrap: wrap; justify-content: center; }
 .svd #sv-menu { min-width: 0; flex: 0 0 100%; order: 3; font-size: 22px; padding: 8px 18px; background: transparent; border: 2px solid #5f8a79; }
+
+/* コントローラーの設定: 文字とボタンを小さく */
+.pd p { font-size: 15px !important; line-height: 1.35 !important; margin: 3px 0 !important; }
+.pd .cf-btns { gap: 6px !important; flex-wrap: wrap; justify-content: center; }
+.pd .cf-btns .btn { min-width: 0 !important; font-size: 15px !important; padding: 6px 12px !important; flex: 0 1 auto; }
+/* 麻雀先生・つづきの確認: 「もどる」も、同じ高さ・同じ大きさで、横に並べる */
+.tcd .cf-btns, .svd .cf-btns { flex-wrap: nowrap !important; gap: 12px; }
+.tcd .cf-btns .btn, .tcd .cf-btns .btn.tc-back, .svd .cf-btns .btn, .svd #sv-menu { flex: 1 1 0 !important; min-width: 0 !important; font-size: 24px !important; padding: 18px 8px !important; order: 0 !important; white-space: nowrap; background: var(--idle, #2d4a40); border: 3px solid transparent; }
+.tcd .cf-btns .btn.tc-back, .svd #sv-menu { background: #2d4a40; color: #e8f2ec; border: 2px solid #5f8a79; }

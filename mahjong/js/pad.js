@@ -421,9 +421,8 @@
       const pm = P.mapFor(gp);
       // スーファミ型などの、ほかのボタン: X・R・スタート=Aと同じ / Y・L・セレクト=Bと同じ。おぼえさせた分があれば、それを使う。なければ自動(標準配置は X=2、ほかは X=0。R=5・L=4・セレクト=6か8・スタート=7か9)
       const MAP = { [gp.mapping === 'standard' ? 2 : 0]: 'a', 5: 'a', 7: 'a', 9: 'a', 3: 'b', 4: 'b', 6: 'b', 8: 'b' };
-      (pm.xa || []).forEach((i) => { MAP[i] = 'a'; }); (pm.xb || []).forEach((i) => { MAP[i] = 'b'; }); // おぼえさせたボタンは、自動より優先
       MAP[pm.a] = 'a'; MAP[pm.b] = 'b';
-      if (gp.mapping === 'standard') Object.assign(MAP, { 12: 'up', 13: 'down', 14: 'left', 15: 'right' });
+      (pm.xa || []).forEach((i) => { MAP[i] = 'a'; }); (pm.xb || []).forEach((i) => { MAP[i] = 'b'; }); // おぼえさせたボタンは、いちばん優先(決定・もどるの割り当てとぶつかっても、おぼえさせた方)
       const down = {};
       gp.buttons.forEach((b, i) => { if (MAP[i] && (b.pressed || b.value > 0.6)) down[MAP[i]] = true; });
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
