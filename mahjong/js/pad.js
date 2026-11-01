@@ -172,6 +172,11 @@
     return false;
   };
 
+  /* カーソルが止まれる手牌: 切れない牌(暗い牌)は除く。リーチの宣言中は、切れる(光る)牌だけ */
+  const handStops = () => {
+    const rm = MJ.UI && MJ.UI.riichiMode;
+    return [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && !e.classList.contains('dis') && (!rm || e.classList.contains('rch-ok')) && visible(e));
+  };
   const move = (dx, dy) => {
     const cur = P.cur && P.cur.isConnected && visible(P.cur) ? P.cur : null;
     if (onTitle()) {
@@ -190,15 +195,19 @@
     if (dy > 0 && cur.matches('.hand .tile[data-id]') && P.toDrawn()) return; // 手牌の上で「下」= 引いた牌へ戻る
     // 手牌の左右: 位置を計算せず、隣の牌へ直接移る(速い)。左端からさらに左は右のボタン列へ、右のボタン列からさらに右は左端の牌へ(ぐるっと一周)
     if (dx && cur.matches('.hand .tile[data-id]')) {
-      const ts = [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && !e.classList.contains('dis')); // 切れない牌(暗い牌)は、飛ばす
+      const ts = handStops(); // 切れない牌(暗い牌)は、飛ばす。リーチ中は、光る牌だけ
       const i = ts.indexOf(cur);
       if (i >= 0 && ts[i + dx]) { setCur(ts[i + dx]); return; }
       if (i >= 0 && dx > 0) { const b = [...document.querySelectorAll('#sd-act [data-act], #btn-coach, #btn-tools')].find((e) => !e.disabled && visible(e)); if (b) { setCur(b); return; } return; } // 右の端から、さらに右: 右のボタン列へ(暗い牌には乗らない)
+      if (i < 0 && ts.length) { // いまの牌が止まれない牌(暗い牌)のとき: その方向でいちばん近い、切れる牌へ
+        const ax0 = rectOf(cur).left, cand = ts.filter((e) => (rectOf(e).left - ax0) * dx > 0).sort((p, q) => Math.abs(rectOf(p).left - ax0) - Math.abs(rectOf(q).left - ax0))[0];
+        if (cand) { setCur(cand); return; }
+      }
       if (dx < 0) { const b = [...document.querySelectorAll('#sd-act [data-act], #btn-coach, #btn-tools')].find((e) => !e.disabled && visible(e)); if (b) { setCur(b); return; } }
     }
     if (dx > 0 && cur.closest('#side-in') && !$('#sd-tools:not(.hidden)') && !(MJ.UI && MJ.UI.sel && MJ.UI.sel.type === 'react')) {
       const side = [...document.querySelectorAll('#side-in button')].filter(visible), ys = side.map((e) => rectOf(e).right);
-      if (rectOf(cur).right >= Math.max(...ys) - 2) { const t = [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && !e.classList.contains('dis') && visible(e))[0]; if (t) { setCur(t); return; } }
+      if (rectOf(cur).right >= Math.max(...ys) - 2) { const t = handStops()[0]; if (t) { setCur(t); return; } }
     }
     // 音量などのスライダーは、左右で値を変える
     if (cur.matches('input[type=range]') && dx) {
@@ -218,7 +227,7 @@
     }
     // ボタンの列から「左」を押すと手牌へ戻る
     if (dx < 0 && cur.closest('#sd-act, #btn-coach, #btn-tools')) {
-      const t = $('.hand .tile.rec') || [...document.querySelectorAll('.hand .tile[data-id]')].filter(visible).pop();
+      const hs = handStops(), t = hs.find((e) => e.classList.contains('rec')) || hs.find((e) => e.classList.contains('drawn')) || hs[hs.length - 1];
       if (t) { setCur(t); return; }
     }
     const a = rectOf(cur), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
