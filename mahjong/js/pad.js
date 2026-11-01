@@ -322,6 +322,8 @@
   };
   const act = (name) => {
     P.dev = 'pad';
+    // サイコロ・「勝負!」の演出の間: A/Bで、すすむ(キーボードのEnterと同じ)。1回目=結果まで一気に(サイコロが決まって、親が出る)、2回目=次へ
+    if (name === 'a' || name === 'b') { const D = MJ.Dice, I = MJ.Intro; if (D && D.active) { const el = document.querySelector('#dice'); if (el) { el.click(); return; } } if (I && I.active && I.skip) { I.skip(); return; } }
     if (P.lockLeft() > 0) return;
     if (P.lockUntil && Date.now() < P.lockUntil) return; // 確認が出た直後は、受け付けない
     if (!P.on) {
