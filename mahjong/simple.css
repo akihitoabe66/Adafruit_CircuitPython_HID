@@ -1396,3 +1396,5 @@ body.tbl.coach-open #coach { transition: opacity .12s !important; }
 .callq.selfq.rch-on .cq-btn { min-width: 100px; min-height: 40px; font-size: 22px !important; }
 .hand .tile.rec { animation: none; }
 .callq.selfq.rch-on .cq-stat { font-size: 20px; padding: 3px 16px; } .callq.selfq.rch-on .cq-stat b { font-size: 24px; }
+.callq.selfq.rch-on { flex-direction: row !important; justify-content: center; gap: 12px; }
+.callq.selfq.rch-on .cq-stat { padding: 3px 24px; }

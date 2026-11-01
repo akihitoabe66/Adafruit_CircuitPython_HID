@@ -683,7 +683,7 @@
     /* 自分の番の、手牌の上の板: ツモ・リーチ・カン(右側には出さない)。リーチの宣言中は、赤い帯 */
     selfCard(game, s) {
       const o = s.opts, p = s.p;
-      if (this.riichiMode) return '<div class="callq selfq rch-on"><div class="cq-stat"><b>リーチ</b>　光っている牌を えらんでください</div><button class="btn b-pass cq-btn" data-act="riichi">やめる</button></div>';
+      if (this.riichiMode) return '<div class="callq selfq rch-on"><div class="cq-stat"><b>リーチ</b></div><button class="btn b-pass cq-btn" data-act="riichi">やめる</button></div>';
       const btns = [];
       if (o.tsumo) btns.push('<button class="btn b-ron cq-btn" data-act="tsumo">ツモ!</button>');
       if (o.riichi.length && !p.riichi) btns.push('<button class="btn b-riichi cq-btn" data-act="riichi">リーチ</button>');
