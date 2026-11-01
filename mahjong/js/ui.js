@@ -1580,7 +1580,7 @@
       return pages;
     },
     /* ページ式のダイアログ(スクロールなしで画面に収める) */
-    pagedModal(pages, onDone, lastLabel) {
+    pagedModal(pages, onDone, lastLabel, always) { // always=true: 終わりのボタンを、どのページでも出す(おまけの画面から戻るとき)
       let cur = 0;
       this.overlay(`<div class="modal paged"><div class="pm-top"><span class="pm-title"></span><span class="pm-dots">${pages.map(() => '<i></i>').join('')}</span></div><div class="pm-body">${pages.map((p) => `<div class="pm-page">${p.html}</div>`).join('')}</div><div class="pm-foot"><span class="pm-hint"><i>◀ ▶</i> ページ　<i>A</i> つぎへ</span><button class="btn" id="pm-skip">⏭ スキップ</button><button class="btn pri" id="pm-done"></button></div><button class="pm-arrow l" id="pm-prev" aria-label="前へ">◀</button><button class="pm-arrow r" id="pm-next" aria-label="次へ">▶</button></div>`, { plain: true, raw: true });
       const modal = $('#overlay .modal');
@@ -1593,9 +1593,9 @@
         modal.querySelector('.pm-title').textContent = `${pages[cur].t}  ${cur + 1}/${pages.length}`;
         modal.querySelectorAll('.pm-dots i').forEach((d, k) => d.classList.toggle('on', k === cur));
         modal.querySelector('#pm-prev').classList.toggle('off', cur === 0);
-        modal.querySelector('#pm-skip').style.visibility = pages.length > 1 && cur < pages.length - 1 ? 'visible' : 'hidden';
+        modal.querySelector('#pm-skip').style.visibility = !always && pages.length > 1 && cur < pages.length - 1 ? 'visible' : 'hidden';
         modal.querySelector('#pm-next').classList.toggle('off', cur >= pages.length - 1);
-        const dn = modal.querySelector('#pm-done'); dn.textContent = lastLabel; dn.style.visibility = cur === pages.length - 1 ? 'visible' : 'hidden';
+        const dn = modal.querySelector('#pm-done'); dn.textContent = lastLabel; dn.style.visibility = always || cur === pages.length - 1 ? 'visible' : 'hidden';
         const pg = els[cur];
         const fit = () => {
           if (els[cur] !== pg) return;
@@ -1633,18 +1633,18 @@
     },
     showResult2(game, res) {
       return new Promise((resolve) => {
-        const pages = [];
+        const pages = [], calcPages = [], rvPages = [];
         if (res.type === 'win') {
           // ダブロンなどは、スクロールしないように、1人ずつ別のページにする
           const nw = res.wins.length;
           // 読み上げも、そのページの1人ぶんだけ(ページを開いたときに読む)
           res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `和了(${k + 1}人目)` : '和了', html: `<h2>${game.kyokuLabel()} 和了</h2>` + this.winHTML(game, w), onShow: nw > 1 ? () => this.announceWin(game, { wins: [w] }) : null }));
-          res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `点数計算(${k + 1}人目)` : '点数計算', html: this.winExplHTML(game, w) }));
+          res.wins.forEach((w, k) => calcPages.push({ t: nw > 1 ? `点数計算(${k + 1}人目)` : '点数計算', html: this.winExplHTML(game, w) })); // くわしい計算は、ボタンで見たい人だけ
           const kw = res.wins && res.wins.find((x) => x.kyotaku > 0);
           const kn = kw ? `<div class="sc-note">${kw.winner.name}の増減には、供託(場のリーチ棒)${kw.kyotaku}本=${fmt(kw.kyotaku * 1000)}点が入っています。</div>` : '';
           pages.push({ t: '持ち点', html: `<h2>${game.kyokuLabel()} の結果</h2>${this.scoreTable(game, res)}${kn}` });
           const rv = res.loseReview ? MJ.Coach.loseReview(game, res) : res.review ? MJ.Coach.reviewText(res.review) : '';
-          if (rv) this.splitReview(rv).forEach((h, i, a) => pages.push({ t: `振り返り`, html: h, rv: true }));
+          if (rv) this.splitReview(rv).forEach((h, i, a) => rvPages.push({ t: `振り返り`, html: h, rv: true }));
         } else {
           const cards = res.tenpai.map((t, i) => {
             const p = game.players[i], ch = p.char || {};
@@ -1653,19 +1653,36 @@
             return `<div class="dr-p${t ? ' tp' : ''}">${face}<div class="dr-n">${p.name}</div><div class="dr-s ${t ? 'tp' : 'no'}">${t ? 'テンパイ' : 'ノーテン'}</div><div class="dr-d ${d > 0 ? 'up' : d < 0 ? 'dn' : ''}">${d ? (d > 0 ? '+' : '') + d.toLocaleString() : '±0'}</div><div class="dr-t">${fmt(res.after[i])}点</div>${t ? `<div class="dr-h">${res.hands[i].concealed.map((h) => MJ.tileHTML(h.t, 't-s')).join('')}</div>` : ''}</div>`;
           }).join('');
           pages.push({ t: '流局', html: `<div class="dr-big">流局</div><div class="dr-sub">${game.kyokuLabel()} ／ 山の牌がなくなりました(荒牌平局)</div><div class="dr-row">${cards}</div><p class="dr-note">テンパイの人がノーテンの人から合計3000点を受け取ります。</p><div class="dr-tbl">${this.scoreTable(game, res)}</div>` });
-          if (res.drawReview) this.splitReview(MJ.Coach.drawReview(game, res)).forEach((h) => pages.push({ t: '流局の振り返り', html: h, rv: true }));
+          if (res.drawReview) this.splitReview(MJ.Coach.drawReview(game, res)).forEach((h) => rvPages.push({ t: '流局の振り返り', html: h, rv: true }));
         }
         if (res.type === 'win') MJ.SFX.play(res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'win');
         else MJ.SFX.play('drawgame');
         const last = game.length === 'single';
-        this.pagedModal(pages, () => { MJ.SFX.stopSpeak(); MJ.Audio.endResult(); this.closeOverlay(); resolve(); }, last ? '結果へ ▶' : '次の局へ ▶');
+        const finish = () => { MJ.SFX.stopSpeak(); MJ.Audio.endResult(); this.closeOverlay(); resolve(); };
+        const w0 = res.type === 'win' ? (res.wins.find((x) => x.winner.isHuman) || res.wins[0]) : null;
+        const rec = w0 && MJ.Learn ? MJ.Learn.build(game, w0) : null;
+        const showMain = (idx) => { // 上がり役と点数 → 4人の持ち点 → 次の局。くわしい計算・振り返りは、見たい人だけボタンで
+          const pm = this.pagedModal(pages, finish, last ? '結果へ ▶' : '次の局へ ▶');
+          if (idx) pm.show(idx);
+          const modal = document.querySelector('#overlay .modal'), foot = modal && modal.querySelector('.pm-foot'), sk = modal && modal.querySelector('#pm-skip');
+          const extra = [['pm-calc', '🧮 点数の計算', calcPages], ['pm-rv', '🔍 振り返り', rvPages]];
+          extra.forEach(([id, label, pgs]) => {
+            if (!pgs.length || !foot) return;
+            const b = document.createElement('button'); b.className = 'btn'; b.id = id; b.type = 'button'; b.textContent = label;
+            foot.insertBefore(b, sk);
+            b.addEventListener('click', () => {
+              const dots = [...modal.querySelectorAll('.pm-dots i')], at = Math.max(0, dots.findIndex((d) => d.classList.contains('on')));
+              MJ.SFX.stopSpeak();
+              this.pagedModal(pgs, () => showMain(at), '結果にもどる ◀', true);
+            });
+          });
+          if (rec) {
+            const top = modal && modal.querySelector('.pm-top');
+            if (top) { const b = document.createElement('button'); b.className = 'btn pri ln-open'; b.id = 'pm-learn'; b.type = 'button'; b.textContent = '📖 この役で学ぶ'; top.appendChild(b); b.addEventListener('click', () => MJ.Learn.open(rec, true)); }
+          }
+        };
+        showMain(0);
         if (res.type === 'win' && res.wins.length < 2) this.announceWin(game, res);
-        if (res.type === 'win' && MJ.Learn) { // 右上に「この役で学ぶ」
-          const w0 = res.wins.find((x) => x.winner.isHuman) || res.wins[0];
-          const rec = MJ.Learn.build(game, w0);
-          const top = document.querySelector('#overlay .pm-top');
-          if (top) { const b = document.createElement('button'); b.className = 'btn pri ln-open'; b.id = 'pm-learn'; b.type = 'button'; b.textContent = '📖 この役で学ぶ'; top.appendChild(b); b.addEventListener('click', () => MJ.Learn.open(rec, true)); }
-        }
         // 結果画面のBGM: 自分が上がった=win / 自分がマイナス=lose / 流局・CPU同士の和了=draw
         MJ.Audio.playResult(res.type === 'draw' ? 'draw' : res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'draw'); // CPU同士の和了など、自分に関係ない結果は落ち着いた曲(流局と同じ)
         this.render(game);

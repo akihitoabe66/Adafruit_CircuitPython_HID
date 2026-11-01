@@ -299,7 +299,7 @@
     const shown = (id) => { const e = $(id); return e && !e.classList.contains('hidden'); };
     const A = MJ.App, ask = P.confirmBack;
     if (shown('#screen-title')) { A.confirmExit(); return; }
-    if (shown('#screen-menu')) return ask('タイトルに戻りますか?', '戻る', () => A.show('title'));
+    if (shown('#screen-menu')) { A.confirmExit(); return; }
     if (shown('#screen-select')) return ask('ホームに戻りますか?<br>(選んだ相手は、消えます)', '戻る', () => { const b = $('#sel-back'); if (b) b.click(); });
     if (shown('#screen-notes')) { const b = $('#notes-back'); if (b) b.click(); return; }
     if (shown('#screen-study')) {

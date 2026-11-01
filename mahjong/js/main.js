@@ -190,7 +190,7 @@
     },
     /* アプリの終了の確認(Fire TVの「戻る」でいきなり終了しない)。最初に選ばれているのは「つづける」 */
     confirmExit() {
-      MJ.UI.overlay('<div class="cf"><h2>アプリをおわりますか?</h2><div class="cf-btns"><button class="btn danger" id="ex-yes">おわる</button><button class="btn pri" id="ex-no">つづける</button></div></div>', { plain: true });
+      MJ.UI.overlay('<div class="cf"><h2>ゲームを終了しますか？</h2><div class="cf-btns"><button class="btn danger" id="ex-yes">終了</button><button class="btn pri" id="ex-no">戻る</button></div></div>', { plain: true });
       document.querySelector('#ex-no').addEventListener('click', () => MJ.UI.closeOverlay());
       document.querySelector('#ex-yes').addEventListener('click', () => {
         MJ.UI.closeOverlay();
@@ -409,10 +409,14 @@
       MJ.UI.overlay('<div class="cf"><h2>セーブをリセットしますか?</h2><p>対局の成績と、あなたのキャラクターが消えます。<br>次からは、新しいキャラクターが選ばれます。</p><div class="cf-btns"><button class="btn danger" id="rs-yes">⚠ リセットする</button><button class="btn pri" id="rs-no">やめる</button></div></div>', { plain: true });
       document.querySelector('#rs-no').addEventListener('click', () => showSettings());
       document.querySelector('#rs-yes').addEventListener('click', () => {
-        MJ.resetSave();
-        const st = document.querySelector('#menu-stats'); if (st) st.textContent = '';
-        MJ.UI.closeOverlay();
-        MJ.UI.toast('セーブをリセットしました');
+        MJ.UI.overlay('<div class="cf"><h2>本当にリセットしますか?</h2><div class="cf-btns"><button class="btn danger" id="rs2-ok">OK</button><button class="btn pri" id="rs2-no">キャンセル</button></div></div>', { plain: true });
+        document.querySelector('#rs2-no').addEventListener('click', () => showSettings());
+        document.querySelector('#rs2-ok').addEventListener('click', () => {
+          MJ.resetSave();
+          const st = document.querySelector('#menu-stats'); if (st) st.textContent = '';
+          MJ.UI.overlay('<div class="cf"><h2>セーブデータがリセットされました。</h2><div class="cf-btns"><button class="btn pri" id="rs3-ok">OK</button></div></div>', { plain: true });
+          document.querySelector('#rs3-ok').addEventListener('click', () => showSettings());
+        });
       });
     });
     o.querySelector('#st-notes').addEventListener('click', () => { MJ.UI.closeOverlay(); MJ.App.openNotes(); });
@@ -473,7 +477,7 @@
     const noExit = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) || /AFT[A-Z0-9]*\b|Fire ?TV|FireOS/i.test(ua);
     if (noExit) { const ex = $('#btn-exit'); if (ex) ex.remove(); }
     else $('#btn-exit').addEventListener('click', () => App.confirmExit());
-    $('#hm-title').addEventListener('click', () => App.show('title'));
+    $('#hm-title').addEventListener('click', () => App.confirmExit());
     App.show('title');
     $('#chars').addEventListener('click', (e) => { const b = e.target.closest('.char'); if (b) App.pickChar(+b.dataset.id); });
     $('#sel-back').addEventListener('click', () => App.show('menu'));
