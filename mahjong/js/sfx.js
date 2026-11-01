@@ -129,6 +129,10 @@
         case 'click': T(1100, 0.05, 'sine', 0.22, 700); break;
         case 'select': T(760, 0.05, 'triangle', 0.2, 980); break;
         case 'draw': N(0.04, 1500, 0.22, 1.5); T(300, 0.04, 'triangle', 0.12); break;
+        case 'deal4': S.clack(0.7, 0, 1); S.clack(0.35, 0.014, 1.12); break; // 配牌: 4牌が着いたとき、チャッ(1回)
+        case 'deal1': S.clack(0.5, 0, 1); break;
+        case 'sort1': S.clack(0.6, 0, 1); break; // 最後の、チャ
+        case 'sort2': S.clack(0.75, 0, 1.08); break; // チャッ!(並び替え)
         case 'deal': for (let i = 0; i < 13; i++) S.clack(0.22 + (i % 4 === 3 ? 0.08 : 0), 0.14 + i * 0.055, 0.95 + (i % 3) * 0.06); break; // 配牌: パチ、パチと、牌が並ぶ音
         case 'discard': S.clack(0.55); break;
         case 'call': S.clack(0.5); S.clack(0.5, 0.09, 1.1); T(880, 0.22, 'triangle', 0.22, 1320, 0.14); break;

@@ -1398,3 +1398,12 @@ body.tbl.coach-open #coach { transition: opacity .12s !important; }
 .callq.selfq.rch-on .cq-stat { font-size: 20px; padding: 3px 16px; } .callq.selfq.rch-on .cq-stat b { font-size: 24px; }
 .callq.selfq.rch-on { flex-direction: row !important; justify-content: center; gap: 12px; }
 .callq.selfq.rch-on .cq-stat { padding: 3px 24px; }
+
+/* ===== 配牌のアニメ(手牌を隠して、4牌ずつ見せる) ===== */
+body.deal-hide #mine .hand .tile:not(.dl-on), body.deal-hide .blk .bk:not(.dl-on) { visibility: hidden; }
+.dl-blk { position: fixed; z-index: 90; pointer-events: none; transition: transform .095s cubic-bezier(.3, .7, .3, 1), opacity .06s; will-change: transform; }
+.dl-blk i { position: absolute; display: block; border-radius: 3px; background: linear-gradient(#2f6fd6, #1c4fa3); box-shadow: inset 0 0 0 1px #ffffff55; }
+.dl-blk i.lo { filter: brightness(.7); }
+.dl-blk i.up { box-shadow: 0 3px 0 #0a2a66, 0 6px 6px #0008, inset 0 0 0 1px #ffffff55; }
+body.deal-hide #mine .hand .tile.dl-on, body.deal-hide .blk .bk.dl-on { animation: dlFade .07s both; }
+@keyframes dlFade { from { opacity: .35; } to { opacity: 1; } }

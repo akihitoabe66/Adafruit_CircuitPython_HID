@@ -439,20 +439,87 @@
     /* ---------- 描画 ---------- */
     /* 配牌のあと: カーソルを手牌に置く(CPUが先のときも、最初から見える) */
     padHand() { if (MJ.Pad && MJ.Pad.focusHand) MJ.Pad.focusHand(); },
-    dealFx() {
-      const ts = [...document.querySelectorAll('#mine .hand .tile:not(.ph)')];
-      if (!ts.length || (MJ.FX && MJ.FX.level && MJ.FX.level() === 'lite')) return;
-      ts.forEach((t, i) => { t.style.animation = `dealIn .34s cubic-bezier(.2,.8,.3,1.2) ${i * 55}ms both`; });
-      try { MJ.SFX.play('deal'); } catch (e) { /* ignore */ }
-      setTimeout(() => ts.forEach((t) => { t.style.animation = ''; }), ts.length * 55 + 500);
+    /* ---- 配牌のアニメ: 真ん中から、2牌ぶん(下段2牌・上段2牌の重なり)のかたまりが、あなた→右→向かい→左(反時計回り)へ流れ、手牌が4牌ずつ増える。
+       3周で12牌、そのあと1牌ずつで13牌。最後に「チャ、チャッ!」と鳴って、あなたの手牌が、見やすい順に並び替わる ---- */
+    dealPrep(game) { // 最初の描画の前に呼ぶ: 手牌を隠しておく(描かれた瞬間に、全部見えてしまわないように)
+      this._dealOK = !game.fast && !game.resumed && game.players.every((p) => !p.discards.length && !p.melds.length) && !(MJ.FX && MJ.FX.level && MJ.FX.level() === 'lite' && false);
+      if (this._dealOK) document.body.classList.add('deal-hide');
+    },
+    dealSkip() { this._dealSkip = true; },
+    async dealAnim(game) {
+      if (!this._dealOK) { document.body.classList.remove('deal-hide'); return; }
+      this._dealOK = false; this.dealing = true; this._dealSkip = false;
+      const sl = (ms) => new Promise((r) => setTimeout(r, this._dealSkip ? 0 : ms));
+      const S = MJ.SFX, vis = (e) => e && e.isConnected;
+      try {
+        const mine = [...document.querySelectorAll('#mine .hand .tile[data-id]:not(.ph)')].filter((e) => !e.classList.contains('drawn'));
+        const opp = [0, 1, 2, 3].map((q) => q === 0 ? mine : [...document.querySelectorAll(`#table .blk[data-seat="${q}"] .bk`)]);
+        if (!mine.length || opp.some((a) => !a.length)) throw new Error('no tiles');
+        // あなたの手牌: いったん、ばらばらの並びで見せて、最後に並び替える(位置の入れ替え = 横のずらし)
+        const n0 = mine.length, xs = mine.map((e) => e.getBoundingClientRect().left);
+        const perm = [...Array(n0).keys()]; for (let i = n0 - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [perm[i], perm[j]] = [perm[j], perm[i]]; }
+        const slotTile = []; perm.forEach((sIdx, i) => { slotTile[sIdx] = i; }); // 表示の位置 → 牌
+        mine.forEach((e, i) => { e.style.transform = `translateX(${xs[perm[i]] - xs[i]}px)`; });
+        const seq = (q) => q === 0 ? slotTile.map((i) => mine[i]) : opp[q];
+        const hands = [0, 1, 2, 3].map(seq);
+        const ctr = document.querySelector('#table .ctr') || document.querySelector('#table');
+        const cr = ctr.getBoundingClientRect(), cx = cr.left + cr.width / 2, cy = cr.top + cr.height / 2;
+        const made = [0, 0, 0, 0];
+        const order = [game.dealer, (game.dealer + 1) % 4, (game.dealer + 2) % 4, (game.dealer + 3) % 4];
+        const grab = async (q, n) => {
+          const ts = hands[q].slice(made[q], made[q] + n); if (!ts.length) return;
+          made[q] += ts.length;
+          const rs = ts.map((e) => e.getBoundingClientRect());
+          const L = Math.min(...rs.map((r) => r.left)), R = Math.max(...rs.map((r) => r.right)), T = Math.min(...rs.map((r) => r.top)), B = Math.max(...rs.map((r) => r.bottom));
+          const tw = rs[0].width, th = rs[0].height, horiz = (R - L) >= (B - T) * 0.95 && ts.length > 1 ? true : (th >= tw);
+          const cols = ts.length > 1 ? 2 : 1;
+          const bw = horiz ? tw * cols : tw, bh = horiz ? th : th * cols;
+          const g = document.createElement('div'); g.className = 'dl-blk';
+          g.style.cssText = `left:${cx - bw / 2}px;top:${cy - bh / 2}px;width:${bw}px;height:${bh}px;opacity:0;transform:scale(.6)`;
+          for (let i = 0; i < cols; i++) {
+            const off = horiz ? [i * tw, 0, 0, 5] : [0, i * th, 5, 0];
+            g.insertAdjacentHTML('beforeend', `<i class="lo" style="left:${off[0] + off[2]}px;top:${off[1] + off[3]}px;width:${tw}px;height:${th}px"></i><i class="up" style="left:${off[0]}px;top:${off[1]}px;width:${tw}px;height:${th}px"></i>`);
+          }
+          document.body.appendChild(g);
+          await sl(6); g.style.opacity = '1'; g.style.transform = 'scale(1)';
+          await sl(24);
+          const tx = (L + R) / 2 - cx, ty = (T + B) / 2 - cy;
+          g.style.transform = `translate(${tx}px,${ty}px) scale(.85)`;
+          await sl(95);
+          g.remove();
+          ts.forEach((e) => { if (vis(e)) { e.classList.add('dl-on'); } });
+          try { S.play(ts.length > 1 ? 'deal4' : 'deal1'); } catch (e) { /* ignore */ }
+          await sl(55);
+        };
+        await sl(150);
+        for (let r = 0; r < 3; r++) for (const q of order) await grab(q, 4);
+        for (const q of order) await grab(q, 1);
+        // 残り(親の14牌目など)は、すぐ見せる
+        hands.forEach((h) => h.forEach((e) => e.classList.add('dl-on')));
+        document.querySelectorAll('#table .blk .bk').forEach((e) => e.classList.add('dl-on'));
+        // 最後: チャ、チャッ! 1回目で少し持ち上がり、2回目で見やすい順に並ぶ
+        await sl(340);
+        try { S.play('sort1'); } catch (e) { /* ignore */ }
+        mine.forEach((e, i) => { e.style.transition = 'transform .1s'; e.style.transform = `translate(${xs[perm[i]] - xs[i]}px,-12px)`; });
+        await sl(210);
+        try { S.play('sort2'); } catch (e) { /* ignore */ }
+        mine.forEach((e) => { e.style.transition = 'transform .34s cubic-bezier(.3,.7,.3,1)'; e.style.transform = ''; });
+        await sl(380);
+        mine.forEach((e) => { e.style.transition = ''; });
+      } catch (e) { /* 失敗しても、そのまま始める */ }
+      document.querySelectorAll('.dl-blk').forEach((e) => e.remove());
+      this.dealing = false; this._dealSkip = false;
+      document.body.classList.remove('deal-hide');
+      document.querySelectorAll('.dl-on').forEach((e) => e.classList.remove('dl-on'));
+      this.render(game); // 最後に、ふつうの描画へ(手牌の位置・動きをそろえる)
     },
     paint(el, html) { if (!el || el._h === html) return; el.innerHTML = html; el._h = html; },
     render(game) {
       if (this.game !== game) return;
+      if (this.dealing) return; // 配牌のアニメ中は、描き直さない(終わったときに、1回描く)
       this.layout();
       if (MJ.perf && MJ.perf._handAt && game.players[0] && game.players[0].hand.length >= 13) { const t0 = MJ.perf._handAt; MJ.perf._handAt = 0; requestAnimationFrame(() => requestAnimationFrame(() => { if (MJ.perf.rec) MJ.perf.rec.ev('配牌→手牌が見える', performance.now() - t0); })); }
       document.body.classList.remove('dealing');
-      if (game.players[0] && game.players[0].hand.length >= 13 && !game.fast) { const dk = game.handCount + ':' + game.kyoku + ':' + game.honba; if (this._dealKey !== dk) { this._dealKey = dk; requestAnimationFrame(() => this.dealFx()); } } // 配牌: 手牌が、山から1枚ずつ並ぶ動き
       const s0 = this.sel;
       if (s0 && this._alertSel !== s0) { // 上がれるとき(ツモ・ロン)は、大きく知らせる
         if (s0.type === 'self' && s0.opts && s0.opts.tsumo) { this._alertSel = s0; this.alertWin('ツモれる!'); }
