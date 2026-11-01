@@ -1224,7 +1224,7 @@ body:not(.land) #coach { visibility: hidden; }
 * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 /* 引いた牌: 光らせない。山から右はしへ「タンッ」と置かれる動きで知らせる(動くのは位置だけ) */
 #mine .hand .tile.drawn:not(.ph) { filter: none; }
-@keyframes drawIn { 0% { transform: translate(90px, -150px) scale(1.5) rotate(14deg); opacity: 0; } 30% { opacity: 1; } 62% { transform: translate(0, 10px) scale(1.06) rotate(-3deg); } 80% { transform: translate(0, -4px) scale(1); } 100% { transform: none; } }
+@keyframes drawIn { 0% { transform: translate(-90px, -150px) scale(1.5) rotate(-14deg); opacity: 0; } 30% { opacity: 1; } 62% { transform: translate(0, 10px) scale(1.06) rotate(3deg); } 80% { transform: translate(0, -4px) scale(1); } 100% { transform: none; } }
 #mine .hand .tile.draw-in { animation: drawIn .5s cubic-bezier(.3, 0, .5, 1) both; z-index: 5; }
 @keyframes dealIn { 0% { transform: translateY(-90px) scale(1.3) rotate(-8deg); opacity: 0; } 55% { opacity: 1; transform: translateY(6px) scale(1.03) rotate(1deg); } 100% { transform: none; opacity: 1; } }
 /* 手番の名札: 光らせず、少し大きく+黄色い枠 */
