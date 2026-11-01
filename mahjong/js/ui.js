@@ -460,8 +460,8 @@
         const opp = [0, 1, 2, 3].map((q) => q === 0 ? mine : [...document.querySelectorAll(`#table .blk[data-seat="${q}"] .bk`)]);
         if (!mine.length || opp.some((a) => !a.length)) throw new Error('no tiles');
         // あなたの手牌: いったん、ばらばらの並びで見せて、最後に並び替える(位置の入れ替え = 横のずらし)
-        const n0 = mine.length, xs = mine.map((e) => e.getBoundingClientRect().left);
-        const kk = mine.map((e) => (e.offsetWidth ? e.getBoundingClientRect().width / e.offsetWidth : 1) || 1); // 画面の拡大率(translateは、拡大される前の長さで指定するため)
+        const n0 = mine.length, xs = mine.map((e) => e.offsetLeft); // 画面の拡大・回転(スマホの縦持ち)に関係なく、手牌の中の位置(レイアウトの長さ)で動かす
+        const kk = mine.map(() => 1);
         const perm = [...Array(n0).keys()]; for (let i = n0 - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [perm[i], perm[j]] = [perm[j], perm[i]]; }
         const slotTile = []; perm.forEach((sIdx, i) => { slotTile[sIdx] = i; }); // 表示の位置 → 牌
         mine.forEach((e, i) => { e.style.transform = `translateX(${(xs[perm[i]] - xs[i]) / kk[i]}px)`; });
