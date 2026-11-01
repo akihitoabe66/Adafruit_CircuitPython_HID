@@ -380,7 +380,8 @@
     if (opts.riichi.length) for (const h of p.hand) if (opts.riichi.includes(h.t)) marks[h.id] = Object.assign({}, marks[h.id], { riichi: true });
     const info = {}, infoLong = {};
     for (const e of an.evals) {
-      const txt = `<b>${ic(e.t)} ${tn(e.t)}</b> を切ると: ${e.sh === an.minSh ? '<span class="good">シャンテン維持</span>' : '<span class="bad">シャンテンが戻る</span>'}(${e.sh === 0 ? 'テンパイ' : e.sh + 'シャンテン'}) / 有効牌 ${e.ukeire.n}枚${e.danger ? `<br>危険度: <b>${e.danger.tag}</b>(約${Math.round(e.danger.score)}%) ${e.danger.why}` : e.genCount ? `<br>${e.genCount}人の現物` : ''}`;
+      const isRec = recId && (p.hand.find((h) => h.id === recId) || {}).t === e.t;
+      const txt = `${isRec ? '<b class="recnote">★ 麻雀先生のおすすめ</b><br>' : ''}<b>${ic(e.t)} ${tn(e.t)}</b> を切ると: ${e.sh === an.minSh ? '<span class="good">シャンテン維持</span>' : '<span class="bad">シャンテンが戻る</span>'}(${e.sh === 0 ? 'テンパイ' : e.sh + 'シャンテン'}) / 有効牌 ${e.ukeire.n}枚${e.danger ? `<br>危険度: <b>${e.danger.tag}</b>(約${Math.round(e.danger.score)}%) ${e.danger.why}` : e.genCount ? `<br>${e.genCount}人の現物` : ''}`;
       const cmp = best && e !== best && recId === best.tile.id && !an.opps.length ? diffWhy(game, p, an, best, e) : [];
       const txt2 = cmp.length ? `${txt}<br><span class="cmp">★${tn(best.t)}ではなくこちらを切らない理由: ${cmp.slice(0, 2).join('。')}</span>` : txt;
       const txtS = cmp.length ? `${txt}<br><span class="cmp">★${tn(best.t)}との差: ${diffShort(game, p, an, best, e)}</span>` : txt;

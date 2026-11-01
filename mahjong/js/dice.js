@@ -51,8 +51,10 @@
           const settle = () => { if (flat) { flatT.splice(0).forEach(clearTimeout); [a, b].forEach((v, i) => flatShow(i, v)); } [0, 1].forEach((i) => { const cu = $('#dcc' + i); if (cu) cu.style.transition = 'none'; ['dcx', 'dcy', 'dcs'].forEach((k) => { const e = $('#' + k + i); if (e && e.getAnimations) e.getAnimations().forEach((a) => { try { a.finish(); } catch (er) { /* ignore */ } }); }); }); };
           const finish = () => {
             if (done) return; done = true; D.active = false; D.skip = null;
-            el.classList.add('out');
-            setTimeout(() => el.remove(), 260);
+            const away = () => { D.hold = null; el.classList.add('out'); setTimeout(() => el.remove(), 260); };
+            if (first && !game.fast) { // 最初の配牌: 卓が描かれるまで、この画面を残す(音だけ先に鳴って、何も出ない時間を作らない)
+              D.hold = away; cap('<span>配牌しています…</span>'); setTimeout(() => { if (D.hold === away) away(); }, 5000);
+            } else away();
             if (go) go();
             res(dealer);
           };

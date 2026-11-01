@@ -569,7 +569,7 @@
       const card = cand ? this.callCard(game, rs, cand) : '';
       const dtabs = sel && this.dng && this.dng.opps.length >= 2 ? `<div class="dtabs"><span>危険度の対象:</span><button class="btn sm${this.dngTab === 'all' ? ' on' : ''}" data-dtab="all">全員</button>${this.dng.opps.map((q, i) => `<button class="btn sm${this.dngTab === i ? ' on' : ''}" data-dtab="${i}">${q.name}</button>`).join('')}</div>` : '';
       const msg = sel ? this.msgText(sel) : '';
-      const tipHtml = `${msg ? `<div class="tmsg">${msg}</div>` : ''}${!tip && sel && this.idleMsg ? `<div class="tidle">${this.idleMsg}</div>` : ''}${tip}`;
+      const tipHtml = `${msg ? `<div class="tmsg">${msg}</div>` : ''}${tip}`;
       return `${card}<div class="hand${this.riichiMode ? ' riichi-mode' : ''}" id="hand">${tiles}</div><div class="tipline" id="tipline">${tipHtml}</div>${dtabs}`;
     },
 
@@ -1014,11 +1014,16 @@
         };
         this.adv = null; this.coachHtml = ''; this.summary = ''; this.dng = null; this.idleMsg = null;
         clearTimeout(this._idleT);
-        if (this.coachActive()) this._idleT = setTimeout(() => { // 麻雀先生: しばらく止まっていたら、ひとこと(牌の絵つき)
-          if (this.sel !== mySel || this.picked || !this.adv) return;
-          const m = MJ.Coach.idleAdvice(game, p, this.adv);
-          if (m) { this.idleMsg = m; this.render(game); }
-        }, 7000);
+        { // 麻雀先生: 迷って止まっていたら、ひとこと。CPUがしゃべっている間は待つ(セリフが重ならないように)
+          let tries = 0;
+          const tryIdle = () => {
+            if (this.sel !== mySel || this.picked || !this.adv || !this.coachActive()) return;
+            if (this.voiceBusy() && tries++ < 8) { this._idleT = setTimeout(tryIdle, 1500); return; }
+            const m = MJ.Coach.idleAdvice(game, p, this.adv);
+            if (m) this.teacherSay(m.replace(/^🎓\s*/, ''), 'tip', 9000, 'idle');
+          };
+          if (this.coachActive()) this._idleT = setTimeout(tryIdle, 7000);
+        }
         if (needAdv || this.dangerOn) { this.render(game); setTimeout(fill, 40); } // まず、手牌だけをすぐ出す(おすすめ・危険度の計算は、そのあと。計算が重い端末でも、牌が出るのが遅れない)
         else fill();
       });
@@ -1056,6 +1061,7 @@
       el.innerHTML = `<div class="ch"><b>🎓 ${!this.coachActive() ? 'いまの場' : g.mode === 'free' ? '麻雀先生' : m.name}</b><span class="chb"><button class="btn sm" data-open-yaku>役一覧</button><button class="btn sm" data-open-gloss>用語</button><button class="btn sm rd" data-read="coach">🔊 読み上げ</button><button class="btn sm cx" data-coachclose aria-label="閉じる">✕ 閉じる</button></span></div><div class="ctabs"></div>${body}<button class="cnav l off" data-pg="-1" aria-label="前へ">◀</button><button class="cnav r off" data-pg="1" aria-label="次へ">▶</button>`;
       this.pageCoach(el);
       MJ.Gloss.decorate(el);
+      if (MJ.Ruby) MJ.Ruby.apply(el); // ふりがなも、ここで付ける(あとから付くと、文字の大きさが変わって見える)
       if (this.coachActive()) this.addReadFrom(el);
       this.fitCoachText(el);
       // 牌画像などが後から読み込まれて高さが変わっても、枠からはみ出さないよう再調整する
@@ -1471,7 +1477,6 @@
     },
     handStart(game) {
       if (this.hintOn && game.honba === 0 && game.kyoku === 0) setTimeout(() => this.teacherSay('ついています。迷ったら、おしえます!', 'greet', 7000), 800);
-      MJ.SFX.play('start');
       this.tipHtml = ''; // 開始時の「この局のポイント」は出さない
       this.coachHtml = '';
       this.refreshCoach();

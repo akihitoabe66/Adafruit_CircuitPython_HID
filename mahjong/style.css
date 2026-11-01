@@ -856,9 +856,6 @@ body.short .win-hand { flex-wrap: wrap; }
 .dq .river { grid-template-columns: repeat(9, auto); }
 
 /* ---- おすすめ牌: ★に加えて、少し持ち上げて目立たせる(練習モードで「切る牌」が一目で分かるように) ---- */
-.hand .tile.rec { transform: translateY(-10px); }
-.hand .tile.rec.picked { transform: translateY(-16px); }
-@media (hover: hover) and (pointer: fine) { .hand .tile.rec.ok:hover { transform: translateY(-16px); } }
 
 /* 危険度の印を言葉で表示(現物・スジ・半スジ・無スジ) */
 .dgc.tg { font-size: max(8px, calc(var(--hw) * .24)); padding: 0 3px; white-space: nowrap; height: auto; min-height: calc(var(--hw) * .34); }
@@ -1018,7 +1015,7 @@ body.tbl #table { border: 0; background: none; box-shadow: none; padding: 0; bor
 /* コントローラー操作のカーソル(白い枠) */
 body.pad-on .pf { outline: 4px solid #fff !important; outline-offset: 2px; box-shadow: 0 0 0 5px #3d86ff !important; z-index: 12; }
 body.pad-on .pf.pf-rel { position: relative; } /* 位置が決まっていない(static)ボタンだけ、前に出す。もともと位置を決めている(absoluteなど)ボタンは、動かさない */
-body.pad-on .hand .tile.pf { transform: translateY(-8px); }
+body.pad-on.my-turn .hand .tile.pf { transform: translateY(-8px); } /* 浮くのは、自分の番(選べるとき)だけ */
 body.pad-on #side-in .pf, body.pad-on #overlay .pf { z-index: 12; }
 
 
