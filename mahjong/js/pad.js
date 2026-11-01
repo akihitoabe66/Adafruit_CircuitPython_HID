@@ -56,6 +56,7 @@
     scope().forEach((root) => root.querySelectorAll(FOCUSABLE).forEach((el) => {
       if (el.matches('[tabindex="-1"], input[type=hidden], .ph')) return;
       if (el.classList.contains('off')) return; // 押せない(薄い)ボタンには、止まらない
+      if (el.matches('.hand .tile.dis')) return; // 切れない(暗い)牌には、止まらない
       if (el.matches('.gl-off')) return;
       if (el.matches('.pm-arrow')) return; // ページ送りの矢印は、見た目だけ(コントローラーでは←→とAを使う。矢印には止まらない)
       if (el.tagName === 'DETAILS') return;
@@ -106,8 +107,9 @@
       if (rb && U.sel && U.sel.type === 'self' && !U.riichiMode && visible(rb)) return rb;
       const cq = $('.cq-btn.b-pass') || $('.cq-btn[data-act]'); // 初めは「見送る」
       if (cq && visible(cq)) return cq;
-      const t = $('.hand .tile.rec') || $('.hand .tile.drawn:not(.ph)') || [...document.querySelectorAll('.hand .tile[data-id]')].pop();
+      const t = $('.hand .tile.rec:not(.dis)') || $('.hand .tile.drawn:not(.ph):not(.dis)') || [...document.querySelectorAll('.hand .tile[data-id]:not(.dis)')].pop();
       if (t && visible(t)) return t;
+      return null; // 対局中で、まだ手牌が出ていない間は、カーソルを置かない(MENUなどに乗って、Aで押してしまわないように)
     }
     // 練習問題: 答え合わせなら「次の問題」、選択式なら最初の選択肢、牌を選ぶ問題なら手牌の真ん中
     if (!$('#screen-drill').classList.contains('hidden') && !$('#drill-quiz').classList.contains('hidden')) {
@@ -190,11 +192,12 @@
       const ts = [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && !e.classList.contains('dis')); // 切れない牌(暗い牌)は、飛ばす
       const i = ts.indexOf(cur);
       if (i >= 0 && ts[i + dx]) { setCur(ts[i + dx]); return; }
+      if (i >= 0 && dx > 0) { const b = [...document.querySelectorAll('#sd-act [data-act], #btn-coach, #btn-tools')].find((e) => !e.disabled && visible(e)); if (b) { setCur(b); return; } return; } // 右の端から、さらに右: 右のボタン列へ(暗い牌には乗らない)
       if (dx < 0) { const b = [...document.querySelectorAll('#sd-act [data-act], #btn-coach, #btn-tools')].find((e) => !e.disabled && visible(e)); if (b) { setCur(b); return; } }
     }
     if (dx > 0 && cur.closest('#side-in') && !$('#sd-tools:not(.hidden)') && !(MJ.UI && MJ.UI.sel && MJ.UI.sel.type === 'react')) {
       const side = [...document.querySelectorAll('#side-in button')].filter(visible), ys = side.map((e) => rectOf(e).right);
-      if (rectOf(cur).right >= Math.max(...ys) - 2) { const t = [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && visible(e))[0]; if (t) { setCur(t); return; } }
+      if (rectOf(cur).right >= Math.max(...ys) - 2) { const t = [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && !e.classList.contains('dis') && visible(e))[0]; if (t) { setCur(t); return; } }
     }
     // 音量などのスライダーは、左右で値を変える
     if (cur.matches('input[type=range]') && dx) {
