@@ -1368,3 +1368,7 @@ body.simple-ui #mn #hm-set { min-width: 0; }
 .rch-status b { font-size: 22px; font-weight: 900; color: #ff7a93; letter-spacing: .04em; white-space: nowrap; }
 .rch-status span { font-size: 15px; font-weight: 800; color: #e8f2ec; }
 .rch-status i { font-style: normal; font-weight: 900; color: #ffd23f; border: 2px solid #ffd23f; border-radius: 50%; padding: 0 6px; margin-right: 2px; font-size: 14px; }
+/* 前回のつづきの確認: 選ばれていないボタンは、濃い色(白くならないように、色を決めて書く) */
+.svd .cf-btns .btn:not(.pri):not(.pf), .tcd .cf-btns .btn:not(.pri):not(.pf) { background: #2d4a40 !important; color: #e8f2ec !important; border: 2px solid #5f8a79 !important; }
+.svd .cf-btns .btn.pri:not(.pf) { background: #2d4a40 !important; color: #e8f2ec !important; border: 2px solid #5f8a79 !important; }
+.svd .cf-btns .btn.pf, .tcd .cf-btns .btn.pf { background: #ffd23f !important; color: #1b1b12 !important; }
