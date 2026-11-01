@@ -416,7 +416,9 @@
       }
       if (P.settle) { if (!pressed.length) P.settle = false; continue; } // おぼえさせた直後: そのボタンを離すまでは、ふつうの操作として扱わない
       const pm = P.mapFor(gp);
-      const MAP = { [pm.a]: 'a', [pm.b]: 'b' };
+      // スーファミ型などの、ほかのボタン: X・R・スタート=Aと同じ / Y・L・セレクト=Bと同じ(標準配置は X=2、ほかは X=0)
+      const MAP = { [gp.mapping === 'standard' ? 2 : 0]: 'a', 5: 'a', 9: 'a', 3: 'b', 4: 'b', 8: 'b' };
+      MAP[pm.a] = 'a'; MAP[pm.b] = 'b';
       if (gp.mapping === 'standard') Object.assign(MAP, { 12: 'up', 13: 'down', 14: 'left', 15: 'right' });
       const down = {};
       gp.buttons.forEach((b, i) => { if (MAP[i] && (b.pressed || b.value > 0.6)) down[MAP[i]] = true; });

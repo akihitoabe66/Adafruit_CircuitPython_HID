@@ -41,6 +41,10 @@
     },
   };
   MJ.FX.apply();
+  /* シンプルゲームモード: ホームを「麻雀をはじめる」だけにする(ロゴ・説明・ほかのボタンなし)。左下=タイトルへ、右下=設定 */
+  MJ.simpleUI = () => get('mj_simpleui') === '1';
+  MJ.setSimpleUI = (v) => { put('mj_simpleui', v ? '1' : '0'); document.body.classList.toggle('simple-ui', !!v); if (MJ.Pad && MJ.Pad.preselect) setTimeout(() => MJ.Pad.preselect(true), 0); };
+  document.body.classList.toggle('simple-ui', MJ.simpleUI());
 
   /* 画質: 画面を小さい解像度で描いて、拡大して見せる(フルHDなどの大きい画面で、描く量を減らして軽くする)。
      きれい=そのまま / ふつう=高さ720で描く / かるい=高さ540で描く。ゲームの中身は、画面いっぱいに同じ形で出る */

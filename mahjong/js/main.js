@@ -229,7 +229,7 @@
     const gp = pads[0];
     const m = gp ? P.mapFor(gp) : null;
     const nm = (i) => `ボタン${i + 1}`;
-    const info = gp ? `<b>${gp.id.replace(/\(.*$/, '').slice(0, 40)}</b><br>決定(A)= <b>${nm(m.a)}</b> ／ もどる(B)= <b>${nm(m.b)}</b>(${m.learned ? 'おぼえさせた割り当て' : '自動'})<br>押したボタン: <b id="pd-live">-</b>` : 'コントローラーが見つかりません。<br>コントローラーのボタンを1回押してから、もう一度ひらいてください。';
+    const info = gp ? `<b>${gp.id.replace(/\(.*$/, '').slice(0, 40)}</b>(${gp.mapping === 'standard' ? '標準の配置' : 'スーファミ型などの配置'}を、自動で見つけました)<br>決定(A)= <b>${nm(m.a)}</b> ／ もどる(B)= <b>${nm(m.b)}</b>(${m.learned ? 'おぼえさせた割り当て' : '自動'})<br><span style="font-size:15px">Aと同じ: X・R・スタート ／ Bと同じ: Y・L・セレクト</span><br>押したボタン: <b id="pd-live">-</b>` : 'コントローラーが見つかりません。<br>コントローラーのボタンを1回押してから、もう一度ひらいてください。';
     MJ.UI.overlay(`<div class="cf"><h2 style="font-size:24px;margin:0 0 4px">🎮 コントローラーの設定</h2><p style="font-size:18px;line-height:1.4;margin:4px 0">${msg ? `<span style="color:#ffe27a">${msg}</span><br>` : ''}${info}</p><div class="cf-btns" style="flex-wrap:wrap;gap:8px"><button class="btn" id="pd-a" ${gp ? '' : 'disabled'}>決定にするボタンを、おぼえる</button><button class="btn" id="pd-b" ${gp ? '' : 'disabled'}>もどるにするボタンを、おぼえる</button><button class="btn" id="pd-r">自動にもどす</button><button class="btn pri" id="pd-x">とじる</button></div></div>`, { plain: true });
     const learn = (k, label) => {
       MJ.UI.overlay(`<div class="cf"><h2 style="font-size:26px">🎮 ${label}にするボタンを、押してください</h2><p style="font-size:18px">コントローラーのボタンを、1つ押します。<br>(押していたボタンは、いったん離してください)</p><div class="cf-btns"><button class="btn" id="pd-c">やめる</button></div></div>`, { plain: true });
@@ -279,6 +279,10 @@
   function showCredits() {
     MJ.UI.overlay(`<h2>ℹ️ クレジット・ライセンス</h2>
       <div class="credits">
+      <h3>開発</h3>
+      <p><b>Akihito Abe</b></p>
+      <h3>SPECIAL THANKS</h3>
+      <p><b>Myumi</b></p>
       <h3>音声(掛け声)</h3>
       <p>pyopenjtalk(Open JTalk)で生成。音響モデル: Mei (MMDAgent Example Characters) — <b>CC BY 3.0</b></p>
       <h3>BGM</h3>
@@ -312,6 +316,7 @@
       <button class="btn big" id="st-fxl"></button>
       <button class="btn big" id="st-res"></button>
       <button class="btn big" id="st-pad">🎮 コントローラー</button>
+      <button class="btn big" id="st-simple"></button>
       <button class="btn big" id="st-perf">📈 動作の測定</button>
       <button class="btn big" id="st-rec">📊 通しの記録</button>
       <button class="btn big" id="st-save"></button>
@@ -331,6 +336,7 @@
     const fxLB = o.querySelector('#st-fxl'); const fxLS = () => { fxLB.textContent = '✨ 演出: ' + MJ.FX.JP[MJ.FX.level()] + (MJ.FX.isAuto() ? '(自動)' : ''); }; fxLS(); fxLB.addEventListener('click', () => { MJ.FX.cycle(); fxLS(); });
     const rsB = o.querySelector('#st-res'); const rsS = () => { rsB.textContent = '🖥 画質: ' + MJ.Res.JP[MJ.Res.level()]; }; rsS(); rsB.addEventListener('click', () => { MJ.Res.cycle(); rsS(); });
     o.querySelector('#st-pad').addEventListener('click', () => showPadSetup());
+    const smB = o.querySelector('#st-simple'); const smS = () => { smB.textContent = '🧩 シンプルゲームモード: ' + (MJ.simpleUI() ? 'オン' : 'オフ'); }; smS(); smB.addEventListener('click', () => { MJ.setSimpleUI(!MJ.simpleUI()); smS(); });
     /* 通しの記録: 遊んだ分の、場面ごとのコマ数・止まりを、画質×演出ごとに見る(写真に撮って送れるよう、1画面にまとめる) */
     const showRec = (gi, armed, view) => {
       const D = MJ.perf.rec.data();
