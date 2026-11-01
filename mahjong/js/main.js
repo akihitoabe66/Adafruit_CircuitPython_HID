@@ -405,11 +405,7 @@
       });
     });
     o.querySelector('#st-notes').addEventListener('click', () => { MJ.UI.closeOverlay(); MJ.App.openNotes(); });
-    o.querySelector('#st-audio').addEventListener('click', () => {
-      MJ.UI.overlay(`<h2>🔊 音の大きさ</h2>${AUDIO_HTML}<div class="res-foot"><button class="btn pri big" id="au-close">◀ もどる</button></div>`, { plain: true });
-      MJ.UI.syncAudio();
-      document.querySelector('#au-close').addEventListener('click', () => showSettings());
-    });
+    o.querySelector('#st-audio').addEventListener('click', () => MJ.UI.openVolume({ full: true, onClose: () => showSettings() })); // 設定の音の大きさも、対局中と同じ板(◀▶・10段階・同じバー)
   }
 
   /* ホーム・タイトルの桜吹雪: ゆっくり、ずっと流れる(CSSだけで動かす) */

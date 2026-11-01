@@ -1332,3 +1332,9 @@ body.pad-on .pm-hint { display: inline-block; }
 #screen-title .tt-exit:hover, #screen-title .tt-exit.pf, #screen-title .tt-exit:focus-visible { transform: scale(1.07); outline: none; background: none !important; }
 body.pad-on #screen-title .tt-exit.pf { background: none !important; box-shadow: none !important; outline: none !important; transform: scale(1.07); }
 #screen-title .tt-exit.pf img, #screen-title .tt-exit:focus-visible img { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 3px #fff) drop-shadow(0 0 9px #3d86ff) drop-shadow(0 0 16px #3d86ff) drop-shadow(0 4px 6px #000a); }
+/* 設定の音の板(行が多い版): 対局中の板と、同じ列の幅・バーの長さ。4文字の名前だけ、文字を少し小さくして折り返さない */
+.vp.full .vp-r { margin: 5px 0; }
+.vp.full .vp-r.vp-spd { margin: 5px 0; }
+.vp.full .vp-b { height: 46px; } .vp.full .vp-t { font-size: 28px; margin-bottom: 2px; }
+.vp.full .vp-b.vp-sp { font-size: 22px; }
+.vp .vp-l.long { font-size: 21px; white-space: nowrap; letter-spacing: -.02em; }

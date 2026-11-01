@@ -188,28 +188,31 @@
     /* 対局中の音量の板: BGM・効果音・声の3本を、◀▶の10段階で変える。開いている間は、対局を止める */
     volLevels() {
       const r = (v) => Math.max(0, Math.min(10, Math.round(v)));
-      return { bgm: r(MJ.Audio.volume / 0.03), sfx: r(MJ.SFX.vol * 10), voice: r(MJ.SFX.callVol * 10) };
+      return { bgm: r(MJ.Audio.volume / 0.03), sfx: r(MJ.SFX.vol * 10), voice: r(MJ.SFX.callVol * 10), read: r(MJ.SFX.readVol * 10), rate: r((MJ.SFX.readRate - 0.6) * 10) };
     },
     setVolLevel(k, n) {
-      if (!['bgm', 'sfx', 'voice'].includes(k) || !isFinite(n)) return;
+      if (!['bgm', 'sfx', 'voice', 'read', 'rate'].includes(k) || !isFinite(n)) return;
       n = Math.max(0, Math.min(10, n));
-      if (k === 'bgm') { MJ.Audio.setVolume(n * 0.03); if (MJ.Audio.on === false && n > 0) MJ.Audio.setOn(true); }
+      if (k === 'read') { MJ.SFX.setReadVol(Math.max(0.1, n / 10)); this.sampleRead(); }
+      else if (k === 'rate') { MJ.SFX.setReadRate(0.6 + n / 10); this.sampleRead(); }
+      else if (k === 'bgm') { MJ.Audio.setVolume(n * 0.03); if (MJ.Audio.on === false && n > 0) MJ.Audio.setOn(true); }
       else if (k === 'sfx') { MJ.SFX.setVol(n / 10); MJ.SFX.play('discard'); }
       else { MJ.SFX.setCallVol(n / 10); MJ.SFX.setReadVol(Math.max(0.1, n / 10)); if (n > 0) MJ.SFX.voice('ポン', { char: { id: 1 } }); }
       this.syncAudio && this.syncAudio();
     },
-    openVolume() {
-      MJ.paused = true;
-      const rows = [['bgm', 'BGM'], ['sfx', '効果音'], ['voice', '声']];
+    openVolume(opt = {}) {
+      MJ.paused = !opt.full;
+      const rows = [['bgm', 'BGM'], ['sfx', '効果音'], ['voice', '声']].concat(opt.full ? [['read', '読み上げ'], ['rate', '読む速さ']] : []);
       const draw = () => {
         const L = this.volLevels();
-        const html = `<div class="vp"><div class="vp-t">🔊 音のせってい</div>${rows.map(([k, n]) => `<div class="vp-r"><span class="vp-l">${n}</span><button class="vp-b" type="button" data-vk="${k}" data-vd="-1">◀</button><span class="vp-bar"><i style="width:${L[k] * 10}%"></i></span><button class="vp-b" type="button" data-vk="${k}" data-vd="1">▶</button><span class="vp-n">${L[k]}</span></div>`).join('')}<div class="vp-r vp-spd"><span class="vp-l">CPU</span><button class="vp-b vp-sp" type="button" id="vp-spd">⏱ 速さ: ${MJ.CPU_SPEED_JP[MJ.cpuSpeed()]}</button></div><div class="vp-h">0にすると、その音が消えます。対局は、とじるまで止まります。</div><div class="res-foot"><button class="btn pri big" id="vp-close" type="button">とじる</button></div></div>`;
+        const html = `<div class="vp${opt.full ? ' full' : ''}"><div class="vp-t">🔊 音のせってい</div>${rows.map(([k, n]) => `<div class="vp-r"><span class="vp-l${n.length > 3 ? ' long' : ''}">${n}</span><button class="vp-b" type="button" data-vk="${k}" data-vd="-1">◀</button><span class="vp-bar"><i style="width:${L[k] * 10}%"></i></span><button class="vp-b" type="button" data-vk="${k}" data-vd="1">▶</button><span class="vp-n">${L[k]}</span></div>`).join('')}<div class="vp-r vp-spd"><span class="vp-l">CPU</span><button class="vp-b vp-sp" type="button" id="vp-spd">⏱ 速さ: ${MJ.CPU_SPEED_JP[MJ.cpuSpeed()]}</button></div>${opt.full ? `<div class="vp-r vp-spd"><span class="vp-l">役</span><button class="vp-b vp-sp" type="button" id="vp-yk">🔊 上がりの役の読み上げ: ${MJ.SFX.yakuRead ? 'あり' : 'なし'}</button></div>` : ''}<div class="vp-h">0にすると、その音が消えます。${opt.full ? '' : '対局は、とじるまで止まります。'}</div><div class="res-foot"><button class="btn pri big" id="vp-close" type="button">とじる</button></div></div>`;
         this.overlay(html, { plain: true });
       };
-      const close = () => { MJ.paused = false; this.closeOverlay(); };
+      const close = () => { MJ.paused = false; if (opt.onClose) opt.onClose(); else this.closeOverlay(); };
       draw();
       const o = $('#overlay');
       o.onclick = (e) => {
+        if (e.target.closest('#vp-yk')) { MJ.SFX.setYakuRead(!MJ.SFX.yakuRead); draw(); const nb = o.querySelector('#vp-yk'); if (nb && MJ.Pad && MJ.Pad.setCur) MJ.Pad.setCur(nb); return; }
         if (e.target.closest('#vp-spd')) { MJ.cycleCpuSpeed(); draw(); const nb = o.querySelector('#vp-spd'); if (nb && MJ.Pad && MJ.Pad.setCur) MJ.Pad.setCur(nb); return; }
         const b = e.target.closest('.vp-b[data-vk]');
         if (b) {
