@@ -1407,3 +1407,16 @@ body.deal-hide #mine .hand .tile:not(.dl-on), body.deal-hide .blk .bk:not(.dl-on
 .dl-blk i.up { box-shadow: 0 3px 0 #0a2a66, 0 6px 6px #0008, inset 0 0 0 1px #ffffff55; }
 body.deal-hide #mine .hand .tile.dl-on, body.deal-hide .blk .bk.dl-on { animation: dlFade .07s both; }
 @keyframes dlFade { from { opacity: .35; } to { opacity: 1; } }
+
+/* ===== 読み込み中(タイトルの上、真ん中に小さな板)。この間は、何も押せない ===== */
+#ld { display: none; position: fixed; inset: 0; z-index: 9999; align-items: center; justify-content: center; background: rgba(0, 0, 0, .12); cursor: progress; }
+body.title-ready.loading #ld { display: flex; }
+.ld-box { min-width: 26vmin; padding: 2.6vmin 4.6vmin; border-radius: 2.4vmin; background: #0a1f19ee; border: .5vmin solid #ffcc4d; box-shadow: 0 .8vmin 3vmin #000a; text-align: center; color: #fff4cf; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+.ld-t { font-size: 4.2vmin; font-weight: 900; letter-spacing: .06em; white-space: nowrap; }
+.ld-d { display: inline-block; width: 0; overflow: visible; text-align: left; white-space: nowrap; }
+.ld-d i { font-style: normal; animation: ldDot 1.2s steps(1) infinite; opacity: 0; }
+.ld-d i:nth-child(2) { animation-delay: .3s; } .ld-d i:nth-child(3) { animation-delay: .6s; }
+@keyframes ldDot { 0% { opacity: 0; } 25%, 100% { opacity: 1; } }
+.ld-p { margin-top: 1vmin; font-size: 5vmin; font-weight: 900; color: #ffcc4d; font-variant-numeric: tabular-nums; }
+body.loading { pointer-events: none; }
+body.loading #ld { pointer-events: auto; }

@@ -507,7 +507,7 @@
   const loadImg = (u) => new Promise((ok) => { const im = new Image(); im.decoding = 'async'; im.onload = () => { (im.decode ? im.decode() : Promise.resolve()).then(ok, ok); }; im.onerror = ok; im.src = u; MJ.preloaded.push(im); });
   /* 背景の絵は、データとして取り寄せて、CSS変数に入れる(CSSの背景の読み込みが遅れたり、抜けたりしないように) */
   const loadArt = (u, v) => (MJ.isFile ? Promise.reject(new Error('file')) : fetch(u)).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); }).then((b) => { const url = URL.createObjectURL(b); document.documentElement.style.setProperty(v, `url(${url})`); (MJ.artUrl = MJ.artUrl || {})[v] = url; return loadImg(url); }).catch(() => { if (MJ.isFile) { document.documentElement.style.setProperty(v, `url(${u})`); (MJ.artUrl = MJ.artUrl || {})[v] = u; } return loadImg(u); });
-  const pool = (urls, n, gap = 0) => new Promise((done) => { let k = 0, run = 0; const go = () => { if (k >= urls.length && run === 0) return done(); while (run < n && k < urls.length) { run++; loadImg(urls[k++]).then(() => { run--; if (gap) setTimeout(go, gap); else go(); }); } }; go(); }); // gap: 1枚ごとに少し間をあける(入力・音のじゃまにならないように)
+  const pool = (urls, n, gap = 0) => new Promise((done) => { let k = 0, run = 0; const go = () => { if (k >= urls.length && run === 0) return done(); while (run < n && k < urls.length) { run++; loadImg(urls[k++]).then(() => { run--; MJ.progTick && MJ.progTick(); if (gap) setTimeout(go, gap); else go(); }); } }; go(); }); // gap: 1枚ごとに少し間をあける(入力・音のじゃまにならないように)
   /* 全画面で必要な絵(牌・顔・麻雀先生・背景・ボタン)は、タイトルを出す前に全部そろえる */
   const ESSENTIAL = (() => {
     const u = [];
@@ -532,8 +532,34 @@
   const REST = ESSENTIAL.filter((x) => !TITLE.includes(x));
   MJ.titleReady = Promise.all([loadArt('img/title_art.webp', '--art-title'), pool(TITLE, 4)]);
   MJ.menuBgReady = MJ.titleReady.then(() => loadArt('img/menu_bg.webp', '--art-menu')); // ホームの背景を先に(「はじめる」で待つのは、これだけ)
-  MJ.essentialReady = MJ.menuBgReady.then(() => new Promise((r) => setTimeout(r, 2500))).then(() => pool(REST, 2, 30)); // 牌・顔などは、タイトルが落ち着いて(音が鳴り、コントローラーが使えて)から、少しずつ裏で
+  MJ.essentialReady = MJ.menuBgReady.then(() => pool(REST, 4)); // 牌・顔など
   MJ.laterReady = MJ.essentialReady.then(() => pool(LATER, 4));
+  /* ---- 読み込み中の表示: タイトルを先に出し、真ん中に「読み込み中…」と%を出す。すべてそろうまで、コントローラー・マウス・タップは受け付けない ---- */
+  (function loadingGate() {
+    MJ.loading = true; document.body.classList.add('loading');
+    const total = REST.length + LATER.length + 4; let done = 0;
+    const el = () => document.getElementById('ld-p');
+    let raf = 0; const paint = () => { raf = 0; const e = el(); if (e) e.textContent = Math.min(99, Math.floor(done * 100 / total)) + '%'; };
+    MJ.progTick = () => { done++; if (!raf) raf = requestAnimationFrame(paint); };
+    const swallow = (e) => { if (!MJ.loading) return; e.preventDefault(); e.stopImmediatePropagation(); };
+    ['keydown', 'keyup', 'pointerdown', 'mousedown', 'click', 'touchstart', 'touchend', 'wheel'].forEach((t) => window.addEventListener(t, swallow, { capture: true, passive: false }));
+    let ended = false;
+    const finish = () => {
+      if (ended) return; ended = true;
+      const e = el(); if (e) e.textContent = '100%';
+      setTimeout(() => { MJ.loading = false; document.body.classList.remove('loading'); const ld = document.getElementById('ld'); if (ld) ld.remove(); }, 250);
+    };
+    const yieldMs = (ms) => new Promise((r) => setTimeout(r, ms));
+    MJ.laterReady.then(async () => {
+      try { if (MJ.FX) MJ.FX.autoDetect(); } catch (e) { /* ignore */ } MJ.progTick(); await yieldMs(30);
+      MJ.perf.mark('先読み'); try { MJ.SFX.prepare(); } catch (e) { /* ignore */ } MJ.progTick(); await yieldMs(30);
+      const u = MJ.artUrl && MJ.artUrl['--art-menu']; if (u) { const im = new Image(); im.src = u; try { if (im.decode) await im.decode(); } catch (e) { /* ignore */ } } MJ.progTick(); await yieldMs(30);
+      try { App.prewarmMenu && App.prewarmMenu(); } catch (e) { /* ignore */ } MJ.progTick(); await yieldMs(60);
+      try { if (MJ.warmAudio) await Promise.race([MJ.warmAudio(['audio/home.mp3']), yieldMs(8000)]); } catch (e) { /* ignore */ }
+      finish();
+    }).catch(finish);
+    setTimeout(finish, 60000); // 万一、終わらないときだけ、あきらめて進める
+  })();
   function preload() { /* (以前の先読みは、上の MJ.essentialReady / MJ.laterReady が行う) */ }
   init();
   /* タイトル画面の桜: 花びらを、ゆっくり何度でも降らせる(最初から画面全体に散らばっているように、アニメの開始位置をずらす) */
@@ -557,27 +583,6 @@
     const once = () => { if (!fired) { fired = true; done(); } };
     // 背景の絵・ボタン・牌・顔など、全画面で使う絵が、すべて読み込まれて(デコードまで終わって)から出す
     MJ.titleReady.then(once); // タイトルは、タイトルの絵だけでもう出す(ほかは、裏で読み込み中)
-    MJ.essentialReady.then(() => { if (MJ.FX) MJ.FX.autoDetect(); }); // 重い端末なら、自動で演出を軽量に
-    // タイトルが落ち着いたら、押す前に、重い準備を済ませておく(音の出口・ホームの背景の変換と、最初の描画)
-    MJ.essentialReady.then(() => setTimeout(() => {
-      MJ.perf.mark('先読み'); try { MJ.SFX.prepare(); } catch (e) { /* ignore */ }
-      const u = MJ.artUrl && MJ.artUrl['--art-menu']; if (u) { const im = new Image(); im.src = u; if (im.decode) im.decode().catch(() => {}); }
-      setTimeout(() => App.prewarmMenu && App.prewarmMenu(), 600);
-      // ホームにいる間に、牌・顔の画像を先に読み込んで、画面に出せる形にしておく(対局に入る時の準備を軽くする)。少しずつ、入力のじゃまにならないように
-      setTimeout(() => {
-        const L = [];
-        for (let t = 0; t < 38; t++) L.push(`img/tiles/${t}.webp`);
-        ['r4', 'r13', 'r22'].forEach((x) => L.push(`img/tiles/${x}.webp`));
-        (MJ.CHARS || []).forEach((c) => { if (c && c.face) L.push(c.face, c.face.replace(/\.webp$/, '_f.webp')); });
-        MJ._warm = MJ._warm || [];
-        let i = 0;
-        const step = () => {
-          for (let k = 0; k < 4 && i < L.length; k++, i++) { const im = new Image(); im.src = L[i]; MJ._warm.push(im); if (im.decode) im.decode().catch(() => {}); }
-          if (i < L.length) setTimeout(step, 80);
-        };
-        step();
-      }, 2500);
-    }, 1500));
     MJ.menuReady = MJ.menuBgReady;
     setTimeout(once, 20000); // 回線がとても遅いときだけ、あきらめて先に出す
   })();
