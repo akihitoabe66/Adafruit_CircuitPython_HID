@@ -1372,3 +1372,14 @@ body.simple-ui #mn #hm-set { min-width: 0; }
 .svd .cf-btns .btn:not(.pri):not(.pf), .tcd .cf-btns .btn:not(.pri):not(.pf) { background: #2d4a40 !important; color: #e8f2ec !important; border: 2px solid #5f8a79 !important; }
 .svd .cf-btns .btn.pri:not(.pf) { background: #2d4a40 !important; color: #e8f2ec !important; border: 2px solid #5f8a79 !important; }
 .svd .cf-btns .btn.pf, .tcd .cf-btns .btn.pf { background: #ffd23f !important; color: #1b1b12 !important; }
+
+/* ===== おすすめ(★): 牌を光らせず・持ち上げず、右上の小さな印だけにする(黄色=選択中、と混ざらないように) ===== */
+.hand .tile.rec, #mine .hand .tile.rec { box-shadow: none; transform: none; }
+.hand .tile.rec.picked, #mine .hand .tile.rec.picked { transform: translateY(-16px); }
+#mine .hand .tile.rec::before, #mine .hand .tile.rec.dgt::before, #mine .hand .tile.rec.hasmk::before, .hand .tile.rec::before {
+  content: '★'; position: absolute; top: 2px; right: 2px; left: auto; bottom: auto; transform: none; width: 20px; height: 20px; line-height: 19px; padding: 0; text-align: center; font-size: 13px; border-radius: 50%; background: #0e4f45; color: #aef5e4; border: 1px solid #7fe8d0; text-shadow: none; z-index: 3; pointer-events: none;
+}
+
+/* 麻雀先生の、止まったときのひとこと(牌の絵つき) */
+.tidle { display: inline-block; background: #0e3d3a; color: #e8fff8; border: 2px solid #5fd1bd; border-radius: 12px; padding: 4px 12px; font-size: 20px; line-height: 1.35; }
+.tidle .tile, .tidle img { height: 1.3em; width: auto; vertical-align: middle; }

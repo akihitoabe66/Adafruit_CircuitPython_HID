@@ -101,7 +101,7 @@
   const shanC = (c, f) => {
     const k = f + ':' + c.join('');
     let v = shMemo.get(k);
-    if (v === undefined) { v = MJ.shanten(c, f); if (shMemo.size > 60000) shMemo.clear(); shMemo.set(k, v); }
+    if (v === undefined) { v = MJ.shanten(c, f); if (shMemo.size > 120000) shMemo.clear(); shMemo.set(k, v); }
     return v;
   };
   A.shanC = shanC;
@@ -163,6 +163,24 @@
     return l.find((h) => !h.red) || l[0];
   };
 
+  /* 手の方向(役を見据えた、牌の取捨): 一色に寄っているなら、ほかの色を切る。么九牌が少ないなら、タンヤオに向けて端・字牌を切る */
+  A.planAdj = function (game, p, t, c) {
+    let v = 0;
+    const suit = [0, 0, 0]; let hon = 0, yao = 0, yh = 0;
+    for (let i = 0; i < 27; i++) { suit[(i / 9) | 0] += c[i]; if (MJ.isYaochu(i)) yao += c[i]; }
+    for (let i = 27; i < 34; i++) { hon += c[i]; yao += c[i]; if (c[i] >= 2 && isYakuhaiFor(game, p, i)) yh++; }
+    for (const m of p.melds) { if (m.t >= 27) hon += 3; else suit[(m.t / 9) | 0] += 3; }
+    const total = suit[0] + suit[1] + suit[2] + hon;
+    const top = Math.max(suit[0], suit[1], suit[2]);
+    if (total >= 10 && top + hon >= total - 3 && top >= 5) { // 混一色・清一色に寄っている
+      const ts = suit.indexOf(top);
+      if (t < 27 && ((t / 9) | 0) !== ts) v += 3; else v -= 1;
+    } else if (!yh && yao <= 3 && MJ.RULES.kuitan !== false) { // タンヤオに近い
+      if (MJ.isYaochu(t)) v += 2.5; else v -= 0.5;
+    }
+    return v;
+  };
+
   /* 手の価値による打牌補正 (大きいほど切りたい) */
   A.valueAdj = function (game, p, t, c) {
     let v = 0;
@@ -173,6 +191,7 @@
     if (t >= 27 && c[t] === 1 && isYakuhaiFor(game, p, t)) v -= 1;
     if (MJ.isTerminal(t) && c[t] === 1) v += 1.5;
     if (p.hand.some((h) => h.t === t && h.red)) v -= 2;
+    v += A.planAdj(game, p, t, c);
     return v;
   };
 
@@ -190,13 +209,21 @@
     const evals = [];
     for (const t of types) {
       c[t]--;
-      evals.push({ t, tile: pickTile(p.hand, t), sh: MJ.shanten(c, f), ukeire: { n: 0, tiles: [] } });
+      evals.push({ t, tile: pickTile(p.hand, t), sh: shanC(c, f), ukeire: { n: 0, tiles: [] } });
       c[t]++;
     }
     let minSh = 99;
     for (const e of evals) if (e.sh < minSh) minSh = e.sh;
     for (const e of evals) {
-      if (e.sh === minSh) { c[e.t]--; e.ukeire = ukeireOf(c, f, e.sh, vis); c[e.t]++; }
+      if (e.sh === minSh) {
+        c[e.t]--; e.ukeire = ukeireOf(c, f, e.sh, vis);
+        if (e.sh === 0) { // テンパイになる切り方: フリテン(自分が捨てた牌が待ち)と、待ちの枚数も見る
+          const ws = MJ.waits(c, f);
+          e.waits = ws; e.wl = ws.reduce((a, w) => a + Math.max(0, 4 - vis[w] - (w === e.t ? 1 : 0)), 0);
+          e.furiten = ws.length > 0 && ws.some((w) => p.discardTypes.has(w) || w === e.t);
+        }
+        c[e.t]++;
+      }
     }
     // 2手先の読み(上位の候補だけ): 受け入れ枚数が同程度でも、形の良い方を選べるようにする
     if (opt.deep && minSh > 0) {
@@ -223,7 +250,7 @@
     }
     return { f, c, vis, evals, minSh, opps, others };
   };
-  A.effScore = (e) => -e.sh * 100 + (e.eff2 !== undefined ? (e.ukeire.n + e.eff2) * 0.75 : e.ukeire.n) * 1.5 + e.adj; // adj: 大きいほど「切りたい牌」(ドラ・役牌の対子は負=残したい)
+  A.effScore = (e) => (e.furiten ? -45 : 0) + -e.sh * 100 + (e.eff2 !== undefined ? (e.ukeire.n + e.eff2) * 0.75 : e.ukeire.n) * 1.5 + e.adj; // adj: 大きいほど「切りたい牌」(ドラ・役牌の対子は負=残したい)
   A.byEff = (evals) => evals.slice().sort((a, b) => A.effScore(b) - A.effScore(a));
   A.bySafety = (evals) => evals.slice().sort((a, b) => (a.danger ? a.danger.score : 0) - (b.danger ? b.danger.score : 0) || A.effScore(b) - A.effScore(a));
 
@@ -320,6 +347,78 @@
     return { level: 'none', why: '鳴くと役がありません' };
   };
 
+  /* ---- 先読みの下ごしらえ(裏で少しずつ): 自分の番が終わったあと、次に引く牌ごとの「シャンテン・受け入れ」を、あらかじめ計算しておく。
+     山の牌は見ない(引く牌が何でもよいように、全部の牌について計算)。1回に数ミリ秒ずつ、画面の動きを止めないように進める ---- */
+  const warmJobs = new Map();
+  A.prewarm = function (game, p) {
+    if (!game || !p || game.fast || game.stopped || typeof setTimeout === 'undefined') return;
+    const old = warmJobs.get(p); if (old) { old.stop = true; }
+    const c = MJ.toCounts(p.hand);
+    let n13 = 0; for (let i = 0; i < 34; i++) n13 += c[i];
+    if (n13 % 3 !== 1) return; // 13枚(捨てたあと)のときだけ
+    const f = p.melds.length, vis = A.visible(game, p);
+    const draws = [];
+    for (let t = 0; t < 34; t++) if (vis[t] < 4) draws.push(t);
+    const base = shanC(c, f);
+    // 有効牌・近くの牌を先に
+    const near = (t) => (c[t] > 0 ? 0 : t < 27 && [-2, -1, 1, 2].some((d) => (t % 9) + d >= 0 && (t % 9) + d <= 8 && c[t + d] > 0) ? 1 : 2);
+    draws.sort((a, b) => near(a) - near(b));
+    const job = { stop: false, i: 0 };
+    warmJobs.set(p, job);
+    const step = () => {
+      if (job.stop || game.stopped || MJ.paused) { if (warmJobs.get(p) === job && !job.stop && MJ.paused) setTimeout(step, 400); return; }
+      const t0 = Date.now();
+      while (job.i < draws.length && Date.now() - t0 < 6) {
+        const t = draws[job.i++];
+        c[t]++;
+        let mn = 99; const cand = [];
+        for (let x = 0; x < 34; x++) { if (!c[x]) continue; c[x]--; const s2 = shanC(c, f); if (s2 < mn) { mn = s2; cand.length = 0; } if (s2 === mn) cand.push(x); c[x]++; }
+        if (mn > 0) for (const x of cand.slice(0, 6)) { c[x]--; ukeireOf(c, f, mn, vis); c[x]++; }
+        c[t]--;
+      }
+      if (job.i < draws.length) setTimeout(step, 8); else warmJobs.delete(p);
+    };
+    setTimeout(step, 30);
+  };
+
+  /* ---- リーチを受けたときの構え: 押す(攻める) / 半押し(役を残して危険の少ない牌を選ぶ) / 回す(安全に降りる) ---- */
+  A.stance = function (game, p, an) {
+    const opps = an.opps, minSh = an.minSh;
+    if (!opps.length) return null;
+    let dora = 0;
+    const doraT = game.doraInd.map((d) => MJ.doraOf(d.t));
+    for (const h of p.hand) if (doraT.includes(h.t) || h.red) dora++;
+    for (const m of p.melds) for (const h of m.tiles) if (doraT.includes(h.t) || h.red) dora++;
+    let yaku = p.melds.some((m) => m.kind !== 'chi' && isYakuhaiFor(game, p, m.t));
+    for (let t = 27; t < 34; t++) if (an.c[t] >= 2 && isYakuhaiFor(game, p, t)) yaku = true;
+    const dealerRiichi = opps.some((q) => q.seat === game.dealer);
+    const bestN = Math.max(0, ...an.evals.filter((e) => e.sh === minSh).map((e) => e.ukeire.n));
+    const iAmDealer = p.seat === game.dealer;
+    let kind, why;
+    if (minSh === 0) {
+      const wl = Math.max(0, ...an.evals.filter((e) => e.sh === 0 && !e.furiten).map((e) => e.wl || 0));
+      if (wl >= 2) { kind = 'push'; why = `テンパイしています(待ち${wl}枚)。危ない牌でも、押して勝負しましょう。`; }
+      else { kind = 'mid'; why = 'テンパイですが待ちが少ないので、危険の少ない牌で様子を見ましょう。'; }
+    } else if (minSh === 1) {
+      if (opps.length === 1 && (dora >= 2 || yaku || (iAmDealer && dora >= 1)) && bestN >= 6) { kind = 'push'; why = `あと1歩で、${dora >= 2 ? 'ドラが多く' : yaku ? '役があり' : '親番でドラがあり'}手が高くなりそう。押しましょう。`; }
+      else if (opps.length >= 2 || dealerRiichi) { kind = dora >= 3 ? 'mid' : 'fold'; why = dora >= 3 ? 'ドラが多いので、安全な牌を選びながら、手を残しましょう。' : `${dealerRiichi ? '親のリーチ' : 'リーチが複数'}です。無理をせず、回しましょう。`; }
+      else { kind = 'mid'; why = '手は悪くありません。役を残しながら、危険の少ない牌(スジ・字牌)を切りましょう。'; }
+    } else if (minSh === 2) {
+      if (opps.length === 1 && (dora >= 2 || yaku) && !dealerRiichi) { kind = 'mid'; why = '手は少し遠いですが、役・ドラがあります。危険の少ない牌で、様子を見ましょう。'; }
+      else { kind = 'fold'; why = '手が遠いので、安全な牌で回しましょう。'; }
+    } else { kind = 'fold'; why = '手が遠いので、安全な牌で降りましょう。'; }
+    // 牌を選ぶ
+    const ev = an.evals;
+    const dn = (e) => (e.danger ? e.danger.score : 0);
+    let pick;
+    if (kind === 'push') pick = ev.slice().sort((a, b) => (A.effScore(b) - dn(b) * 0.6) - (A.effScore(a) - dn(a) * 0.6))[0];
+    else if (kind === 'mid') {
+      const okc = ev.filter((e) => dn(e) < 8);
+      pick = (okc.length ? okc : ev).slice().sort((a, b) => (A.effScore(b) - dn(b) * 4) - (A.effScore(a) - dn(a) * 4))[0];
+    } else pick = ev.slice().sort((a, b) => (-dn(b) * 10 - b.sh * 3 + b.ukeire.n * 0.2) - (-dn(a) * 10 - a.sh * 3 + a.ukeire.n * 0.2))[0];
+    return { kind, why, pick, label: kind === 'push' ? '押す' : kind === 'mid' ? '半押し' : '回す(降り)' };
+  };
+
   /* ================= CPU 行動決定 ================= */
   A.chooseSelf = function (game, p, opts) {
     if (opts.tsumo) return { act: 'tsumo' };
@@ -337,6 +436,14 @@
       }
     }
 
+    if (opps.length && lv >= 4 && !(opts.riichi && opts.riichi.length && false)) { // 強いCPUは、押す・半押し・回すを決めて打つ
+      const stc = A.stance(game, p, an);
+      if (stc && stc.pick) {
+        const pk = stc.pick;
+        if (opts.riichi.includes(pk.t) && stc.kind === 'push' && A.wantRiichi(game, p, pk, an)) return { act: 'riichi', tile: pk.tile };
+        return { act: 'discard', tile: pk.tile };
+      }
+    }
     let fold = false;
     if (opps.length && lv >= 3) {
       const thr = st === 'defense' ? 1 : st === 'attack' ? 3 : 2;

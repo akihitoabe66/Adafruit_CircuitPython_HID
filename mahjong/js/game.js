@@ -353,6 +353,7 @@
       this.discardLog.push({ seq: d.seq, tile, by: p.seat });
       this.lastDiscard = { tile, by: p.seat, d };
       this.sortHand(p);
+      if (this.ui && !p.riichi && MJ.AI.prewarm) MJ.AI.prewarm(this, p); // 次の番のために、裏で少しずつ下ごしらえ
       if (this.ui && MJ.Banter && !riichi) MJ.Banter.discard(this, p, tile);
       if (riichi) {
         p.riichiPending = true;

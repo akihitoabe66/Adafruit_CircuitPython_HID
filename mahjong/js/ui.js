@@ -569,7 +569,7 @@
       const card = cand ? this.callCard(game, rs, cand) : '';
       const dtabs = sel && this.dng && this.dng.opps.length >= 2 ? `<div class="dtabs"><span>危険度の対象:</span><button class="btn sm${this.dngTab === 'all' ? ' on' : ''}" data-dtab="all">全員</button>${this.dng.opps.map((q, i) => `<button class="btn sm${this.dngTab === i ? ' on' : ''}" data-dtab="${i}">${q.name}</button>`).join('')}</div>` : '';
       const msg = sel ? this.msgText(sel) : '';
-      const tipHtml = `${msg ? `<div class="tmsg">${msg}</div>` : ''}${tip}`;
+      const tipHtml = `${msg ? `<div class="tmsg">${msg}</div>` : ''}${!tip && sel && this.idleMsg ? `<div class="tidle">${this.idleMsg}</div>` : ''}${tip}`;
       return `${card}<div class="hand${this.riichiMode ? ' riichi-mode' : ''}" id="hand">${tiles}</div><div class="tipline" id="tipline">${tipHtml}</div>${dtabs}`;
     },
 
@@ -730,7 +730,7 @@
 
     msgText(s) {
       const o = s.opts;
-      return !s.p.riichi && o.riichi.length && !this.riichiMode ? '<b class="rch-hint">テンパイ!リーチできます</b>' : s.p.riichi ? 'リーチ中: ツモ切りです' : s.st.afterCall ? '1枚切ります(暗い牌は食い替え禁止)' : this.riichiMode ? '赤枠の牌でリーチ成立' : this.oneClick ? '切る牌をタップ' : '牌を選んで、もう一度タッチで捨てる';
+      return !s.p.riichi && o.riichi.length && !this.riichiMode ? '<b class="rch-hint">テンパイ!リーチできます</b>' : s.p.riichi ? 'リーチ中: ツモ切りです' : s.st.afterCall ? '鳴いた直後です。<b>暗い牌は、ルールで切れません</b>(食い替え禁止)。明るい牌から1枚切ります' : this.riichiMode ? '赤枠の牌でリーチ成立' : this.oneClick ? '切る牌をタップ' : '牌を選んで、もう一度タッチで捨てる';
     },
     /* 右端の縦ボタン列(いつも同じ並びで、押せないものは灰色) */
     /* 右の列: 「いまできる操作」だけを、決まった場所に出す(できることがない枠は、点線の空き枠)。下に、あたり牌の欄 */
@@ -876,6 +876,10 @@
     },
     showInfo(id) {
       const hh = this.sel && this.sel.type === 'self' ? this.sel.p.hand.find((x) => x.id === id) : null;
+      if (hh && (this.sel.p.kuikae || []).includes(hh.t)) { // 暗い牌(食い替え禁止)の説明
+        const el1 = $('#tipline'); if (el1) { el1.innerHTML = `<b>${MJ.icon(hh.t)} ${MJ.tileName(hh.t)}</b> は、いまは切れません。<br><span class="cc-s">鳴いた直後に、鳴いた牌と同じ牌(チーなら反対側の端の牌も)を切るのは、ルールで禁止です(食い替え)。</span>`; this.fitTip(); }
+        return;
+      }
       if (hh && this.dng) {
         this.hilite(hh.t);
         const dl = this.dangerLine(hh.t);
@@ -1008,7 +1012,13 @@
           this.render(game);
           this.refreshCoach();
         };
-        this.adv = null; this.coachHtml = ''; this.summary = ''; this.dng = null;
+        this.adv = null; this.coachHtml = ''; this.summary = ''; this.dng = null; this.idleMsg = null;
+        clearTimeout(this._idleT);
+        if (this.coachActive()) this._idleT = setTimeout(() => { // 麻雀先生: しばらく止まっていたら、ひとこと(牌の絵つき)
+          if (this.sel !== mySel || this.picked || !this.adv) return;
+          const m = MJ.Coach.idleAdvice(game, p, this.adv);
+          if (m) { this.idleMsg = m; this.render(game); }
+        }, 7000);
         if (needAdv || this.dangerOn) { this.render(game); setTimeout(fill, 40); } // まず、手牌だけをすぐ出す(おすすめ・危険度の計算は、そのあと。計算が重い端末でも、牌が出るのが遅れない)
         else fill();
       });

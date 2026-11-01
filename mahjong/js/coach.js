@@ -255,25 +255,16 @@
   /* ---------- 自分の手番のアドバイス ---------- */
   C.selfAdvice = function (game, p, opts, st) {
     const mode = game.mode;
-    const an = A.analyze(game, p, { know: 2, deep: true, deepN: 6, budget: 250 });
+    const an = A.analyze(game, p, { know: 2, deep: true, deepN: 8, budget: 300 });
     const marks = {};
     const cards = [];
     const eff = A.byEff(an.evals);
     let best = eff[0];
-    // 麻雀先生のおすすめは、リーチをかけた人がいるとき、強いCPUと同じ読み(降りる・回す・押す)で選ぶ
+    // 麻雀先生のおすすめは、リーチをかけた人がいるとき「押す・半押し・回す」を決めて、その構えで選ぶ(降りるだけにしない)
+    let stance = null;
     if (an.opps.length && an.evals.length && (mode === 'free' || mode === 'beginner')) {
-      const minSh = an.minSh;
-      let fold = false;
-      if (minSh >= 2) fold = true;
-      if (minSh === 1 && an.opps.length >= 2) fold = true;
-      const kk = minSh === 0 ? 0.35 : 1;
-      let top = null, ts = -1e9;
-      for (const e of an.evals) {
-        const dn = e.danger ? e.danger.score : 0;
-        const s = fold ? -dn * 10 - e.sh * 3 + e.ukeire.n * 0.2 : -e.sh * 100 + (e.eff2 !== undefined ? (e.ukeire.n + e.eff2) * 0.75 : e.ukeire.n) * 1.5 + e.adj - dn * 1.6 * kk * 1.5;
-        if (s > ts) { ts = s; top = e; }
-      }
-      if (top) best = top;
+      stance = A.stance(game, p, an);
+      if (stance && stance.pick) best = stance.pick;
     }
     let recId = best ? best.tile.id : null;
 
@@ -310,6 +301,7 @@
       let body = `<b>${names}</b>がリーチ中です。放銃(ロンされること)に注意。<br>`;
       if (best.danger && best.danger.score >= 8) body += `おすすめの${ic(best.t)}は<b>${best.danger.tag}</b>で危険度が高め(約${Math.round(best.danger.score)}%)。<br>`;
       body += `いちばん安全なのは<b>${ic(safe.t)} ${tn(safe.t)}</b>(${safe.danger.tag})。<br><span class="cc-s">${safe.danger.why}</span>`;
+      if (stance) body = `<b>⚔ 今回の構え: ${stance.label}</b><br>${stance.why}<br>` + body;
       return card('🛡 リーチへの警戒', body, best.danger && best.danger.score >= 8 ? 'warn' : '');
     };
 
@@ -357,7 +349,7 @@
     }
 
     // リーチ者がいて、手が遠い/危険な牌しか効率に合わない場合は、★を安全牌(オリ)に切り替える(★と助言が食い違わないように)
-    if (mode !== 'defense' && an.opps.length && best && best.danger && an.minSh > 0) {
+    if (mode !== 'defense' && !stance && an.opps.length && best && best.danger && an.minSh > 0) {
       const safe = A.bySafety(an.evals)[0];
       const dn = best.danger.score;
       const fold = safe && safe.t !== best.t && dn >= 8 && (an.minSh >= 2 || dorasInHand(game, p) < 2);
@@ -408,7 +400,23 @@
       const fc = formsCard(game, p, an, best, eff, recId);
       if (fc) cards.push(fc);
     }
-    return { html: cards.filter(Boolean).join(''), marks, recId, info, infoLong, summary };
+    return { html: cards.filter(Boolean).join(''), marks, recId, info, infoLong, summary, an, best, stance };
+  };
+
+  /* しばらく止まっているときの、麻雀先生のひとこと(牌の絵つき) */
+  C.idleAdvice = function (game, p, adv) {
+    if (!adv || !adv.an) return null;
+    const an = adv.an, best = adv.best;
+    if (an.opps.length && adv.stance) return `🎓 リーチを受けています。<b>${adv.stance.label}</b>: ${adv.stance.why}`;
+    const c = an.c;
+    const yk = []; for (let t = 27; t < 34; t++) if (c[t] >= 2 && A.isYakuhaiFor(game, p, t)) yk.push(t);
+    if (yk.length) return `🎓 ${yk.map(ic).join('')} は役牌(やくはい)です。<b>残しておきましょう</b>。${c[yk[0]] === 2 ? 'あと1枚で、ポンできます。' : ''}`;
+    const lone = []; for (let t = 27; t < 34; t++) if (c[t] === 1 && !A.isYakuhaiFor(game, p, t)) lone.push(t);
+    if (lone.length) return `🎓 ${lone.slice(0, 3).map(ic).join('')} は役にならない1枚の字牌です。<b>早めに切っていきましょう</b>。`;
+    const dr = []; for (const d of game.doraInd) { const t = MJ.doraOf(d.t); if (c[t] > 0 && !dr.includes(t)) dr.push(t); }
+    if (dr.length) return `🎓 ${dr.map(ic).join('')} はドラです。<b>持っておくと点数が高くなります</b>。`;
+    if (best) return `🎓 ${ic(best.t)} ${tn(best.t)} を切るのがおすすめです(${an.minSh === 0 ? 'テンパイ' : an.minSh + 'シャンテン'}・有効牌${best.ukeire.n}枚)。`;
+    return null;
   };
 
   /* ---------- 守備モード ---------- */
