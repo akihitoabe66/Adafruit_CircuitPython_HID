@@ -1341,7 +1341,7 @@ body.pad-on #screen-title .tt-exit.pf { background: none !important; box-shadow:
 
 /* ===== シンプルゲームモード(設定でオン): ホームは「麻雀をはじめる」だけ。背景はそのまま ===== */
 body.simple-ui #mn .mk-col, body.simple-ui #mn #hm-quiz, body.simple-ui #mn #hm-study, body.simple-ui #mn #hm-rec, body.simple-ui #mn #menu-stats { display: none !important; }
-body.simple-ui #mn #hm-play { left: 226px; right: 226px; top: 164px; height: 96px; font-size: 46px; }
+body.simple-ui #mn #hm-play { left: 226px; right: 226px; top: 164px; height: 96px; font-size: 38px; }
 body.simple-ui #mn #hm-set { left: auto; right: 22px; top: 346px; width: auto; height: auto; padding: 6px 18px; font-size: 24px; font-weight: 900; -webkit-text-stroke: 0; color: #f3e3b0; background: linear-gradient(#6b4a2a, #3e2a14); border: 3px solid #c99a3d; border-radius: 12px; box-shadow: 0 4px 10px #000a !important; justify-content: center; transform: none; }
 body.simple-ui #mn #hm-set::before, body.simple-ui #mn #hm-play::before { display: none; }
 body.simple-ui #mn #hm-set.pf, body.simple-ui #mn #hm-set:hover { background: #ffd23f; color: #1b1b12; border-color: #fff; box-shadow: 0 0 0 5px rgba(255, 210, 63, .6) !important; outline: none; }
