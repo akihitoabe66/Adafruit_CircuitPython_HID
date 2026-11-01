@@ -1362,3 +1362,9 @@ body.simple-ui #mn #hm-set { min-width: 0; }
 .tcd .cf-btns, .svd .cf-btns { flex-wrap: nowrap !important; gap: 12px; }
 .tcd .cf-btns .btn, .tcd .cf-btns .btn.tc-back, .svd .cf-btns .btn, .svd #sv-menu { flex: 1 1 0 !important; min-width: 0 !important; font-size: 24px !important; padding: 18px 8px !important; order: 0 !important; white-space: nowrap; background: var(--idle, #2d4a40); border: 3px solid transparent; }
 .tcd .cf-btns .btn.tc-back, .svd #sv-menu { background: #2d4a40; color: #e8f2ec; border: 2px solid #5f8a79; }
+
+/* リーチ宣言中の右の表示: ボタンに見えない、目立つ「状態の帯」(枠・影・グラデーション・点滅なし。赤い太い線と文字だけ) */
+.rch-status { display: flex; flex-direction: column; gap: 2px; padding: 4px 4px 4px 10px; border-left: 6px solid #ff4f6e; background: none; color: #fff; text-align: left; line-height: 1.25; cursor: default; user-select: none; }
+.rch-status b { font-size: 22px; font-weight: 900; color: #ff7a93; letter-spacing: .04em; white-space: nowrap; }
+.rch-status span { font-size: 15px; font-weight: 800; color: #e8f2ec; }
+.rch-status i { font-style: normal; font-weight: 900; color: #ffd23f; border: 2px solid #ffd23f; border-radius: 50%; padding: 0 6px; margin-right: 2px; font-size: 14px; }

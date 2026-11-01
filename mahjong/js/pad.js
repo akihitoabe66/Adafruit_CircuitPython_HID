@@ -56,7 +56,8 @@
     scope().forEach((root) => root.querySelectorAll(FOCUSABLE).forEach((el) => {
       if (el.matches('[tabindex="-1"], input[type=hidden], .ph')) return;
       if (el.classList.contains('off')) return; // 押せない(薄い)ボタンには、止まらない
-      if (el.matches('.hand .tile.dis')) return; // 切れない(暗い)牌には、止まらない
+      if (el.matches('.hand .tile.dis')) return;
+      if (el.closest('[data-cancel-riichi]')) return; // 切れない(暗い)牌には、止まらない
       if (el.matches('.gl-off')) return;
       if (el.matches('.pm-arrow')) return; // ページ送りの矢印は、見た目だけ(コントローラーでは←→とAを使う。矢印には止まらない)
       if (el.tagName === 'DETAILS') return;

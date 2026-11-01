@@ -11,6 +11,7 @@
     dangerSym: (() => { try { return JSON.parse(localStorage.getItem('mj_dsym')) === true; } catch (e) { return false; } })(), game: null, hintOn: true, oneClick: false, reveal: false, sel: null, bubbles: {}, adv: null, picked: null, riichiMode: false, reactHtml: '', coachHtml: '',
 
     init() {
+      document.addEventListener('click', (e) => { if (e.target.closest('[data-cancel-riichi]') && this.sel && this.riichiMode) this.onAction({ dataset: { act: 'riichi' } }); }); // マウス・タップでは、この表示を押しても取り消せる
       const T = $('#table');
       T.addEventListener('click', (e) => {
         const b = e.target.closest('button[data-act]');
@@ -742,7 +743,10 @@
       const slots = [];
       if (self) {
         if (o.tsumo) slots.push(B('b-tsumo pulse', 'tsumo', 'ツモ!'));
-        if (o.riichi.length) slots.push(B('b-riichi', 'riichi', this.riichiMode ? 'リーチ取消' : 'リーチ'));
+        if (o.riichi.length) {
+          if (this.riichiMode) slots.push('<div class="rch-status" data-cancel-riichi><b>リーチ中</b><span>光る牌を</span><span><i>A</i> 切る</span><span><i>B</i> やめる</span></div>'); // 宣言中は、ボタンではなく、状態の表示(押せるボタンに見えないデザイン)
+          else slots.push(B('b-riichi', 'riichi', 'リーチ'));
+        }
         const kans = [...o.ankan.map((t) => ['ankan', t]), ...o.kakan.map((t) => ['kakan', t])];
         if (kans.length === 1) slots.push(B('b-call', kans[0][0], 'カン', `data-t="${kans[0][1]}"`));
         else if (kans.length > 1) slots.push(`<div class="sb-row">${kans.map(([k, t]) => B('b-call', k, `カン${MJ.tileName(t)}`, `data-t="${t}"`)).join('')}</div>`);
