@@ -212,6 +212,11 @@
       cur.value = v; cur.dispatchEvent(new Event('input', { bubbles: true })); cur.dispatchEvent(new Event('change', { bubbles: true }));
       return;
     }
+    if (cur._sel && dx) { // 選択ボタン(プルダウンの代わり)
+      const sl = cur._sel, i = Math.max(0, Math.min(sl.options.length - 1, sl.selectedIndex + dx));
+      if (i !== sl.selectedIndex) { sl.selectedIndex = i; sl.dispatchEvent(new Event('change', { bubbles: true })); }
+      return;
+    }
     if (cur.matches('select') && dx) {
       const i = Math.max(0, Math.min(cur.options.length - 1, cur.selectedIndex + dx));
       if (i !== cur.selectedIndex) { cur.selectedIndex = i; cur.dispatchEvent(new Event('change', { bubbles: true })); }

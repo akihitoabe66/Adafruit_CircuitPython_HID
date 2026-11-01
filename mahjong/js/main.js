@@ -502,6 +502,20 @@
   }
   /* 画像の先読み: タイトル/ホームの背景 → キャラ → 自分のアイコン → 牌 の順に、起動直後から裏で読み込んでおく(画面切替で真っ黒にならない) */
   MJ.preloaded = [];
+  /* プルダウン(select)は、スマホでは回転しない別の画面が出てしまうので、画面の中の「押すと次の選択肢へ」のボタンに置き換える(◀▶でも変えられる) */
+  MJ.enhanceSelects = (root) => {
+    (root || document).querySelectorAll('select:not([data-enh])').forEach((sel) => {
+      sel.dataset.enh = '1';
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn selbtn'; b._sel = sel;
+      const upd = () => { const o = sel.options[sel.selectedIndex]; b.textContent = (o ? o.text : '') + '  ▶'; };
+      upd();
+      b.addEventListener('click', (e) => { e.preventDefault(); if (!sel.options.length) return; sel.selectedIndex = (sel.selectedIndex + 1) % sel.options.length; sel.dispatchEvent(new Event('change', { bubbles: true })); upd(); });
+      sel.addEventListener('change', upd);
+      sel.style.display = 'none'; sel.after(b);
+    });
+  };
+  let enhT = 0; new MutationObserver(() => { if (!enhT) enhT = setTimeout(() => { enhT = 0; MJ.enhanceSelects(); }, 120); }).observe(document.body, { childList: true, subtree: true }); // 描き直しのたびには調べない(まとめて)
+  MJ.enhanceSelects();
   const pad2 = (i) => String(i).padStart(2, '0');
   /* 画像を読み込んで、デコードまで終わらせる(失敗しても止まらない)。読み込んだ絵は MJ.preloaded に持っておく */
   const loadImg = (u) => new Promise((ok) => { const im = new Image(); im.decoding = 'async'; im.onload = () => { (im.decode ? im.decode() : Promise.resolve()).then(ok, ok); }; im.onerror = ok; im.src = u; MJ.preloaded.push(im); });

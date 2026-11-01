@@ -1420,3 +1420,8 @@ body.title-ready.loading #ld { display: flex; }
 .ld-p { margin-top: 1vmin; font-size: 5vmin; font-weight: 900; color: #ffcc4d; font-variant-numeric: tabular-nums; }
 body.loading { pointer-events: none; }
 body.loading #ld { pointer-events: auto; }
+
+/* プルダウンの代わりの選択ボタン */
+.selbtn { min-height: 44px; padding: 6px 16px; font-size: 18px; font-weight: 800; text-align: left; white-space: nowrap; }
+body.rot .ld-box { min-width: 200px; padding: 14px 28px; border-width: 3px; border-radius: 14px; }
+body.rot .ld-t { font-size: 24px; } body.rot .ld-p { font-size: 30px; margin-top: 6px; }

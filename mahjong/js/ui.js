@@ -7,7 +7,7 @@
   const signed = (n) => (n > 0 ? `<span class="plus">+${fmt(n)}</span>` : n < 0 ? `<span class="minus">${fmt(n)}</span>` : '±0');
 
   const UI = (MJ.UI = {
-    orient: (() => { try { return localStorage.getItem('mj_orient') || 'auto'; } catch (e) { return 'auto'; } })(),
+    orient: 'auto', // 縦持ちのスマホは、いつも横画面(90°回転)で表示する(切り替えなし)
     dangerSym: (() => { try { return JSON.parse(localStorage.getItem('mj_dsym')) === true; } catch (e) { return false; } })(), game: null, hintOn: true, oneClick: false, reveal: false, sel: null, bubbles: {}, adv: null, picked: null, riichiMode: false, reactHtml: '', coachHtml: '',
 
     init() {
