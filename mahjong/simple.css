@@ -1347,3 +1347,5 @@ body.simple-ui #mn #hm-set::before, body.simple-ui #mn #hm-play::before { displa
 body.simple-ui #mn #hm-set.pf, body.simple-ui #mn #hm-set:hover { background: #ffd23f; color: #1b1b12; border-color: #fff; box-shadow: 0 0 0 5px rgba(255, 210, 63, .6) !important; outline: none; }
 body.simple-ui #mn #hm-play { padding: 0 !important; justify-content: center !important; text-align: center; }
 body.simple-ui #mn #hm-set { min-width: 0; }
+/* タイトルのBGMボタン: 右下の「ゲーム終了」と、同じ大きさ・同じ右端 */
+#screen-title .tt-bgm { width: 104px; right: 16px; }
