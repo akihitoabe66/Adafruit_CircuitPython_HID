@@ -1224,8 +1224,9 @@ body:not(.land) #coach { visibility: hidden; }
 * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 /* 引いた牌: 光らせない。山から右はしへ「タンッ」と置かれる動きで知らせる(動くのは位置だけ) */
 #mine .hand .tile.drawn:not(.ph) { filter: none; }
-@keyframes drawIn { 0% { transform: translateY(-38px); opacity: 0; } 25% { opacity: 1; } 75% { transform: translateY(3px); } 100% { transform: none; } }
-#mine .hand .tile.draw-in { animation: drawIn .15s cubic-bezier(.3, 0, .6, 1) both; }
+@keyframes drawIn { 0% { transform: translate(90px, -150px) scale(1.5) rotate(14deg); opacity: 0; } 30% { opacity: 1; } 62% { transform: translate(0, 10px) scale(1.06) rotate(-3deg); } 80% { transform: translate(0, -4px) scale(1); } 100% { transform: none; } }
+#mine .hand .tile.draw-in { animation: drawIn .5s cubic-bezier(.3, 0, .5, 1) both; z-index: 5; }
+@keyframes dealIn { 0% { transform: translateY(-90px) scale(1.3) rotate(-8deg); opacity: 0; } 55% { opacity: 1; transform: translateY(6px) scale(1.03) rotate(1deg); } 100% { transform: none; opacity: 1; } }
 /* 手番の名札: 光らせず、少し大きく+黄色い枠 */
 /* ポン・チーの確認: 出る時に透けない・動かない(最初から、はっきり出す) */
 .callq { animation: none !important; opacity: 1 !important; }
@@ -1386,3 +1387,12 @@ body.tbl #coach, body.tbl.coach-open #coach { transform: scale(var(--S, 1)) !imp
 body.tbl #coach { transition: opacity .12s, visibility 0s .12s !important; }
 body.tbl.coach-open #coach { transition: opacity .12s !important; }
 .land.coach-open #coach { animation: none; }
+
+/* ===== 自分の番の操作板(ツモ・リーチ・カン): 手牌の上。ポン・チーの確認と同じ作り。リーチは赤系 ===== */
+.callq .cq-btn.b-riichi { background: linear-gradient(#ee4a42, #a3151a); border: 2px solid #ffb4ae; color: #fff; }
+.callq.selfq.rch-on { align-items: center; }
+.callq.selfq.rch-on .cq-stat { background: linear-gradient(#b3201f, #7d1114); border: 3px solid #ffb4ae; border-radius: 12px; padding: 4px 22px; font-size: 26px; font-weight: 900; color: #fff; text-shadow: 0 1px 3px #000; }
+.callq.selfq.rch-on .cq-stat b { font-size: 30px; letter-spacing: .1em; margin-right: 6px; }
+.callq.selfq.rch-on .cq-btn { min-width: 100px; min-height: 40px; font-size: 22px !important; }
+.hand .tile.rec { animation: none; }
+.callq.selfq.rch-on .cq-stat { font-size: 20px; padding: 3px 16px; } .callq.selfq.rch-on .cq-stat b { font-size: 24px; }

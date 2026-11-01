@@ -129,6 +129,7 @@
         case 'click': T(1100, 0.05, 'sine', 0.22, 700); break;
         case 'select': T(760, 0.05, 'triangle', 0.2, 980); break;
         case 'draw': N(0.04, 1500, 0.22, 1.5); T(300, 0.04, 'triangle', 0.12); break;
+        case 'deal': for (let i = 0; i < 13; i++) S.clack(0.22 + (i % 4 === 3 ? 0.08 : 0), 0.14 + i * 0.055, 0.95 + (i % 3) * 0.06); break; // 配牌: パチ、パチと、牌が並ぶ音
         case 'discard': S.clack(0.55); break;
         case 'call': S.clack(0.5); S.clack(0.5, 0.09, 1.1); T(880, 0.22, 'triangle', 0.22, 1320, 0.14); break;
         case 'kan': S.clack(0.5); S.clack(0.5, 0.08, 1.1); S.clack(0.5, 0.16, 1.2); T(520, 0.35, 'sawtooth', 0.15, 260, 0.2); break;

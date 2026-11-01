@@ -14,12 +14,12 @@
     return Math.max(0, LOCK_MS - (Date.now() - (U.reactAt || 0)));
   };
   P.syncLock = () => {
-    const cq = $('.callq');
+    const cq = $('.callq:not(.selfq)');
     if (!cq) return;
     const left = P.lockLeft();
     cq.classList.toggle('locked', left > 0);
     cq.classList.toggle('pick', !!P.tiles);
-    if (left > 0) { clearTimeout(P._lt); P._lt = setTimeout(() => { const c = $('.callq'); if (c) c.classList.remove('locked'); }, left + 20); }
+    if (left > 0) { clearTimeout(P._lt); P._lt = setTimeout(() => { const c = $('.callq:not(.selfq)'); if (c) c.classList.remove('locked'); }, left + 20); }
   };
   P.onReact = () => { P.tiles = false; document.body.classList.remove('pick-tiles'); if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; }; // 確認が出たら、カーソルは「見送る」から始める
 
@@ -42,7 +42,7 @@
     if (gl) return [gl];
     const ov = $('#overlay');
     if (ov && !ov.classList.contains('hidden')) return [ov];
-    const cq = $('.callq');
+    const cq = $('.callq:not(.selfq)');
     if (cq && visible(cq)) return [cq]; // 鳴きの確認が出ている間は、そのボタンだけを選べる
     const roots = [...document.querySelectorAll('.screen:not(.hidden)')];
     const tools = $('#sd-tools');
@@ -104,8 +104,6 @@
     if (onTitle()) return null;
     if (paged()) return P.pagedMain();
     if (U && U.game && !$('#screen-game').classList.contains('hidden') && $('#overlay').classList.contains('hidden')) {
-      const rb = $('#sd-act [data-act=riichi]'); // リーチできる自分の番は、リーチのボタンから(引いた牌を、うっかり切らない)
-      if (rb && U.sel && U.sel.type === 'self' && !U.riichiMode && visible(rb)) return rb;
       const cq = $('.cq-btn.b-pass') || $('.cq-btn[data-act]'); // 初めは「見送る」
       if (cq && visible(cq)) return cq;
       const t = $('.hand .tile.rec:not(.dis)') || $('.hand .tile.drawn:not(.ph):not(.dis)') || [...document.querySelectorAll('.hand .tile[data-id]:not(.dis)')].pop();
@@ -146,7 +144,7 @@
     if (!P.on) return;
     const U = MJ.UI;
     if (!(U && U.game && !$('#screen-game').classList.contains('hidden') && $('#overlay').classList.contains('hidden'))) return;
-    if ($('.callq') && visible($('.callq'))) return; // 鳴きの確認が出ているときは、そのボタン
+    if ($('.callq:not(.selfq)') && visible($('.callq:not(.selfq)'))) return; // 鳴きの確認が出ているときは、そのボタン
     if (P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur)) return; // いまカーソルがある所は、動かさない(自分の番が来ても、勝手に戻さない)
     const t = $('.hand .tile.rec') || $('.hand .tile.drawn:not(.ph)') || [...document.querySelectorAll('.hand .tile[data-id]')].filter(visible).pop();
     if (t && visible(t)) setCur(t);
@@ -154,8 +152,7 @@
   /* リーチできる時: リーチのボタンへ / リーチを押したあと: 切れる牌(候補)へ。取り消したら、リーチのボタンへ戻る */
   P.focusRiichi = () => {
     if (!P.on) return;
-    const b = $('#sd-act [data-act=riichi]');
-    if (b && !b.disabled && visible(b)) setCur(b);
+    /* リーチできるときも、カーソルは手牌のまま(勝手に別の場所へ飛ばさない) */
   };
   P.afterRiichi = (on) => {
     if (!P.on) return;
@@ -163,7 +160,7 @@
       const c = [...document.querySelectorAll('.hand .tile.rch-ok')];
       const t = c.find((e) => e.classList.contains('drawn')) || c[c.length - 1];
       if (t) setCur(t);
-    } else P.focusRiichi();
+    } else { const t = $('.hand .tile.drawn:not(.ph):not(.dis)') || [...document.querySelectorAll('.hand .tile[data-id]')].filter(visible).pop(); if (t) setCur(t); }
   };
   /* 手牌の上で「下」: 引いた牌(いちばん右)へ、すぐ戻る */
   P.toDrawn = () => {
@@ -222,9 +219,10 @@
     }
     // 手牌から「上」を押すと、押せるボタン(ツモ・リーチ・カン…)へ一気に移る(手牌→ボタンを何回も押さなくて済む)
     if (dy < 0 && cur.matches('.hand .tile[data-id]')) {
-      const act = [...document.querySelectorAll('#sd-act [data-act]')].find((e) => !e.disabled && visible(e));
+      const act = [...document.querySelectorAll('.selfq .cq-btn[data-act]')].find((e) => !e.disabled && visible(e));
       if (act) { setCur(act); return; }
     }
+    if (dy > 0 && cur.closest('.selfq')) { const hs = handStops(), t = hs.find((e) => e.classList.contains('drawn')) || hs[hs.length - 1]; if (t) { setCur(t); return; } }
     // ボタンの列から「左」を押すと手牌へ戻る
     if (dx < 0 && cur.closest('#sd-act, #btn-coach, #btn-tools')) {
       const hs = handStops(), t = hs.find((e) => e.classList.contains('rec')) || hs.find((e) => e.classList.contains('drawn')) || hs[hs.length - 1];
@@ -355,7 +353,7 @@
       return;
     }
     if (name === 'left' || name === 'right' || name === 'up' || name === 'down') {
-      const cq = $('.callq');
+      const cq = $('.callq:not(.selfq)');
       if (cq && visible(cq)) { // 鳴きの確認: ◀▶でボタンを切り替える。チーが複数のときは、▼で牌の選択に入り、◀▶で牌(組み合わせ)を切り替える
         const U = MJ.UI;
         if (P.tiles) {

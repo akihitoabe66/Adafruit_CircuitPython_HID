@@ -439,12 +439,20 @@
     /* ---------- 描画 ---------- */
     /* 配牌のあと: カーソルを手牌に置く(CPUが先のときも、最初から見える) */
     padHand() { if (MJ.Pad && MJ.Pad.focusHand) MJ.Pad.focusHand(); },
+    dealFx() {
+      const ts = [...document.querySelectorAll('#mine .hand .tile:not(.ph)')];
+      if (!ts.length || (MJ.FX && MJ.FX.level && MJ.FX.level() === 'lite')) return;
+      ts.forEach((t, i) => { t.style.animation = `dealIn .34s cubic-bezier(.2,.8,.3,1.2) ${i * 55}ms both`; });
+      try { MJ.SFX.play('deal'); } catch (e) { /* ignore */ }
+      setTimeout(() => ts.forEach((t) => { t.style.animation = ''; }), ts.length * 55 + 500);
+    },
     paint(el, html) { if (!el || el._h === html) return; el.innerHTML = html; el._h = html; },
     render(game) {
       if (this.game !== game) return;
       this.layout();
       if (MJ.perf && MJ.perf._handAt && game.players[0] && game.players[0].hand.length >= 13) { const t0 = MJ.perf._handAt; MJ.perf._handAt = 0; requestAnimationFrame(() => requestAnimationFrame(() => { if (MJ.perf.rec) MJ.perf.rec.ev('配牌→手牌が見える', performance.now() - t0); })); }
       document.body.classList.remove('dealing');
+      if (game.players[0] && game.players[0].hand.length >= 13 && !game.fast) { const dk = game.handCount + ':' + game.kyoku + ':' + game.honba; if (this._dealKey !== dk) { this._dealKey = dk; requestAnimationFrame(() => this.dealFx()); } } // 配牌: 手牌が、山から1枚ずつ並ぶ動き
       const s0 = this.sel;
       if (s0 && this._alertSel !== s0) { // 上がれるとき(ツモ・ロン)は、大きく知らせる
         if (s0.type === 'self' && s0.opts && s0.opts.tsumo) { this._alertSel = s0; this.alertWin('ツモれる!'); }
@@ -566,7 +574,7 @@
       let tip = this.picked && adv && adv.info && this.coachActive() ? adv.info[this.picked] || '' : '';
       if (!tip && this.dng && sel) tip = this.dangerSym ? `<span class="dglg">左上の印: <b class="dgl safe">◎</b>ほぼ安全 <b class="dgl ok">○</b>比較的安全 <b class="dgl warn">△</b>注意 <b class="dgl danger">✕</b>危険${this.dng.hyp ? ' <span class="cc-s">(いまはリーチなし。「もし全員がリーチしていたら」の目安)</span>' : ''}</span>` : `<span class="dglg">左上の印: <b class="dgl safe">現物</b>100%安全 <b class="dgl safe">スジ</b>安全 <b class="dgl ok">半スジ</b>少し安全 <b class="dgl warn">無スジ</b>注意 ${this.dng.hyp ? ' <span class="cc-s">(いまはリーチなし。「もし全員がリーチしていたら」の目安)</span>' : ''}</span>`;
       const sum = this.sel && this.coachActive() ? this.summary || '' : '';
-      const card = cand ? this.callCard(game, rs, cand) : '';
+      const card = cand ? this.callCard(game, rs, cand) : (sel ? this.selfCard(game, sel) : '');
       const dtabs = sel && this.dng && this.dng.opps.length >= 2 ? `<div class="dtabs"><span>危険度の対象:</span><button class="btn sm${this.dngTab === 'all' ? ' on' : ''}" data-dtab="all">全員</button>${this.dng.opps.map((q, i) => `<button class="btn sm${this.dngTab === i ? ' on' : ''}" data-dtab="${i}">${q.name}</button>`).join('')}</div>` : '';
       const msg = sel ? this.msgText(sel) : '';
       const tipHtml = `${msg ? `<div class="tmsg">${msg}</div>` : ''}${tip}`;
@@ -672,6 +680,17 @@
       d.remove(); document.body.classList.remove('tdock-on'); clearTimeout(this._tdT);
     },
     /* 「どうする?」: 文字だけのボタンを手牌の上に並べる。選んでいる鳴きに使う手牌が持ち上がって光り、捨てられた牌は枠で光る */
+    /* 自分の番の、手牌の上の板: ツモ・リーチ・カン(右側には出さない)。リーチの宣言中は、赤い帯 */
+    selfCard(game, s) {
+      const o = s.opts, p = s.p;
+      if (this.riichiMode) return '<div class="callq selfq rch-on"><div class="cq-stat"><b>リーチ</b>　光っている牌を えらんでください</div><button class="btn b-pass cq-btn" data-act="riichi">やめる</button></div>';
+      const btns = [];
+      if (o.tsumo) btns.push('<button class="btn b-ron cq-btn" data-act="tsumo">ツモ!</button>');
+      if (o.riichi.length && !p.riichi) btns.push('<button class="btn b-riichi cq-btn" data-act="riichi">リーチ</button>');
+      [...o.ankan.map((t) => ['ankan', t]), ...o.kakan.map((t) => ['kakan', t])].forEach(([k, t]) => btns.push(`<button class="btn b-call cq-btn" data-act="${k}" data-t="${t}">カン${o.ankan.length + o.kakan.length > 1 ? MJ.tileName(t) : ''}</button>`));
+      if (!btns.length) return '';
+      return `<div class="callq selfq"><div class="cq-btns">${btns.join('')}</div></div>`;
+    },
     callCard(game, s, cand) {
       const o = s.o;
       const label = { pon: 'ポン', chi: 'チー', kan: 'カン' };
@@ -730,7 +749,7 @@
 
     msgText(s) {
       const o = s.opts;
-      return !s.p.riichi && o.riichi.length && !this.riichiMode ? '<b class="rch-hint">テンパイ!リーチできます</b>' : s.p.riichi ? 'リーチ中: ツモ切りです' : s.st.afterCall ? '鳴いた直後です。<b>暗い牌は、ルールで切れません</b>(食い替え禁止)。明るい牌から1枚切ります' : this.riichiMode ? '赤枠の牌でリーチ成立' : this.oneClick ? '切る牌をタップ' : '牌を選んで、もう一度タッチで捨てる';
+      return !s.p.riichi && o.riichi.length && !this.riichiMode ? '<b class="rch-hint">テンパイ!リーチできます</b>' : s.p.riichi ? 'リーチ中: ツモ切りです' : s.st.afterCall ? '鳴いた直後です。<b>暗い牌は、ルールで切れません</b>(食い替え禁止)。明るい牌から1枚切ります' : this.riichiMode ? '光っている牌を切ると、リーチ成立' : this.oneClick ? '切る牌をタップ' : '牌を選んで、もう一度タッチで捨てる';
     },
     /* 右端の縦ボタン列(いつも同じ並びで、押せないものは灰色) */
     /* 右の列: 「いまできる操作」だけを、決まった場所に出す(できることがない枠は、点線の空き枠)。下に、あたり牌の欄 */
@@ -740,25 +759,9 @@
       const react = s && s.type === 'react' ? s : null;
       const o = self ? self.opts : null;
       const B = (cls, act, label, extra = '') => `<button class="btn sb act on ${cls}${label.length > 4 ? ' long' : ''}" data-act="${act}" ${extra}>${label}</button>`;
-      const slots = [];
-      if (self) {
-        if (o.tsumo) slots.push(B('b-tsumo pulse', 'tsumo', 'ツモ!'));
-        if (o.riichi.length) {
-          if (this.riichiMode) slots.push('<div class="rch-status" data-cancel-riichi><b>リーチ中</b><span>光る牌を</span><span><i>A</i> 切る</span><span><i>B</i> やめる</span></div>'); // 宣言中は、ボタンではなく、状態の表示(押せるボタンに見えないデザイン)
-          else slots.push(B('b-riichi', 'riichi', 'リーチ'));
-        }
-        const kans = [...o.ankan.map((t) => ['ankan', t]), ...o.kakan.map((t) => ['kakan', t])];
-        if (kans.length === 1) slots.push(B('b-call', kans[0][0], 'カン', `data-t="${kans[0][1]}"`));
-        else if (kans.length > 1) slots.push(`<div class="sb-row">${kans.map(([k, t]) => B('b-call', k, `カン${MJ.tileName(t)}`, `data-t="${t}"`)).join('')}</div>`);
-      } else if (react) {
-        const r = react.o;
-        if (r.ron) slots.push(B('b-tsumo pulse', 'ron', 'ロン!'));
-        if (r.pon) slots.push(B('b-call', 'pon', 'ポン'));
-        if (r.chi && r.chi.length) slots.push(B('b-call', 'chi', 'チー'));
-        if (r.kan) slots.push(B('b-call', 'kan', 'カン'));
-      }
+      const slots = []; // 操作のボタン(ツモ・リーチ・ポン・チー…)は、右側には出さない(コントローラーの誤操作を避けるため)。手牌の上の板に出す
       // できる操作がないときは、空の枠を出さず、その場所を、あたり牌の欄に使う(操作が1つのときは、その下に出す)
-      const wp = slots.length <= 1 && !react ? this.waitPanel(game) : '';
+      const wp = !react ? this.waitPanel(game) : '';
       if (!slots.length && !wp) { slots.push('<div class="act-empty">―</div>', '<div class="act-empty">―</div>'); }
       return slots.join('') + wp;
     },
@@ -999,7 +1002,7 @@
         document.body.classList.add('my-turn');
         this.myTurnMark(opts && opts.riichi && opts.riichi.length && !p.riichi ? 'テンパイ! リーチできます' : opts && ((opts.ankan && opts.ankan.length) || (opts.kakan && opts.kakan.length)) ? 'カンできます(右上のボタン)' : null);
         if (opts && opts.riichi && opts.riichi.length && !p.riichi && MJ.Pad && MJ.Pad.focusRiichi) setTimeout(() => MJ.Pad.focusRiichi(), 30); // リーチできる時は、リーチのボタンから(引いた牌を、うっかり切らないように)
-        requestAnimationFrame(() => { const t = $('#mine .hand .tile.drawn:not(.ph)'); if (t) { t.classList.add('draw-in'); setTimeout(() => t.classList.remove('draw-in'), 400); } }); // 引いた牌が、山から右はしへ置かれる動き
+        requestAnimationFrame(() => { const t = $('#mine .hand .tile.drawn:not(.ph)'); if (t) { t.classList.add('draw-in'); setTimeout(() => t.classList.remove('draw-in'), 650); } }); // 引いた牌が、山から右はしへ置かれる動き
         if (MJ.Pad && MJ.Pad.focusHand) setTimeout(() => MJ.Pad.focusHand(), 0); // 自分の番: カーソルを、引いた牌に
         const mySel = this.sel, needAdv = this.coachActive() || game.mode !== 'free';
         const fill = () => {

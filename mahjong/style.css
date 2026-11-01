@@ -155,7 +155,7 @@ button { font: inherit; cursor: pointer; }
 .mk.ok { background: #b9e36a; }
 .mk.warn { background: #ffb84d; }
 .mk.danger { background: #ff6b6b; color: #fff; }
-.hand .tile.rch-ok { outline: 3px solid #ff6b6b; }
+.hand .tile.rch-ok { outline: none; } /* 赤枠はつけない(切れない牌は暗くなるだけ) */
 .hand.riichi-mode .tile:not(.rch-ok) { filter: brightness(.45); }
 .actrow { display: flex; gap: 6px 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-top: 4px; min-height: 44px; }
 .sumline { flex: 1 1 180px; min-width: 0; font-size: 12.5px; line-height: 1.45; background: #06261d; border-radius: 8px; padding: 5px 8px; color: var(--ink); }
