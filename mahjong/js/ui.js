@@ -1472,7 +1472,7 @@
       setTimeout(bang, 400);
       el.classList.remove('pre');
       sc.classList.remove('ky-shake'); void sc.offsetWidth; sc.classList.add('ky-shake');
-      await new Promise((r) => setTimeout(r, 2500));
+      await new Promise((r) => setTimeout(r, 3300)); // 最後に、少し止まって見せる(すぐ次へ行かない)
       el.remove(); sc.classList.remove('ky-shake');
     },
     handStart(game) {
