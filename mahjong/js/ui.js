@@ -600,7 +600,10 @@
             const x = s === 2 ? 228 + i * 22 : s === 1 ? 688 : 6, y = s === 2 ? 3 : 30 + i * 20;
             hand += `<div class="ab" style="left:${x}px;top:${y}px">${this.seatTile(sorted[i].t, s === 2 ? 0 : ROT, 22, 30, { red: sorted[i].red })}</div>`;
           } else {
-            const x = s === 2 ? 240 + i * 17 : s === 1 ? 690 : 6, y = s === 2 ? 4 : 30 + i * 17;
+            // 引いた牌(14牌目)は、その人から見て、いちばん右に、少しあけて置く(向かいは画面の左はし、右の人は画面の上はし、左の人は画面の下はし)
+            const hasDrawn = n % 3 === 2;
+            const pos = s === 3 ? i * 17 + (hasDrawn && i === n - 1 ? 9 : 0) : hasDrawn ? (i === 0 ? 0 : 9 + i * 17) : i * 17;
+            const x = s === 2 ? 240 + pos : s === 1 ? 690 : 6, y = s === 2 ? 4 : 30 + pos;
             hand += s === 2 ? `<div class="bk" style="left:${x}px;top:${y}px;width:16px;height:24px"></div>` : `<div class="bk" style="left:${x}px;top:${y}px;width:24px;height:16px"></div>`;
           }
         }
