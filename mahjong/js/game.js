@@ -269,7 +269,6 @@
       if (this.ui && MJ.Banter) MJ.Banter.handStart(this);
       if (this.ui && this.ui.dealPrep) this.ui.dealPrep(this);
       this.sync();
-      if (this.ui && MJ.Dice && MJ.Dice.hold) requestAnimationFrame(() => requestAnimationFrame(() => { if (MJ.Dice.hold) MJ.Dice.hold(); })); // 卓が描かれたら、サイコロの画面をどける
       if (this.ui && this.ui.dealAnim) await this.ui.dealAnim(this); // 配牌のアニメ(4牌ずつ流れる)
       if (this.stopped) return { type: 'draw', dealerTenpai: false };
       if (this.ui && this.ui.padHand) this.ui.padHand(); // コントローラーのカーソルを、手牌に

@@ -447,6 +447,10 @@
     },
     dealSkip() { this._dealSkip = true; },
     async dealAnim(game) {
+      // サイコロの画面を、先にどける。どいて、卓が見えてから始める(見えない間に、音だけ鳴らない)
+      if (MJ.Dice && MJ.Dice.hold) MJ.Dice.hold();
+      for (let i = 0; i < 40 && document.querySelector('#dice'); i++) await new Promise((r) => setTimeout(r, 30));
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       if (!this._dealOK) { document.body.classList.remove('deal-hide'); return; }
       this._dealOK = false; this.dealing = true; this._dealSkip = false;
       const sl = (ms) => new Promise((r) => setTimeout(r, this._dealSkip ? 0 : ms));
@@ -457,9 +461,10 @@
         if (!mine.length || opp.some((a) => !a.length)) throw new Error('no tiles');
         // あなたの手牌: いったん、ばらばらの並びで見せて、最後に並び替える(位置の入れ替え = 横のずらし)
         const n0 = mine.length, xs = mine.map((e) => e.getBoundingClientRect().left);
+        const kk = mine.map((e) => (e.offsetWidth ? e.getBoundingClientRect().width / e.offsetWidth : 1) || 1); // 画面の拡大率(translateは、拡大される前の長さで指定するため)
         const perm = [...Array(n0).keys()]; for (let i = n0 - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [perm[i], perm[j]] = [perm[j], perm[i]]; }
         const slotTile = []; perm.forEach((sIdx, i) => { slotTile[sIdx] = i; }); // 表示の位置 → 牌
-        mine.forEach((e, i) => { e.style.transform = `translateX(${xs[perm[i]] - xs[i]}px)`; });
+        mine.forEach((e, i) => { e.style.transform = `translateX(${(xs[perm[i]] - xs[i]) / kk[i]}px)`; });
         const seq = (q) => q === 0 ? slotTile.map((i) => mine[i]) : opp[q];
         const hands = [0, 1, 2, 3].map(seq);
         const ctr = document.querySelector('#table .ctr') || document.querySelector('#table');
@@ -491,7 +496,7 @@
           try { S.play(ts.length > 1 ? 'deal4' : 'deal1'); } catch (e) { /* ignore */ }
           await sl(55);
         };
-        await sl(150);
+        await sl(250);
         for (let r = 0; r < 3; r++) for (const q of order) await grab(q, 4);
         for (const q of order) await grab(q, 1);
         // 残り(親の14牌目など)は、すぐ見せる
@@ -500,7 +505,7 @@
         // 最後: チャ、チャッ! 1回目で少し持ち上がり、2回目で見やすい順に並ぶ
         await sl(340);
         try { S.play('sort1'); } catch (e) { /* ignore */ }
-        mine.forEach((e, i) => { e.style.transition = 'transform .1s'; e.style.transform = `translate(${xs[perm[i]] - xs[i]}px,-12px)`; });
+        mine.forEach((e, i) => { e.style.transition = 'transform .1s'; e.style.transform = `translate(${(xs[perm[i]] - xs[i]) / kk[i]}px,${-12 / kk[i]}px)`; });
         await sl(210);
         try { S.play('sort2'); } catch (e) { /* ignore */ }
         mine.forEach((e) => { e.style.transition = 'transform .34s cubic-bezier(.3,.7,.3,1)'; e.style.transform = ''; });
