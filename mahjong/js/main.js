@@ -517,7 +517,7 @@
     return u;
   })();
   /* タイトルに必要な絵(背景・ロゴ・ボタン)だけで、タイトルをすぐ出す。そのほか(牌・顔・ホームの背景など)は、タイトルを出したあと、裏で読み込む */
-  const TITLE = ['img/btn_start.webp', 'img/bgm_on.png', 'img/bgm_off.png', 'img/logo.webp'];
+  const TITLE = ['img/btn_start.webp', 'img/bgm_on.png', 'img/bgm_off.png', 'img/btn_exit.webp', 'img/logo.webp'];
   const REST = ESSENTIAL.filter((x) => !TITLE.includes(x));
   MJ.titleReady = Promise.all([loadArt('img/title_art.webp', '--art-title'), pool(TITLE, 4)]);
   MJ.menuBgReady = MJ.titleReady.then(() => loadArt('img/menu_bg.webp', '--art-menu')); // ホームの背景を先に(「はじめる」で待つのは、これだけ)

@@ -1324,3 +1324,11 @@ body.pad-on .pm-hint { display: inline-block; }
 .char.locked .cn { color: #a9bfb3; }
 .char.locked { opacity: .8; }
 .char img { object-position: 50% 6%; }
+
+
+/* タイトルの「ゲーム終了」: BGMと同じ木の看板の形(画像)で、小さく。□マークの文字はなし */
+#screen-title .tt-exit { position: absolute; right: 16px; bottom: 12px; display: block; width: 104px; height: auto; padding: 0; margin: 0; background: none !important; border: 0 !important; border-radius: 0; box-shadow: none !important; cursor: pointer; z-index: 6; transition: transform .15s; }
+#screen-title .tt-exit img { display: block; width: 100%; height: auto; pointer-events: none; filter: drop-shadow(0 4px 6px #000a); }
+#screen-title .tt-exit:hover, #screen-title .tt-exit.pf, #screen-title .tt-exit:focus-visible { transform: scale(1.07); outline: none; background: none !important; }
+body.pad-on #screen-title .tt-exit.pf { background: none !important; box-shadow: none !important; outline: none !important; transform: scale(1.07); }
+#screen-title .tt-exit.pf img, #screen-title .tt-exit:focus-visible img { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 3px #fff) drop-shadow(0 0 9px #3d86ff) drop-shadow(0 0 16px #3d86ff) drop-shadow(0 4px 6px #000a); }
