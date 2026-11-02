@@ -1430,3 +1430,14 @@ body.rot .ld-t { font-size: 24px; } body.rot .ld-p { font-size: 30px; margin-top
 .ld-t { padding: 0 3ch 0 3ch; }
 .ld-d { width: 0; }
 body.rot .ld-box { padding: 18px 40px; }
+
+/* ===== 流局の演出: 「流局」の文字が左から流れてくる / 結果を1人ずつ読み上げ ===== */
+.dr-banner { position: absolute; left: 0; right: 0; top: 150px; z-index: 75; text-align: center; font-size: 92px; font-weight: 900; letter-spacing: .2em; color: #fff4cf; text-shadow: 0 4px 0 #6b4a2a, 0 0 24px #ffcc4dcc, 0 6px 14px #000; pointer-events: none; animation: drIn .5s cubic-bezier(.2, .9, .3, 1) both; }
+.dr-banner.out { animation: drOut .35s ease-in both; }
+@keyframes drIn { from { transform: translateX(-120%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes drOut { to { opacity: 0; transform: translateY(-14px); } }
+.dr-row.rd0 .dr-p:not(.shown) .dr-s, .dr-row.rd0 .dr-d, .dr-row.rd0 .dr-t, .dr-row.rd0 .dr-p:not(.shown) .dr-h { visibility: hidden; }
+.dr-row.rd0 .dr-p:not(.shown) { opacity: .6; }
+.dr-p { transition: transform .15s, box-shadow .15s, opacity .15s; }
+.dr-p.now { transform: scale(1.06); box-shadow: 0 0 0 4px #ffcc4d77; border-color: #ffd35a; opacity: 1; }
+.dr-tbl, .dr-note { transition: opacity .2s; }

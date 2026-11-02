@@ -17,6 +17,9 @@
     callVol: num('mj_callvol', 0.3),
     yakuRead: load('mj_yakuread', true),
 
+    /* 音量の「5」を、聞きやすいバランス(読み上げ=少し大きめ)にそろえる: 読み上げ・掛け声は1.2倍 */
+    rv() { return S.readVol * 1.2; },
+    cv() { return S.callVol * 1.2; },
     getCtx() { return ctx; },
     getBus() { return lim0; }, // BGMも、効果音・声と同じリミッターを通す
 
@@ -115,7 +118,7 @@
       return c.p;
     },
     _say(text) {
-      try { const syn = G.speechSynthesis; if (!syn || !text || S.isIOS) return; const u = new G.SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; u.pitch = 0.6; u.rate = 0.85; u.volume = Math.min(1, S.readVol); syn.speak(u); } catch (e) { /* ignore */ }
+      try { const syn = G.speechSynthesis; if (!syn || !text || S.isIOS) return; const u = new G.SpeechSynthesisUtterance(text); u.lang = 'ja-JP'; u.pitch = 0.6; u.rate = 0.85; u.volume = Math.min(1, S.rv()); syn.speak(u); } catch (e) { /* ignore */ }
     },
     clack(vol = 0.5, at = 0, pitch = 1) { S.noise(0.05, 2200 * pitch, vol, 2.5, at); S.tone(170 * pitch, 0.07, 'triangle', vol * 0.8, 70 * pitch, at); },
 
@@ -221,7 +224,7 @@
         // 文ごとに少しずつ高さと速さをゆらす
         u.pitch = base + (head ? 0.06 : 0) + (q ? 0.1 : 0);
         u.rate = (head ? 0.95 : 1.0) * (S.readRate || 1);
-        u.volume = S.readVol;
+        u.volume = Math.min(1, S.rv());
         const next = () => { if (S._readId !== id) return; const gap = head ? 380 : parts[i].end ? 220 : 90; setTimeout(() => speakAt(i + 1), gap); };
         u.onend = next;
         u.onerror = next;
@@ -277,7 +280,7 @@
           if (b === false) { t += 0.28; return; }
           if (!b) return;
           const src = ctx.createBufferSource(); src.buffer = b;
-          const g = ctx.createGain(), gv = Math.min(0.5, S.readVol * 0.5); // 大きくしすぎると、BGMと重なって割れる
+          const g = ctx.createGain(), gv = Math.min(0.5, S.rv() * 0.5); // 大きくしすぎると、BGMと重なって割れる
           // 切れ目の「プツッ」を防ぐ: 頭とおしりを、短くなめらかに
           g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gv, t + 0.01);
           g.gain.setValueAtTime(gv, Math.max(t + 0.01, t + b.duration - 0.02)); g.gain.linearRampToValueAtTime(0, t + b.duration);
@@ -301,7 +304,7 @@
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const g = ctx.createGain();
-      g.gain.value = S.callVol; // 掛け声専用の音量(効果音の音量とは別)
+      g.gain.value = S.cv(); // 掛け声専用の音量(効果音の音量とは別)
       src.connect(g); g.connect(master);
       src.start();
     },

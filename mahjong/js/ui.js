@@ -446,6 +446,26 @@
       this._dealOK = !game.fast && !game.resumed && game.players.every((p) => !p.discards.length && !p.melds.length) && !(MJ.FX && MJ.FX.level && MJ.FX.level() === 'lite' && false);
       if (this._dealOK) document.body.classList.add('deal-hide');
     },
+    /* 自分の切った牌が、手牌から河へ、弧をえがいて飛ぶ(河の牌は、着くまで隠す) */
+    throwFx() {
+      const T = this._throwWait; if (!T) return;
+      const rv = [...document.querySelectorAll('#table .river.r0 .tile')], tg = rv[rv.length - 1];
+      if (!tg || rv.length <= T.n || Date.now() - T.at > 1500) return; // 新しい牌が河に出てから
+      if (tg._thrown) return; this._throwWait = null; tg._thrown = true;
+      try {
+        const tr = tg.getBoundingClientRect(), fr = T.r;
+        const c = document.createElement('div'); c.className = 'dl-fly'; c.innerHTML = T.html;
+        const inner = c.firstElementChild; if (inner) { inner.style.cssText = `width:${fr.width}px;height:${fr.height}px;margin:0;position:static;transform:none`; inner.classList.remove('picked', 'rec', 'pf', 'drawn'); }
+        c.style.cssText = `position:fixed;left:${fr.left}px;top:${fr.top}px;width:${fr.width}px;height:${fr.height}px;z-index:90;pointer-events:none`;
+        document.body.appendChild(c);
+        tg.style.visibility = 'hidden';
+        const dx = tr.left + tr.width / 2 - (fr.left + fr.width / 2), dy = tr.top + tr.height / 2 - (fr.top + fr.height / 2), sc = tr.width / fr.width;
+        const done = () => { c.remove(); tg.style.visibility = ''; try { MJ.SFX.play('discard'); } catch (e) { /* ignore */ } };
+        if (!c.animate) { done(); return; }
+        const a = c.animate([{ transform: 'none' }, { transform: `translate(${dx * 0.55}px,${dy * 0.55 - 46}px) scale(${1 + (sc - 1) * 0.5 + 0.12}) rotate(-8deg)`, offset: 0.55 }, { transform: `translate(${dx}px,${dy}px) scale(${sc}) rotate(0deg)` }], { duration: 300, easing: 'cubic-bezier(.3,.7,.4,1)', fill: 'forwards' });
+        a.onfinish = done; a.oncancel = done;
+      } catch (e) { /* ignore */ }
+    },
     dealSkip() { this._dealSkip = true; },
     async dealAnim(game) {
       // サイコロの画面を、先にどける。どいて、卓が見えてから始める(見えない間に、音だけ鳴らない)
@@ -523,6 +543,8 @@
     render(game) {
       if (this.game !== game) return;
       if (this.dealing) return; // 配牌のアニメ中は、描き直さない(終わったときに、1回描く)
+      if (this._throw) { const T = this._throw; this._throw = null; if (Date.now() - T.at < 1500) { this._throwWait = T; } }
+      if (this._throwWait) setTimeout(() => this.throwFx(), 30); // 河に牌が出たあとで、投げる動きを重ねる
       this.layout();
       if (MJ.perf && MJ.perf._handAt && game.players[0] && game.players[0].hand.length >= 13) { const t0 = MJ.perf._handAt; MJ.perf._handAt = 0; requestAnimationFrame(() => requestAnimationFrame(() => { if (MJ.perf.rec) MJ.perf.rec.ev('配牌→手牌が見える', performance.now() - t0); })); }
       document.body.classList.remove('dealing');
@@ -944,6 +966,12 @@
     },
     finish(act) {
       const s = this.sel;
+      try { // 自分が牌を切るとき: 手牌から河へ、投げるように飛ばす(スマホの縦持ち・軽量のときは省く)
+        if (act && act.tile && (act.act === 'discard' || act.act === 'riichi') && s && s.type === 'self' && !document.body.classList.contains('rot') && !(this.game && this.game.fast)) {
+          const el = document.querySelector(`#mine .hand .tile[data-id="${act.tile.id}"]`);
+          if (el) { const r = el.getBoundingClientRect(); this._throw = { n: document.querySelectorAll('#table .river.r0 .tile').length, html: el.outerHTML, r: { left: r.left, top: r.top, width: r.width, height: r.height }, at: Date.now() }; }
+        }
+      } catch (e) { this._throw = null; }
       this.stopThink();
       document.body.classList.remove('my-turn');
       this.sel = null; this.picked = null; this.riichiMode = false; this.adv = null; this.dng = null; this.hiType = null;
@@ -1528,6 +1556,16 @@
     },
     /* 局のはじまり(東二局〜): サイコロの前に、枠が上から雀卓の中心へたたきつけられる。全体2.5秒。
        最初のコマから見えるように、顔の絵を先に読み込み、前の局の卓が消えた画面を描いてから、動かしはじめる */
+    /* 「東二局」「東二局 一本場」を、声で言う(読み上げと同じ声・音量) */
+    kyokuVoice(game) {
+      try {
+        if (!MJ.SFX || MJ.SFX.voiceOn === false || game.stopped) return;
+        const W = ['とう', 'なん', 'しゃー', 'ぺー'], N = ['いち', 'に', 'さん', 'よん', 'ご', 'ろく', 'なな', 'はち', 'きゅう'];
+        const HB = ['', 'いっぽんば', 'にほんば', 'さんぼんば', 'よんほんば', 'ごほんば', 'ろっぽんば', 'ななほんば', 'はっぽんば', 'きゅうほんば'];
+        const k = N[game.kyoku % 4] || 'いち', w = W[game.roundWind] || 'とう';
+        MJ.SFX.read(`${w}${k}きょく。${game.honba ? HB[Math.min(9, game.honba)] || '' : ''}`);
+      } catch (e) { /* ignore */ }
+    },
     async kyokuSlam(game) {
       if (game.fast) return;
       const sc = $('#sc'); if (!sc) return;
@@ -1546,7 +1584,7 @@
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 200))));
       if (game.stopped) { el.remove(); return; }
       const box = el.querySelector('.ky-box');
-      let hit = false; const bang = () => { if (hit) return; hit = true; setTimeout(() => MJ.SFX.play('slam'), 160); }; // 音は、画面の動きが実際に始まった時から数える
+      let hit = false; const bang = () => { if (hit) return; hit = true; setTimeout(() => MJ.SFX.play('slam'), 160); setTimeout(() => this.kyokuVoice(game), 520); }; // 音は、画面の動きが実際に始まった時から数える
       if (box) box.addEventListener('animationstart', bang, { once: true });
       setTimeout(bang, 400);
       el.classList.remove('pre');
@@ -1711,6 +1749,7 @@
         const reveal = () => { if (els[cur] !== pg) return; fit(); pg.style.visibility = ''; };
         if (wait.length) Promise.race([Promise.all(wait.map((im) => new Promise((r) => { im.addEventListener('load', r, { once: true }); im.addEventListener('error', r, { once: true }); }))), new Promise((r) => setTimeout(r, 400))]).then(reveal); else reveal();
         if (MJ.Pad && MJ.Pad.pagedFocus) setTimeout(MJ.Pad.pagedFocus, 0); // カーソルは、いつも「次へ」(最後のページは、終わりのボタン)
+        if (this._drStop) { const f = this._drStop; this._drStop = null; f(); }
         MJ.SFX.stopSpeak();
         if (pages[cur].onShow) pages[cur].onShow();
       };
@@ -1723,7 +1762,46 @@
     },
 
     showResult(game, res) {
-      return this.yakuFx(game, res).then(() => this.showResult2(game, res));
+      const pre = res.type === 'draw' && !game.fast ? this.drawFx(game, res) : Promise.resolve();
+      return pre.then(() => this.yakuFx(game, res)).then(() => this.showResult2(game, res));
+    },
+    /* 流局: 最後の牌のあと、ひと呼吸 → 「流局」が左から流れてきて止まる → もうひと呼吸 → 結果の画面 */
+    async drawFx(game, res) {
+      const sc = $('#sc'); if (!sc) return;
+      const sl = (ms) => new Promise((r) => setTimeout(r, ms));
+      await sl(900); if (game.stopped) return;
+      const el = document.createElement('div'); el.className = 'dr-banner'; el.textContent = '流局';
+      sc.appendChild(el);
+      try { MJ.SFX.don(1); } catch (e) { /* ignore */ }
+      await sl(1600); if (game.stopped) { el.remove(); return; }
+      el.classList.add('out'); await sl(450); el.remove();
+    },
+    /* 流局の結果: 「流局」→ 左から1人ずつ、光らせながら「ノーテン」「テンパイ」と読み上げ */
+    readDraw(game, res) {
+      const row = document.querySelector('#overlay .dr-row'); if (!row) return;
+      const tok = (this._drTok = (this._drTok || 0) + 1);
+      const cards = [...row.querySelectorAll('.dr-p')];
+      if (res._read || game.fast) { row.classList.remove('rd0'); return; }
+      res._read = true;
+      row.classList.add('rd0');
+      const reveal = () => { row.classList.remove('rd0'); cards.forEach((c) => c.classList.remove('now')); };
+      const sl = (ms) => new Promise((r) => setTimeout(r, ms));
+      const say = (t) => new Promise((r) => { let ok = false; try { ok = MJ.SFX.read(t, (ev) => { if (!ev) r(); }); } catch (e) { ok = false; } if (!ok) setTimeout(r, 450); setTimeout(r, 2200); });
+      (async () => {
+        await sl(250); if (tok !== this._drTok) return;
+        await say('りゅうきょく'); await sl(180);
+        for (let i = 0; i < cards.length; i++) {
+          if (tok !== this._drTok) return;
+          cards.forEach((c) => c.classList.remove('now'));
+          const c = cards[i]; c.classList.add('now', 'shown');
+          await say(res.tenpai[i] ? 'テンパイ' : 'ノーテン'); await sl(90);
+        }
+        if (tok !== this._drTok) return;
+        reveal();
+      })().catch(reveal);
+      // ページを変える・閉じるときは、すぐ全部見せる
+      const stop = () => { this._drTok++; reveal(); };
+      this._drStop = stop;
     },
     showResult2(game, res) {
       return new Promise((resolve) => {
@@ -1746,13 +1824,13 @@
             const d = res.delta[i];
             return `<div class="dr-p${t ? ' tp' : ''}">${face}<div class="dr-n">${p.name}</div><div class="dr-s ${t ? 'tp' : 'no'}">${t ? 'テンパイ' : 'ノーテン'}</div><div class="dr-d ${d > 0 ? 'up' : d < 0 ? 'dn' : ''}">${d ? (d > 0 ? '+' : '') + d.toLocaleString() : '±0'}</div><div class="dr-t">${fmt(res.after[i])}点</div>${t ? `<div class="dr-h">${res.hands[i].concealed.map((h) => MJ.tileHTML(h.t, 't-s')).join('')}</div>` : ''}</div>`;
           }).join('');
-          pages.push({ t: '流局', html: `<div class="dr-big">流局</div><div class="dr-sub">${game.kyokuLabel()} ／ 山の牌がなくなりました(荒牌平局)</div><div class="dr-row">${cards}</div><p class="dr-note">テンパイの人がノーテンの人から合計3000点を受け取ります。</p><div class="dr-tbl">${this.scoreTable(game, res)}</div>` });
+          pages.push({ t: '流局', onShow: () => this.readDraw(game, res), html: `<div class="dr-big">流局</div><div class="dr-sub">${game.kyokuLabel()} ／ 山の牌がなくなりました(荒牌平局)</div><div class="dr-row">${cards}</div><p class="dr-note">テンパイの人がノーテンの人から合計3000点を受け取ります。</p><div class="dr-tbl">${this.scoreTable(game, res)}</div>` });
           if (res.drawReview) this.splitReview(MJ.Coach.drawReview(game, res)).forEach((h) => rvPages.push({ t: '流局の振り返り', html: h, rv: true }));
         }
         if (res.type === 'win') MJ.SFX.play(res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'drawgame'); // 自分以外の和了(自分が払わないとき)は、にぎやかな音にしない
         else MJ.SFX.play('drawgame');
         const last = game.length === 'single';
-        const finish = () => { MJ.SFX.stopSpeak(); MJ.Audio.endResult(); this.closeOverlay(); resolve(); };
+        const finish = () => { if (this._drStop) { const f = this._drStop; this._drStop = null; f(); } MJ.SFX.stopSpeak(); MJ.Audio.endResult(); this.closeOverlay(); resolve(); };
         const w0 = res.type === 'win' ? (res.wins.find((x) => x.winner.isHuman) || res.wins[0]) : null;
         const rec = w0 && MJ.Learn ? MJ.Learn.build(game, w0) : null;
         const showMain = (idx) => { // 上がり役と点数 → 4人の持ち点 → 次の局。くわしい計算・振り返りは、見たい人だけボタンで
