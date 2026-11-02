@@ -461,13 +461,37 @@
   P.mapFor = (gp) => { const m = loadMap()[gp.id]; if (m && isFinite(m.a) && isFinite(m.b)) return { a: +m.a, b: +m.b, learned: true, xa: m.xa, xb: m.xb }; return gp.mapping === 'standard' ? { a: 0, b: 1, learned: false } : { a: 1, b: 2, learned: false }; };
   P.saveMap = (gp, k, idx) => { const all = loadMap(); const cur = Object.assign({}, P.mapFor(gp)); delete cur.learned; if (k === 'xa' || k === 'xb') { const o = k === 'xa' ? 'xb' : 'xa'; cur[o] = (cur[o] || []).filter((x) => x !== idx); cur[k] = (cur[k] || []).filter((x) => x !== idx).concat([idx]); } else cur[k] = idx; all[gp.id] = cur; try { localStorage.setItem(PM, JSON.stringify(all)); } catch (e) { /* ignore */ } };
   P.resetMap = () => { try { localStorage.removeItem(PM); } catch (e) { /* ignore */ } };
-  P.pads = () => [...((navigator.getGamepads && navigator.getGamepads()) || [])].filter((g) => g && g.connected);
+  /* ---- Windows版: コントローラーを、OSから直接読む(padsrv.ps1)。
+     Edgeは、コントローラーのボタンを1回押すまで、ゲームの画面にコントローラーの存在を教えない(その最初の1回は、無駄になる)。
+     窓口(padsrv.ps1)が動いているときは、その情報を使って、最初の1回目から反応させる。動いていないときは、今までどおり ---- */
+  const NAT = { on: false, pads: [], shown: false };
+  if (G.location.protocol === 'file:' && !/[?&]nopad=1/.test(G.location.search)) {
+    const gid = () => { try { return localStorage.getItem('mj_padid') || 'winmm'; } catch (e) { return 'winmm'; } }; // 前に使ったコントローラーの名前(おぼえさせたボタンの割り当てを、そのまま使うため)
+    const conv = (j) => {
+      const buttons = []; for (let k = 0; k < 32; k++) { const on = ((j.b >>> k) & 1) === 1; buttons.push({ pressed: on, value: on ? 1 : 0 }); }
+      let x = (j.x - 32767.5) / 32767.5, y = (j.y - 32767.5) / 32767.5;
+      if (j.p !== 65535 && j.p < 36000) { const r = (j.p / 100) * Math.PI / 180, dx = Math.sin(r), dy = -Math.cos(r); if (dx > 0.5) x = 1; else if (dx < -0.5) x = -1; if (dy > 0.5) y = 1; else if (dy < -0.5) y = -1; } // 十字キー(ハット)
+      return { id: gid(), index: 100 + j.i, connected: true, mapping: '', buttons, axes: [x, y] };
+    };
+    const loop = () => {
+      fetch('http://127.0.0.1:8778/pad', { cache: 'no-store' }).then((r) => r.json()).then((a) => {
+        NAT.on = true; NAT.pads = a.map(conv);
+        if (a.length && !NAT.shown) { NAT.shown = true; if (MJ.UI && MJ.UI.toast) MJ.UI.toast('コントローラーを認識しました。十字キー=えらぶ / A=決定 / B=もどる'); }
+        setTimeout(loop, 12);
+      }).catch(() => { NAT.on = false; NAT.pads = []; setTimeout(loop, 1500); });
+    };
+    loop();
+  }
+  const realPads = () => (navigator.getGamepads && navigator.getGamepads()) || [];
+  const curPads = () => (NAT.on && NAT.pads.length ? NAT.pads : realPads());
+  P.pads = () => [...curPads()].filter((g) => g && g.connected);
   P.learn = null; // { k: 'a'|'b', cb } 割り当てを、おぼえさせている最中
   const held = {};
   let lastPoll = 0;
   const pollOnce = () => {
-    const pads = (navigator.getGamepads && navigator.getGamepads()) || [];
+    const pads = curPads();
     const now = performance.now();
+    if (!NAT.pads.length) for (const g of realPads()) { if (g && g.connected) { try { if (localStorage.getItem('mj_padid') !== g.id) localStorage.setItem('mj_padid', g.id); } catch (e) { /* ignore */ } break; } } // 本物のコントローラーの名前を、おぼえておく
     if (!document.hidden && lastPoll && now - lastPoll > 120 && MJ.perf) { MJ.perf.gaps.push({ at: Math.round(now / 100) / 10, gap: Math.round(now - lastPoll), ctx: MJ.perf.last }); if (MJ.perf.gaps.length > 30) MJ.perf.gaps.shift(); }
     lastPoll = now;
     for (const gp of pads) {
