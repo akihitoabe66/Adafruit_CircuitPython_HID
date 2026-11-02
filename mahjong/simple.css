@@ -1529,3 +1529,8 @@ body .callq.selfq.rch-on { gap: 18px; }
 .ot-ln { font-size: 14px; color: #ffe9a0; margin-top: 2px; } .ot-ln .tile { vertical-align: middle; }
 .ot-note { font-size: 15px; color: #cfe6d9; margin: 6px 0 0; text-align: center; }
 .ot .tile.t-s { width: 38px !important; height: 52px !important; }
+.ot-row { display: flex; align-items: center; gap: 10px; }
+.ot-b { min-width: 0; flex: 1; }
+.ot-face { width: 62px !important; height: 62px !important; flex: none; object-fit: cover; border-radius: 8px; border: 2px solid #3c7a67; background: #0b241e; }
+.ot-face.ot-me { display: grid; place-items: center; font-size: 34px; }
+.ot .tile.t-s { width: 34px !important; height: 47px !important; }

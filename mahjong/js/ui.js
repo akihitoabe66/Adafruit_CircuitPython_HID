@@ -1878,7 +1878,7 @@
           // 他家の牌を確認: 3人のCPUの手牌と、自分の手牌(最後の牌つき)を並べて見る(勉強用)
           const top2 = modal && modal.querySelector('.pm-top');
           if (top2) {
-            const ob = document.createElement('button'); ob.className = 'btn ln-open'; ob.id = 'pm-others'; ob.type = 'button'; ob.textContent = '🀄 他家の牌を確認'; top2.appendChild(ob);
+            const ob = document.createElement('button'); ob.className = 'btn ln-open'; ob.id = 'pm-others'; ob.type = 'button'; ob.textContent = '🀄 他家の牌を見る'; top2.appendChild(ob);
             const lb = top2.querySelector('#pm-learn');
             if (lb) requestAnimationFrame(() => { ob.style.setProperty('top', (lb.offsetTop + lb.offsetHeight + 8) + 'px', 'important'); ob.style.setProperty('right', getComputedStyle(lb).right, 'important'); });
             ob.addEventListener('click', () => {
@@ -1906,9 +1906,10 @@
         else if (p.discards && p.discards.length) { last = p.discards[p.discards.length - 1].tile; lastNote = '最後に切った牌'; }
         const melds = p.melds.map((m) => `<span class="ot-m">${m.tiles.map((h) => MJ.tileHTML(h.t, 't-s', '', h.red)).join('')}</span>`).join('');
         const chips = `${p.riichi ? '<span class="chip r">リーチ</span>' : ''}${winners.includes(p) ? '<span class="chip w">上がり</span>' : ''}`;
-        return `<div class="ot-row${p.isHuman ? ' me' : ''}"><div class="ot-n"><b>${p.isHuman ? 'あなた' : p.name}</b>${chips}</div><div class="ot-t">${hand.map((h) => MJ.tileHTML(h.t, 't-s', '', h.red)).join('')}${melds}${last && p.drawn ? `<span class="ot-l">${MJ.tileHTML(last.t, 't-s', '', last.red)}<small>${lastNote}</small></span>` : ''}</div>${last && !p.drawn ? `<div class="ot-ln">${lastNote}: ${MJ.tileHTML(last.t, 't-s', '', last.red)}</div>` : ''}</div>`;
+        const face = this.faceImg(p.char, 'ot-face', p.seat) || '<div class="ot-face ot-me">🀄</div>';
+        return `<div class="ot-row${p.isHuman ? ' me' : ''}">${face}<div class="ot-b"><div class="ot-n"><b>${p.isHuman ? 'あなた' : p.name}</b>${chips}</div><div class="ot-t">${hand.map((h) => MJ.tileHTML(h.t, 't-s', '', h.red)).join('')}${melds}${last && p.drawn ? `<span class="ot-l">${MJ.tileHTML(last.t, 't-s', '', last.red)}<small>${lastNote}</small></span>` : ''}</div>${last && !p.drawn ? `<div class="ot-ln">${lastNote}: ${MJ.tileHTML(last.t, 't-s', '', last.red)}</div>` : ''}</div></div>`;
       };
-      return `<h2>他家の牌を確認</h2><div class="ot">${[1, 2, 3, 0].map((s) => row(game.players[s])).join('')}</div><p class="ot-note">上から対戦相手、いちばん下があなたです。</p>`;
+      return `<h2>他家の牌を見る</h2><div class="ot">${[1, 2, 3, 0].map((s) => row(game.players[s])).join('')}</div><p class="ot-note">上から対戦相手、いちばん下があなたです。</p>`;
     },
 
     /* 上がったとき、役の名前を必ず読み上げる(「リーチ、イッパツ、ツモ、サンショク、ドラ2」) */
