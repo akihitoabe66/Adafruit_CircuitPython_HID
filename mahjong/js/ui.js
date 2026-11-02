@@ -1872,6 +1872,18 @@
             const top = modal && modal.querySelector('.pm-top');
             if (top) { const b = document.createElement('button'); b.className = 'btn pri ln-open'; b.id = 'pm-learn'; b.type = 'button'; b.textContent = '📖 この役で学ぶ'; top.appendChild(b); b.addEventListener('click', () => MJ.Learn.open(rec, true)); }
           }
+          // 他家の牌を確認: 3人のCPUの手牌と、自分の手牌(最後の牌つき)を並べて見る(勉強用)
+          const top2 = modal && modal.querySelector('.pm-top');
+          if (top2) {
+            const ob = document.createElement('button'); ob.className = 'btn ln-open'; ob.id = 'pm-others'; ob.type = 'button'; ob.textContent = '🀄 他家の牌を確認'; top2.appendChild(ob);
+            const lb = top2.querySelector('#pm-learn');
+            if (lb) requestAnimationFrame(() => { ob.style.setProperty('top', (lb.offsetTop + lb.offsetHeight + 8) + 'px', 'important'); ob.style.setProperty('right', getComputedStyle(lb).right, 'important'); });
+            ob.addEventListener('click', () => {
+              const dots = [...modal.querySelectorAll('.pm-dots i')], at = Math.max(0, dots.findIndex((d) => d.classList.contains('on')));
+              MJ.SFX.stopSpeak();
+              this.pagedModal([{ t: '他家の牌', html: this.othersHTML(game, res) }], () => showMain(at), '結果にもどる ◀', true);
+            });
+          }
         };
         showMain(0);
         if (res.type === 'win' && res.wins.length < 2) this.announceWin(game, res);
@@ -1879,6 +1891,21 @@
         MJ.Audio.playResult(res.type === 'draw' ? 'draw' : res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'calm'); // CPU同士の和了など、自分に関係ない結果は落ち着いた曲(流局と同じ)
         this.render(game);
       });
+    },
+
+    /* 他家の牌を確認(勉強用): 上から CPU 3人の手牌、いちばん下に自分の手牌(最後の牌を金の枠で) */
+    othersHTML(game, res) {
+      const winners = res.type === 'win' ? res.wins.map((w) => w.winner) : [];
+      const row = (p) => {
+        const hand = p.hand.filter((h) => h !== p.drawn).slice().sort((a, b) => a.t - b.t || a.id - b.id);
+        let last = p.drawn || null, lastNote = '';
+        if (last) lastNote = '最後に引いた牌';
+        else if (p.discards && p.discards.length) { last = p.discards[p.discards.length - 1].tile; lastNote = '最後に切った牌'; }
+        const melds = p.melds.map((m) => `<span class="ot-m">${m.tiles.map((h) => MJ.tileHTML(h.t, 't-s', '', h.red)).join('')}</span>`).join('');
+        const chips = `${p.riichi ? '<span class="chip r">リーチ</span>' : ''}${winners.includes(p) ? '<span class="chip w">上がり</span>' : ''}`;
+        return `<div class="ot-row${p.isHuman ? ' me' : ''}"><div class="ot-n"><b>${p.isHuman ? 'あなた' : p.name}</b>${chips}</div><div class="ot-t">${hand.map((h) => MJ.tileHTML(h.t, 't-s', '', h.red)).join('')}${melds}${last && p.drawn ? `<span class="ot-l">${MJ.tileHTML(last.t, 't-s', '', last.red)}<small>${lastNote}</small></span>` : ''}</div>${last && !p.drawn ? `<div class="ot-ln">${lastNote}: ${MJ.tileHTML(last.t, 't-s', '', last.red)}</div>` : ''}</div>`;
+      };
+      return `<h2>他家の牌を確認</h2><div class="ot">${[1, 2, 3, 0].map((s) => row(game.players[s])).join('')}</div><p class="ot-note">上から対戦相手、いちばん下があなたです。</p>`;
     },
 
     /* 上がったとき、役の名前を必ず読み上げる(「リーチ、イッパツ、ツモ、サンショク、ドラ2」) */

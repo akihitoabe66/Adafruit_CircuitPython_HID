@@ -1517,3 +1517,15 @@ body .callq.selfq.rch-on { gap: 18px; }
 .rs-grid.slide-r { animation: rsSR .28s cubic-bezier(.2, .8, .3, 1) both; } .rs-grid.slide-l { animation: rsSL .28s cubic-bezier(.2, .8, .3, 1) both; }
 @keyframes rsSR { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: none; } }
 @keyframes rsSL { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: none; } }
+
+/* 他家の牌を確認 */
+.ot { display: grid; gap: 8px; margin-top: 6px; }
+.ot-row { background: #0b241e; border: 2px solid #3c7a67; border-radius: 12px; padding: 6px 10px; }
+.ot-row.me { border-color: #ffd23f; background: #12342a; }
+.ot-n { display: flex; align-items: center; gap: 8px; font-size: 20px; color: #fff; } .ot-n b { color: #ffe9a0; }
+.ot-n .chip { font-size: 14px; padding: 1px 8px; border-radius: 999px; background: #c8141c; color: #fff; } .ot-n .chip.w { background: #ffd23f; color: #1b1b12; }
+.ot-t { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 2px; margin-top: 4px; }
+.ot-t .tile { flex: none; } .ot-m { display: inline-flex; margin-left: 10px; } .ot-l { display: inline-flex; flex-direction: column; align-items: center; margin-left: 10px; } .ot-l small { font-size: 11px; color: #ffe9a0; }
+.ot-ln { font-size: 14px; color: #ffe9a0; margin-top: 2px; } .ot-ln .tile { vertical-align: middle; }
+.ot-note { font-size: 15px; color: #cfe6d9; margin: 6px 0 0; text-align: center; }
+.ot .tile.t-s { width: 38px !important; height: 52px !important; }
