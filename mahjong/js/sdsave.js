@@ -1,7 +1,7 @@
 /* 成績・設定の保存を、SDカード(ボリューム名 mahjong)にも写して残す。
    Windows版(ファイルとして開いたとき)で、savesrv.ps1(保存の窓口)が動いているときだけ働く。ブラウザ版・スマホ版では、何もしない。
    ・起動の最初に、SDカードの保存を、localStorage へ戻す(Cドライブの書き込み保護で、Edgeの保存が消えていても、成績が戻る)
-   ・localStorage に mj_ で始まるものを書くたびに、少しまとめて、窓口へ送る(2世代・確認つきで、SDカードに書く) */
+   ・SDカードへ書くのは、区切りのとき(1局終了・対局終了・ゲームを閉じるとき)だけ。ふだんの保存は、Edge(localStorage)に */
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
   const BASE = 'http://127.0.0.1:8777';
@@ -26,23 +26,28 @@
     }
   } catch (e) { MJ.sd.err = String(e && e.message || e); }
   if (!MJ.sd.ok) return; // 窓口がいないときは、ふつうに(Edgeの保存だけで)動く
-  /* 2. 書くたびに、窓口へ送る(1.5秒まとめて) */
-  let t = 0, dirty = false, last = '';
+  /* 2. SDカードへ書くのは、区切りのときだけ(SDカードの書き込み回数を減らすため)。ふだんの保存は、Edge(localStorage)に。
+        区切り: 1局が終わるとき・対局(半荘)が終わるとき・ゲームを閉じるとき。そのほか、変更が残っていて10分たったとき */
+  let t = 0, tAt = 0, dirty = false, last = '', lastAt = 0;
   const send = (sync) => {
-    t = 0; const s = snapshot(); if (s === last && !dirty) return; dirty = false;
+    if (t) { clearTimeout(t); t = 0; tAt = 0; }
+    const s = snapshot(); if (s === last) { dirty = false; return; } // 変わっていなければ、書かない
     try {
-      if (sync && navigator.sendBeacon) { navigator.sendBeacon(BASE + '/save', new Blob([s], { type: 'text/plain' })); last = s; return; }
-      fetch(BASE + '/save', { method: 'POST', body: s, headers: { 'Content-Type': 'text/plain' } }).then((r) => r.json()).then((j) => { if (j && j.ok) { last = s; MJ.sd.saved = Date.now(); MJ.sd.err = ''; } else { dirty = true; MJ.sd.err = (j && j.err) || 'save failed'; schedule(5000); } }).catch((e) => { dirty = true; MJ.sd.err = String(e && e.message || e); schedule(5000); });
-    } catch (e) { dirty = true; }
+      if (sync && navigator.sendBeacon) { navigator.sendBeacon(BASE + '/save', new Blob([s], { type: 'text/plain' })); last = s; dirty = false; lastAt = Date.now(); return; }
+      lastAt = Date.now();
+      fetch(BASE + '/save', { method: 'POST', body: s, headers: { 'Content-Type': 'text/plain' } }).then((r) => r.json()).then((j) => { if (j && j.ok) { last = s; dirty = false; MJ.sd.saved = Date.now(); MJ.sd.err = ''; } else { MJ.sd.err = (j && j.err) || 'save failed'; later(60000); } }).catch((e) => { MJ.sd.err = String(e && e.message || e); later(60000); });
+    } catch (e) { later(60000); }
   };
-  const schedule = (ms) => { if (t) return; t = setTimeout(() => send(false), ms || 1500); };
+  const later = (ms) => { const at = Date.now() + ms; if (t && tAt <= at) return; if (t) clearTimeout(t); tAt = at; t = setTimeout(() => { t = 0; tAt = 0; send(false); }, ms); }; // 予定は、早いほうを残す
+  /* 区切りの合図(ゲームから呼ぶ)。続けて呼ばれても、20秒に1回まで */
+  MJ.sdFlush = () => { if (!dirty) return; const wait = 20000 - (Date.now() - lastAt); if (wait > 0) later(wait); else send(false); };
   const si = Storage.prototype.setItem, ri = Storage.prototype.removeItem;
-  Storage.prototype.setItem = function (k, v) { si.call(this, k, v); if (this === G.localStorage && mine(k)) { dirty = true; schedule(); } };
-  Storage.prototype.removeItem = function (k) { ri.call(this, k); if (this === G.localStorage && mine(k)) { dirty = true; schedule(); } };
-  G.addEventListener('pagehide', () => { if (dirty || t) send(true); });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && (dirty || t)) send(true); });
+  Storage.prototype.setItem = function (k, v) { si.call(this, k, v); if (this === G.localStorage && mine(k)) { dirty = true; later(600000); } };
+  Storage.prototype.removeItem = function (k) { ri.call(this, k); if (this === G.localStorage && mine(k)) { dirty = true; later(600000); } };
+  G.addEventListener('pagehide', () => { if (dirty) send(true); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && dirty) send(true); });
   // 窓口は、しばらく連絡がないと、自分で終わる。開いている間は、30秒ごとに知らせる
   setInterval(() => { try { fetch(BASE + '/ping', { mode: 'no-cors' }).catch(() => {}); } catch (e) { /* ignore */ } }, 30000);
   // SDカードが空(はじめて)なら、いまの成績を、まず写す
-  if (remoteEmpty) { dirty = true; schedule(800); }
+  if (remoteEmpty) { dirty = true; later(800); }
 })(typeof window !== 'undefined' ? window : globalThis);

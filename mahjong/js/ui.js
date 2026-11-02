@@ -1932,6 +1932,7 @@
           st.games++; st.ranks[me.rank - 1]++;
           localStorage.setItem('mj_stats', JSON.stringify(st));
         } catch (e) { /* ignore */ }
+        if (MJ.sdFlush) MJ.sdFlush(); // 対局(半荘)の区切り: 成績・段位をSDカードへ
         if (rk && rk.promoted) setTimeout(() => MJ.Rank.open('cert', { dan: rk.dan, after: true, done: () => MJ.Rank.revealIfNew(rk.from, rk.to) }), 900); // 昇段したとき、認定証(ハンコの演出つき)→新しい相手の登場
         if (MJ.Rank) MJ.Rank.syncMenu();
         $('#end-menu').addEventListener('click', () => { this.closeOverlay(); resolve(); MJ.App.toMenu(); });

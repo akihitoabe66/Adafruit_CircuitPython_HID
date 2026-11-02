@@ -47,6 +47,7 @@
       }
       for (;;) {
         if (this.ui && MJ.Rank) MJ.Rank.write(this); // 局のはじめごとに、自動セーブ
+        if (this.ui && MJ.sdFlush) MJ.sdFlush(); // 1局の区切り: SDカードへ(変更があるときだけ・20秒に1回まで)
         if (this.handCount > 0 && this.ui) { this.blankTable(); if (this.ui.kyokuSlam) { await this.ui.kyokuSlam(this); if (this.stopped) return null; } } // 次の局の配牌まで、前の局の牌を見せない。局の名前は、サイコロの前に出す
         const r = await this.playHand();
         if (this.stopped) return null;
