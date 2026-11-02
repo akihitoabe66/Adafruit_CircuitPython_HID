@@ -468,14 +468,16 @@
       if (starting || MJ.loading) return; // 連打しても、1回だけ進む(あとの押しが、ホーム画面で効いてしまわないように)
       starting = true; setTimeout(() => { starting = false; }, 2500);
       if (MJ.Pad) MJ.Pad.lockUntil = Date.now() + 1600; // ホームが出てしばらくは、コントローラーを受け付けない(段位の画面などが勝手に開かない)
+      document.body.classList.add('going'); // 押した瞬間に、画面を少し暗くして反応を見せる(ホームが出るまで時間がかかる端末でも、押したことが分かるように)
       MJ.perf.mark('はじめる'); MJ.perf.step('押した');
       const go = () => {
         App.show('menu', { quiet: true }); MJ.perf.step('ホームを出した');
+        document.body.classList.remove('going');
         if (MJ.Pad) MJ.Pad.lockUntil = Date.now() + 700; // ホームが出た直後の押しは、無視
         requestAnimationFrame(() => requestAnimationFrame(() => { // 最初の1コマが描かれたあとに、音を鳴らす
           MJ.perf.step('ホームの1コマ目');
           MJ.SFX.unlock(); MJ.SFX.play('start'); MJ.perf.step('音の準備');
-          setTimeout(() => { MJ.Audio.setScene('home'); MJ.perf.step('BGMを開始'); MJ.Rank.syncMenu(); setTimeout(() => MJ.Rank.daily(), 500); }, 60);
+          setTimeout(() => { MJ.Audio.setScene('home'); MJ.perf.step('BGMを開始'); MJ.Rank.syncMenu(); }, 60); // (1日の最初に段位の画面を自動で出すのは、やめた。成績ボタンから見られる)
         }));
       };
       Promise.race([MJ.menuReady || Promise.resolve(), new Promise((r) => setTimeout(r, 900))]).then(go); // 背景が間に合わなくても、0.9秒で進む

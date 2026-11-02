@@ -1566,3 +1566,8 @@ body #overlay .ln-open.pf, body #overlay #pm-others.pf { background: var(--sel) 
 /* 雀士列伝: 左右の矢印は、枠の内側に置く(外側に出すと、端で切れるため)。カードの列は、そのぶん少し細くする */
 .rs { padding: 0 36px; box-sizing: border-box; width: 700px; max-width: 96vw; }
 .rs-arr.l { left: 0; } .rs-arr.r { right: 0; }
+
+/* タイトルで「はじめる」を押した瞬間の反応: 少し暗くして、ボタンを押し込む */
+body.going #screen-title #btn-start { transform: scale(.93); filter: brightness(1.25); transition: transform .08s, filter .08s; }
+body.going::after { content: ""; position: fixed; inset: 0; background: rgba(0, 0, 0, .35); z-index: 8000; pointer-events: none; animation: goDim .25s ease-out both; }
+@keyframes goDim { from { opacity: 0; } to { opacity: 1; } }
