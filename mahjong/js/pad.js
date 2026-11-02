@@ -88,6 +88,7 @@
       el.classList.toggle('pf-rel', getComputedStyle(el).position === 'static');
       el.classList.add('pf');
       if (el.matches('.cq-btn') && MJ.UI && MJ.UI.hlCall) MJ.UI.hlCall(el);
+      if (el.dataset && el.dataset.rsid && MJ.Roster) MJ.Roster.show(+el.dataset.rsid); // 雀士列伝: カーソルを合わせると、紹介が変わる
       if (!el.matches('.hand .tile')) { try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* ignore */ } } // 手牌の移動では、画面の位置合わせをしない(重い)
       if (el.matches('.hand .tile[data-id]') && MJ.UI && MJ.UI.showInfo) { const id = +el.dataset.id; clearTimeout(P._si); P._si = setTimeout(() => { try { MJ.UI.showInfo(id); } catch (e) { /* ignore */ } }, 90); } // 説明は、動きが止まってから出す(連続して動かす時に重くならない)
     }
@@ -150,9 +151,11 @@
     if (t && visible(t)) setCur(t);
   };
   /* リーチできる時: リーチのボタンへ / リーチを押したあと: 切れる牌(候補)へ。取り消したら、リーチのボタンへ戻る */
-  P.focusRiichi = () => {
+  P.focusRiichi = (n = 0) => { // ツモ・リーチできるときは、その板のボタンから(赤い字・白い背景のボタンが、選ばれた=黄色になる)。板が出るまで、少し待って試す
     if (!P.on) return;
-    /* リーチできるときも、カーソルは手牌のまま(勝手に別の場所へ飛ばさない) */
+    const b = $('.selfq .cq-btn[data-act=tsumo]') || $('.selfq .cq-btn[data-act=riichi]');
+    if (b && visible(b)) { setCur(b); return; }
+    if (n < 8) setTimeout(() => P.focusRiichi(n + 1), 60);
   };
   P.afterRiichi = (on) => {
     if (!P.on) return;

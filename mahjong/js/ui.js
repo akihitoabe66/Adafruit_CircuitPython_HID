@@ -624,8 +624,11 @@
             hand += `<div class="ab" style="left:${x}px;top:${y}px">${this.seatTile(sorted[i].t, s === 2 ? 0 : ROT, 22, 30, { red: sorted[i].red })}</div>`;
           } else {
             // 引いた牌(14牌目)は、その人から見て、いちばん右に、少しあけて置く(向かいは画面の左はし、右の人は画面の上はし、左の人は画面の下はし)
-            const hasDrawn = n % 3 === 2;
-            const pos = s === 3 ? i * 17 + (hasDrawn && i === n - 1 ? 9 : 0) : hasDrawn ? (i === 0 ? 0 : 9 + i * 17) : i * 17;
+            // 手牌(13牌など)は、動かさない。引いた牌の場所は、手牌の「右」に、いつも決まった位置(向かいは画面の左はし、右の人は画面の上はし、左の人は画面の下はし)
+            const hasDrawn = n % 3 === 2, base = hasDrawn ? n - 1 : n, G = 26; // G = 引いた牌1枚ぶん + すきま
+            let pos;
+            if (hasDrawn && i === n - 1) pos = s === 3 ? 13 * 17 + 9 : 0; // 引いた牌
+            else pos = s === 3 ? i * 17 : G + i * 17; // 手牌(右・向かいは、引いた牌の場所をあけて並べる)
             const x = s === 2 ? 240 + pos : s === 1 ? 690 : 6, y = s === 2 ? 4 : 30 + pos;
             hand += s === 2 ? `<div class="bk" style="left:${x}px;top:${y}px;width:16px;height:24px"></div>` : `<div class="bk" style="left:${x}px;top:${y}px;width:24px;height:16px"></div>`;
           }
@@ -1105,7 +1108,7 @@
         this.startThink(game, p);
         document.body.classList.add('my-turn');
         this.myTurnMark(opts && opts.riichi && opts.riichi.length && !p.riichi ? 'テンパイ! リーチできます' : opts && ((opts.ankan && opts.ankan.length) || (opts.kakan && opts.kakan.length)) ? 'カンできます(右上のボタン)' : null);
-        if (opts && opts.riichi && opts.riichi.length && !p.riichi && MJ.Pad && MJ.Pad.focusRiichi) setTimeout(() => MJ.Pad.focusRiichi(), 30); // リーチできる時は、リーチのボタンから(引いた牌を、うっかり切らないように)
+        if (opts && ((opts.riichi && opts.riichi.length && !p.riichi) || opts.tsumo) && MJ.Pad && MJ.Pad.focusRiichi) setTimeout(() => MJ.Pad.focusRiichi(), 30); // リーチできる時は、リーチのボタンから(引いた牌を、うっかり切らないように)
         requestAnimationFrame(() => { const t = $('#mine .hand .tile.drawn:not(.ph)'); if (t) { t.classList.add('draw-in'); setTimeout(() => t.classList.remove('draw-in'), 650); } }); // 引いた牌が、山から右はしへ置かれる動き
         if (MJ.Pad && MJ.Pad.focusHand) setTimeout(() => MJ.Pad.focusHand(), 0); // 自分の番: カーソルを、引いた牌に
         const mySel = this.sel, needAdv = this.coachActive() || game.mode !== 'free';
@@ -1648,7 +1651,7 @@
       // 供託(場のリーチ棒)・本場の説明: 点数の表の増減(+3,300など)と、数字が合うように、内訳を見せる
       const base = !w.tsumo ? w.pay.ron : (win.seat === game.dealer ? w.pay.each * 3 : w.pay.fromOther * 2 + w.pay.fromDealer);
       const kt = w.kyotaku || 0;
-      const sticks = '<img class="sp-st" src="img/tenbo_1000.png" alt="リーチ棒" draggable="false">'.repeat(Math.min(kt, 4)) + (kt > 4 ? `×${kt}` : '');
+      const sticks = '<img class="sp-st" src="img/tenbo_1000.png" alt="リーチ棒" draggable="false">' + (kt > 1 ? `×${kt}` : ''); // 棒は1本の絵+本数(何本も並べて、行が増えないように)
       const plus = (kt || w.honba) ? `<div class="score-plus">${kt ? `<div class="sp-row">＋ <b>供託</b> ${sticks} ${kt}本 = <b>${fmt(kt * 1000)}点</b></div><div class="sp-note">リーチした人が場に出した点棒(1本1,000点)。上がった人が、全部もらえます。</div>` : ''}${w.honba ? `<div class="sp-note">本場 ${w.honba}本: ロンは1本300点、ツモは各100点が、上の点数に入っています。</div>` : ''}${kt ? `<div class="sp-total">もらえる点: ${fmt(base)} + ${fmt(kt * 1000)} = <b>${fmt(base + kt * 1000)}点</b></div>` : ''}</div>` : '';
       return `<div class="win-cols"><div class="win-l"><div class="win-head">${this.faceImg(win.char) || '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): <span class="gl-skip">${w.loser.name}</span>`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.winWords(MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || '', w.tsumo)}」</div>`}</div></div>
       <div class="win-hand">${concealed}${melds}${winT}</div>
@@ -1748,7 +1751,13 @@
         pg.style.visibility = 'hidden';
         fitPage(pg);
         const wait = [...pg.querySelectorAll('img')].filter((im) => !im.complete);
-        const reveal = () => { if (els[cur] !== pg) return; if (wait.length) { pg._fit = null; fitPage(pg); } pg.style.visibility = ''; };
+        const reveal = () => {
+          if (els[cur] !== pg) return; if (wait.length) { pg._fit = null; fitPage(pg); } pg.style.visibility = '';
+          // 表示のあとで、もう一度確かめる(文字の形・絵の読み込みで、高さが変わって、下が切れないように)
+          const recheck = () => { if (els[cur] !== pg || !pg.isConnected) return; if (pg.scrollHeight * (parseFloat(pg.style.zoom) || 1) > body.clientHeight + 1) { pg._fit = null; fitPage(pg); } };
+          setTimeout(recheck, 120); setTimeout(recheck, 600);
+          try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(recheck); } catch (e) { /* ignore */ }
+        };
         if (wait.length) Promise.race([Promise.all(wait.map((im) => new Promise((r) => { im.addEventListener('load', r, { once: true }); im.addEventListener('error', r, { once: true }); }))), new Promise((r) => setTimeout(r, 400))]).then(reveal); else reveal();
         // 次のページの文字合わせを、先に(少し間をあけて、裏で)済ませておく。次へ進むときに、待たされないように
         clearTimeout(modal._pf);

@@ -101,7 +101,12 @@
     startAuto(teacher) {
       MJ.Rank.clearSave(); // 新しく始める: 前回のつづきは、ここで消える
       const easy = MJ.CHARS.filter((c) => c.level <= 3 && MJ.Rank.unlocked(c.id)).map((c) => c.id);
-      this.picks = MJ.shuffle(easy).slice(0, 3);
+      // 時代・ジャンルが、なるべく別々の3人にする(昔話の人ばかりにならないように)
+      const byEra = {}; easy.forEach((id) => { (byEra[MJ.eraOf(id)] = byEra[MJ.eraOf(id)] || []).push(id); });
+      const eras = MJ.shuffle(Object.keys(byEra));
+      const pk = eras.slice(0, 3).map((e) => MJ.shuffle(byEra[e])[0]);
+      if (pk.length < 3) MJ.shuffle(easy.filter((id) => !pk.includes(id))).slice(0, 3 - pk.length).forEach((id) => pk.push(id));
+      this.picks = pk;
       MJ.RULES.length = 'east'; MJ.saveRules();
       this.lastCfg = { mode: 'free', teacher: !!teacher, picks: this.picks.slice(), length: 'east' };
       this.launch(this.lastCfg);
@@ -167,6 +172,7 @@
     launch(cfg, sv) {
       this.stopGame();
       const chars = cfg.picks.map((id) => MJ.CHARS.find((c) => c.id === id));
+      if (MJ.Roster) MJ.Roster.mark(cfg.picks); // 出会った相手として、おぼえる
       const game = new MJ.Game({ chars, mode: cfg.mode, length: cfg.length, ui: MJ.UI });
       this.game = game;
       if (sv && MJ.Rank) MJ.Rank.apply(game, sv); // つづきから: 点数・局・本場を戻す
@@ -325,6 +331,7 @@
       <button class="btn big" id="st-perf">📈 動作の測定</button>
       <button class="btn big" id="st-rec">📊 通しの記録</button>
       <button class="btn big" id="st-save"></button>
+      <button class="btn big" id="st-roster">🎴 雀士列伝</button>
       <button class="btn big" id="st-notes">📖 麻雀参考書</button>
       <button class="btn big" data-open-yaku>📖 役一覧</button>
       <button class="btn big" data-open-gloss>📚 用語辞典</button>
@@ -420,6 +427,7 @@
         });
       });
     });
+    o.querySelector('#st-roster').addEventListener('click', () => MJ.Roster.open(() => showSettings()));
     o.querySelector('#st-notes').addEventListener('click', () => { MJ.UI.closeOverlay(); MJ.App.openNotes(); });
     o.querySelector('#st-audio').addEventListener('click', () => MJ.UI.openVolume({ full: true, onClose: () => showSettings() })); // 設定の音の大きさも、対局中と同じ板(◀▶・10段階・同じバー)
   }

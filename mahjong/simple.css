@@ -1459,3 +1459,29 @@ body.rot .ld-box { padding: 18px 40px; }
 *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
 /* ページ式の窓: 次のページの文字合わせを、裏で先に済ませるときの置き方(見えない・場所を取らない) */
 .pm-page.ms { display: block; position: absolute; left: 0; right: 0; top: 0; visibility: hidden; pointer-events: none; }
+
+/* ===== リーチ・ロン・ツモ: 背景は白、文字と枠が赤(選んでいる=黄色の面、と混ざらないように) ===== */
+body .callq .cq-btn.b-riichi, body .callq .cq-btn.b-ron { background: #fff; color: #c8141c; border: 3px solid #c8141c; text-shadow: none; }
+body .callq .cq-btn.b-riichi .cq-rec, body .callq .cq-btn.b-ron .cq-rec { color: #c8141c; }
+/* 手牌の、引いた牌の場所(まだ引いていないとき): 半透明の黒い牌の影で、場所を見せる */
+#mine .hand .tile.drawn.ph { visibility: visible; background: rgba(0, 0, 0, .3); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .16); border-radius: 6px; }
+#mine .hand .tile.drawn.ph * { display: none; }
+/* 下家(右の席)の顔と吹き出し: 顔が右、吹き出しが左 */
+.say.sy1 { flex-direction: row-reverse; left: auto !important; right: 14px; }
+.cutin[data-seat="1"] { flex-direction: row-reverse; justify-content: flex-start; background: linear-gradient(270deg, #000d, #000a 70%, #0000); text-align: right; }
+
+/* ===== 雀士列伝 ===== */
+.rs { width: 672px; max-width: 96vw; color: #fff; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+.rs-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; } .rs-h b { font-size: 30px; letter-spacing: .12em; color: #ffd23f; } .rs-h span { font-size: 18px; color: #cfe6d9; }
+.rs-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.rs-c { display: grid; justify-items: center; gap: 2px; padding: 4px 2px 3px; border-radius: 10px; border: 2px solid #31574a; background: #0d1d19; color: #fff; font: inherit; cursor: pointer; min-width: 0; }
+.rs-c img { width: 56px; height: 56px; display: block; border-radius: 6px; }
+.rs-c img.sil, .rs-big.sil { filter: brightness(0) opacity(.6); }
+.rs-c span { font-size: 12px; font-weight: 800; white-space: nowrap; max-width: 100%; overflow: hidden; }
+.rs-c.cur { border-color: #ffd23f; box-shadow: 0 0 0 3px #ffcc4d66; }
+body .rs-c.pf { background: var(--sel) !important; color: var(--sel-ink) !important; border-color: var(--sel-ink) !important; }
+#rs-detail { margin-top: 8px; min-height: 150px; background: #0b241e; border: 2px solid #3c7a67; border-radius: 12px; padding: 8px 12px; }
+.rs-d { display: flex; gap: 14px; align-items: center; }
+.rs-big { height: 130px; width: auto; flex: none; border-radius: 8px; }
+.rs-t { min-width: 0; } .rs-n { font-size: 26px; color: #ffd23f; } .rs-m { font-size: 15px; color: #cfe6d9; margin: 2px 0 4px; } .rs-t p { margin: 3px 0; font-size: 16px; line-height: 1.4; } .rs-q { color: #ffe9a0; }
+.rs-f { display: flex; gap: 10px; justify-content: center; margin-top: 8px; } .rs-f .btn { font-size: 18px; padding: 6px 18px; }
