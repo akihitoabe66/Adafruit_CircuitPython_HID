@@ -195,11 +195,11 @@
       if (!['bgm', 'sfx', 'voice', 'read', 'rate'].includes(k) || !isFinite(n)) return;
       n = Math.max(0, Math.min(10, n));
       if (k === 'voice') k = 'read'; // 声と読み上げは、ひとつにまとめた(読み上げ)
-      if (k === 'read') { MJ.SFX.setReadVol(Math.max(0.1, n / 10)); MJ.SFX.setCallVol(n / 10); this.sampleRead(); }
+      if (k === 'read') { MJ.SFX.setReadVol(Math.max(0.1, n / 10)); MJ.SFX.setCallVol(n / 10 * 0.4); this.sampleRead(); } // 掛け声は、もとの音量の比(読み上げ0.8に対して0.3)をそのまま保つ
       else if (k === 'rate') { MJ.SFX.setReadRate(0.6 + n / 10); this.sampleRead(); }
       else if (k === 'bgm') { MJ.Audio.setVolume(n * 0.03); if (MJ.Audio.on === false && n > 0) MJ.Audio.setOn(true); }
       else if (k === 'sfx') { MJ.SFX.setVol(n / 10); MJ.SFX.play('discard'); }
-      else { MJ.SFX.setCallVol(n / 10); MJ.SFX.setReadVol(Math.max(0.1, n / 10)); if (n > 0) MJ.SFX.voice('ポン', { char: { id: 1 } }); }
+      else { MJ.SFX.setReadVol(Math.max(0.1, n / 10)); MJ.SFX.setCallVol(n / 10 * 0.4); if (n > 0) MJ.SFX.voice('ポン', { char: { id: 1 } }); }
       this.syncAudio && this.syncAudio();
     },
     openVolume(opt = {}) {
@@ -1749,7 +1749,7 @@
           pages.push({ t: '流局', html: `<div class="dr-big">流局</div><div class="dr-sub">${game.kyokuLabel()} ／ 山の牌がなくなりました(荒牌平局)</div><div class="dr-row">${cards}</div><p class="dr-note">テンパイの人がノーテンの人から合計3000点を受け取ります。</p><div class="dr-tbl">${this.scoreTable(game, res)}</div>` });
           if (res.drawReview) this.splitReview(MJ.Coach.drawReview(game, res)).forEach((h) => rvPages.push({ t: '流局の振り返り', html: h, rv: true }));
         }
-        if (res.type === 'win') MJ.SFX.play(res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'win');
+        if (res.type === 'win') MJ.SFX.play(res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'drawgame'); // 自分以外の和了(自分が払わないとき)は、にぎやかな音にしない
         else MJ.SFX.play('drawgame');
         const last = game.length === 'single';
         const finish = () => { MJ.SFX.stopSpeak(); MJ.Audio.endResult(); this.closeOverlay(); resolve(); };
@@ -1778,7 +1778,7 @@
         showMain(0);
         if (res.type === 'win' && res.wins.length < 2) this.announceWin(game, res);
         // 結果画面のBGM: 自分が上がった=win / 自分がマイナス=lose / 流局・CPU同士の和了=draw
-        MJ.Audio.playResult(res.type === 'draw' ? 'draw' : res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'draw'); // CPU同士の和了など、自分に関係ない結果は落ち着いた曲(流局と同じ)
+        MJ.Audio.playResult(res.type === 'draw' ? 'draw' : res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'calm'); // CPU同士の和了など、自分に関係ない結果は落ち着いた曲(流局と同じ)
         this.render(game);
       });
     },

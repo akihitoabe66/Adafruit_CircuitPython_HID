@@ -30,7 +30,7 @@
             ctx = new AC(); master = ctx.createGain(); master.gain.value = S.vol;
             // 音が重なっても、割れて(ビリビリして)聞こえないように、最後にリミッターを通す
             const lim = ctx.createDynamicsCompressor();
-            lim.threshold.value = -10; lim.knee.value = 8; lim.ratio.value = 14; lim.attack.value = 0.003; lim.release.value = 0.15;
+            lim.threshold.value = -8; lim.knee.value = 12; lim.ratio.value = 8; lim.attack.value = 0.008; lim.release.value = 0.25; // きつくかけすぎると、声がビリビリする
             // 出口の手前に少し余裕(0.8倍)を持たせる。BGMも同じ出口を通して、足し算で1.0を超えて割れないようにする
             bus = ctx.createGain(); bus.gain.value = 0.8;
             lim0 = lim; master.connect(lim); lim.connect(bus); bus.connect(ctx.destination);
@@ -277,7 +277,7 @@
           if (b === false) { t += 0.28; return; }
           if (!b) return;
           const src = ctx.createBufferSource(); src.buffer = b;
-          const g = ctx.createGain(), gv = Math.min(0.7, S.readVol * 0.7); // 1より大きくすると、音が割れる
+          const g = ctx.createGain(), gv = Math.min(0.5, S.readVol * 0.5); // 大きくしすぎると、BGMと重なって割れる
           // 切れ目の「プツッ」を防ぐ: 頭とおしりを、短くなめらかに
           g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gv, t + 0.01);
           g.gain.setValueAtTime(gv, Math.max(t + 0.01, t + b.duration - 0.02)); g.gain.linearRampToValueAtTime(0, t + b.duration);

@@ -561,6 +561,7 @@
     const finish = () => {
       if (ended) return; ended = true;
       const e = el(); if (e) e.textContent = '100%';
+      MJ.titleBgmOK = true; try { if (MJ.Audio && document.body.classList.contains('on-title')) { MJ.Audio.setScene('title'); MJ.Audio.resume(); } } catch (e) { /* ignore */ } // 100%になる瞬間から、BGMを鳴らす
       setTimeout(() => {
         MJ.loading = false; document.body.classList.remove('loading'); const ld = document.getElementById('ld'); if (ld) ld.remove();
         // 読み込みが終わったら、すぐBGMを始める。鳴らなかったときは、少し待って何度かやり直す(最初の操作でも鳴らす)
@@ -576,6 +577,7 @@
       const u = MJ.artUrl && MJ.artUrl['--art-menu']; if (u) { const im = new Image(); im.src = u; try { if (im.decode) await im.decode(); } catch (e) { /* ignore */ } } MJ.progTick(); await yieldMs(30);
       try { App.prewarmMenu && App.prewarmMenu(); } catch (e) { /* ignore */ } MJ.progTick(); await yieldMs(60);
       try { if (MJ.warmAudio) await Promise.race([MJ.warmAudio(['audio/home.mp3']), yieldMs(8000)]); } catch (e) { /* ignore */ }
+      try { if (MJ.Audio && MJ.Audio.prime) await MJ.Audio.prime('audio/home.mp3'); } catch (e) { /* ignore */ } // 曲を、鳴らせる状態まで読み込む(100%の瞬間に、すぐ鳴るように)
       finish();
     }).catch(finish);
     setTimeout(finish, 60000); // 万一、終わらないときだけ、あきらめて進める

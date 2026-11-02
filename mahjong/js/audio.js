@@ -57,7 +57,22 @@
         el.volume = 1;
       } catch (e) { /* 失敗したら element.volume を使う */ }
     },
-    _apply() { const v = A.volume * (A.ducked ? 0.4 : 1); if (gain) gain.gain.value = v; else if (el) el.volume = v; },
+    _apply() { const v = A.volume * (A.ducked ? 0.18 : 1); if (gain) { try { gain.gain.setTargetAtTime(v, gain.context.currentTime, 0.06); } catch (e) { gain.gain.value = v; } } else if (el) el.volume = v; }, // 読み上げ中は、BGMをしっかり下げる(声が割れないように)。急に変えず、なめらかに
+    /* 曲を先に読み込んでおく(まだ鳴らさない)。読み込み中の最後に、すぐ鳴らせるように */
+    prime(src) {
+      return new Promise((done) => {
+        try {
+          const a = A._el(); if (!a) return done();
+          if (a.dataset.track !== src) { a.src = blobs[src] || src; a.dataset.track = src; }
+          a.preload = 'auto';
+          let ok = false; const fin = () => { if (ok) return; ok = true; done(); };
+          a.addEventListener('canplaythrough', fin, { once: true }); a.addEventListener('error', fin, { once: true });
+          setTimeout(fin, 7000);
+          try { a.load(); } catch (e) { fin(); }
+          if (a.readyState >= 4) fin();
+        } catch (e) { done(); }
+      });
+    },
     duck(on) { A.ducked = !!on; A._apply(); },
     _load(src, loop) {
       const a = A._el();
@@ -84,9 +99,10 @@
     },
     /* 結果画面の専用BGM: 'win'(自分の和了) / 'lose'(マイナス) / 'draw'(流局)。閉じると対局BGMに戻る */
     playResult(kind) {
-      if (!A.on || !['win', 'lose', 'draw'].includes(kind)) return;
+      if (!A.on || !['win', 'lose', 'draw', 'calm'].includes(kind)) return;
       A.resultOn = true;
       // 自分が上がったときの曲は、2曲からランダムに選ぶ
+      if (kind === 'calm') { A._load(STUDY, true); return; } // 自分以外の和了: 落ち着いた曲(点数の勉強と同じ静かな曲)
       const name = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : `result_${kind}`;
       A._load(`audio/${name}.mp3`, true);
     },
