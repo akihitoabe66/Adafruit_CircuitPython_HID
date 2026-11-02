@@ -1512,3 +1512,8 @@ body .callq.selfq.rch-on { gap: 18px; }
 .rs-d { height: 100%; }
 .rs-t { overflow: hidden; }
 .rs-big { height: 130px !important; width: 130px !important; object-fit: cover; }
+
+/* 雀士列伝: ページが、横からスライドして入る */
+.rs-grid.slide-r { animation: rsSR .28s cubic-bezier(.2, .8, .3, 1) both; } .rs-grid.slide-l { animation: rsSL .28s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes rsSR { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: none; } }
+@keyframes rsSL { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: none; } }

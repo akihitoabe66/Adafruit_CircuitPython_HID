@@ -25,19 +25,30 @@
       const go = () => { const d = document.querySelector('#rs-detail'); if (d && R.sel === id) d.innerHTML = R.detail(id); };
       if (now) go(); else R._t = setTimeout(go, 70);
     },
+    /* 左右キーで、となりのページへ(スライド)。端のカードで、さらに左右を押したとき */
+    edge(cur, dx) {
+      const cards = [...document.querySelectorAll('.rs-c')], i = cards.indexOf(cur);
+      if (i < 0 || !R._turn) return false;
+      const col = i % 8, pages = Math.ceil(MJ.CHARS.length / PER);
+      if (dx > 0 && (col === 7 || i === cards.length - 1) && R.page < pages - 1) { R._turn(1, Math.floor(i / 8)); return true; }
+      if (dx < 0 && col === 0 && R.page > 0) { R._turn(-1, Math.floor(i / 8)); return true; }
+      return false;
+    },
     open(onClose) {
-      const draw = () => {
+      const draw = (dir, row) => {
         const from = R.page * PER, list = MJ.CHARS.slice(from, from + PER), pages = Math.ceil(MJ.CHARS.length / PER);
         const cards = list.map((c) => { const met = R.met(c.id); return `<button class="rs-c" type="button" data-rsid="${c.id}"><img class="${met ? '' : 'sil'}" src="${c.face}" alt="" draggable="false"><span>${met ? c.short : '？？？？'}</span></button>`; }).join('');
         const html = `<div class="rs"><div class="rs-h"><b>雀士列伝</b><span>${R.count()} / ${MJ.CHARS.length}人と出会いました</span></div><div class="rs-grid">${cards}</div><div id="rs-detail"></div><div class="rs-f"><button class="btn" id="rs-prev" type="button"${R.page === 0 ? ' disabled' : ''}>◀ 前の人たち</button><button class="btn" id="rs-next" type="button"${R.page >= pages - 1 ? ' disabled' : ''}>次の人たち ▶</button><button class="btn pri" id="rs-close" type="button">もどる</button></div></div>`;
         MJ.UI.overlay(html, { plain: true });
         const o = document.querySelector('#overlay');
+        if (dir) o.querySelector('.rs-grid').classList.add(dir > 0 ? 'slide-r' : 'slide-l'); // となりのページが、スライドして出る
         o.querySelectorAll('.rs-c').forEach((b) => { b.addEventListener('mouseenter', () => R.show(+b.dataset.rsid)); b.addEventListener('click', () => R.show(+b.dataset.rsid)); });
-        o.querySelector('#rs-prev').addEventListener('click', () => { if (R.page > 0) { R.page--; R.sel = MJ.CHARS[R.page * PER].id; draw(); } });
-        o.querySelector('#rs-next').addEventListener('click', () => { if (R.page < pages - 1) { R.page++; R.sel = MJ.CHARS[R.page * PER].id; draw(); } });
+        R._turn = (d, rw) => { const np = R.page + d; if (np < 0 || np >= pages) return; R.page = np; const cs = MJ.CHARS.slice(np * PER, np * PER + PER); const k = Math.min(cs.length - 1, (rw || 0) * 8 + (d > 0 ? 0 : 7)); R.sel = cs[k].id; draw(d, rw); const el = document.querySelectorAll('.rs-c')[k]; if (el && MJ.Pad && MJ.Pad.on && MJ.Pad.setCur) MJ.Pad.setCur(el); };
+        o.querySelector('#rs-prev').addEventListener('click', () => { if (R.page > 0) { R.page--; R.sel = MJ.CHARS[R.page * PER].id; draw(-1); } });
+        o.querySelector('#rs-next').addEventListener('click', () => { if (R.page < pages - 1) { R.page++; R.sel = MJ.CHARS[R.page * PER].id; draw(1); } });
         o.querySelector('#rs-close').addEventListener('click', () => { if (onClose) onClose(); else MJ.UI.closeOverlay(); });
         R.show(R.sel >= from + 1 && R.sel <= from + PER ? R.sel : MJ.CHARS[from].id, true);
-        if (MJ.Pad && MJ.Pad.preselect) setTimeout(() => MJ.Pad.preselect(true), 0);
+        if (!row && row !== 0 && MJ.Pad && MJ.Pad.preselect) setTimeout(() => MJ.Pad.preselect(true), 0);
       };
       R.page = 0; R.sel = MJ.CHARS[0].id; draw();
     },

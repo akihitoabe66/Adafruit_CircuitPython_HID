@@ -204,6 +204,7 @@
     if (!cur) { setCur(pickDefault()); return; }
     if (dy > 0 && cur.matches('.hand .tile[data-id]') && P.toDrawn()) return; // 手牌の上で「下」= 引いた牌へ戻る
     // 手牌の左右: 位置を計算せず、隣の牌へ直接移る(速い)。左端からさらに左は右のボタン列へ、右のボタン列からさらに右は左端の牌へ(ぐるっと一周)
+    if (dx && cur.matches('.rs-c') && MJ.Roster && MJ.Roster.edge(cur, dx)) return; // 雀士列伝: 端で、さらに左右 = となりのページへ
     if (dx && cur.matches('.hand .tile[data-id]')) {
       const ts = handStops(); // 切れない牌(暗い牌)は、飛ばす。リーチ中は、光る牌だけ
       const i = ts.indexOf(cur);
