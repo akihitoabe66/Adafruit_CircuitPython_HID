@@ -852,7 +852,7 @@ body.short .win-hand { flex-wrap: wrap; }
 /* ---- リーチ宣言牌は横向きに倒して河に置く(実際の卓と同じ) ---- */
 .river { grid-template-columns: repeat(6, auto); justify-items: center; }
 .river .tile.rch { width: var(--sh); height: var(--sw); transform: none; margin: 0; outline: none; position: relative; filter: drop-shadow(0 0 3px #ff5b5b) drop-shadow(0 1px 1px #0008); }
-.river .tile.rch img { position: absolute; left: 50%; top: 50%; width: var(--sw); height: var(--sh); max-width: none; transform: translate(-50%, -50%) rotate(90deg); }
+.river .tile.rch img { position: absolute; left: 50%; top: 50%; width: var(--sw); height: var(--sh); max-width: none; transform: translate(-50%, -50%) rotate(-90deg); }
 .dq .river { grid-template-columns: repeat(9, auto); }
 
 /* ---- おすすめ牌: ★に加えて、少し持ち上げて目立たせる(練習モードで「切る牌」が一目で分かるように) ---- */

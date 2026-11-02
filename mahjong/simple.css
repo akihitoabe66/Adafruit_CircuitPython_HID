@@ -1491,3 +1491,18 @@ body .rs-c.pf { background: var(--sel) !important; color: var(--sel-ink) !import
 @keyframes inMe { from { opacity: 0; transform: translateY(1.2cqw); } to { opacity: 1; transform: none; } }
 /* マウスカーソル: 動かして止めると、すぐ消える(ゲームはコントローラーで遊ぶため) */
 html.nocur, html.nocur * { cursor: none !important; }
+
+/* 鳴きの確認: ボタンを小さく・間をあける(自分の風・名前の札を隠さない)。選んだ牌が持ち上がっても重ならないよう、少し上に出す */
+body .callq { bottom: calc(100% + 44px); }
+body .callq .cq-btns { gap: 22px; }
+body .callq .cq-btns .cq-btn { min-width: 92px; min-height: 40px; padding: 2px 14px !important; font-size: 22px !important; letter-spacing: .06em; border-radius: 10px; }
+body .callq .cq-btns .cq-btn .cq-sub { font-size: 12px; }
+body .callq.selfq.rch-on .cq-btn { min-width: 84px; min-height: 36px; font-size: 20px !important; }
+body .callq.selfq.rch-on { gap: 18px; }
+.cq-tile { display: flex; align-items: center; gap: 8px; background: #0b3a22e6; border: 2px solid #ffd23f; border-radius: 12px; padding: 3px 14px 3px 12px; color: #fff; font-size: 17px; font-weight: 800; text-shadow: 0 1px 2px #000; }
+.cq-tile .cq-who { color: #ffe9a0; }
+.cq-tile .tile.cq-big { width: 30px; height: 41px; flex: none; box-shadow: 0 0 0 3px #ffd23f; border-radius: 4px; margin: 0 2px; }
+.cq-tile .tile.cq-big svg, .cq-tile .tile.cq-big img { width: 100%; height: 100%; }
+
+/* 流局: テンパイ・ノーテンで大きくなる枠が、左端・右端で切れないように、まわりに余白 */
+.dr-row { padding: 6px 14px; }

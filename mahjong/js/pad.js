@@ -78,11 +78,14 @@
   // 光っている(.pf)のは、いつも1つだけ。画面の切り替えで残った古い光を、まとめて消す
   const clearPf = (keep) => { document.querySelectorAll('.pf').forEach((x) => { if (x !== keep) { x.classList.remove('pf'); x.classList.remove('pf-rel'); } }); };
   P.clearPf = clearPf;
+  const dealHold = () => !!((MJ.UI && MJ.UI.dealing) || document.body.classList.contains('deal-hide')); // 配牌のアニメ中は、カーソルを出さない
   const setCur = (el) => {
+    if (el && dealHold()) el = null;
     clearPf(el);
     if (P.cur) { P.cur.classList.remove('pf'); P.cur.classList.remove('pf-rel'); }
     P.cur = el || null;
     P.desc = descOf(el);
+    P.onPh = !!(el && el.matches('.hand .tile.ph')); // 黒い影(14牌目の場所)にカーソルがあるか
     if (el && el.matches('.hand .tile[data-id]')) P.idx = [...document.querySelectorAll('.hand .tile[data-id]')].indexOf(el); else P.idx = -1; // 手牌の何番目か(捨てたあとも、同じ位置にカーソルを残す)
     if (el) {
       el.classList.toggle('pf-rel', getComputedStyle(el).position === 'static');
@@ -131,11 +134,18 @@
   P.refocus = () => {
     if (!P.on) return;
     if (P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur)) { clearPf(P.cur); P.cur.classList.add('pf'); return; }
+    if (dealHold()) { clearPf(null); P.cur = null; P.desc = null; P.idx = -1; P.onPh = false; return; }
     if (P.cur) { P.cur.classList.remove('pf'); P.cur = null; }
     let el = P.desc ? $(P.desc) : null;
+    if (!el && P.onPh) { // 影の場所にいたカーソル: 牌を引いたら引いた牌へ、まだなら影のまま
+      el = $('.hand .tile.drawn:not(.ph):not(.dis)') || $('.hand .tile.ph');
+      if (!(el && visible(el) && inScope(el))) el = null;
+    }
     if (!(el && visible(el) && inScope(el)) && P.idx >= 0) { // 手牌のカーソルの牌がなくなった(捨てた・変わった): 同じ位置の牌に、カーソルを残す(別の所へ、ぴょこっと飛ばない)
       const ts = [...document.querySelectorAll('.hand .tile[data-id]')].filter(visible);
-      if (ts.length) el = ts[Math.min(P.idx, ts.length - 1)];
+      const ph = $('.hand .tile.ph');
+      if (ph && visible(ph) && P.idx >= ts.length) el = ph; // 引いた牌を捨てたあとは、13牌目ではなく、14牌目の影へ
+      else if (ts.length) el = ts[Math.min(P.idx, ts.length - 1)];
     }
     if (!(el && visible(el) && inScope(el))) el = pickDefault();
     setCur(el);
@@ -167,7 +177,7 @@
   };
   /* 手牌の上で「下」: 引いた牌(いちばん右)へ、すぐ戻る */
   P.toDrawn = () => {
-    const t = $('.hand .tile.drawn:not(.ph):not(.dis)') || [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && !e.classList.contains('dis')).pop();
+    const t = $('.hand .tile.drawn:not(.ph):not(.dis)') || $('.hand .tile.ph') || [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && !e.classList.contains('dis')).pop();
     if (t) { setCur(t); return true; }
     return false;
   };
@@ -175,7 +185,7 @@
   /* カーソルが止まれる手牌: 切れない牌(暗い牌)は除く。リーチの宣言中は、切れる(光る)牌だけ */
   const handStops = () => {
     const rm = MJ.UI && MJ.UI.riichiMode;
-    return [...document.querySelectorAll('.hand .tile[data-id]')].filter((e) => !e.classList.contains('ph') && !e.classList.contains('dis') && (!rm || e.classList.contains('rch-ok')) && visible(e));
+    return [...document.querySelectorAll('.hand .tile[data-id], .hand .tile.ph')].filter((e) => !e.classList.contains('dis') && (!rm || e.classList.contains('rch-ok')) && visible(e));
   };
   const move = (dx, dy) => {
     const cur = P.cur && P.cur.isConnected && visible(P.cur) ? P.cur : null;
@@ -296,6 +306,13 @@
     if (force) { if (P.cur) P.cur.classList.remove('pf'); P.cur = null; P.desc = null; }
     if (P.cur && P.cur.isConnected && visible(P.cur) && inScope(P.cur)) { clearPf(P.cur); P.cur.classList.add('pf'); return; }
     setCur(pickDefault());
+  };
+  /* 配牌のアニメが終わって、牌が整ったとき: 13牌目(親は14牌目)にカーソルを出す */
+  P.dealFocus = () => {
+    if (!P.on) return;
+    clearPf(null); P.cur = null; P.desc = null; P.idx = -1; P.onPh = false;
+    const t = $('.hand .tile.drawn:not(.ph):not(.dis)') || [...document.querySelectorAll('.hand .tile[data-id]')].filter(visible).pop();
+    if (t && visible(t)) setCur(t);
   };
   P.saveCur = () => { P.saved = P.cur; };
   P.restoreCur = () => {

@@ -538,6 +538,7 @@
       document.body.classList.remove('deal-hide');
       document.querySelectorAll('.dl-on').forEach((e) => e.classList.remove('dl-on'));
       this.render(game); // 最後に、ふつうの描画へ(手牌の位置・動きをそろえる)
+      if (MJ.Pad && MJ.Pad.dealFocus) MJ.Pad.dealFocus(); // カーソルは、ここで初めて出す(13牌目 / 親は14牌目)
     },
     paint(el, html) { if (!el || el._h === html) return; el.innerHTML = html; el._h = html; },
     render(game) {
@@ -820,7 +821,11 @@
       const ct = o.tile.t;
       const multiNote = chis.length > 1 ? `<span class="cq-cl">チーの組み合わせ</span>${chis.map((x, i) => `<span class="cq-cb" data-i="${i}">${[x.a, x.b, ct].sort((p, q) => p - q).map((t) => MJ.tileHTML(t, 't-xs' + (t === ct ? ' cq-called' : ''))).join('')}</span>`).join('')}` : '';
       const note = multiNote || (!o.ron && !cand.opts.length ? (o.ronBlock === 'furiten' ? 'フリテンのためロンできません' : o.ronBlock === 'noyaku' ? '役がないためロンできません' : '') : '');
-      return `<div class="callq"><div class="cq-btns">${btns.join('')}</div>${note ? `<div class="cq-note">${note}</div>` : ''}<div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b data-k="A">A</b> で決定</span><span class="cq-pt">◀▶ で牌をえらんで <b data-k="A">A</b> で決定(▲ もどる)</span></div></div>`;
+      // 誰の、どの牌を鳴く(ロンする)のか: 牌の絵を、手牌の上に大きく出す(セリフや河の牌に隠れて、見落とさないように)
+      const kinds = [...new Set([...cand.opts.map((x) => label[x.kind]), ...(o.ron ? ['ロン'] : [])])];
+      const who = game.players[o.from] ? game.players[o.from].name : '';
+      const tileRow = kinds.length ? `<div class="cq-tile"><span class="cq-who">${who}の</span>${MJ.tileHTML(o.tile.t, 'cq-big', '', o.tile.red)}<span class="cq-what">で ${kinds.join('・')}できます</span></div>` : '';
+      return `<div class="callq"><div class="cq-btns">${btns.join('')}</div><div class="cq-keys"><span class="cq-pk">◀▶ でえらんで <b data-k="A">A</b> で決定</span><span class="cq-pt">◀▶ で牌をえらんで <b data-k="A">A</b> で決定(▲ もどる)</span></div>${note ? `<div class="cq-note">${note}</div>` : ''}${tileRow}</div>`;
     },
     /* チーの組み合わせを切り替える(▼で牌の選択に入ったあと、◀▶で) */
     setChi(i) {
