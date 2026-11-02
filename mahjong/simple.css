@@ -1571,3 +1571,15 @@ body #overlay .ln-open.pf, body #overlay #pm-others.pf { background: var(--sel) 
 body.going #screen-title #btn-start { transform: scale(.93); filter: brightness(1.25); transition: transform .08s, filter .08s; }
 body.going::after { content: ""; position: fixed; inset: 0; background: rgba(0, 0, 0, .35); z-index: 8000; pointer-events: none; animation: goDim .25s ease-out both; }
 @keyframes goDim { from { opacity: 0; } to { opacity: 1; } }
+
+/* 対局終了: 順位表(王冠の列・名前の列・点数の列をそろえる。1位は金色、あなたは青い枠) */
+.ranks .rank { display: grid !important; grid-template-columns: 44px 40px 64px minmax(0, 1fr) 200px !important; align-items: center; gap: 14px !important; padding: 6px 18px !important; border: 3px solid transparent; box-sizing: border-box; }
+.ranks .rank .crown-col { font-size: 34px; text-align: center; }
+.ranks .rank .rnm b { font-size: 30px !important; white-space: nowrap; }
+.ranks .rank .rsc { font-size: 32px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ranks .rank.first { background: linear-gradient(90deg, #6b4f00, #2f2a0b) !important; border-color: #ffd23f; }
+.ranks .rank.first .rnm b, .ranks .rank.first .rsc { color: #ffd23f; font-size: 36px !important; text-shadow: 0 2px 0 #000a; }
+.ranks .rank.first .rk { color: #ffd23f; font-size: 34px !important; }
+.ranks .rank.me { border-color: #5ab0ff; background: #10304a !important; }
+.ranks .rank.me .rnm b { color: #a8d8ff; }
+.ranks .rank.first.me { border-color: #5ab0ff; }

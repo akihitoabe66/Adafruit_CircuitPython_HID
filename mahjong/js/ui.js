@@ -1973,7 +1973,7 @@
         MJ.SFX.play(me.rank <= 2 ? 'end' : 'lose');
         const msg = me.rank === 1 ? '🎉 トップ!おめでとうございます!' : me.rank === 4 ? '残念…ラスでした。振り返って次に活かそう!' : `${me.rank}位でした。`;
         let rk = null; try { rk = MJ.Rank && MJ.Rank.record(game, final); } catch (e) { /* ignore */ } // 段位のポイント(東風・東南だけ)
-        const rows = final.results.map((r) => `<div class="rank"><div class="rk">${r.rank}</div>${MJ.UI.faceImg(r.p.char) || '<div style="font-size:30px;width:56px;text-align:center">🀄</div>'}<div><b>${r.p.name}</b></div><div class="rs">${fmt(r.p.score)}点</div></div>`).join('');
+        const rows = final.results.map((r, i) => `<div class="rank${i === 0 ? ' first' : ''}${r.p.isHuman ? ' me' : ''}"><div class="crown-col">${i === 0 ? '👑' : ''}</div><div class="rk">${r.rank}</div>${MJ.UI.faceImg(r.p.char) || '<div style="font-size:30px;width:56px;text-align:center">🀄</div>'}<div class="rnm"><b>${r.p.name}</b></div><div class="rsc">${fmt(r.p.score)}点</div></div>`).join('');
         this.overlay(`<h2>対局終了</h2><p>${msg}</p><div class="ranks">${rows}</div>${MJ.Rank && rk ? MJ.Rank.gainLine(rk) : ''}<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="end-menu">メニューへ</button><button class="btn pri" id="end-again">もう一度</button></div>`);
         try {
           const st = JSON.parse(localStorage.getItem('mj_stats') || '{"games":0,"ranks":[0,0,0,0]}');
