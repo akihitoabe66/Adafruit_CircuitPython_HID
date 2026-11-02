@@ -73,6 +73,10 @@
     if (el.dataset && el.dataset.ids) return `[data-ids="${el.dataset.ids}"]`;
     if (el.dataset && el.dataset.act) return `[data-act="${el.dataset.act}"]${el.dataset.t ? `[data-t="${el.dataset.t}"]` : ''}`;
     if (el.id) return `#${el.id}`;
+    if (el.closest('#coach')) { // 解説パネルのボタン(おすすめ・どうして?・◀▶など): 描き直されても、同じボタンにカーソルを戻せるように
+      const k = el.dataset && Object.keys(el.dataset)[0];
+      if (k) { const dk = k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()); return `#coach [data-${dk}${el.dataset[k] !== '' ? `="${el.dataset[k]}"` : ''}]`; }
+    }
     return null;
   };
   // 光っている(.pf)のは、いつも1つだけ。画面の切り替えで残った古い光を、まとめて消す
