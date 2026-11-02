@@ -467,10 +467,16 @@
   const NAT = { on: false, pads: [], shown: false };
   if (G.location.protocol === 'file:' && !/[?&]nopad=1/.test(G.location.search)) {
     const gid = () => { try { return localStorage.getItem('mj_padid') || 'winmm'; } catch (e) { return 'winmm'; } }; // 前に使ったコントローラーの名前(おぼえさせたボタンの割り当てを、そのまま使うため)
+    // コントローラーによって、十字キー・スティックの「何も押していないとき」の値が違う(中心が 127 や 32767、十字キーが無いものは 0 など)。
+    // 最初に見えたときの値を「何も押していない状態」としておぼえ、そこからの変化だけを入力として扱う(押していないのに、押しっぱなしになるのを防ぐ)
+    const base = {}, mask = {};
     const conv = (j) => {
-      const buttons = []; for (let k = 0; k < 32; k++) { const on = ((j.b >>> k) & 1) === 1; buttons.push({ pressed: on, value: on ? 1 : 0 }); }
-      let x = (j.x - 32767.5) / 32767.5, y = (j.y - 32767.5) / 32767.5;
-      if (j.p !== 65535 && j.p < 36000) { const r = (j.p / 100) * Math.PI / 180, dx = Math.sin(r), dy = -Math.cos(r); if (dx > 0.5) x = 1; else if (dx < -0.5) x = -1; if (dy > 0.5) y = 1; else if (dy < -0.5) y = -1; } // 十字キー(ハット)
+      const b0 = base[j.i] || (base[j.i] = { x: j.x, y: j.y, p: j.p }); if (mask[j.i] == null) mask[j.i] = j.b;
+      mask[j.i] &= j.b; const bits = j.b & ~mask[j.i]; // 最初から押されていたボタンは、いちど離すまで無視
+      const buttons = []; for (let k = 0; k < 32; k++) { const on = ((bits >>> k) & 1) === 1; buttons.push({ pressed: on, value: on ? 1 : 0 }); }
+      const rel = (v, c) => Math.max(-1, Math.min(1, (v - c) / Math.max(c, 1)));
+      let x = rel(j.x, b0.x), y = rel(j.y, b0.y);
+      if (j.p <= 35999 && j.p !== b0.p) { const r = (j.p / 100) * Math.PI / 180, dx = Math.sin(r), dy = -Math.cos(r); if (dx > 0.5) x = 1; else if (dx < -0.5) x = -1; if (dy > 0.5) y = 1; else if (dy < -0.5) y = -1; } // 十字キー(ハット)
       return { id: gid(), index: 100 + j.i, connected: true, mapping: '', buttons, axes: [x, y] };
     };
     const loop = () => {
