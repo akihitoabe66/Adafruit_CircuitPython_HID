@@ -1464,7 +1464,7 @@ body.rot .ld-box { padding: 18px 40px; }
 body .callq .cq-btn.b-riichi, body .callq .cq-btn.b-ron { background: #fff; color: #c8141c; border: 3px solid #c8141c; text-shadow: none; }
 body .callq .cq-btn.b-riichi .cq-rec, body .callq .cq-btn.b-ron .cq-rec { color: #c8141c; }
 /* 手牌の、引いた牌の場所(まだ引いていないとき): 半透明の黒い牌の影で、場所を見せる */
-#mine .hand .tile.drawn.ph { visibility: visible; background: rgba(0, 0, 0, .3); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .16); border-radius: 6px; }
+#mine .hand .tile.drawn.ph { visibility: visible; background: rgba(0, 0, 0, .3); box-shadow: none; border: 0; border-radius: 6px; } /* 純粋な影だけ(縁なし) */
 #mine .hand .tile.drawn.ph * { display: none; }
 /* 下家(右の席)の顔と吹き出し: 顔が右、吹き出しが左 */
 .say.sy1 { flex-direction: row-reverse; left: auto !important; right: 14px; }
@@ -1485,3 +1485,9 @@ body .rs-c.pf { background: var(--sel) !important; color: var(--sel-ink) !import
 .rs-big { height: 130px; width: auto; flex: none; border-radius: 8px; }
 .rs-t { min-width: 0; } .rs-n { font-size: 26px; color: #ffd23f; } .rs-m { font-size: 15px; color: #cfe6d9; margin: 2px 0 4px; } .rs-t p { margin: 3px 0; font-size: 16px; line-height: 1.4; } .rs-q { color: #ffe9a0; }
 .rs-f { display: flex; gap: 10px; justify-content: center; margin-top: 8px; } .rs-f .btn { font-size: 18px; padding: 6px 18px; }
+
+/* 勝負の演出の「あなた」: 遠くから滑り込まず、その場で、ふわっと出る(コマ落ちしても、左に何かが一瞬見える、ということが起きないように) */
+.in-seat.me { animation: inMe .45s .1s ease-out both !important; will-change: opacity; }
+@keyframes inMe { from { opacity: 0; transform: translateY(1.2cqw); } to { opacity: 1; transform: none; } }
+/* マウスカーソル: 動かして止めると、すぐ消える(ゲームはコントローラーで遊ぶため) */
+html.nocur, html.nocur * { cursor: none !important; }

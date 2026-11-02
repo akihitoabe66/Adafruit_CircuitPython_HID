@@ -337,6 +337,7 @@
   };
   const act = (name) => {
     if (MJ.loading) return; // 読み込み中は、受け付けない
+    if (MJ.hideCursor) MJ.hideCursor(); // コントローラーを使ったら、マウスカーソルを消す
     P.dev = 'pad';
     // サイコロ・「勝負!」の演出の間: A/Bで、すすむ(キーボードのEnterと同じ)。1回目=結果まで一気に(サイコロが決まって、親が出る)、2回目=次へ
     if ((name === 'a' || name === 'b') && MJ.UI && MJ.UI.dealing) { MJ.UI.dealSkip(); return; } // 配牌のアニメ: A/Bで、すぐ終わる
