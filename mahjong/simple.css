@@ -1512,3 +1512,14 @@ body .callq.selfq.rch-on { gap: 18px; }
 .rs-d { height: 100%; }
 .rs-t { overflow: hidden; }
 .rs-big { height: 130px !important; width: 130px !important; object-fit: cover; }
+
+/* ボタンの色をそろえる: 選んでいないボタンは、白い背景に赤・青の文字。選んだら黄色(ほかの画面と同じ) */
+body #screen-title .tt-exit { width: auto !important; padding: 6px 20px !important; background: #fff !important; border: 3px solid #c8141c !important; border-radius: 12px !important; box-shadow: 0 4px 10px #000a !important; color: #c8141c; font-size: 22px; font-weight: 900; font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+body #screen-title .tt-exit img { display: none; }
+body #screen-title .tt-exit::after { content: "ゲーム終了"; }
+body #screen-title .tt-exit:hover, body #screen-title .tt-exit.pf, body.pad-on #screen-title .tt-exit.pf { background: var(--sel) !important; color: var(--sel-ink) !important; border-color: var(--sel-ink) !important; box-shadow: 0 0 0 4px #fff, 0 0 0 8px #000a !important; transform: none; }
+body .mk-back { background: #fff; color: #c8141c; border: 3px solid #c8141c; box-shadow: 0 4px 10px #000a; }
+body .mk-rec { background: #fff; color: #1f5fc9; border: 3px solid #1f5fc9; box-shadow: 0 4px 10px #000a; }
+body .mk-rec b { color: #c8141c; }
+body .mk-back.pf, body .mk-back:hover, body .mk-rec.pf, body .mk-rec:hover { background: var(--sel); color: var(--sel-ink); border-color: var(--sel-ink); box-shadow: 0 0 0 4px #fff, 0 0 0 8px #000a; }
+body .mk-rec.pf b, body .mk-rec:hover b { color: var(--sel-ink); }
