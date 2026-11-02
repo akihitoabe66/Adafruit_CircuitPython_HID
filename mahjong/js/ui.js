@@ -684,7 +684,7 @@
         const isDora = game.doraInd.some((d) => MJ.doraOf(d.t) === h.t);
         const badge = `${isDora ? '<span class="bg dr">ドラ</span>' : ''}${h.red ? '<span class="bg ak">赤</span>' : ''}`;
         return `<div class="tile${cls}${h.red ? ' aka' : ''}${isDora ? ' isdora' : ''}" data-id="${h.id}" data-t="${h.t}">${MJ.tileSVG(h.t, h.red)}${chip}${mk}${badge}</div>`;
-      }).join('') + (p.drawn ? '' : '<div class="tile drawn ph"></div>'); // 引いた牌の場所を常に確保(牌の数が変わっても手牌が左右にずれない)
+      }).join('') + (p.drawn || !p.hand.length ? '' : '<div class="tile drawn ph"></div>'); // (配牌の前で、手牌が空のときは、影も出さない) // 引いた牌の場所を常に確保(牌の数が変わっても手牌が左右にずれない)
       let tip = this.picked && adv && adv.info && this.coachActive() ? adv.info[this.picked] || '' : '';
       if (!tip && this.dng && sel) tip = this.dangerSym ? `<span class="dglg">左上の印: <b class="dgl safe">◎</b>ほぼ安全 <b class="dgl ok">○</b>比較的安全 <b class="dgl warn">△</b>注意 <b class="dgl danger">✕</b>危険${this.dng.hyp ? ' <span class="cc-s">(いまはリーチなし。「もし全員がリーチしていたら」の目安)</span>' : ''}</span>` : `<span class="dglg">左上の印: <b class="dgl safe">現物</b>100%安全 <b class="dgl safe">スジ</b>安全 <b class="dgl ok">半スジ</b>少し安全 <b class="dgl warn">無スジ</b>注意 ${this.dng.hyp ? ' <span class="cc-s">(いまはリーチなし。「もし全員がリーチしていたら」の目安)</span>' : ''}</span>`;
       const sum = this.sel && this.coachActive() ? this.summary || '' : '';
