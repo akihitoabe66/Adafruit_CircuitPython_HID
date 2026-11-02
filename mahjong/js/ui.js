@@ -1875,6 +1875,7 @@
             const top = modal && modal.querySelector('.pm-top');
             if (top) { const b = document.createElement('button'); b.className = 'btn pri ln-open'; b.id = 'pm-learn'; b.type = 'button'; b.textContent = '📖 この役で学ぶ'; top.appendChild(b); b.addEventListener('click', () => MJ.Learn.open(rec, true)); }
           }
+          if (MJ.Pad && MJ.Pad.on && MJ.Pad.pagedFocus) MJ.Pad.pagedFocus(); // ボタンを足したあと、カーソルが「この役で学ぶ」などに残らないように(次へ進めるように)
           // 他家の牌を確認: 3人のCPUの手牌と、自分の手牌(最後の牌つき)を並べて見る(勉強用)
           const top2 = modal && modal.querySelector('.pm-top');
           if (top2) {

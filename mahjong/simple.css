@@ -1558,3 +1558,7 @@ body #overlay .cf-btns .btn:hover, body #overlay .cfm-btns .btn:hover {
   background: var(--sel, #ffd23f) !important; color: var(--sel-ink, #1b1b12) !important; border-color: var(--sel-ink, #1b1b12) !important;
   box-shadow: 0 0 0 4px #fff, 0 0 0 8px #000a !important;
 }
+
+/* 結果画面の「この役で学ぶ」「他家の牌を見る」: 黄色にしない(黄色=カーソルで選んでいる、と見分けるため)。白背景に黒文字 */
+body #overlay .ln-open, body #overlay #pm-others { background: #fff !important; color: #1b1b12 !important; border: 3px solid #fff !important; box-shadow: 0 3px 0 #0007 !important; }
+body #overlay .ln-open.pf, body #overlay #pm-others.pf { background: var(--sel) !important; color: var(--sel-ink) !important; border-color: var(--sel-ink) !important; box-shadow: 0 0 0 4px #fff, 0 0 0 8px #000a !important; }

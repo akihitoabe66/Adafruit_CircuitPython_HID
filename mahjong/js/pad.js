@@ -384,6 +384,7 @@
       const topb = ['#pm-learn', '#pm-others'].map((q) => $(q)).filter((e) => e && visible(e));
       if (cur && topb.includes(cur)) {
         const i = topb.indexOf(cur);
+        if (name === 'left' || name === 'right') { const b = $(name === 'left' ? '#pm-prev' : '#pm-next'); if (b && !b.classList.contains('off')) b.click(); return; } // 左右キーは、いつでもページをめくる
         if (name === 'down') { if (topb[i + 1]) setCur(topb[i + 1]); else setCur(foot[foot.length - 1] || null); return; }
         if (name === 'up') { if (i > 0) setCur(topb[i - 1]); else P.pagedFocus(); return; }
         return;
