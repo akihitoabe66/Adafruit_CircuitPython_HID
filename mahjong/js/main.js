@@ -468,10 +468,15 @@
       if (e.target.closest('button, summary, .char, .mode-card')) MJ.SFX.play('click');
     }, true);
     App.buildMenu();
+    let starting = false;
     $('#btn-start').addEventListener('click', () => {
+      if (starting || MJ.loading) return; // 連打しても、1回だけ進む(あとの押しが、ホーム画面で効いてしまわないように)
+      starting = true; setTimeout(() => { starting = false; }, 2500);
+      if (MJ.Pad) MJ.Pad.lockUntil = Date.now() + 1600; // ホームが出てしばらくは、コントローラーを受け付けない(段位の画面などが勝手に開かない)
       MJ.perf.mark('はじめる'); MJ.perf.step('押した');
       const go = () => {
         App.show('menu', { quiet: true }); MJ.perf.step('ホームを出した');
+        if (MJ.Pad) MJ.Pad.lockUntil = Date.now() + 700; // ホームが出た直後の押しは、無視
         requestAnimationFrame(() => requestAnimationFrame(() => { // 最初の1コマが描かれたあとに、音を鳴らす
           MJ.perf.step('ホームの1コマ目');
           MJ.SFX.unlock(); MJ.SFX.play('start'); MJ.perf.step('音の準備');
@@ -580,7 +585,7 @@
         MJ.titleBgmOK = true;
         const tryBgm = (n) => { try { if (MJ.Audio && document.body.classList.contains('on-title')) { MJ.Audio.setScene('title'); MJ.Audio.resume(); } } catch (e) { /* ignore */ } if (n > 0) setTimeout(() => { if (MJ.Audio && MJ.Audio.on && !(MJ.Audio.isPlaying && MJ.Audio.isPlaying())) tryBgm(n - 1); }, 700); };
         tryBgm(6);
-      }, 250);
+      }, 60); // 100%の直後から、押せる(長く待たせると、押したのに効かない、と感じる)
     };
     const yieldMs = (ms) => new Promise((r) => setTimeout(r, ms));
     MJ.laterReady.then(async () => {
