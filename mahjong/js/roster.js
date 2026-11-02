@@ -13,14 +13,17 @@
     detail(id) {
       const c = MJ.CHARS.find((x) => x.id === id); if (!c) return '';
       const met = R.met(id), dan = MJ.DAN_NAME ? MJ.DAN_NAME(MJ.unlockDan(id)) : '';
-      const img = `<img class="rs-big${met ? '' : ' sil'}" src="${c.img}" alt="" draggable="false">`;
+      const img = `<img class="rs-big${met ? '' : ' sil'}" src="${c.face}" alt="" draggable="false">`; // 顔だけ(全身の絵は、使わない)
       if (!met) return `<div class="rs-d">${img}<div class="rs-t"><b class="rs-n">？？？？</b><p>まだ、出会っていません。</p><p>${dan === '無段' ? '対戦すると、出会えます。' : `${dan}になると、登場します。`}</p></div></div>`;
       return `<div class="rs-d">${img}<div class="rs-t"><b class="rs-n">${c.name}</b><div class="rs-m">強さ ${MJ.starStr(c.level)}(${MJ.LEVEL_JP[c.level]}) ／ 打ち方 ${MJ.STYLE_JP[c.style] || ''} ／ ${dan}から登場</div><p>${c.desc}</p><p class="rs-q">「${c.lines.win ? MJ.winWords(c.lines.win, false) : ''}」</p></div></div>`;
     },
-    show(id) {
-      R.sel = id; const d = document.querySelector('#rs-detail'); if (!d) return;
-      d.innerHTML = R.detail(id);
+    show(id, now) {
+      R.sel = id;
       document.querySelectorAll('.rs-c').forEach((b) => b.classList.toggle('cur', +b.dataset.rsid === id));
+      // 説明の描き直しは、カーソルが止まってから(方向キーを続けて押しても、重くならない)
+      clearTimeout(R._t);
+      const go = () => { const d = document.querySelector('#rs-detail'); if (d && R.sel === id) d.innerHTML = R.detail(id); };
+      if (now) go(); else R._t = setTimeout(go, 70);
     },
     open(onClose) {
       const draw = () => {
@@ -33,7 +36,7 @@
         o.querySelector('#rs-prev').addEventListener('click', () => { if (R.page > 0) { R.page--; R.sel = MJ.CHARS[R.page * PER].id; draw(); } });
         o.querySelector('#rs-next').addEventListener('click', () => { if (R.page < pages - 1) { R.page++; R.sel = MJ.CHARS[R.page * PER].id; draw(); } });
         o.querySelector('#rs-close').addEventListener('click', () => { if (onClose) onClose(); else MJ.UI.closeOverlay(); });
-        R.show(R.sel >= from + 1 && R.sel <= from + PER ? R.sel : MJ.CHARS[from].id);
+        R.show(R.sel >= from + 1 && R.sel <= from + PER ? R.sel : MJ.CHARS[from].id, true);
         if (MJ.Pad && MJ.Pad.preselect) setTimeout(() => MJ.Pad.preselect(true), 0);
       };
       R.page = 0; R.sel = MJ.CHARS[0].id; draw();

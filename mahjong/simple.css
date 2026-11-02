@@ -1482,7 +1482,7 @@ body .callq .cq-btn.b-riichi .cq-rec, body .callq .cq-btn.b-ron .cq-rec { color:
 body .rs-c.pf { background: var(--sel) !important; color: var(--sel-ink) !important; border-color: var(--sel-ink) !important; }
 #rs-detail { margin-top: 8px; min-height: 150px; background: #0b241e; border: 2px solid #3c7a67; border-radius: 12px; padding: 8px 12px; }
 .rs-d { display: flex; gap: 14px; align-items: center; }
-.rs-big { height: 130px; width: auto; flex: none; border-radius: 8px; }
+.rs-big { height: 130px; width: 130px; object-fit: cover; flex: none; border-radius: 8px; }
 .rs-t { min-width: 0; } .rs-n { font-size: 26px; color: #ffd23f; } .rs-m { font-size: 15px; color: #cfe6d9; margin: 2px 0 4px; } .rs-t p { margin: 3px 0; font-size: 16px; line-height: 1.4; } .rs-q { color: #ffe9a0; }
 .rs-f { display: flex; gap: 10px; justify-content: center; margin-top: 8px; } .rs-f .btn { font-size: 18px; padding: 6px 18px; }
 
@@ -1511,3 +1511,4 @@ body .callq.selfq.rch-on { gap: 18px; }
 #rs-detail { height: 168px; margin-top: 8px; overflow: hidden; }
 .rs-d { height: 100%; }
 .rs-t { overflow: hidden; }
+.rs-big { height: 130px !important; width: 130px !important; object-fit: cover; }
