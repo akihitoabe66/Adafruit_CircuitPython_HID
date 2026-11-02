@@ -266,7 +266,7 @@
     const U = MJ.UI;
     const click = (sel) => { const e = $(sel); if (e && !e.disabled && visible(e)) { e.click(); return true; } return false; };
     switch (name) {
-      case 'a': if (paged() && !(P.cur && P.cur.isConnected && P.cur.matches('#pm-skip, #pm-done'))) { const n = $('#pm-next'); if (n && !n.classList.contains('off')) n.click(); setTimeout(P.pagedFocus, 0); break; } else if (onTitle() && !(P.cur && P.cur.isConnected && P.cur.matches('#bell, #btn-exit, #btn-start'))) { click('#btn-start'); } else if (P.cur && P.cur.isConnected) { if (U && U.sel && U.sel.type === 'self' && P.cur.matches('.hand .tile[data-id]')) U.picked = +P.cur.dataset.id; /* パッドでは、牌にカーソルを合わせてAで、すぐ捨てる */ P.cur.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); } else setCur(pickDefault()); break;
+      case 'a': if (paged() && !(P.cur && P.cur.isConnected && P.cur.matches('#pm-skip, #pm-done, #pm-calc, #pm-rv, #pm-learn, #pm-others'))) { const n = $('#pm-next'); if (n && !n.classList.contains('off')) n.click(); setTimeout(P.pagedFocus, 0); break; } else if (onTitle() && !(P.cur && P.cur.isConnected && P.cur.matches('#bell, #btn-exit, #btn-start'))) { click('#btn-start'); } else if (P.cur && P.cur.isConnected) { if (U && U.sel && U.sel.type === 'self' && P.cur.matches('.hand .tile[data-id]')) U.picked = +P.cur.dataset.id; /* パッドでは、牌にカーソルを合わせてAで、すぐ捨てる */ P.cur.click(); setTimeout(() => { if (P.on && !(P.cur && visible(P.cur))) { P.cur = null; P.refocus(); } }, 150); } else setCur(pickDefault()); break;
       case 'b': {
         if (MJ.Rank && MJ.Rank.isOpen()) { MJ.Rank.back(); return; }
         // 用語・役の説明(シート/一覧)が開いているときは、まずそれだけを閉じる(下の画面は、そのまま)
@@ -376,6 +376,22 @@
       if (onMain) {
         if (name === 'left' || name === 'right') { const b = $(name === 'left' ? '#pm-prev' : '#pm-next'); if (b && !b.classList.contains('off')) b.click(); setTimeout(P.pagedFocus, 0); return; }
         if (name === 'down') { const k = $('#pm-skip'); if (k && visible(k)) setCur(k); return; }
+        if (name === 'up') { const t = ['#pm-learn', '#pm-others'].map((q) => $(q)).find((e) => e && visible(e)); if (t) setCur(t); return; }
+        return;
+      }
+      // 結果の画面などの、ほかのボタン(点数の計算・振り返り・この役で学ぶ・他家の牌を見る)へも、方向キーで行けるように
+      const foot = ['#pm-calc', '#pm-rv', '#pm-skip', '#pm-done'].map((q) => $(q)).filter((e) => e && visible(e));
+      const topb = ['#pm-learn', '#pm-others'].map((q) => $(q)).filter((e) => e && visible(e));
+      if (cur && topb.includes(cur)) {
+        const i = topb.indexOf(cur);
+        if (name === 'down') { if (topb[i + 1]) setCur(topb[i + 1]); else setCur(foot[foot.length - 1] || null); return; }
+        if (name === 'up') { if (i > 0) setCur(topb[i - 1]); else P.pagedFocus(); return; }
+        return;
+      }
+      if (cur && foot.includes(cur)) {
+        const i = foot.indexOf(cur);
+        if (name === 'left' || name === 'right') { const n = foot[i + (name === 'left' ? -1 : 1)]; if (n) setCur(n); return; }
+        if (name === 'up') { if (topb.length) setCur(topb[0]); else P.pagedFocus(); return; }
         return;
       }
       if (name === 'up') { P.pagedFocus(); return; }
