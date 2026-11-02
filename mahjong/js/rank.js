@@ -160,10 +160,10 @@
     },
     /* 認定証: 「あなた 殿」と、あなたの絵が入る */
     drawCert(p, opt) {
-      if (opt.after) setTimeout(() => { try { MJ.SFX.play('slam'); } catch (e) { /* ignore */ } }, 900); // ハンコが「バンッ!」と押される音(画面の動きは、ハンコが落ちる約0.9秒後)
+      if (opt.after) setTimeout(() => { try { MJ.SFX.play('slam'); } catch (e) { /* ignore */ } }, 1100); // ハンコが「バンッ!」と押される音(紙に当たる瞬間)
       const name = opt.dan || R.label();
       const you = `img/you/${String(MJ.youIndex()).padStart(2, '0')}.webp`;
-      p.innerHTML = `<div class="rk-st rk-cert"><div class="cert"><img src="img/cert.webp" alt="段位認定証"><span class="cd">${name}</span><span class="cn">あなた</span><div class="cph" style="background-image:url(${you})"></div>${opt.after ? '<div class="cstamp"><b>認定</b></div>' : ''}</div><div class="rk-btns bot"><button class="rk-b main" data-rk="${opt.after ? 'close' : 'back'}" type="button">${opt.after ? 'つぎへ' : '◀ もどる'}</button></div></div>`;
+      p.innerHTML = `<div class="rk-st rk-cert"><div class="cert${opt.after ? ' stamping' : ''}"><img src="img/cert.webp" alt="段位認定証"><span class="cd">${name}</span><span class="cn">あなた</span><div class="cph" style="background-image:url(${you})"></div>${opt.after ? '<div class="cring"></div><div class="cstamp"><img src="img/cert_stamp.webp" alt="角印" draggable="false"></div>' : ''}</div><div class="rk-btns bot"><button class="rk-b main" data-rk="${opt.after ? 'close' : 'back'}" type="button">${opt.after ? 'つぎへ' : '◀ もどる'}</button></div></div>`;
     },
     /* 1日の最初の1回だけ、「あなたの段位」を見せる(まだ1戦も打っていないときは出さない) */
     daily() {

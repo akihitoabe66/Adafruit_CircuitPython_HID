@@ -530,7 +530,7 @@
     for (let i = 1; i <= MJ.CHARS.length; i++) { u.push(`img/chars/face/${pad2(i)}.webp`); u.push(`img/chars/${pad2(i)}.webp`); }
     ['11', '14', '21', '36'].forEach((n) => u.push(`img/teacher/t${n}.webp`));
     try { const yi = pad2(MJ.youIndex()); u.push(`img/you/${yi}.webp`); } catch (e) { /* ignore */ } // いまの、あなたの絵(成績・段位の画面・対局)
-    ['img/btn_start.webp', 'img/bgm_on.png', 'img/bgm_off.png', 'img/logo.webp', 'img/rank_bg.webp', 'img/cert.webp'].forEach((x) => u.push(x));
+    ['img/btn_start.webp', 'img/bgm_on.png', 'img/bgm_off.png', 'img/logo.webp', 'img/rank_bg.webp', 'img/cert.webp', 'img/cert_stamp.webp'].forEach((x) => u.push(x));
     return u;
   })();
   /* そのほか(左右反転の顔・あなたの絵・麻雀先生の表情)は、タイトルのあと、裏で読み込む */
