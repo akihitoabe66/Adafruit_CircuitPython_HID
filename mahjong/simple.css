@@ -1534,3 +1534,13 @@ body .callq.selfq.rch-on { gap: 18px; }
 .ot-face { width: 44px !important; height: 44px !important; flex: none; object-fit: cover; border-radius: 8px; border: 2px solid #3c7a67; background: #0b241e; }
 .ot-face.ot-me { display: grid; place-items: center; font-size: 26px; }
 .ot .tile.t-s { width: 40px !important; height: 55px !important; }
+
+/* 雀士列伝: 左右に、となりのページがあることを示す矢印(カーソルでも押せる) */
+.rs { position: relative; }
+.rs-arr { position: absolute; top: 44px; height: 232px; width: 30px; border: 0; padding: 0; color: #fff; font-size: 26px; font-weight: 900; display: grid; place-items: center; cursor: pointer; z-index: 3; animation: rsHint 1.4s ease-in-out infinite; }
+.rs-arr.l { left: -34px; background: linear-gradient(90deg, #3d86ffdd, #2a63c966); border-radius: 12px 0 0 12px; }
+.rs-arr.r { right: -34px; background: linear-gradient(270deg, #3d86ffdd, #2a63c966); border-radius: 0 12px 12px 0; }
+@keyframes rsHint { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+.rs-arr.r { animation-name: rsHintR; } .rs-arr.l { animation-name: rsHintL; }
+@keyframes rsHintR { 0%, 100% { opacity: .75; transform: none; } 50% { opacity: 1; transform: translateX(3px); } }
+@keyframes rsHintL { 0%, 100% { opacity: .75; transform: none; } 50% { opacity: 1; transform: translateX(-3px); } }

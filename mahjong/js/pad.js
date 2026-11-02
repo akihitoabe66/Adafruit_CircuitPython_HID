@@ -59,7 +59,7 @@
       if (el.matches('.hand .tile.dis')) return;
       if (el.closest('[data-cancel-riichi]')) return; // 切れない(暗い)牌には、止まらない
       if (el.matches('.gl-off')) return;
-      if (el.matches('.pm-arrow')) return; // ページ送りの矢印は、見た目だけ(コントローラーでは←→とAを使う。矢印には止まらない)
+      if (el.matches('.pm-arrow, .rs-arr')) return; // ページ送りの矢印は、見た目だけ(コントローラーでは←→とAを使う。矢印には止まらない)
       if (el.tagName === 'DETAILS') return;
       if (el.closest('.hidden') && !root.classList.contains('hidden')) return;
       if (visible(el)) out.push(el);
