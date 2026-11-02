@@ -244,6 +244,8 @@
     if (dy < 0 && cur.matches('.hand .tile[data-id]')) {
       const act = [...document.querySelectorAll('.selfq .cq-btn[data-act]')].find((e) => !e.disabled && visible(e));
       if (act) { setCur(act); return; }
+      const first = handStops()[0]; // ボタンがないときは、「上」=いちばん左の牌へ(「下」=引いた牌、と対になる)
+      if (first) { if (first !== cur) setCur(first); return; }
     }
     if (dy > 0 && cur.closest('.selfq')) { const hs = handStops(), t = hs.find((e) => e.classList.contains('drawn')) || hs[hs.length - 1]; if (t) { setCur(t); return; } }
     // ボタンの列から「左」を押すと手牌へ戻る

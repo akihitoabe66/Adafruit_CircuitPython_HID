@@ -1,7 +1,7 @@
 /* マウスカーソルを、使っていないときは消す。わずかなゆれ(10px未満)では出さない。キー・コントローラーを使ったら、すぐ消す。 */
 (function (G) {
   const h = document.documentElement;
-  if (/[?&]safe=1/.test(G.location.search)) { (G.MJ = G.MJ || {}).hideCursor = () => {}; return; } // 安全モード(start_safe.bat): カーソルは消さない
+  if (/[?&](safe|nocur)=1/.test(G.location.search)) { (G.MJ = G.MJ || {}).hideCursor = () => {}; return; } // 安全モード(start_safe.bat): カーソルは消さない
   let t = 0, ax = -1, ay = -1, keyAt = 0;
   const hide = () => { clearTimeout(t); h.classList.add('nocur'); };
   const keyHide = () => { keyAt = Date.now(); hide(); }; // キー・コントローラーで消したあと少しの間は、画面が動いて起きる見かけのマウス移動を、無視する

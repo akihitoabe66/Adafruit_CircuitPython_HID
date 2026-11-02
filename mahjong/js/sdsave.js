@@ -8,7 +8,7 @@
   const SKIP = /^mj_(perfrec|boot|volmig1)$/;
   const mine = (k) => typeof k === 'string' && k.indexOf('mj_') === 0 && !SKIP.test(k);
   MJ.sd = { on: false, dir: '', ok: false, err: '', saved: 0 };
-  if (G.location.protocol !== 'file:' || /[?&]safe=1/.test(G.location.search)) return; // 安全モード(start_safe.bat)では使わない。ブラウザ版・スマホ版でも使わない // ブラウザ版・スマホ版では使わない
+  if (G.location.protocol !== 'file:' || /[?&](safe|nosd)=1/.test(G.location.search)) return; // 安全モード(start_safe.bat)では使わない。ブラウザ版・スマホ版でも使わない // ブラウザ版・スマホ版では使わない
   const snapshot = () => { const o = {}; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (mine(k)) o[k] = localStorage.getItem(k); } } catch (e) { /* ignore */ } return JSON.stringify(o); };
   /* 1. 起動の最初: SDカードの保存を戻す(同期で読む。ほかの部品が、保存を読む前に済ませる) */
   let remoteEmpty = true;
