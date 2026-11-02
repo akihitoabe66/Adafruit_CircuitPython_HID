@@ -172,7 +172,6 @@
     launch(cfg, sv) {
       this.stopGame();
       const chars = cfg.picks.map((id) => MJ.CHARS.find((c) => c.id === id));
-      if (MJ.Roster) MJ.Roster.mark(cfg.picks); // 出会った相手として、おぼえる
       const game = new MJ.Game({ chars, mode: cfg.mode, length: cfg.length, ui: MJ.UI });
       this.game = game;
       if (sv && MJ.Rank) MJ.Rank.apply(game, sv); // つづきから: 点数・局・本場を戻す

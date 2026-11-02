@@ -1937,6 +1937,7 @@
     gameEnd(game, final) {
       return new Promise((resolve) => {
         const me = final.results.find((r) => r.p.seat === 0);
+        try { if (MJ.Roster) MJ.Roster.mark(final.results.map((r) => r.p.char && r.p.char.id)); } catch (e) { /* ignore */ } // 雀士列伝: 最後まで対局した相手だけ、おぼえる
         MJ.SFX.play(me.rank <= 2 ? 'end' : 'lose');
         const msg = me.rank === 1 ? '🎉 トップ!おめでとうございます!' : me.rank === 4 ? '残念…ラスでした。振り返って次に活かそう!' : `${me.rank}位でした。`;
         let rk = null; try { rk = MJ.Rank && MJ.Rank.record(game, final); } catch (e) { /* ignore */ } // 段位のポイント(東風・東南だけ)
