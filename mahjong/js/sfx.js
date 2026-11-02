@@ -243,7 +243,8 @@
       S._vbuf[k] = null;
       if (!ctx || typeof fetch === 'undefined') { delete S._vbuf[k]; return null; }
       MJ.fetch(`audio/voice/${k}.mp3`).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng)))
-        .then((buf) => { S._vbuf[k] = buf; }).catch(() => { /* 読み込めなければ無音 */ });
+        .then((buf) => { S._vbuf[k] = buf; if (S._vwait && S._vwait[k]) { const f = S._vwait[k]; S._vwait[k] = null; f(buf); } })
+        .catch(() => { delete S._vbuf[k]; if (S._vwait) S._vwait[k] = null; /* 失敗したら記録を消し、次に呼ばれたときにもう一度読む */ });
       return null;
     },
     preloadVoices(ids) {
@@ -299,14 +300,22 @@
       const key = S._vkey[text];
       if (!S.voiceOn || !key || !ctx) return;
       const id = p && p.char ? (p.char.voice || p.char.id) : 0; // 掛け声の声は、キャラごとの voice 番号のファイルを使う
-      const buf = S._vbuf[id + '_' + key] || S._loadVoice(id, key);
-      if (!buf) return;
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      const g = ctx.createGain();
-      g.gain.value = S.cv(); // 掛け声専用の音量(効果音の音量とは別)
-      src.connect(g); g.connect(master);
-      src.start();
+      const k = id + '_' + key;
+      const play = (buf) => {
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const g = ctx.createGain();
+        g.gain.value = S.cv(); // 掛け声専用の音量(効果音の音量とは別)
+        src.connect(g); g.connect(master);
+        try { if (ctx.state === 'suspended') ctx.resume(); } catch (e) { /* ignore */ }
+        src.start();
+      };
+      const buf = S._vbuf[k] || S._loadVoice(id, key);
+      if (buf) { play(buf); return; }
+      // まだ読み込めていないとき: 読み込めしだい鳴らす(1.5秒までは待つ。声が抜けないように)
+      S._vwait = S._vwait || {};
+      const at = Date.now();
+      S._vwait[k] = (b2) => { if (Date.now() - at < 1500) play(b2); };
     },
   });
 })(typeof window !== 'undefined' ? window : globalThis);

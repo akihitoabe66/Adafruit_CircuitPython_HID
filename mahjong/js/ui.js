@@ -1344,7 +1344,8 @@
       MJ.SFX.play(SFXN[text]);
       MJ.SFX.voice(text, p);
       const face = this.faceImg(p.char, '', p.seat);
-      this._clearBubbles(); this._vPend = null; this._vEnd = Date.now() + ({ think: 1300, normal: 1000, fast: 520 })[MJ.cpuSpeed()] + 350; // 宣言の最中は、ほかのセリフを出さない
+      const hold = text === 'ポン' || text === 'チー' || text === 'カン' ? { think: 1900, normal: 1550, fast: 900 } : { think: 1300, normal: 1000, fast: 520 }; // 鳴きは、キャラと文字を見る「ため」を長めに
+      this._clearBubbles(); this._vPend = null; this._vEnd = Date.now() + hold[MJ.cpuSpeed()] + 350; // 宣言の最中は、ほかのセリフを出さない
       // 顔は、鳴き・リーチ・和了のこの瞬間にだけ、その席のそばに大きく出す
       const host = $('#says');
       host.querySelectorAll('.shout').forEach((x) => x.remove());
@@ -1358,7 +1359,7 @@
       el.style.setProperty('--c', col);
       el.innerHTML = `${face}<div class="sw">${text}</div><small>${p.name}</small>`;
       host.appendChild(el);
-      return new Promise((r) => setTimeout(() => { el.remove(); r(); }, game.fast ? 0 : ({ think: 1300, normal: 1000, fast: 520 })[MJ.cpuSpeed()]));
+      return new Promise((r) => setTimeout(() => { el.remove(); r(); }, game.fast ? 0 : hold[MJ.cpuSpeed()]));
     },
     /* 思考モード: CPUのためらい(吹き出し)。リーチを迷うときは、麻雀先生が「長考しています」と知らせる */
     hesitate(game, p, h) {
