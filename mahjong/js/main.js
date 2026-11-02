@@ -516,6 +516,8 @@
   };
   let enhT = 0; new MutationObserver(() => { if (!enhT) enhT = setTimeout(() => { enhT = 0; MJ.enhanceSelects(); }, 120); }).observe(document.body, { childList: true, subtree: true }); // 描き直しのたびには調べない(まとめて)
   MJ.enhanceSelects();
+  /* Windows版(ファイルとして開いたとき)で、ウィンドウの形で始まってしまったら、最初のキー・クリックで全画面にする */
+  if (MJ.isFile) { const fs = () => { try { if (!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); } catch (e) { /* ignore */ } }; ['keydown', 'pointerdown'].forEach((t) => window.addEventListener(t, fs, { once: true })); }
   const pad2 = (i) => String(i).padStart(2, '0');
   /* 画像を読み込んで、デコードまで終わらせる(失敗しても止まらない)。読み込んだ絵は MJ.preloaded に持っておく */
   const loadImg = (u) => new Promise((ok) => { const im = new Image(); im.decoding = 'async'; im.onload = () => { (im.decode ? im.decode() : Promise.resolve()).then(ok, ok); }; im.onerror = ok; im.src = u; MJ.preloaded.push(im); });
