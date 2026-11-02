@@ -248,7 +248,7 @@
       if (bell) {
         bell.setAttribute('aria-pressed', String(MJ.Audio.on));
         const im = bell.querySelector('img');
-        if (im) { im.src = MJ.Audio.on ? 'img/bgm_on.png' : 'img/bgm_off.png'; im.alt = MJ.Audio.on ? 'BGM ON' : 'BGM OFF'; }
+        if (im) { im.src = MJ.Audio.on ? 'img/bgm_on.webp' : 'img/bgm_off.webp'; im.alt = MJ.Audio.on ? 'BGM ON' : 'BGM OFF'; }
       }
       document.querySelectorAll('.ac').forEach((c) => {
         if (c === except) return;
@@ -605,12 +605,12 @@
     tableHTML(game) { return this._tableParts(game).join(''); },
     _tableParts(game) {
       // 本物の麻雀のように、王牌を、上下2段に重ねた7つの山で見せる。左から 槓ドラ④③②①、ドラ表示牌、嶺上牌2つ。表の牌は、めくれている表示牌だけ
-      // 王牌: 絵(img/wall.png)の上に、めくれているドラ表示牌を重ねる。ドラが増えたら、左へ1つずつ、青い牌を切り抜いて(クリーム色に)表示牌を重ねる
+      // 王牌: 絵(img/wall.webp)の上に、めくれているドラ表示牌を重ねる。ドラが増えたら、左へ1つずつ、青い牌を切り抜いて(クリーム色に)表示牌を重ねる
       const W = 219, H = 88, X0 = 3.4, PX = 30.1, CW = 29.2, Y0 = 4.4, CH = 39.4;
       const ov = game.doraInd.slice(0, 5).map((d, k) => `<span class="wo" style="left:${((X0 + (4 - k) * PX) / W * 100).toFixed(2)}%;top:${(Y0 / H * 100).toFixed(2)}%;width:${(CW / W * 100).toFixed(2)}%;height:${(CH / H * 100).toFixed(2)}%">${MJ.tileSVG(d.t, d.red)}</span>`).join('');
-      const doras = `<img class="wb" src="img/wall.png" alt="" draggable="false">${ov}`;
+      const doras = `<img class="wb" src="img/wall.webp" alt="" draggable="false">${ov}`;
       const dora2 = '';
-      const sub = game.kyotaku ? `供託<span class="ks">${'<img src="img/tenbo_1000.png" alt="" draggable="false">'.repeat(Math.min(game.kyotaku, 5))}${game.kyotaku > 5 ? `×${game.kyotaku}` : ''}</span>` : '';
+      const sub = game.kyotaku ? `供託<span class="ks">${'<img src="img/tenbo_1000.webp" alt="" draggable="false">'.repeat(Math.min(game.kyotaku, 5))}${game.kyotaku > 5 ? `×${game.kyotaku}` : ''}</span>` : '';
       const ctr = `<div class="ctr"><div class="txt"><div class="k">${game.kyokuLabel().replace(' ', '<br>')}${sub ? `<small>${sub}</small>` : ''}</div><div class="n"><small>残り</small>${game.blank ? '-' : game.live.length}<small>枚</small></div></div><div class="dr wall wimg">${doras}</div></div>`;
       return [ctr, ...[0, 1, 2, 3].map((s) => this.block(game, s))];
     },
@@ -651,7 +651,7 @@
       const mt = s === 0 ? [30, 40] : [17, 23];
       const melds = p.melds.length ? `<div class="melds m${s}">${p.melds.map((m) => `<div class="mg">${m.tiles.map((h, i) => (m.kind === 'ankan' && (i === 0 || i === 3) ? this.seatTile(h.t, ROT, mt[0], mt[1], { cls: 'bkt' }).replace(/<img[^>]*>/, '') : this.seatTile(h.t, ROT, mt[0], mt[1], { side: h === m.called, red: h.red }))).join('')}</div>`).join('')}</div>` : '';
       const plq = `<div class="plq seatc${s} p${s}${game.turn === s ? ' act' : ''}${p.riichi ? ' rch-on' : ''}${p.flowers && p.flowers.length ? ' hasfl' : ''}"><b class="wd${w === 0 ? ' dl' : ''}">${WINDS[w]}</b><span class="pn" style="font-size:${p.name.length <= 4 ? 17 : p.name.length <= 5 ? 16 : 14}px">${p.name}</span><i>${fmt(p.score)}</i>${p.riichi ? '<em>リーチ</em>' : ''}${p.flowers && p.flowers.length ? `<span class="fls" title="季節牌 ${p.flowers.length}枚">${p.flowers.map((h) => `<img src="img/tiles/${h.t}.webp" alt="${MJ.tileName(h.t)}" draggable="false">`).join('')}</span>` : ''}</div>`;
-      const rstick = p.riichi ? `<img class="rstick rs${s}" src="img/tenbo_1000.png" alt="リーチ棒" draggable="false">` : '';
+      const rstick = p.riichi ? `<img class="rstick rs${s}" src="img/tenbo_1000.webp" alt="リーチ棒" draggable="false">` : '';
       return `<div class="blk" data-seat="${s}">${river}${hand}${melds}${plq}${rstick}</div>`;
     },
 
@@ -1660,7 +1660,7 @@
       // 供託(場のリーチ棒)・本場の説明: 点数の表の増減(+3,300など)と、数字が合うように、内訳を見せる
       const base = !w.tsumo ? w.pay.ron : (win.seat === game.dealer ? w.pay.each * 3 : w.pay.fromOther * 2 + w.pay.fromDealer);
       const kt = w.kyotaku || 0;
-      const sticks = '<img class="sp-st" src="img/tenbo_1000.png" alt="リーチ棒" draggable="false">' + (kt > 1 ? `×${kt}` : ''); // 棒は1本の絵+本数(何本も並べて、行が増えないように)
+      const sticks = '<img class="sp-st" src="img/tenbo_1000.webp" alt="リーチ棒" draggable="false">' + (kt > 1 ? `×${kt}` : ''); // 棒は1本の絵+本数(何本も並べて、行が増えないように)
       const plus = (kt || w.honba) ? `<div class="score-plus">${kt ? `<div class="sp-row">＋ <b>供託</b> ${sticks} ${kt}本 = <b>${fmt(kt * 1000)}点</b></div><div class="sp-note">リーチした人が場に出した点棒(1本1,000点)。上がった人が、全部もらえます。</div>` : ''}${w.honba ? `<div class="sp-note">本場 ${w.honba}本: ロンは1本300点、ツモは各100点が、上の点数に入っています。</div>` : ''}${kt ? `<div class="sp-total">もらえる点: ${fmt(base)} + ${fmt(kt * 1000)} = <b>${fmt(base + kt * 1000)}点</b></div>` : ''}</div>` : '';
       return `<div class="win-cols"><div class="win-l"><div class="win-head">${this.faceImg(win.char) || '<div style="font-size:40px">🀄</div>'}<div><div class="big">${win.name}の${w.tsumo ? 'ツモ和了' : 'ロン和了'}!</div><div>${w.tsumo ? '' : `放銃(ロンされた人): <span class="gl-skip">${w.loser.name}</span>`}</div>${win.isHuman ? '' : `<div class="brag">「${MJ.winWords(MJ.Banter.brag(win) || (win.char.lines && win.char.lines.win) || '', w.tsumo)}」</div>`}</div></div>
       <div class="win-hand">${concealed}${melds}${winT}</div>

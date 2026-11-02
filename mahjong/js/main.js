@@ -541,7 +541,7 @@
     for (let i = 1; i <= MJ.CHARS.length; i++) { u.push(`img/chars/face/${pad2(i)}.webp`); u.push(`img/chars/${pad2(i)}.webp`); }
     ['11', '14', '21', '36'].forEach((n) => u.push(`img/teacher/t${n}.webp`));
     try { const yi = pad2(MJ.youIndex()); u.push(`img/you/${yi}.webp`); } catch (e) { /* ignore */ } // いまの、あなたの絵(成績・段位の画面・対局)
-    ['img/btn_start.webp', 'img/bgm_on.png', 'img/bgm_off.png', 'img/logo.webp', 'img/rank_bg.webp', 'img/cert.webp', 'img/cert_stamp.webp'].forEach((x) => u.push(x));
+    ['img/btn_start.webp', 'img/bgm_on.webp', 'img/bgm_off.webp', 'img/logo.webp', 'img/rank_bg.webp', 'img/cert.webp', 'img/cert_stamp.webp'].forEach((x) => u.push(x));
     return u;
   })();
   /* そのほか(左右反転の顔・あなたの絵・麻雀先生の表情)は、タイトルのあと、裏で読み込む */
@@ -553,7 +553,7 @@
     return u;
   })();
   /* タイトルに必要な絵(背景・ロゴ・ボタン)だけで、タイトルをすぐ出す。そのほか(牌・顔・ホームの背景など)は、タイトルを出したあと、裏で読み込む */
-  const TITLE = ['img/btn_start.webp', 'img/bgm_on.png', 'img/bgm_off.png', 'img/btn_exit.webp', 'img/logo.webp'];
+  const TITLE = ['img/btn_start.webp', 'img/bgm_on.webp', 'img/bgm_off.webp', 'img/btn_exit.webp', 'img/logo.webp'];
   const REST = ESSENTIAL.filter((x) => !TITLE.includes(x));
   MJ.titleReady = Promise.all([loadArt('img/title_art.webp', '--art-title'), pool(TITLE, 4)]);
   MJ.menuBgReady = MJ.titleReady.then(() => loadArt('img/menu_bg.webp', '--art-menu')); // ホームの背景を先に(「はじめる」で待つのは、これだけ)
