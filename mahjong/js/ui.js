@@ -119,16 +119,28 @@
       document.addEventListener('click', (e) => { if (e.target.closest('[data-hintoggle]')) this.toggleHint(); });
     },
 
+    /* 麻雀先生: 迷って止まっていたら、ひとこと。CPUがしゃべっている間は待つ(セリフが重ならないように)。途中で麻雀先生をつけたときも、ここで始める */
+    armIdle(game, p, mySel) {
+      clearTimeout(this._idleT);
+      let tries = 0;
+      const tryIdle = () => {
+        if (this.sel !== mySel || this.picked || !this.adv || !this.coachActive()) return;
+        if (this.voiceBusy() && tries++ < 8) { this._idleT = setTimeout(tryIdle, 1500); return; }
+        const m = MJ.Coach.idleAdvice(game, p, this.adv);
+        if (m) this.teacherSay(m.replace(/^🎓\s*/, ''), 'tip', 9000, 'idle');
+      };
+      if (this.coachActive()) this._idleT = setTimeout(tryIdle, 7000);
+    },
     /* フリー対戦のヒント(★・解説・危険度)を、入れたり消したりする */
     toggleHint() {
       this.hintOn = !this.hintOn;
       const s = this.sel;
       if (this.hintOn) {
         if (s) {
-          if (s.type === 'self') { this.adv = MJ.Coach.selfAdvice(this.game, s.p, s.opts, s.st); this.coachHtml = this.adv.html; this.summary = this.adv.summary || ''; }
+          if (s.type === 'self') { this.adv = MJ.Coach.selfAdvice(this.game, s.p, s.opts, s.st); this.coachHtml = this.adv.html; this.summary = this.adv.summary || ''; this.armIdle(this.game, s.p, s); }
           else this.coachHtml = MJ.Coach.reactAdvice(this.game, s.p, s.o);
         }
-      } else { this.adv = null; this.coachHtml = ''; this.summary = ''; this.picked = null; }
+      } else { this.adv = null; this.coachHtml = ''; this.summary = ''; this.picked = null; clearTimeout(this._idleT); }
       this.syncHintBtn();
       if (this.game) this.render(this.game);
       this.refreshCoach();
@@ -1129,16 +1141,7 @@
         };
         this.adv = null; this.coachHtml = ''; this.summary = ''; this.dng = null; this.idleMsg = null;
         clearTimeout(this._idleT);
-        { // 麻雀先生: 迷って止まっていたら、ひとこと。CPUがしゃべっている間は待つ(セリフが重ならないように)
-          let tries = 0;
-          const tryIdle = () => {
-            if (this.sel !== mySel || this.picked || !this.adv || !this.coachActive()) return;
-            if (this.voiceBusy() && tries++ < 8) { this._idleT = setTimeout(tryIdle, 1500); return; }
-            const m = MJ.Coach.idleAdvice(game, p, this.adv);
-            if (m) this.teacherSay(m.replace(/^🎓\s*/, ''), 'tip', 9000, 'idle');
-          };
-          if (this.coachActive()) this._idleT = setTimeout(tryIdle, 7000);
-        }
+        this.armIdle(game, p, mySel);
         if (needAdv || this.dangerOn) { this.render(game); setTimeout(fill, 40); } // まず、手牌だけをすぐ出す(おすすめ・危険度の計算は、そのあと。計算が重い端末でも、牌が出るのが遅れない)
         else fill();
       });
