@@ -1518,8 +1518,3 @@ body #screen-title .tt-exit { width: auto !important; padding: 6px 20px !importa
 body #screen-title .tt-exit img { display: none; }
 body #screen-title .tt-exit::after { content: "ゲーム終了"; }
 body #screen-title .tt-exit:hover, body #screen-title .tt-exit.pf, body.pad-on #screen-title .tt-exit.pf { background: var(--sel) !important; color: var(--sel-ink) !important; border-color: var(--sel-ink) !important; box-shadow: 0 0 0 4px #fff, 0 0 0 8px #000a !important; transform: none; }
-body .mk-back { background: #fff; color: #c8141c; border: 3px solid #c8141c; box-shadow: 0 4px 10px #000a; }
-body .mk-rec { background: #fff; color: #1f5fc9; border: 3px solid #1f5fc9; box-shadow: 0 4px 10px #000a; }
-body .mk-rec b { color: #c8141c; }
-body .mk-back.pf, body .mk-back:hover, body .mk-rec.pf, body .mk-rec:hover { background: var(--sel); color: var(--sel-ink); border-color: var(--sel-ink); box-shadow: 0 0 0 4px #fff, 0 0 0 8px #000a; }
-body .mk-rec.pf b, body .mk-rec:hover b { color: var(--sel-ink); }
