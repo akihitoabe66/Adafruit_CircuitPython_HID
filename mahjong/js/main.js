@@ -101,11 +101,7 @@
     startAuto(teacher) {
       MJ.Rank.clearSave(); // 新しく始める: 前回のつづきは、ここで消える
       const easy = MJ.CHARS.filter((c) => c.level <= 3 && MJ.Rank.unlocked(c.id)).map((c) => c.id);
-      // 時代・ジャンルが、なるべく別々の3人にする(昔話の人ばかりにならないように)
-      const byEra = {}; easy.forEach((id) => { (byEra[MJ.eraOf(id)] = byEra[MJ.eraOf(id)] || []).push(id); });
-      const eras = MJ.shuffle(Object.keys(byEra));
-      const pk = eras.slice(0, 3).map((e) => MJ.shuffle(byEra[e])[0]);
-      if (pk.length < 3) MJ.shuffle(easy.filter((id) => !pk.includes(id))).slice(0, 3 - pk.length).forEach((id) => pk.push(id));
+      const pk = MJ.shuffle(easy.slice()).slice(0, 3); // 時代は問わず、使える相手の中から自由に3人(無段でも毎回顔ぶれが変わるように)
       this.picks = pk;
       MJ.RULES.length = 'east'; MJ.saveRules();
       this.lastCfg = { mode: 'free', teacher: !!teacher, picks: this.picks.slice(), length: 'east' };
