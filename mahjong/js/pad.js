@@ -108,7 +108,7 @@
     if (onTitle()) return null;
     if (paged()) return P.pagedMain();
     if (U && U.game && !$('#screen-game').classList.contains('hidden') && $('#overlay').classList.contains('hidden')) {
-      const cq = $('.cq-btn.b-pass') || $('.cq-btn[data-act]'); // 初めは「見送る」
+      const cq = $('.cq-btn[data-act=ron]') || $('.cq-btn.b-pass') || $('.cq-btn[data-act]'); // ロンできるときは「ロン」から。できないときは「見送る」から(ロンを見送って流局、にならないように)
       if (cq && visible(cq)) return cq;
       const t = $('.hand .tile.rec:not(.dis)') || $('.hand .tile.drawn:not(.ph):not(.dis)') || [...document.querySelectorAll('.hand .tile[data-id]:not(.dis)')].pop();
       if (t && visible(t)) return t;
