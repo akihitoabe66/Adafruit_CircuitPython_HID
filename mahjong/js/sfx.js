@@ -187,7 +187,7 @@
     speaking() { return !!(G.speechSynthesis && (G.speechSynthesis.speaking || G.speechSynthesis.pending)); },
     stopSpeak() { S.stopClips(); if (G.speechSynthesis) { S._readId = (S._readId || 0) + 1; G.speechSynthesis.cancel(); } if (S._cb) { const f = S._cb; S._cb = null; try { f(null); } catch (e) { /* ignore */ } } },
     /* 読み上げ: 文ごとに区切り、見出しっぽい短文・疑問・文末で声の高さ/速さ/間を変えて抑揚をつける */
-    read(text, cb) {
+    read(text, cb, opt) { // opt: { rate: 速さの倍率, gap: 文のあとの間(ms), lead: 始めるまでの間(ms) }
       const syn = G.speechSynthesis;
       if (S.isIOS) return false; // iPhone・iPad: 音声合成はテレビ(AirPlay)に出ず手元の端末から鳴ってしまうので使わない
       if (!syn || !S.hasJaVoice()) return false;
@@ -223,14 +223,14 @@
         const q = /[?]$/.test(t) || /でしょうか|ですか$/.test(t);
         // 文ごとに少しずつ高さと速さをゆらす
         u.pitch = base + (head ? 0.06 : 0) + (q ? 0.1 : 0);
-        u.rate = (head ? 0.95 : 1.0) * (S.readRate || 1);
+        u.rate = (head ? 0.95 : 1.0) * (S.readRate || 1) * ((opt && opt.rate) || 1);
         u.volume = Math.min(1, S.rv());
-        const next = () => { if (S._readId !== id) return; const gap = head ? 380 : parts[i].end ? 220 : 90; setTimeout(() => speakAt(i + 1), gap); };
+        const next = () => { if (S._readId !== id) return; const gap = opt && opt.gap != null ? opt.gap : head ? 380 : parts[i].end ? 220 : 90; if (gap <= 0) speakAt(i + 1); else setTimeout(() => speakAt(i + 1), gap); };
         u.onend = next;
         u.onerror = next;
         syn.speak(u);
       };
-      setTimeout(() => { if (S._readId === id) speakAt(0); }, 80); // iOSは cancel 直後の speak を捨てることがあるため少し待つ
+      setTimeout(() => { if (S._readId === id) speakAt(0); }, opt && opt.lead != null ? opt.lead : 80); // iOSは cancel 直後の speak を捨てることがあるため少し待つ
       return true;
     },
 

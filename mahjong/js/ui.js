@@ -1560,10 +1560,10 @@
     kyokuVoice(game) {
       try {
         if (!MJ.SFX || MJ.SFX.voiceOn === false || game.stopped) return;
-        const W = ['とう', 'なん', 'しゃー', 'ぺー'], N = ['いち', 'に', 'さん', 'よん', 'ご', 'ろく', 'なな', 'はち', 'きゅう'];
-        const HB = ['', 'いっぽんば', 'にほんば', 'さんぼんば', 'よんほんば', 'ごほんば', 'ろっぽんば', 'ななほんば', 'はっぽんば', 'きゅうほんば'];
-        const k = N[game.kyoku % 4] || 'いち', w = W[game.roundWind] || 'とう';
-        MJ.SFX.read(`${w}${k}きょく。${game.honba ? HB[Math.min(9, game.honba)] || '' : ''}`);
+        const W = ['トン', 'ナン', 'シャー', 'ペイ'], N = ['イチ', 'ニ', 'サン', 'ヨン', 'ゴ', 'ロク', 'ナナ', 'ハチ', 'キュウ'];
+        const HB = ['', 'イッポンバ', 'ニホンバ', 'サンボンバ', 'ヨンホンバ', 'ゴホンバ', 'ロッポンバ', 'ナナホンバ', 'ハッポンバ', 'キュウホンバ'];
+        const k = N[game.kyoku % 4] || 'イチ', w = W[game.roundWind] || 'トン';
+        MJ.SFX.read(`${w}${k}キョク。${game.honba ? HB[Math.min(9, game.honba)] || '' : ''}`);
       } catch (e) { /* ignore */ }
     },
     async kyokuSlam(game) {
@@ -1786,15 +1786,15 @@
       row.classList.add('rd0');
       const reveal = () => { row.classList.remove('rd0'); cards.forEach((c) => c.classList.remove('now')); };
       const sl = (ms) => new Promise((r) => setTimeout(r, ms));
-      const say = (t) => new Promise((r) => { let ok = false; try { ok = MJ.SFX.read(t, (ev) => { if (!ev) r(); }); } catch (e) { ok = false; } if (!ok) setTimeout(r, 450); setTimeout(r, 2200); });
+      const say = (t, o) => new Promise((r) => { let ok = false; try { ok = MJ.SFX.read(t, (ev) => { if (!ev) r(); }, o); } catch (e) { ok = false; } if (!ok) setTimeout(r, 450); setTimeout(r, 2200); });
       (async () => {
         await sl(250); if (tok !== this._drTok) return;
-        await say('りゅうきょく'); await sl(180);
+        await say('りゅうきょく', { rate: 1.4, gap: 0, lead: 20 }); await sl(120);
         for (let i = 0; i < cards.length; i++) {
           if (tok !== this._drTok) return;
           cards.forEach((c) => c.classList.remove('now'));
           const c = cards[i]; c.classList.add('now', 'shown');
-          await say(res.tenpai[i] ? 'テンパイ' : 'ノーテン'); await sl(90);
+          await say(res.tenpai[i] ? 'テンパイ' : 'ノーテン', { gap: 0, lead: 10 }); await sl(30);
         }
         if (tok !== this._drTok) return;
         reveal();
