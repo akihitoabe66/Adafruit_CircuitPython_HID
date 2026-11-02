@@ -1547,3 +1547,14 @@ body .callq.selfq.rch-on { gap: 18px; }
 
 /* 名札の左の色の帯(自分は赤など)が、風の文字の箱に隠れないように、帯のぶんを空ける */
 .plq { padding-left: 11px; box-sizing: border-box; }
+
+/* 確認ダイアログのボタンは、すべて同じ見た目: 選んでいないボタン=白背景に黒文字、選んだボタン=黄色(赤などの色分けはしない。間違えにくくするため) */
+body #overlay .cf-btns .btn, body #overlay .cfm-btns .btn, body #overlay .cf-btns button, body #overlay .cfm-btns button {
+  background: #fff !important; color: #1b1b12 !important; border: 4px solid #fff !important; text-shadow: none !important;
+  box-shadow: 0 4px 0 #0007 !important; outline: none !important; opacity: 1 !important;
+}
+body #overlay .cf-btns .btn.pf, body #overlay .cfm-btns .btn.pf, body #overlay .cf-btns button.pf, body #overlay .cfm-btns button.pf,
+body #overlay .cf-btns .btn:hover, body #overlay .cfm-btns .btn:hover {
+  background: var(--sel, #ffd23f) !important; color: var(--sel-ink, #1b1b12) !important; border-color: var(--sel-ink, #1b1b12) !important;
+  box-shadow: 0 0 0 4px #fff, 0 0 0 8px #000a !important;
+}
