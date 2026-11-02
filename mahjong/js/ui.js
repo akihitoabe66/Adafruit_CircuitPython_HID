@@ -628,7 +628,7 @@
             // 手牌(13牌など)は、動かさない。引いた牌の場所は、手牌の「右」に、いつも決まった位置(向かいは画面の左はし、右の人は画面の上はし、左の人は画面の下はし)
             const hasDrawn = n % 3 === 2, base = hasDrawn ? n - 1 : n, G = 26; // G = 引いた牌1枚ぶん + すきま
             let pos;
-            if (hasDrawn && i === n - 1) pos = s === 3 ? 13 * 17 + 9 : 0; // 引いた牌
+            if (hasDrawn && i === n - 1) pos = s === 3 ? base * 17 + 9 : 0; // 引いた牌(鳴いて手牌が減ったら、手牌のすぐ隣に置く)
             else pos = s === 3 ? i * 17 : G + i * 17; // 手牌(右・向かいは、引いた牌の場所をあけて並べる)
             const x = s === 2 ? 240 + pos : s === 1 ? 690 : 6, y = s === 2 ? 4 : 30 + pos;
             hand += s === 2 ? `<div class="bk" style="left:${x}px;top:${y}px;width:16px;height:24px"></div>` : `<div class="bk" style="left:${x}px;top:${y}px;width:24px;height:16px"></div>`;
