@@ -1506,3 +1506,8 @@ body .callq.selfq.rch-on { gap: 18px; }
 
 /* 流局: テンパイ・ノーテンで大きくなる枠が、左端・右端で切れないように、まわりに余白 */
 .dr-row { padding: 6px 14px; }
+
+/* 雀士列伝: 説明の欄は、いつも同じ高さ(選ぶ人で高さが変わって、画面全体が動かないように) */
+#rs-detail { height: 168px; margin-top: 8px; overflow: hidden; }
+.rs-d { height: 100%; }
+.rs-t { overflow: hidden; }
