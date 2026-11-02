@@ -397,8 +397,9 @@
       const gp = MJ.perf.gaps.slice(-4).reverse();
       const gapRows = gp.length ? gp.map((x) => `${x.at}秒 ${x.gap}ミリ秒(直前: ${x.ctx})`).join('<br>') : 'なし';
       const st = MJ.perf.steps, base = st.length ? st[0][1] : 0;
+      const bootRow = (() => { let b = MJ.boot; try { b = b && b.loaded ? b : JSON.parse(localStorage.getItem('mj_boot') || 'null'); } catch (e) { b = null; } return b ? `起動から、タイトルが出るまで ${b.title || '?'}ミリ秒 ／ 読み込みが100%になるまで ${b.loaded || '?'}ミリ秒` : '(まだ記録がありません)'; })();
       const stepRows = st.length ? st.map((x, i) => `${x[0]}: +${x[1] - base}ミリ秒`).join(' → ') : '(「はじめる」を押すと、ここに内訳が出ます)';
-      MJ.UI.overlay(`<div class="cf"><h2 style="font-size:22px;margin:0 0 2px">📈 動作の測定の結果</h2><p style="font-size:17px;line-height:1.3;margin:2px 0">平均 <b>${avg}</b> コマ/秒(60に近いほど、なめらか)<br>${rows}<br>演出: ${MJ.FX.JP[MJ.FX.level()]}${MJ.FX.isAuto() ? '(自動)' : ''} ／ 画面 ${innerWidth}×${innerHeight} ／ CPU ${navigator.hardwareConcurrency || '?'}コア ／ メモリ ${navigator.deviceMemory || '?'}GB</p><p style="font-size:15px;line-height:1.3;text-align:left;margin:4px 0"><b>止まった記録</b>(新しい順)<br>${longRows}<br><b>コントローラーの入力が遅れた記録</b><br>${gapRows}<br><b>「はじめる」の内訳</b><br>${stepRows}</p><div class="cf-btns"><button class="btn pri" id="pf-close">とじる</button></div></div>`, { plain: true });
+      MJ.UI.overlay(`<div class="cf"><h2 style="font-size:22px;margin:0 0 2px">📈 動作の測定の結果</h2><p style="font-size:17px;line-height:1.3;margin:2px 0">平均 <b>${avg}</b> コマ/秒(60に近いほど、なめらか)<br>${rows}<br>演出: ${MJ.FX.JP[MJ.FX.level()]}${MJ.FX.isAuto() ? '(自動)' : ''} ／ 画面 ${innerWidth}×${innerHeight} ／ CPU ${navigator.hardwareConcurrency || '?'}コア ／ メモリ ${navigator.deviceMemory || '?'}GB</p><p style="font-size:15px;line-height:1.3;text-align:left;margin:4px 0"><b>止まった記録</b>(新しい順)<br>${longRows}<br><b>コントローラーの入力が遅れた記録</b><br>${gapRows}<br><b>起動の速さ</b><br>${bootRow}<br><b>「はじめる」の内訳</b><br>${stepRows}</p><div class="cf-btns"><button class="btn pri" id="pf-close">とじる</button></div></div>`, { plain: true });
       document.querySelector('#pf-close').addEventListener('click', () => showSettings());
     });
     const spB = o.querySelector('#st-spd'); const spS = () => { spB.textContent = '⏱ CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()]; }; spS(); spB.addEventListener('click', () => { MJ.cycleCpuSpeed(); spS(); });
@@ -563,6 +564,7 @@
     const finish = () => {
       if (ended) return; ended = true;
       const e = el(); if (e) e.textContent = '100%';
+      MJ.boot = MJ.boot || {}; MJ.boot.loaded = Math.round(performance.now()); try { localStorage.setItem('mj_boot', JSON.stringify(MJ.boot)); } catch (e2) { /* ignore */ }
       MJ.titleBgmOK = true; try { if (MJ.Audio && document.body.classList.contains('on-title')) { MJ.Audio.setScene('title'); MJ.Audio.resume(); } } catch (e) { /* ignore */ } // 100%になる瞬間から、BGMを鳴らす
       setTimeout(() => {
         MJ.loading = false; document.body.classList.remove('loading'); const ld = document.getElementById('ld'); if (ld) ld.remove();
@@ -601,7 +603,7 @@
   window.addEventListener('resize', placeStart);
   window.addEventListener('orientationchange', () => setTimeout(placeStart, 250));
   (function titleReady() {
-    const done = () => { placeStart(); document.body.classList.add('title-ready'); /* BGMは、読み込みがすべて終わってから(下の loadingGate の finish で始める) */ }; // 押さなくてもBGMを鳴らせる環境では、タイトルが出て1秒後に曲を始める
+    const done = () => { placeStart(); document.body.classList.add('title-ready'); MJ.boot = MJ.boot || {}; MJ.boot.title = Math.round(performance.now()); /* BGMは、読み込みがすべて終わってから(下の loadingGate の finish で始める) */ }; // 押さなくてもBGMを鳴らせる環境では、タイトルが出て1秒後に曲を始める
     placeStart();
     let fired = false;
     const once = () => { if (!fired) { fired = true; done(); } };
