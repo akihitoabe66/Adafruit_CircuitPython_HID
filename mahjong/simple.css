@@ -1544,3 +1544,6 @@ body .callq.selfq.rch-on { gap: 18px; }
 .rs-arr.r { animation-name: rsHintR; } .rs-arr.l { animation-name: rsHintL; }
 @keyframes rsHintR { 0%, 100% { opacity: .75; transform: none; } 50% { opacity: 1; transform: translateX(3px); } }
 @keyframes rsHintL { 0%, 100% { opacity: .75; transform: none; } 50% { opacity: 1; transform: translateX(-3px); } }
+
+/* 名札の左の色の帯(自分は赤など)が、風の文字の箱に隠れないように、帯のぶんを空ける */
+.plq { padding-left: 11px; box-sizing: border-box; }
