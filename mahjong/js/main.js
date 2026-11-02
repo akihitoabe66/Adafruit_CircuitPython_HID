@@ -561,7 +561,13 @@
     const finish = () => {
       if (ended) return; ended = true;
       const e = el(); if (e) e.textContent = '100%';
-      setTimeout(() => { MJ.loading = false; document.body.classList.remove('loading'); const ld = document.getElementById('ld'); if (ld) ld.remove(); }, 250);
+      setTimeout(() => {
+        MJ.loading = false; document.body.classList.remove('loading'); const ld = document.getElementById('ld'); if (ld) ld.remove();
+        // 読み込みが終わったら、すぐBGMを始める。鳴らなかったときは、少し待って何度かやり直す(最初の操作でも鳴らす)
+        MJ.titleBgmOK = true;
+        const tryBgm = (n) => { try { if (MJ.Audio && document.body.classList.contains('on-title')) { MJ.Audio.setScene('title'); MJ.Audio.resume(); } } catch (e) { /* ignore */ } if (n > 0) setTimeout(() => { if (MJ.Audio && MJ.Audio.on && !(MJ.Audio.isPlaying && MJ.Audio.isPlaying())) tryBgm(n - 1); }, 700); };
+        tryBgm(6);
+      }, 250);
     };
     const yieldMs = (ms) => new Promise((r) => setTimeout(r, ms));
     MJ.laterReady.then(async () => {
@@ -591,7 +597,7 @@
   window.addEventListener('resize', placeStart);
   window.addEventListener('orientationchange', () => setTimeout(placeStart, 250));
   (function titleReady() {
-    const done = () => { placeStart(); document.body.classList.add('title-ready'); setTimeout(() => { MJ.titleBgmOK = true; if (document.body.classList.contains('on-title') && MJ.Audio) MJ.Audio.setScene('title'); }, 50); }; // 押さなくてもBGMを鳴らせる環境では、タイトルが出て1秒後に曲を始める
+    const done = () => { placeStart(); document.body.classList.add('title-ready'); /* BGMは、読み込みがすべて終わってから(下の loadingGate の finish で始める) */ }; // 押さなくてもBGMを鳴らせる環境では、タイトルが出て1秒後に曲を始める
     placeStart();
     let fired = false;
     const once = () => { if (!fired) { fired = true; done(); } };

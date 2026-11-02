@@ -194,7 +194,8 @@
     setVolLevel(k, n) {
       if (!['bgm', 'sfx', 'voice', 'read', 'rate'].includes(k) || !isFinite(n)) return;
       n = Math.max(0, Math.min(10, n));
-      if (k === 'read') { MJ.SFX.setReadVol(Math.max(0.1, n / 10)); this.sampleRead(); }
+      if (k === 'voice') k = 'read'; // 声と読み上げは、ひとつにまとめた(読み上げ)
+      if (k === 'read') { MJ.SFX.setReadVol(Math.max(0.1, n / 10)); MJ.SFX.setCallVol(n / 10); this.sampleRead(); }
       else if (k === 'rate') { MJ.SFX.setReadRate(0.6 + n / 10); this.sampleRead(); }
       else if (k === 'bgm') { MJ.Audio.setVolume(n * 0.03); if (MJ.Audio.on === false && n > 0) MJ.Audio.setOn(true); }
       else if (k === 'sfx') { MJ.SFX.setVol(n / 10); MJ.SFX.play('discard'); }
@@ -203,7 +204,7 @@
     },
     openVolume(opt = {}) {
       MJ.paused = !opt.full;
-      const rows = [['bgm', 'BGM'], ['sfx', '効果音'], ['voice', '声']].concat(opt.full ? [['read', '読み上げ'], ['rate', '読む速さ']] : []);
+      const rows = [['bgm', 'BGM'], ['sfx', '効果音'], ['read', '読み上げ']].concat(opt.full ? [['rate', '読む速さ']] : []); // 声(キャラのセリフ・ポンなど)も、読み上げと同じ音量
       const draw = () => {
         const L = this.volLevels();
         const html = `<div class="vp${opt.full ? ' full' : ''}"><div class="vp-t">🔊 音のせってい</div>${rows.map(([k, n]) => `<div class="vp-r"><span class="vp-l${n.length > 3 ? ' long' : ''}">${n}</span><button class="vp-b" type="button" data-vk="${k}" data-vd="-1">◀</button><span class="vp-bar"><i style="width:${L[k] * 10}%"></i></span><button class="vp-b" type="button" data-vk="${k}" data-vd="1">▶</button><span class="vp-n">${L[k]}</span></div>`).join('')}<div class="vp-r vp-spd"><span class="vp-l">CPU</span><button class="vp-b vp-sp" type="button" id="vp-spd">⏱ 速さ: ${MJ.CPU_SPEED_JP[MJ.cpuSpeed()]}</button></div>${opt.full ? `<div class="vp-r vp-spd"><span class="vp-l">役</span><button class="vp-b vp-sp" type="button" id="vp-yk">🔊 上がりの役の読み上げ: ${MJ.SFX.yakuRead ? 'あり' : 'なし'}</button></div>` : ''}<div class="vp-h">0にすると、その音が消えます。${opt.full ? '' : '対局は、とじるまで止まります。'}</div><div class="res-foot"><button class="btn pri big" id="vp-close" type="button">とじる</button></div></div>`;

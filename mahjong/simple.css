@@ -1425,3 +1425,8 @@ body.loading #ld { pointer-events: auto; }
 .selbtn { min-height: 44px; padding: 6px 16px; font-size: 18px; font-weight: 800; text-align: left; white-space: nowrap; }
 body.rot .ld-box { min-width: 200px; padding: 14px 28px; border-width: 3px; border-radius: 14px; }
 body.rot .ld-t { font-size: 24px; } body.rot .ld-p { font-size: 30px; margin-top: 6px; }
+/* 読み込み中の板: 「…」が枠にぎりぎりにならないよう、余白をとる */
+.ld-box { padding: 3.2vmin 6.4vmin; }
+.ld-t { padding: 0 3ch 0 3ch; }
+.ld-d { width: 0; }
+body.rot .ld-box { padding: 18px 40px; }
