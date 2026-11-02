@@ -71,8 +71,8 @@ body.on-title, body.on-menu { overflow: hidden; background: #123a2d; }
 .cq-keys { display: none; font-size: 17px; font-weight: 700; color: #ffe9a0; text-shadow: 0 1px 3px #000; }
 body.pad-on .cq-keys { display: block; }
 /* 出た直後の2秒(パッド操作のとき): ボタンを薄くして、選択の枠も出さない */
-.callq.locked .cq-btn { opacity: .45; }
-body.pad-on .callq.locked .pf { outline: none !important; box-shadow: none !important; }
+/* (確認が出た直後の、押しても反応しない短い時間も、見た目は同じにする。薄くしない) */
+
 /* 使う手牌(持ち上がる)と、捨てられた牌(金の枠) */
 .hand .tile.cand { transform: translateY(-16px); outline: 4px solid #f2c230; box-shadow: 0 0 14px 3px #f2c230cc; }
 body.calling .river .tile.hl { outline: 5px solid #f2c230; outline-offset: -1px; box-shadow: 0 0 16px 6px #f2c230; z-index: 3; }
@@ -183,7 +183,6 @@ body #overlay .btn.danger.pf { outline: 4px solid #fff !important; box-shadow: 0
 
 /* 鳴きの選択: 選んでいるボタンは黄色の面 */
 body .callq .cq-btn.pf { background: var(--sel) !important; color: var(--sel-ink) !important; border-color: var(--sel-ink) !important; outline: 4px solid #fff !important; box-shadow: 0 0 0 8px #000a !important; }
-body .callq.locked .cq-btn.pf { background: inherit !important; }
 
 /* クイズの答え合わせ: 結果を、大きな色の帯と記号で伝える */
 #dq-fb .dq-fh { font-size: 30px; padding: 6px 14px; border-radius: 10px; color: #fff; }
@@ -717,7 +716,7 @@ body.no-ruby rt { display: none; }
 /* 和了の画面: 役の行が多くても(リーチ・ドラ・裏ドラ…)、いちばん下の行と点数まで見えるように詰める。それでも入らないときは、縦にスクロール */
 .win-r .yakus { margin: 2px 0; } .win-r .yakus td { padding: 1px 6px; line-height: 1.25; }
 .win-r .score-big { margin: 2px 0 0; }
-.pm-body { overflow-y: auto; scrollbar-width: thin; }
+.pm-body { overflow: hidden; } /* スクロールバーは出さない(文字を縮めて、1画面に収める) */
 .win-r { padding-top: 44px; }
 .ln-open { top: 40px !important; font-size: 18px !important; padding: 4px 14px !important; }
 .win-head img.fcut, .win-head img.fyou, .paged .win-head img.fcut { height: 78px; }
@@ -1231,7 +1230,7 @@ body:not(.land) #coach { visibility: hidden; }
 /* ポン・チーの確認: 出る時に透けない・動かない(最初から、はっきり出す) */
 .callq { animation: none !important; opacity: 1 !important; }
 .callq .cq-btns .cq-btn { transition: none; }
-.callq.locked .cq-btn { opacity: .85; }
+/* 確認が出た直後も、見た目は変えない */
 /* 準備中の表示(演出の動きが始まる前) */
 .in-load { opacity: 0; animation: loadIn .3s .9s both; display: none; position: absolute; inset: 0; place-items: center; font-size: 5cqw; font-weight: 900; color: #fff; letter-spacing: .15em; z-index: 3; }
 #intro.pre .in-load { display: grid; }
@@ -1454,3 +1453,9 @@ body.rot .ld-box { padding: 18px 40px; }
 .dr-p { transition: transform .15s, box-shadow .15s, opacity .15s; }
 .dr-p.now { transform: scale(1.06); box-shadow: 0 0 0 4px #ffcc4d77; border-color: #ffd35a; opacity: 1; }
 .dr-tbl, .dr-note { transition: opacity .2s; }
+
+/* ===== このゲームでは、縦スクロールバーを出さない(コントローラーで使うため) ===== */
+* { scrollbar-width: none !important; }
+*::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+/* ページ式の窓: 次のページの文字合わせを、裏で先に済ませるときの置き方(見えない・場所を取らない) */
+.pm-page.ms { display: block; position: absolute; left: 0; right: 0; top: 0; visibility: hidden; pointer-events: none; }

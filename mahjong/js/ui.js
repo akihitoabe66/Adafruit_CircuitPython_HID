@@ -1563,7 +1563,7 @@
         const W = ['トン', 'ナン', 'シャー', 'ペイ'], N = ['イチ', 'ニ', 'サン', 'ヨン', 'ゴ', 'ロク', 'ナナ', 'ハチ', 'キュウ'];
         const HB = ['', 'イッポンバ', 'ニホンバ', 'サンボンバ', 'ヨンホンバ', 'ゴホンバ', 'ロッポンバ', 'ナナホンバ', 'ハッポンバ', 'キュウホンバ'];
         const k = N[game.kyoku % 4] || 'イチ', w = W[game.roundWind] || 'トン';
-        MJ.SFX.read(`${w}${k}キョク。${game.honba ? HB[Math.min(9, game.honba)] || '' : ''}`);
+        MJ.SFX.read(`${w}${k}キョク!${game.honba ? (HB[Math.min(9, game.honba)] || '') + '!' : ''}`, null, { pitch: 0.4, rate: 1.18, gap: 120 }); // 元気よく: 高め・少し速め
       } catch (e) { /* ignore */ }
     },
     async kyokuSlam(game) {
@@ -1719,6 +1719,21 @@
       const body = modal.querySelector('.pm-body');
       const els = [...modal.querySelectorAll('.pm-page')];
       els.forEach((e) => { MJ.Gloss.decorate(e); e.querySelectorAll('.gl').forEach((g) => g.classList.add('gl-off')); }); // ふりがなは付けて、用語のリンク(下線・押せる)だけをなくす
+      /* ページの文字の大きさを、枠に収まるように決める(決めた大きさは覚えておく)。面積は文字の大きさの2乗に近いので、見当をつけて、数回で収める */
+      const fitPage = (pg) => {
+        if (pg._fit) { pg.style.fontSize = pg._fit.fs; pg.style.zoom = pg._fit.z; return; }
+        pg.style.zoom = ''; pg.style.fontSize = '';
+        const H = body.clientHeight;
+        const over = () => pg.scrollHeight * (parseFloat(pg.style.zoom) || 1) > H + 1;
+        const fs0 = parseFloat(getComputedStyle(pg).fontSize) || 16;
+        if (over()) {
+          let est = Math.max(9, fs0 * Math.sqrt(H / Math.max(1, pg.scrollHeight)) * 0.97), n = 0;
+          pg.style.fontSize = est + 'px';
+          while (over() && est > 9 && n++ < 5) { est = Math.max(9, est * 0.93); pg.style.fontSize = est + 'px'; }
+          if (over()) { let z = 1; while (over() && z > 0.35) { z = Math.round((z - 0.05) * 100) / 100; pg.style.zoom = String(z); } }
+        }
+        pg._fit = { fs: pg.style.fontSize, z: pg.style.zoom };
+      };
       const show = (i) => {
         cur = Math.max(0, Math.min(pages.length - 1, i));
         els.forEach((e, k) => { e.classList.toggle('on', k === cur); e.style.zoom = ''; });
@@ -1729,25 +1744,15 @@
         modal.querySelector('#pm-next').classList.toggle('off', cur >= pages.length - 1);
         const dn = modal.querySelector('#pm-done'); dn.textContent = lastLabel; dn.style.visibility = always || cur === pages.length - 1 ? 'visible' : 'hidden';
         const pg = els[cur];
-        const fit = () => {
-          if (els[cur] !== pg) return;
-          pg.style.zoom = ''; pg.style.fontSize = '';
-          let hi = parseFloat(getComputedStyle(pg).fontSize) || 16;
-          const fover = () => pg.scrollHeight * (parseFloat(pg.style.zoom) || 1) > body.clientHeight + 1;
-          if (fover()) { // 収まる最大の文字の大きさを、二分探索で(13pxまで)
-            let lo = 13;
-            while (hi - lo > 0.5) { const mid = Math.round(lo + hi) / 2; pg.style.fontSize = mid + 'px'; if (fover()) hi = mid; else lo = mid; }
-            pg.style.fontSize = lo + 'px';
-          }
-          // それでも収まらなければ、全体を少しずつ縮めて1画面に収める
-          if (fover()) { let z = 1; while (fover() && z > 0.5) { z = Math.round((z - 0.02) * 100) / 100; pg.style.zoom = String(z); } }
-        };
         // 文字の大きさが決まるまで、このページは見せない(出てから縮むのを見せない)。顔の画像が読み込まれるのも待つ(最大0.4秒)
         pg.style.visibility = 'hidden';
-        fit();
+        fitPage(pg);
         const wait = [...pg.querySelectorAll('img')].filter((im) => !im.complete);
-        const reveal = () => { if (els[cur] !== pg) return; fit(); pg.style.visibility = ''; };
+        const reveal = () => { if (els[cur] !== pg) return; if (wait.length) { pg._fit = null; fitPage(pg); } pg.style.visibility = ''; };
         if (wait.length) Promise.race([Promise.all(wait.map((im) => new Promise((r) => { im.addEventListener('load', r, { once: true }); im.addEventListener('error', r, { once: true }); }))), new Promise((r) => setTimeout(r, 400))]).then(reveal); else reveal();
+        // 次のページの文字合わせを、先に(少し間をあけて、裏で)済ませておく。次へ進むときに、待たされないように
+        clearTimeout(modal._pf);
+        modal._pf = setTimeout(function pre() { if (!modal.isConnected) return; const nx = els.find((e, k) => k > cur && !e._fit); if (!nx) return; nx.classList.add('ms'); fitPage(nx); nx.classList.remove('ms'); modal._pf = setTimeout(pre, 120); }, 250);
         if (MJ.Pad && MJ.Pad.pagedFocus) setTimeout(MJ.Pad.pagedFocus, 0); // カーソルは、いつも「次へ」(最後のページは、終わりのボタン)
         if (this._drStop) { const f = this._drStop; this._drStop = null; f(); }
         MJ.SFX.stopSpeak();
