@@ -8,7 +8,8 @@
   const STUDY = 'audio/study.mp3'; // 点数計算の勉強の画面だけ流れる曲(the_temple_s_breath)
   const QUIZ = 'audio/quiz.mp3'; // 麻雀クイズの画面だけ流れる曲(thirteen_gates_to_glory)
   const LATE = ['audio/game8.mp3', 'audio/game9.mp3']; // 東二局以降だけ流れる曲(game9 = sovereign_hand)
-  const GAME = ['audio/game1.mp3', 'audio/game2.mp3', 'audio/game3.mp3', 'audio/game4.mp3', 'audio/game5.mp3', 'audio/game6.mp3', 'audio/game7.mp3'];
+  const GAME = ['audio/game1.mp3', 'audio/game2.mp3', 'audio/game3.mp3', 'audio/game4.mp3', 'audio/game5.mp3', 'audio/game6.mp3', 'audio/game7.mp3', 'audio/game10.mp3', 'audio/game11.mp3']; // game10 = paper_lanterns_at_dawn / game11 = jade_winds_rising
+  const FINAL = ['audio/game12.mp3']; // 4局目(東4局・南4局)だけ、ほかの曲にまざって、ランダムで流れる曲(one_tile_remaining)
   let el = null, gain = null, wired = false, last = null;
 
   /* 曲を先に取り寄せておく(押してから数秒待たされないように)。順番: ホーム → 対局曲 → 結果曲 */
@@ -90,12 +91,12 @@
       // 取り寄せ済みの曲を優先して選ぶ(なければ通常どおり)
       // game8 は、東二局以降だけ選ばれる
       const g = MJ.App && MJ.App.game;
-      const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []);
+      const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []).concat(g && g.kyoku % 4 === 3 ? FINAL : []);
       const ready = cand.filter((s) => s !== last && warmed.has(s));
       const pool = ready.length ? ready : cand.filter((s) => s !== last);
       last = pool[Math.floor(Math.random() * pool.length)];
       A._load(last, true); // 1局のあいだは、同じ曲をくり返す。局が終わって結果画面を閉じたら、新しい曲に変わる
-      MJ.warmAudioLater([...GAME, ...LATE, 'audio/result_win.mp3', 'audio/result_win2.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3'], 8000, 3000);
+      MJ.warmAudioLater([...GAME, ...LATE, ...FINAL, 'audio/result_win.mp3', 'audio/result_win2.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3'], 8000, 3000);
     },
     /* 結果画面の専用BGM: 'win'(自分の和了) / 'lose'(マイナス) / 'draw'(流局)。閉じると対局BGMに戻る */
     playResult(kind) {
@@ -124,7 +125,7 @@
       if ((scene0 === 'title' && !wantTitle) || !A.on) { A.stop(); return; }
       if (scene === 'home') MJ.warmAudioLater([STUDY, QUIZ, ...GAME], 5000, 2500); // ホームが落ち着いてから、勉強の曲と対局曲を、1曲ずつ取り寄せる
       if (scene === 'home' || scene === 'study' || scene === 'quiz') { const tr = scene === 'study' ? STUDY : scene === 'quiz' ? QUIZ : HOME; if ((changed && !(el && !el.paused && el.dataset.track === tr)) || (el && el.dataset.track !== tr)) A._load(tr, true); }
-      else if (changed && !(el && el.dataset.track && (GAME.includes(el.dataset.track) || LATE.includes(el.dataset.track)) && !el.paused)) A._playGame();
+      else if (changed && !(el && el.dataset.track && (GAME.includes(el.dataset.track) || LATE.includes(el.dataset.track) || FINAL.includes(el.dataset.track)) && !el.paused)) A._playGame();
     },
     resume() {
       if (!A.on || (A.scene === 'title' && !(MJ.titleBgmOK && A.autoOK()))) return;
