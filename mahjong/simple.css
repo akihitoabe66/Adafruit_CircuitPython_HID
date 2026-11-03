@@ -1652,3 +1652,9 @@ body .callq .cq-btn.b-ron .cq-sub:not(.cq-rec), body .callq .cq-btn.b-riichi .cq
 
 /* サイコロ: 順に回る光は、顔の枠のふちを越えて、外側に出す(枠の下に隠れないように) */
 .dc-pc.hit img.fcut { outline: calc(var(--u) * 6) solid #f2c230; outline-offset: calc(var(--u) * 1); box-shadow: 0 0 calc(var(--u) * 22) calc(var(--u) * 5) rgba(242, 194, 48, .85); filter: none; transform: scale(1.08); position: relative; z-index: 2; }
+
+/* 「リーチ中」(1文字ふえた)が、名札の枠からはみ出さないように、リーチ中の名札だけ、少しつめる */
+.plq.rch-on { gap: 3px; }
+.plq.rch-on em { font-size: 13px; padding: 0 3px; letter-spacing: -.02em; }
+.plq.rch-on .fls { margin-left: 2px; }
+.plq.p1 { left: 515px; width: 280px; } .plq.p3 { left: -88px; width: 280px; } /* 左右の名札: リーチ中+季節牌が入るよう、少し長く(中心は同じ) */
