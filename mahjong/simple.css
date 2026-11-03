@@ -1583,3 +1583,37 @@ body.going::after { content: ""; position: fixed; inset: 0; background: rgba(0, 
 .ranks .rank.me { border-color: #5ab0ff; background: #10304a !important; }
 .ranks .rank.me .rnm b { color: #a8d8ff; }
 .ranks .rank.first.me { border-color: #5ab0ff; }
+
+/* 卓の中央の「残り〇牌」: 箱からはみ出さないよう、文字を一回り小さく */
+.ctr .k { font-size: 20px !important; line-height: 1.1 !important; } .ctr .k small { font-size: 12px !important; }
+.ctr .n { font-size: 30px !important; } .ctr .n small { font-size: 14px !important; }
+/* 「あなたの番です」: 小さく、縦幅も短く */
+body .myturn { font-size: 22px; padding: 2px 18px; }
+/* いま誰の番か: 番の人の名札は金色に光らせて大きく、ほかの人はかなり暗く */
+body .plq { opacity: .38 !important; filter: grayscale(.7) brightness(.8); scale: 1 !important; }
+body .plq.act { opacity: 1 !important; filter: none !important; scale: 1.12 !important; background: linear-gradient(#ffe27a, #ffc21a) !important; color: #1b1b12 !important; border-color: #fff !important; box-shadow: inset 8px 0 0 var(--c), 0 0 0 4px #fff, 0 0 22px 8px #ffd23fcc !important; z-index: 5; }
+body .plq.act .pn, body .plq.act i { color: #1b1b12 !important; }
+body .plq.act .wd { background: #1b1b12; color: #ffd23f; }
+
+/* 他家の牌を見る: 顔も牌も大きく(枠の高さ・右の余白に余裕があるため) */
+.ot { gap: 6px !important; }
+.ot-row { padding: 6px 12px !important; gap: 14px !important; }
+.ot-face { width: 92px !important; height: 92px !important; border-radius: 10px !important; }
+.ot-face.ot-me { font-size: 48px; }
+.ot-n { font-size: 22px !important; }
+.ot .tile.t-s { width: 46px !important; height: 63px !important; }
+.ot-l { margin-left: 14px !important; } .ot-l small { font-size: 12px !important; }
+
+/* コントローラー設定 */
+.pdn { width: 100%; max-width: 100%; }
+.pdn h2 { font-size: 26px; margin: 0 0 6px; text-align: center; }
+.pdn-s { font-size: 19px; margin: 0 0 10px; text-align: center; line-height: 1.5; } .pdn-s b { color: #ffd23f; font-size: 22px; }
+.pdn-m { font-size: 18px; margin: 0 0 8px; text-align: center; color: #ffe27a; font-weight: 800; }
+.pdn-g { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pdn-r { display: grid; grid-template-columns: 112px 1fr; align-items: center; gap: 8px; background: #0b241e; border: 3px solid #31574a; border-radius: 12px; padding: 6px 10px; font-size: 19px; min-height: 40px; }
+.pdn-n { font-weight: 900; } .pdn-l { display: flex; flex-wrap: wrap; gap: 4px; }
+.pdn-c { background: #fff; color: #16160f; border-radius: 8px; font-weight: 900; padding: 1px 8px; font-size: 16px; }
+.pdn-none { color: #8fb3a5; font-size: 15px; }
+.pdn-h { font-size: 16px; color: #cfe6d9; margin: 10px 0 6px; text-align: center; line-height: 1.4; }
+.pdn .cf-btns { gap: 10px; flex-wrap: wrap; justify-content: center; }
+body #overlay .pdn .cf-btns .btn { font-size: 20px !important; padding: 8px 16px !important; white-space: nowrap; min-width: 0; }

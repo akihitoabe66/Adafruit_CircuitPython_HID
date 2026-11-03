@@ -241,7 +241,7 @@
       return;
     }
     // 手牌から「上」を押すと、押せるボタン(ツモ・リーチ・カン…)へ一気に移る(手牌→ボタンを何回も押さなくて済む)
-    if (dy < 0 && cur.matches('.hand .tile[data-id]')) {
+    if (dy < 0 && cur.matches('.hand .tile[data-id], .hand .tile.ph')) {
       const act = [...document.querySelectorAll('.selfq .cq-btn[data-act]')].find((e) => !e.disabled && visible(e));
       if (act) { setCur(act); return; }
       const first = handStops()[0]; // ボタンがないときは、「上」=いちばん左の牌へ(「下」=引いた牌、と対になる)
@@ -364,6 +364,7 @@
     if (MJ.hideCursor) MJ.hideCursor(); // コントローラーを使ったら、マウスカーソルを消す
     P.dev = 'pad';
     // サイコロ・「勝負!」の演出の間: A/Bで、すすむ(キーボードのEnterと同じ)。1回目=結果まで一気に(サイコロが決まって、親が出る)、2回目=次へ
+    if (name === 'c') { const cb = $('#btn-coach'); if (cb && visible(cb) && $('#overlay').classList.contains('hidden')) cb.click(); return; } // 解説の開閉(割り当てたボタン)
     if ((name === 'a' || name === 'b') && MJ.UI && MJ.UI.dealing) { MJ.UI.dealSkip(); return; } // 配牌のアニメ: A/Bで、すぐ終わる
     if (name === 'a' || name === 'b') { const D = MJ.Dice, I = MJ.Intro; if (D && D.active) { const el = document.querySelector('#dice'); if (el) { el.click(); return; } } if (I && I.active && I.skip) { I.skip(); return; } }
     if (P.lockLeft() > 0) return;
@@ -458,8 +459,26 @@
      合わないときは、設定の「コントローラー」で、ボタンをおぼえさせられる */
   const PM = 'mj_padmap';
   const loadMap = () => { try { return JSON.parse(localStorage.getItem(PM) || '{}') || {}; } catch (e) { return {}; } };
-  P.mapFor = (gp) => { const m = loadMap()[gp.id]; if (m && isFinite(m.a) && isFinite(m.b)) return { a: +m.a, b: +m.b, learned: true, xa: m.xa, xb: m.xb }; return gp.mapping === 'standard' ? { a: 0, b: 1, learned: false } : { a: 1, b: 2, learned: false }; };
+  const autoMap = (gp) => (gp.mapping === 'standard' ? { a: 0, b: 1 } : { a: 1, b: 2 });
+  P.mapFor = (gp) => { const m = loadMap()[gp.id]; if (m && isFinite(m.a) && isFinite(m.b)) return { a: +m.a, b: +m.b, learned: true, xa: m.xa || [], xb: m.xb || [], xc: m.xc || [], xn: m.xn || [] }; const d = autoMap(gp); return { a: d.a, b: d.b, learned: false, xa: [], xb: [], xc: [], xn: [] }; };
   P.saveMap = (gp, k, idx) => { const all = loadMap(); const cur = Object.assign({}, P.mapFor(gp)); delete cur.learned; if (k === 'xa' || k === 'xb') { const o = k === 'xa' ? 'xb' : 'xa'; cur[o] = (cur[o] || []).filter((x) => x !== idx); cur[k] = (cur[k] || []).filter((x) => x !== idx).concat([idx]); } else cur[k] = idx; all[gp.id] = cur; try { localStorage.setItem(PM, JSON.stringify(all)); } catch (e) { /* ignore */ } };
+  /* ボタンの名前(押す位置が分かるように。標準配置のコントローラーは、位置も添える) */
+  const STD = ['下', '右', '左', '上', 'L1', 'R1', 'L2', 'R2', '選択', '開始', 'L3', 'R3'];
+  P.btnName = (gp, i) => (gp && gp.mapping === 'standard' && STD[i] ? `ボタン${i + 1}(${STD[i]})` : `ボタン${i + 1}`);
+  /* いまの役割ごとのボタン一覧: a=決定 b=もどる c=解説の開閉 n=使わない */
+  P.roles = (gp) => { const m = P.mapFor(gp); return { a: [m.a].concat(m.xa), b: [m.b].concat(m.xb), c: m.xc, n: m.xn }; };
+  /* 1つのボタンの役割を決める。k = a / b / c / n / auto。決定・もどるが1つもなくなるときは、変えない(false) */
+  P.setRole = (gp, idx, k) => {
+    const all = loadMap(), m = P.mapFor(gp), d = autoMap(gp);
+    let A = [m.a].concat(m.xa), B = [m.b].concat(m.xb), C = m.xc.slice(), N = m.xn.slice();
+    const out = (l) => l.filter((x) => x !== idx);
+    A = out(A); B = out(B); C = out(C); N = out(N);
+    if (k === 'a') A.push(idx); else if (k === 'b') B.push(idx); else if (k === 'c') C.push(idx); else if (k === 'n') N.push(idx);
+    if (!A.length || !B.length) return false;
+    all[gp.id] = { a: A[0], b: B[0], xa: A.slice(1), xb: B.slice(1), xc: C, xn: N };
+    try { localStorage.setItem(PM, JSON.stringify(all)); } catch (e) { /* ignore */ }
+    return true;
+  };
   P.resetMap = () => { try { localStorage.removeItem(PM); } catch (e) { /* ignore */ } };
   /* ---- Windows版: コントローラーを、OSから直接読む(padsrv.ps1)。
      Edgeは、コントローラーのボタンを1回押すまで、ゲームの画面にコントローラーの存在を教えない(その最初の1回は、無駄になる)。
@@ -506,7 +525,7 @@
       P.lastPressed = pressed.length ? { id: gp.id, idx: pressed } : P.lastPressed;
       if (P.learn) { // 割り当てのおぼえ中: 押していたボタンを離してから、次に押したボタンを、そのまま割り当てる(ふつうの操作はしない)
         if (!P.learn.ready) { if (!pressed.length) P.learn.ready = true; continue; }
-        if (pressed.length) { const L = P.learn; P.learn = null; P.saveMap(gp, L.k, pressed[0]); P.settle = true; if (L.cb) L.cb(gp, pressed[0]); }
+        if (pressed.length) { const L = P.learn; P.learn = null; if (L.k !== 'pick') P.saveMap(gp, L.k, pressed[0]); P.settle = true; if (L.cb) L.cb(gp, pressed[0]); }
         continue;
       }
       if (P.settle) { if (!pressed.length) P.settle = false; continue; } // おぼえさせた直後: そのボタンを離すまでは、ふつうの操作として扱わない
@@ -514,7 +533,7 @@
       // スーファミ型などの、ほかのボタン: X・R・スタート=Aと同じ / Y・L・セレクト=Bと同じ。おぼえさせた分があれば、それを使う。なければ自動(標準配置は X=2、ほかは X=0。R=5・L=4・セレクト=6か8・スタート=7か9)
       const MAP = { [gp.mapping === 'standard' ? 2 : 0]: 'a', 5: 'a', 7: 'a', 9: 'a', 3: 'b', 4: 'b', 6: 'b', 8: 'b' };
       MAP[pm.a] = 'a'; MAP[pm.b] = 'b';
-      (pm.xa || []).forEach((i) => { MAP[i] = 'a'; }); (pm.xb || []).forEach((i) => { MAP[i] = 'b'; }); // おぼえさせたボタンは、いちばん優先(決定・もどるの割り当てとぶつかっても、おぼえさせた方)
+      (pm.xa || []).forEach((i) => { MAP[i] = 'a'; }); (pm.xb || []).forEach((i) => { MAP[i] = 'b'; }); (pm.xc || []).forEach((i) => { MAP[i] = 'c'; }); (pm.xn || []).forEach((i) => { delete MAP[i]; }); // おぼえさせたボタンは、いちばん優先(決定・もどるの割り当てとぶつかっても、おぼえさせた方)
       const down = {};
       gp.buttons.forEach((b, i) => { if (MAP[i] && (b.pressed || b.value > 0.6)) down[MAP[i]] = true; });
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
@@ -524,7 +543,7 @@
       }
       if (ax < -0.6) down.left = true; else if (ax > 0.6) down.right = true;
       if (ay < -0.6) down.up = true; else if (ay > 0.6) down.down = true;
-      ['a', 'b', 'up', 'down', 'left', 'right'].forEach((n) => {
+      ['a', 'b', 'c', 'up', 'down', 'left', 'right'].forEach((n) => {
         const k = gp.index + n;
         if (down[n]) {
           const h = held[k];

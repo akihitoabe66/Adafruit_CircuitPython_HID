@@ -231,22 +231,41 @@
   function showPadSetup(msg) {
     const P = MJ.Pad, pads = P ? P.pads() : [];
     const gp = pads[0];
-    const m = gp ? P.mapFor(gp) : null;
-    const nm = (i) => `ボタン${i + 1}`;
-    const info = gp ? `<b>${gp.id.replace(/\(.*$/, '').slice(0, 40)}</b>(${gp.mapping === 'standard' ? '標準の配置' : 'スーファミ型などの配置'}を、自動で見つけました)<br>決定(A)= <b>${nm(m.a)}</b> ／ もどる(B)= <b>${nm(m.b)}</b>(${m.learned ? 'おぼえさせた割り当て' : '自動'})<br><span style="font-size:15px">Aと同じ: X・R・スタート ／ Bと同じ: Y・L・セレクト</span><br>押したボタン: <b id="pd-live">-</b>` : 'コントローラーが見つかりません。<br>コントローラーのボタンを1回押してから、もう一度ひらいてください。';
-    MJ.UI.overlay(`<div class="cf pd"><h2 style="font-size:20px;margin:0 0 2px">🎮 コントローラーの設定</h2><p style="font-size:18px;line-height:1.4;margin:4px 0">${msg ? `<span style="color:#ffe27a">${msg}</span><br>` : ''}${info}</p><div class="cf-btns" style="flex-wrap:wrap;gap:8px"><button class="btn" id="pd-a" ${gp ? '' : 'disabled'}>決定にするボタンを、おぼえる</button><button class="btn" id="pd-b" ${gp ? '' : 'disabled'}>もどるにするボタンを、おぼえる</button><button class="btn" id="pd-xa" ${gp ? '' : 'disabled'}>「Aと同じ」にするボタンを、足す</button><button class="btn" id="pd-xb" ${gp ? '' : 'disabled'}>「Bと同じ」にするボタンを、足す</button><button class="btn" id="pd-r">自動にもどす</button><button class="btn pri" id="pd-x">とじる</button></div></div>`, { plain: true });
-    const learn = (k, label) => {
-      MJ.UI.overlay(`<div class="cf pd"><h2 style="font-size:20px">🎮 ${label}にするボタンを、押してください</h2><p style="font-size:18px">コントローラーのボタンを、1つ押します。<br>(押していたボタンは、いったん離してください)</p><div class="cf-btns"><button class="btn" id="pd-c">やめる</button></div></div>`, { plain: true });
-      document.querySelector('#pd-c').addEventListener('click', () => { P.learn = null; showPadSetup(); });
-      P.learn = { k, ready: false, cb: (g, idx) => showPadSetup(`${label}を、ボタン${idx + 1} にしました`) };
+    const nm = (i) => (P && P.btnName ? P.btnName(gp, i) : `ボタン${i + 1}`);
+    const lst = (a) => (a && a.length ? a.map((i) => `<span class="pdn-c">${nm(i)}</span>`).join('') : '<span class="pdn-none">なし</span>');
+    let body;
+    if (gp) {
+      const r = P.roles(gp);
+      body = `<p class="pdn-s">${gp.id.replace(/\(.*$/, '').slice(0, 40)} を 認識しています。<br>いま押しているボタン: <b id="pd-live">-</b></p>
+        <div class="pdn-g">
+          <div class="pdn-r"><span class="pdn-n">決定(A)</span><span class="pdn-l">${lst(r.a)}</span></div>
+          <div class="pdn-r"><span class="pdn-n">もどる(B)</span><span class="pdn-l">${lst(r.b)}</span></div>
+          <div class="pdn-r"><span class="pdn-n">解説の開閉</span><span class="pdn-l">${lst(r.c)}</span></div>
+          <div class="pdn-r"><span class="pdn-n">使わない</span><span class="pdn-l">${lst(r.n)}</span></div>
+        </div>
+        <p class="pdn-h">「ボタンを選んで割り当てる」を押し、割り当てたいボタンを1回押すと、役割を選べます。十字キーは、そのまま使えます。</p>`;
+    } else {
+      body = '<p class="pdn-s">コントローラーが見つかりません。<br>コントローラーが接続されているか、確認してください。</p>';
+    }
+    MJ.UI.overlay(`<div class="cf pdn"><h2>🎮 コントローラーの設定</h2>${msg ? `<p class="pdn-m">${msg}</p>` : ''}${body}<div class="cf-btns"><button class="btn" id="pd-pick" ${gp ? '' : 'disabled'}>ボタンを選んで割り当てる</button><button class="btn" id="pd-r">自動にもどす</button><button class="btn" id="pd-x">とじる</button></div></div>`, { plain: true });
+    const role = (idx) => {
+      MJ.UI.overlay(`<div class="cf pdn"><h2>🎮 ${nm(idx)} の役割</h2><p class="pdn-s">このボタンを、何にしますか。</p><div class="cf-btns" style="flex-wrap:wrap"><button class="btn" data-role="a">決定(A)</button><button class="btn" data-role="b">もどる(B)</button><button class="btn" data-role="c">解説の開閉</button><button class="btn" data-role="n">使わない</button><button class="btn" data-role="auto">このボタンを自動にもどす</button><button class="btn" data-role="x">やめる</button></div></div>`, { plain: true });
+      document.querySelectorAll('[data-role]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.role; if (k === 'x') { showPadSetup(); return; }
+        const L = { a: '決定(A)', b: 'もどる(B)', c: '解説の開閉', n: '使わない', auto: '自動' }[k];
+        const ok = P.setRole(gp, idx, k);
+        showPadSetup(ok ? `${nm(idx)} を「${L}」にしました` : '決定(A)・もどる(B)のボタンが1つもなくなるので、変えられませんでした');
+      }));
     };
-    document.querySelector('#pd-a').addEventListener('click', () => learn('a', '決定'));
-    document.querySelector('#pd-b').addEventListener('click', () => learn('b', 'もどる'));
-    document.querySelector('#pd-xa').addEventListener('click', () => learn('xa', '「Aと同じ(決定)」'));
-    document.querySelector('#pd-xb').addEventListener('click', () => learn('xb', '「Bと同じ(もどる)」'));
+    const pick = () => {
+      MJ.UI.overlay(`<div class="cf pdn"><h2>🎮 割り当てたいボタンを、押してください</h2><p class="pdn-s">コントローラーのボタンを、1つ押します。<br>(押していたボタンは、いったん離してください)</p><div class="cf-btns"><button class="btn" id="pd-c">やめる</button></div></div>`, { plain: true });
+      document.querySelector('#pd-c').addEventListener('click', () => { P.learn = null; showPadSetup(); });
+      P.learn = { k: 'pick', ready: false, cb: (g, idx) => role(idx) };
+    };
+    const bp = document.querySelector('#pd-pick'); if (bp) bp.addEventListener('click', pick);
     document.querySelector('#pd-r').addEventListener('click', () => { P.resetMap(); showPadSetup('自動の割り当てにもどしました'); });
     document.querySelector('#pd-x').addEventListener('click', () => showSettings());
-    if (gp) { const t = setInterval(() => { const l = document.querySelector('#pd-live'); if (!l) return clearInterval(t); const lp = P.pads()[0]; if (lp) { const ps = []; lp.buttons.forEach((b, i) => { if (b.pressed || b.value > 0.6) ps.push('ボタン' + (i + 1)); }); l.textContent = ps.length ? ps.join('・') : '-'; } }, 120); }
+    if (gp) { const t = setInterval(() => { const l = document.querySelector('#pd-live'); if (!l) return clearInterval(t); const lp = P.pads()[0]; if (lp) { const ps = []; lp.buttons.forEach((b, i) => { if (b.pressed || b.value > 0.6) ps.push(nm(i)); }); l.textContent = ps.length ? ps.join('・') : '-'; } }, 120); }
   }
   /* ルール設定: 変更はすぐ保存され、次の対局から使われる */
   function showRules() {

@@ -462,7 +462,7 @@
     throwFx() {
       const T = this._throwWait; if (!T) return;
       const rv = [...document.querySelectorAll('#table .river.r0 .tile')], tg = rv[rv.length - 1];
-      if (!tg || rv.length <= T.n || Date.now() - T.at > 1500) return; // 新しい牌が河に出てから
+      if (!tg || rv.length <= T.n || Date.now() - T.at > 1500) { if (tg && Date.now() - T.at > 1500) tg.style.visibility = ''; return; } // 新しい牌が河に出てから
       if (tg._thrown) return; this._throwWait = null; tg._thrown = true;
       try {
         const tr = tg.getBoundingClientRect(), fr = T.r;
@@ -572,6 +572,7 @@
       while (T.children.length < parts.length) { const d = document.createElement('div'); d.className = 'tp'; T.appendChild(d); }
       parts.forEach((h, i) => this.paint(T.children[i], h));
       this.paint($('#mine'), this.mineHTML(game));
+      if (this._throwWait) { const rv = document.querySelectorAll('#table .river.r0 .tile'); if (rv.length > this._throwWait.n) rv[rv.length - 1].style.visibility = 'hidden'; } // 投げる動きが終わるまで、河に出た牌は見せない(一瞬、戻って見えるのを防ぐ)
       this.paint($('#sd-act'), this.sideHTML(game));
       this.paint($('#sd-info'), `<b>${game.kyokuLabel().replace(' ', '<br>')}</b><span>${{ single: '一局戦', south: '東南戦' }[game.length] || '東風戦'}</span>`);
       document.body.classList.toggle('calling', !!(this.sel && this.sel.type === 'react' && this.callOptions(this.sel).opts.length));
@@ -1142,7 +1143,7 @@
         this.adv = null; this.coachHtml = ''; this.summary = ''; this.dng = null; this.idleMsg = null;
         clearTimeout(this._idleT);
         this.armIdle(game, p, mySel);
-        if (needAdv || this.dangerOn) { this.render(game); setTimeout(fill, 40); } // まず、手牌だけをすぐ出す(おすすめ・危険度の計算は、そのあと。計算が重い端末でも、牌が出るのが遅れない)
+        if (needAdv || this.dangerOn) { this.render(game); setTimeout(fill, 260); } // 手牌とカーソルを先に動かせる状態にして、重い計算は少しあとに(番が来た瞬間に、カーソルが固まらないように) // まず、手牌だけをすぐ出す(おすすめ・危険度の計算は、そのあと。計算が重い端末でも、牌が出るのが遅れない)
         else fill();
       });
     },
@@ -1908,7 +1909,7 @@
         const melds = p.melds.map((m) => `<span class="ot-m">${m.tiles.map((h) => MJ.tileHTML(h.t, 't-s', '', h.red)).join('')}</span>`).join('');
         const chips = `${p.riichi ? '<span class="chip r">リーチ</span>' : ''}${winners.includes(p) ? '<span class="chip w">上がり</span>' : ''}`;
         const face = this.faceImg(p.char, 'ot-face', p.seat) || '<div class="ot-face ot-me">🀄</div>';
-        return `<div class="ot-row${p.isHuman ? ' me' : ''}">${face}<div class="ot-b"><div class="ot-n"><b>${p.isHuman ? 'あなた' : p.name}</b>${chips}</div><div class="ot-t">${hand.map((h) => MJ.tileHTML(h.t, 't-s', '', h.red)).join('')}${melds}${last && p.drawn ? `<span class="ot-l">${MJ.tileHTML(last.t, 't-s', '', last.red)}<small>${lastNote}</small></span>` : ''}</div>${last && !p.drawn ? `<div class="ot-ln">${lastNote}: ${MJ.tileHTML(last.t, 't-s', '', last.red)}</div>` : ''}</div></div>`;
+        return `<div class="ot-row${p.isHuman ? ' me' : ''}">${face}<div class="ot-b"><div class="ot-n"><b>${p.isHuman ? 'あなた' : p.name}</b>${chips}</div><div class="ot-t">${hand.map((h) => MJ.tileHTML(h.t, 't-s', '', h.red)).join('')}${melds}${last ? `<span class="ot-l">${MJ.tileHTML(last.t, 't-s', '', last.red)}<small>${lastNote}</small></span>` : ''}</div></div></div>`;
       };
       return `<h2>他家の牌を見る</h2><div class="ot">${[1, 2, 3, 0].map((s) => row(game.players[s])).join('')}</div><p class="ot-note">上から対戦相手、いちばん下があなたです。</p>`;
     },
