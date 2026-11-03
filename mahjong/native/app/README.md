@@ -17,3 +17,11 @@ C → SDL2 → Linux。ゲームの頭脳(js/ のルール・CPU)は QuickJS で
     sh mahjong/native/app/autostart_on.sh && sudo reboot
 - 終了: **Ctrl+Q**(ターミナルに戻る)。 手で起動し直す: `sh mahjong/native/app/start.sh`
 - やめる: `sh mahjong/native/app/autostart_off.sh && sudo reboot`
+
+## 音(BGM・効果音・声)
+    sudo apt install -y libsdl2-mixer-dev
+    sh build.sh        # 再ビルド
+- 音はテレビ(HDMI)から出ます。出ないときは `sudo raspi-config` → System Options → Audio で HDMI を選びます。
+- 効果音は `audio/sfx/*.wav`(`python3 tools/gen_sfx_wav.py` で作り直せます)。
+- 音なしで動かす: `MJ_NOSOUND=1 ./native/app/mj .`
+- 動きの重さを測る: `MJ_PERF=1 ./native/app/mj .`(3秒ごとに「描く」「画面に出す」の時間(ms)が出ます)

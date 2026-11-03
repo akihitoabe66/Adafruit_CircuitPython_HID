@@ -9,5 +9,5 @@ mkdir -p obj
 for f in cutils libbf libregexp libunicode quickjs; do
   [ -f obj/$f.o ] || gcc -O2 -w -I"$Q" -DCONFIG_VERSION='"2021"' -D_GNU_SOURCE -c "$Q/$f.c" -o obj/$f.o
 done
-gcc -O2 -w -I"$Q" $CF -o mj main.c obj/*.o $LF -lSDL2_image -lSDL2_ttf -lm -ldl -lpthread
+gcc -O2 -w -I"$Q" $CF -o mj main.c obj/*.o $LF -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lm -ldl -lpthread
 echo "できました: ./mj"

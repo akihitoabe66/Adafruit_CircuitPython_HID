@@ -177,6 +177,7 @@
   const wrap = (i, n) => (i + n) % n;
   window.__key = function (k) {
     S.dirty = true;
+    NSND.sfx(k === 'ok' ? 'click' : k === 'back' ? 'click' : 'select', 0.5);
     if (S.mode === 'menu') {
       if (k === 'up' || k === 'down') S.menuIdx = 1 - S.menuIdx;
       else if (k === 'ok') { if (S.menuIdx === 1) __quit(); else startGame(); }
@@ -209,10 +210,10 @@
   /* ---------- ゲームの頭脳から呼ばれる「ui」 ---------- */
   const ui = {
     render(g) { S.game = g; dirty(); },
-    sfx() {},
+    sfx(name) { NSND.sfx(name); },
     speak(g, p, t) { S.bub[p.seat] = { text: p.name + '「' + t + '」', until: __now() + 1900 }; dirty(); setTimeout(dirty, 2000); },
-    banner(g, p, t) { S.banner = { text: t }; dirty(); return sleep(g.fast ? 0 : 750).then(() => { S.banner = null; dirty(); }); },
-    handStart(g) { S.game = g; S.banner = { text: g.kyokuLabel() }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
+    banner(g, p, t) { S.banner = { text: t }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 750).then(() => { S.banner = null; dirty(); }); },
+    handStart(g) { S.game = g; NSND.game(g); NSND.sfx('slam'); NSND.readKyoku(g); S.banner = { text: g.kyokuLabel() }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
     padHand() {},
     askSelf(g, p, opts) {
       return new Promise((res) => {
@@ -237,8 +238,13 @@
         dirty();
       });
     },
-    showResult(g, r) { S.bub = {}; S.banner = null; return new Promise((done) => { S.result = Object.assign({ done }, r); dirty(); }); },
-    gameEnd(g, f) { return new Promise((done) => { S.end = Object.assign({ done }, f); dirty(); }); },
+    showResult(g, r) {
+      S.bub = {}; S.banner = null;
+      NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
+      if (r.type === 'win') NSND.readWin(g, r); else NSND.sfx('drawgame');
+      return new Promise((done) => { S.result = Object.assign({ done }, r, { done: () => { NSND.stopSpeak(); done(); } }); dirty(); });
+    },
+    gameEnd(g, f) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({ done }, f); dirty(); }); },
   };
 
   function pickChars() {
@@ -251,7 +257,7 @@
     const g = new MJ.Game({ chars: pickChars(), length: 'east', ui, cpuDelay: __auto ? 40 : undefined });
     S.game = g;
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
-    S.game = null; S.mode = 'menu'; S.self = S.react = S.result = S.end = null; dirty();
+    S.game = null; S.mode = 'menu'; NSND.home(); S.self = S.react = S.result = S.end = null; dirty();
     if (__auto) __quit();
   }
 
@@ -262,9 +268,10 @@
     if (__auto && now > nextAuto) { nextAuto = now + 90; window.__key('ok'); }
     if (__lsDirty && now - lastSave > 1500) { lastSave = now; __lsDirty = false; try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ } }
     /* 画面の入れかえ(ダブル/トリプルバッファ)で、古い絵が交互に出て点滅しないよう、変化のあとは3回続けて描く */
-    if (S.dirty) { S.keep = 3; S.dirty = false; }
-    if (!S.keep) return false;
-    S.keep--;
+    if (!S.dirty) return false;
+    S.dirty = false; return true;
+  };
+  window.__draw = function () {
     if (S.mode === 'menu') drawMenu();
     else if (S.game) drawTable(S.game);
     if (S.result) { drawResult(S.result); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
@@ -272,5 +279,6 @@
     if (S.end) { drawEnd(S.end); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/end.bmp'); }
     return true;
   };
+  NSND.home();
   print('ネイティブ版 準備できました');
 })();

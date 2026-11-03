@@ -8,6 +8,7 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
+#include <SDL_mixer.h>
 #include "quickjs.h"
 
 static SDL_Window *win; static SDL_Renderer *ren; static JSContext *ctx; static JSRuntime *rt;
@@ -74,6 +75,36 @@ static JSValue j_quit(JSContext *c, JSValueConst t, int n, JSValueConst *a){ qui
 static JSValue j_load(JSContext *c, JSValueConst t, int n, JSValueConst *a){ char p[1500]; snprintf(p, sizeof p, "%s/save.json", root); FILE *f = fopen(p, "rb"); if (!f) return JS_NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET); char *b = malloc(L + 1); fread(b, 1, L, f); b[L] = 0; fclose(f); JSValue v = JS_NewString(c, b); free(b); return v; }
 static JSValue j_save(JSContext *c, JSValueConst t, int n, JSValueConst *a){ char p[1500], q[1520]; snprintf(p, sizeof p, "%s/save.json", root); snprintf(q, sizeof q, "%s.tmp", p); const char *s = JS_ToCString(c, a[0]); FILE *f = fopen(q, "wb"); if (f && s) { fwrite(s, 1, strlen(s), f); fclose(f); rename(q, p); } JS_FreeCString(c, s); return JS_UNDEFINED; }
 
+
+/* ---- 音(SDL_mixer): 効果音・声は短い音をキャッシュ、BGMはストリーム ---- */
+typedef struct { char key[200]; Mix_Chunk *ch; double len; } Snd;
+#define NSND 400
+static Snd snds[NSND]; static int nsnd = 0; static Mix_Music *bgm = NULL; static int audio_ok = 0; static double mvol = 1.0;
+static Snd *getsnd(const char *path){
+  for (int i = 0; i < nsnd; i++) if (!strcmp(snds[i].key, path)) return snds[i].ch ? &snds[i] : NULL;
+  if (nsnd >= NSND) return NULL;
+  char full[1400]; snprintf(full, sizeof full, "%s/%s", root, path);
+  Snd *e = &snds[nsnd++]; strncpy(e->key, path, 199); e->ch = Mix_LoadWAV(full); e->len = 0;
+  if (!e->ch) { fprintf(stderr, "snd? %s (%s)\n", full, Mix_GetError()); return NULL; }
+  int fr, ch; Uint16 fm; Mix_QuerySpec(&fr, &fm, &ch); int bps = (fm & 0xFF) / 8; e->len = (double)e->ch->alen / (fr * ch * bps);
+  return e;
+}
+static JSValue j_play(JSContext *c, JSValueConst t, int n, JSValueConst *a){
+  if (!audio_ok) return JS_NewFloat64(c, 0);
+  const char *p = JS_ToCString(c, a[0]); double v = 1.0; if (n > 1) JS_ToFloat64(c, &v, a[1]);
+  Snd *e = getsnd(p); JS_FreeCString(c, p); if (!e) return JS_NewFloat64(c, 0);
+  int chn = Mix_PlayChannel(-1, e->ch, 0); if (chn >= 0) Mix_Volume(chn, (int)(v * 128)); return JS_NewFloat64(c, e->len); }
+static JSValue j_len(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (!audio_ok) return JS_NewFloat64(c, 0); const char *p = JS_ToCString(c, a[0]); Snd *e = getsnd(p); JS_FreeCString(c, p); return JS_NewFloat64(c, e ? e->len : 0); }
+static JSValue j_stopall(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (audio_ok) Mix_HaltChannel(-1); return JS_UNDEFINED; }
+static JSValue j_music(JSContext *c, JSValueConst t, int n, JSValueConst *a){
+  if (!audio_ok) return JS_UNDEFINED;
+  const char *p = JS_ToCString(c, a[0]); int loop = n > 1 ? JS_ToBool(c, a[1]) : 1;
+  if (bgm) { Mix_HaltMusic(); Mix_FreeMusic(bgm); bgm = NULL; }
+  if (p && *p) { char full[1400]; snprintf(full, sizeof full, "%s/%s", root, p); bgm = Mix_LoadMUS(full); if (!bgm) fprintf(stderr, "bgm? %s (%s)\n", full, Mix_GetError()); else Mix_PlayMusic(bgm, loop ? -1 : 1); }
+  JS_FreeCString(c, p); return JS_UNDEFINED; }
+static JSValue j_mvol(JSContext *c, JSValueConst t, int n, JSValueConst *a){ double v = 1; JS_ToFloat64(c, &v, a[0]); if (audio_ok) Mix_VolumeMusic((int)(v * 128)); return JS_UNDEFINED; }
+static JSValue j_readtext(JSContext *c, JSValueConst t, int n, JSValueConst *a){ const char *p = JS_ToCString(c, a[0]); char full[1400]; snprintf(full, sizeof full, "%s/%s", root, p); JS_FreeCString(c, p); FILE *f = fopen(full, "rb"); if (!f) return JS_NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET); char *b = malloc(L + 1); fread(b, 1, L, f); b[L] = 0; fclose(f); JSValue v = JS_NewString(c, b); free(b); return v; }
+
 static char *readfile(const char *p, size_t *n){ FILE *f = fopen(p, "rb"); if (!f) return NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET); char *b = malloc(L + 1); fread(b, 1, L, f); b[L] = 0; fclose(f); *n = L; return b; }
 static void dump_err(JSContext *c){ JSValue e = JS_GetException(c); const char *m = JS_ToCString(c, e); JSValue st = JS_GetPropertyStr(c, e, "stack"); const char *ss = JS_ToCString(c, st); fprintf(stderr, "JS ERR: %s\n%s\n", m ? m : "?", ss ? ss : ""); }
 static void jobs(void){ JSContext *c1; int r; do { r = JS_ExecutePendingJob(rt, &c1); if (r < 0) dump_err(c1); } while (r > 0); }
@@ -91,6 +122,22 @@ static const char *findfont(void){
 static int axisdir[2] = { 0, 0 };
 static void joyaxis(int axis, int v){ int d = v > 16000 ? 1 : v < -16000 ? -1 : 0; if (axis > 1) return; if (d != axisdir[axis]) { axisdir[axis] = d; if (d) callkey(axis == 0 ? (d > 0 ? "right" : "left") : (d > 0 ? "down" : "up")); } }
 
+static void handle_event(SDL_Event *ep){
+  SDL_Event e = *ep;
+  if (e.type == SDL_QUIT) quitf = 1;
+  else if (e.type == SDL_JOYDEVICEADDED) SDL_JoystickOpen(e.jdevice.which);
+  else if (e.type == SDL_KEYDOWN && !e.key.repeat) {
+    switch (e.key.keysym.sym) {
+      case SDLK_LEFT: callkey("left"); break; case SDLK_RIGHT: callkey("right"); break; case SDLK_UP: callkey("up"); break; case SDLK_DOWN: callkey("down"); break;
+      case SDLK_RETURN: case SDLK_SPACE: case SDLK_z: callkey("ok"); break;
+      case SDLK_ESCAPE: case SDLK_BACKSPACE: case SDLK_x: callkey("back"); break;
+      case SDLK_q: if (e.key.keysym.mod & KMOD_CTRL) quitf = 1; break; }
+  }
+  else if (e.type == SDL_JOYHATMOTION) { if (e.jhat.value & SDL_HAT_LEFT) callkey("left"); else if (e.jhat.value & SDL_HAT_RIGHT) callkey("right"); else if (e.jhat.value & SDL_HAT_UP) callkey("up"); else if (e.jhat.value & SDL_HAT_DOWN) callkey("down"); }
+  else if (e.type == SDL_JOYAXISMOTION) joyaxis(e.jaxis.axis, e.jaxis.value);
+  else if (e.type == SDL_JOYBUTTONDOWN) callkey(e.jbutton.button == 1 || e.jbutton.button == 3 ? "back" : "ok");
+}
+
 int main(int argc, char **argv){
   const char *shots = NULL; int auto_ = 0, maxframes = 0; char *files[64]; int nf = 0;
   for (int i = 1; i < argc; i++) {
@@ -103,6 +150,7 @@ int main(int argc, char **argv){
   strncpy(fontpath, fp, sizeof fontpath - 1);
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_EVENTS) < 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }
   IMG_Init(IMG_INIT_WEBP | IMG_INIT_PNG); TTF_Init();
+  if (!getenv("MJ_NOSOUND")) { if (SDL_InitSubSystem(SDL_INIT_AUDIO) == 0 && Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) == 0) { Mix_Init(MIX_INIT_MP3); Mix_AllocateChannels(16); audio_ok = 1; printf("audio: ok\n"); } else fprintf(stderr, "audio? %s\n", SDL_GetError()); }
   int windowed = getenv("MJ_WINDOWED") != NULL;
   win = SDL_CreateWindow("mahjong", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowed ? 1080 : 0, windowed ? 642 : 0, windowed ? SDL_WINDOW_RESIZABLE : SDL_WINDOW_FULLSCREEN_DESKTOP);
   if (!win) { fprintf(stderr, "window: %s\n", SDL_GetError()); return 1; }
@@ -118,32 +166,30 @@ int main(int argc, char **argv){
   reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "text", j_text, 8); reg(gfx, "measure", j_measure, 2);
   reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "shot", j_shot, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
+  JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);
+  JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1);
   reg(g, "print", j_print, 1); reg(g, "__now", j_now, 0); reg(g, "__quit", j_quit, 0); reg(g, "__load", j_load, 0); reg(g, "__save", j_save, 1);
   JS_SetPropertyStr(ctx, g, "__auto", JS_NewBool(ctx, auto_)); if (shots) JS_SetPropertyStr(ctx, g, "__shotDir", JS_NewString(ctx, shots));
-  const char *list[] = { "native/app/prelude.js", "js/tiles.js", "js/rules.js", "js/forms.js", "js/chars.js", "js/ai.js", "js/game.js", "native/app/nui.js", NULL };
+  const char *list[] = { "native/app/prelude.js", "js/tiles.js", "js/rules.js", "js/forms.js", "js/chars.js", "js/ai.js", "js/game.js", "native/app/nsnd.js", "native/app/nui.js", NULL };
   for (int i = 0; list[i]; i++) { char p[1500]; snprintf(p, sizeof p, "%s/%s", root, list[i]); if (evalfile(p)) return 3; }
-  int frames = 0, shotn = 0; double last = 0; Uint32 lastdraw = 0;
+  SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+  SDL_Texture *tgt = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, W, H);
+  if (!tgt) { fprintf(stderr, "target: %s\n", SDL_GetError()); return 1; }
+  int frames = 0, shotn = 0, keep = 0; double perf_t0 = nowms(), perf_draw = 0, perf_pres = 0; int perf_n = 0, perf_p = 0; int perf = getenv("MJ_PERF") != NULL;
+  JSValue gg = JS_GetGlobalObject(ctx);
   while (!quitf) {
-    SDL_Event e;
-    while (SDL_PollEvent(&e)) {
-      if (e.type == SDL_QUIT) quitf = 1;
-      else if (e.type == SDL_JOYDEVICEADDED) SDL_JoystickOpen(e.jdevice.which);
-      else if (e.type == SDL_KEYDOWN && !e.key.repeat) {
-        switch (e.key.keysym.sym) {
-          case SDLK_LEFT: callkey("left"); break; case SDLK_RIGHT: callkey("right"); break; case SDLK_UP: callkey("up"); break; case SDLK_DOWN: callkey("down"); break;
-          case SDLK_RETURN: case SDLK_SPACE: case SDLK_z: callkey("ok"); break;
-          case SDLK_ESCAPE: case SDLK_BACKSPACE: case SDLK_x: callkey("back"); break;
-          case SDLK_q: if (e.key.keysym.mod & KMOD_CTRL) quitf = 1; break; }
-      }
-      else if (e.type == SDL_JOYHATMOTION) { if (e.jhat.value & SDL_HAT_LEFT) callkey("left"); else if (e.jhat.value & SDL_HAT_RIGHT) callkey("right"); else if (e.jhat.value & SDL_HAT_UP) callkey("up"); else if (e.jhat.value & SDL_HAT_DOWN) callkey("down"); }
-      else if (e.type == SDL_JOYAXISMOTION) joyaxis(e.jaxis.axis, e.jaxis.value);
-      else if (e.type == SDL_JOYBUTTONDOWN) callkey(e.jbutton.button == 1 || e.jbutton.button == 3 ? "back" : "ok");
+    SDL_Event e; int got = SDL_WaitEventTimeout(&e, keep ? 1 : 8);
+    while (got) { handle_event(&e); got = SDL_PollEvent(&e); }
+    int need = callframe();
+    if (need) {
+      double t0 = nowms(); SDL_SetRenderTarget(ren, tgt);
+      JSValue f = JS_GetPropertyStr(ctx, gg, "__draw"); JSValue r = JS_Call(ctx, f, gg, 0, NULL); if (JS_IsException(r)) dump_err(ctx); JS_FreeValue(ctx, r); JS_FreeValue(ctx, f); jobs();
+      if (shots && frames % 10 == 0 && shotn < 40) { char p[1600]; snprintf(p, sizeof p, "%s/s%02d.bmp", shots, shotn++); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, W, H, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, p); SDL_FreeSurface(su); }
+      SDL_SetRenderTarget(ren, NULL); keep = 3; perf_draw += nowms() - t0; perf_n++;
     }
-    int dirty = callframe();
-    Uint32 t = SDL_GetTicks();
-    if (dirty) { lastdraw = t; SDL_RenderPresent(ren); if (shots && frames % 20 == 0 && shotn < 40) { char p[1600]; snprintf(p, sizeof p, "%s/s%02d.bmp", shots, shotn++); JSValue sg = JS_GetPropertyStr(ctx, g, "gfx"); JS_FreeValue(ctx, sg); int ow, oh; SDL_GetRendererOutputSize(ren, &ow, &oh); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, ow, oh, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, p); SDL_FreeSurface(su); } }
+    if (keep > 0) { double t0 = nowms(); SDL_RenderClear(ren); SDL_RenderCopy(ren, tgt, NULL, NULL); SDL_RenderPresent(ren); keep--; perf_pres += nowms() - t0; perf_p++; }
     frames++; if (maxframes && frames >= maxframes) break;
-    double d = nowms() - last; (void)d; SDL_Delay(auto_ ? 4 : 16); last = nowms();
+    if (perf && nowms() - perf_t0 > 3000) { printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = 0; perf_n = perf_p = 0; }
   }
   return 0;
 }
