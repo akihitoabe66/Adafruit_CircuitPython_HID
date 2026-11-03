@@ -1661,3 +1661,5 @@ body .callq .cq-btn.b-ron .cq-sub:not(.cq-rec), body .callq .cq-btn.b-riichi .cq
 
 /* 最終局(オーラス): 局の名前の下に、赤い札で出す */
 .ky-ora { margin: calc(1px) auto 0; width: max-content; background: #d8362f; color: #fff; font-size: 26px; font-weight: 900; letter-spacing: .25em; padding: 2px 18px 2px 22px; border-radius: 10px; box-shadow: 0 0 0 3px #ffd35a; }
+.ky-slam.ora .ky-box, .ky-slam.ora .ky-ring { top: 100px; height: 190px; }
+.ky-slam.ora .ky-box { gap: 5px; }

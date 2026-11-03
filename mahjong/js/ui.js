@@ -1596,7 +1596,7 @@
       if (game.stopped) return;
       const face = src ? `<img class="ky-face" src="${src}" alt="" draggable="false">` : '';
       const el = document.createElement('div');
-      el.className = 'ky-slam';
+      el.className = 'ky-slam' + (game.isOras && game.isOras() ? ' ora' : ''); // オーラス: 札が1つふえるので、枠を縦に広げる
       el.innerHTML = `<div class="ky-ring"></div><div class="ky-box"><div class="ky-t${game.honba ? ' hb' : ''}">${game.kyokuLabel()}</div>${game.isOras && game.isOras() ? '<div class="ky-ora">オーラス</div>' : ''}<div class="ky-d">${face}<span><small>親</small><br>${dl.name}</span></div></div><div class="ky-flash"></div>`;
       el.classList.add('pre'); // 描画の準備ができるまで、動きは止めておく(落ちてくる最初の動きが、飛ばされないように)
       sc.appendChild(el);
