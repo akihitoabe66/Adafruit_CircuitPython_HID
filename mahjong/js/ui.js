@@ -267,7 +267,7 @@
     readAloud(root, from, btn) {
       const text = this.textOf(root, from);
       // 画面の文字(読む対象のぶん)を、順に並べて位置を数える
-      const skip = '.ch, .rd, rt, rp, button, table.scores, .ctabs, summary, script, style, .cnav, .rf';
+      const skip = '.ch, .rd, rt, rp, button, table.scores, .ctabs, summary, script, style, .cnav, .rf, .dq-fh, .dq-fa';
       const nodes = [];
       let total = 0;
       const startEl = from || null;
@@ -319,7 +319,7 @@
       const c = root.cloneNode(true);
       if (from) { const k = [...root.children].indexOf(from); for (let n = 0; n < k; n++) c.children[0].remove(); }
       if (root.id === 'coach') c.querySelectorAll('.cc:not(.on)').forEach((n) => n.remove()); // いま見えているカードだけ読む(タブを切り替えたらそこから)
-      c.querySelectorAll('.ch, .rd, rt, rp, button, table.scores, .ctabs, summary, script, style').forEach((n) => n.remove()); // rt=ふりがな(読むと同じ言葉が2回になる)
+      c.querySelectorAll('.ch, .rd, rt, rp, button, table.scores, .ctabs, summary, script, style, .dq-fh, .dq-fa').forEach((n) => n.remove()); // rt=ふりがな(読むと同じ言葉が2回になる)
       // 牌の絵は「名前」を読むが、すぐ後ろに同じ名前の文字がある場合は重複して読まない。牌が4つ以上並ぶ所は最初の3つまで
       c.querySelectorAll('img').forEach((i) => i.replaceWith(document.createTextNode(i.alt ? `\u0001${i.alt}\u0002` : '')));
       c.querySelectorAll('li, .cc, .cc-h, tr, p, div').forEach((n) => n.append('。'));

@@ -340,7 +340,12 @@
       this.logAns(this.cat.id, good);
       if (good && MJ.Rank) { try { if (/^st_/.test(this.cat.id)) MJ.Rank.studyOk(this.cat.id); else MJ.Rank.quizOk(); } catch (e) { /* ignore */ } } // 段位のポイント: 勉強のチャレンジ(各カテゴリの初回)+3 / クイズ10問ごとに+2
       if (this.mode === 'train') { const t = (this.trainRes[this.cat.id] = this.trainRes[this.cat.id] || { n: 0, ok: 0 }); t.n++; if (good) t.ok++; }
-      MJ.SFX.play(good ? 'ok' : r.r === 'near' ? 'select' : 'ng');
+      MJ.SFX.play(good ? 'pinpon' : r.r === 'near' ? 'select' : 'bubu');
+      { // 効果音のあと、「正解!」「ふせいかい」「おしい!」と声で言う(答え合わせの見出しは、読み上げの対象にしない)
+        const key = good ? 'q:正解' : r.r === 'near' ? 'q:おしい' : 'q:不正解', say = good ? '正解!' : r.r === 'near' ? 'おしい!' : '不正解';
+        clearTimeout(this._qv);
+        this._qv = setTimeout(() => { try { if (MJ.SFX.stopSpeak) MJ.SFX.stopSpeak(); if (!(MJ.SFX.ykHas(key) && MJ.SFX.speakClips([key]))) MJ.SFX.read(say, null, { pitch: 0.2, rate: 1.1 }); } catch (e) { /* ignore */ } }, good ? 700 : 750);
+      }
       $('#drill-score').textContent = this.scoreText();
       const head = good ? '⭕ 正解!' : r.r === 'near' ? '△ おしい!' : '❌ ちがいます';
       this.showFb(head, good ? 'good' : r.r === 'near' ? 'warn' : 'bad', r.html);
