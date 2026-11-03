@@ -1,6 +1,8 @@
 /* 練習問題: 何切る / 役づくり / 守備 / 鳴き判断 / 待ち当て / 点数計算 を毎回ランダムな問題で練習する */
 (function (G) {
   const MJ = (G.MJ = G.MJ || {});
+  /* クイズの相手は、もう登場している(解放された)人だけ。4人に足りないときだけ、全員から */
+  const quizChars = () => { let l = MJ.CHARS.slice(); try { if (MJ.Rank && MJ.Rank.unlocked) { const u = l.filter((c) => MJ.Rank.unlocked(c.id)); if (u.length >= 4) l = u; } } catch (e) { /* ignore */ } return l; };
   const A = MJ.AI;
   const tn = MJ.tileName;
   const ic = MJ.icon;
@@ -136,7 +138,7 @@
       const hand = makeHand(pool, { replace: 1 + rnd(3), honorP: 0.12 });
       if (!hand) continue;
       const rivers = [0, 1, 2, 3].map(() => randRiver(pool, 3 + rnd(4)));
-      const g = mock({ hand, doraInd: [dora], rivers, chars: MJ.shuffle(MJ.CHARS.slice()).slice(0, 4) });
+      const g = mock({ hand, doraInd: [dora], rivers, chars: MJ.shuffle(quizChars()).slice(0, 4) });
       const an = A.analyze(g, g.players[0], { know: 2 });
       if (an.minSh < 1 || an.minSh > 2 || an.evals.length < 6) continue;
       const rank = A.byEff(an.evals);
@@ -229,7 +231,7 @@
         }
         MJ.shuffle(rivers[s]);
       }
-      const g = mock({ hand, doraInd: [dora], rivers, riichiIdx: { [rs]: rivers[rs].length - 1 - rnd(2) }, chars: MJ.shuffle(MJ.CHARS.slice()).slice(0, 4), dealer: rnd(4) });
+      const g = mock({ hand, doraInd: [dora], rivers, riichiIdx: { [rs]: rivers[rs].length - 1 - rnd(2) }, chars: MJ.shuffle(quizChars()).slice(0, 4), dealer: rnd(4) });
       const an = A.analyze(g, g.players[0], { know: 2 });
       if (!an.opps.length) continue;
       const rank = A.bySafety(an.evals);
@@ -271,7 +273,7 @@
       if (!hand) continue;
       hand.splice(rnd(hand.length), 1); // 13枚
       sortTiles(hand);
-      const g = mock({ hand, doraInd: [dora], dealer, chars: MJ.shuffle(MJ.CHARS.slice()).slice(0, 4) });
+      const g = mock({ hand, doraInd: [dora], dealer, chars: MJ.shuffle(quizChars()).slice(0, 4) });
       const me = g.players[0];
       const c = MJ.toCounts(hand);
       // 出された牌を決める(ポン/チーができる牌を優先)
@@ -560,7 +562,7 @@
       const rivers = [[], [], [], []];
       for (let s = 1; s <= 3; s++) rivers[s] = randRiver(pool, (s === rs ? 9 : 8) + rnd(5));
       const dealer = rnd(4);
-      const g = mock({ hand, doraInd: [dora], rivers, riichiIdx: { [rs]: rivers[rs].length - 1 - rnd(2) }, chars: MJ.shuffle(MJ.CHARS.slice()).slice(0, 4), dealer });
+      const g = mock({ hand, doraInd: [dora], rivers, riichiIdx: { [rs]: rivers[rs].length - 1 - rnd(2) }, chars: MJ.shuffle(quizChars()).slice(0, 4), dealer });
       const an = A.analyze(g, g.players[0], { know: 2 });
       if (!an.opps.length || an.minSh < 0 || an.minSh > 3) continue;
       const push = A.byEff(an.evals.filter((e) => e.sh === an.minSh))[0];
@@ -662,7 +664,7 @@
         else { ans = 'riichi'; why = `ダマで${hanD}飜ですが待ちが${left}枚と少なめ。出上がりに期待しにくいので、<b>リーチ</b>でツモ・裏ドラ・一発の上乗せを狙います。`; }
       } else { ans = 'riichi'; why = `ダマだと<b>${hanD}飜</b>で安い。リーチをかけると+1飜(裏ドラ・一発も)で、手が大きく伸びます。<b>リーチ</b>が基本です。`; }
       if (tries < 600 && ans !== target) continue;
-      const g = mock({ hand, doraInd: [dora], rivers, dealer, chars: MJ.shuffle(MJ.CHARS.slice()).slice(0, 4) });
+      const g = mock({ hand, doraInd: [dora], rivers, dealer, chars: MJ.shuffle(quizChars()).slice(0, 4) });
       const tbl = rows.map((r) => `<li>${ic(r.w)} (あと${r.left}枚): ${r.res ? r.res.yaku.filter((y) => !y.dora).map((y) => y.n).join('・') + (r.res.yaku.some((y) => y.dora) ? '+ドラ' : '') + ` = <b>${r.res.han}飜${r.res.fu}符</b>` : '<span class="bad">役なし(ダマだと上がれない)</span>'}</li>`).join('');
       return {
         cat: 'riichi', kind: 'choice', title: 'リーチ? ダマ?', hand, g,
@@ -728,7 +730,7 @@
       const dora = randTile(pool, 1);
       const dealer = rnd(4);
       const rivers = [[], randRiver(pool, 2 + rnd(3)), randRiver(pool, 2 + rnd(3)), randRiver(pool, 2 + rnd(3))];
-      const g = mock({ hand: tiles, doraInd: [dora], rivers, dealer, chars: MJ.shuffle(MJ.CHARS.slice()).slice(0, 4) });
+      const g = mock({ hand: tiles, doraInd: [dora], rivers, dealer, chars: MJ.shuffle(quizChars()).slice(0, 4) });
       const numT = tiles.find((h) => h.t === X), honT = tiles.find((h) => h.t === H);
       const cutAns = wantKeepNum ? 'hon' : 'num';
       const leftX = [X - 2, X - 1, X + 1, X + 2].reduce((a, t) => a + pool.left(t), 0);

@@ -344,7 +344,7 @@
       { // 効果音のあと、「正解!」「ふせいかい」「おしい!」と声で言う(答え合わせの見出しは、読み上げの対象にしない)
         const key = good ? 'q:正解' : r.r === 'near' ? 'q:おしい' : 'q:不正解', say = good ? '正解!' : r.r === 'near' ? 'おしい!' : '不正解';
         clearTimeout(this._qv);
-        this._qv = setTimeout(() => { try { if (MJ.SFX.stopSpeak) MJ.SFX.stopSpeak(); if (!(MJ.SFX.ykHas(key) && MJ.SFX.speakClips([key]))) MJ.SFX.read(say, null, { pitch: 0.2, rate: 1.1 }); } catch (e) { /* ignore */ } }, good ? 700 : 750);
+        this._qv = setTimeout(() => { try { if (!(MJ.SFX.ykHas(key) && MJ.SFX.speakClips([key]))) MJ.SFX.read(say, null, { pitch: 0.2, rate: 1.1 }); } catch (e) { /* ignore */ } }, good ? 700 : 750); // (端末の読み上げを止める cancel() は、Windowsで画面が止まることがあるので呼ばない)
       }
       $('#drill-score').textContent = this.scoreText();
       const head = good ? '⭕ 正解!' : r.r === 'near' ? '△ おしい!' : '❌ ちがいます';
@@ -396,19 +396,28 @@
         nodes.forEach(add);
         return ok;
       };
-      const settle = (keep) => {
+      const settle = (keep, reload) => {
         let px = 22;
         while (!build(px) && px > 18) px -= 1;
         pages.forEach((x) => { if (x.scrollHeight > body.clientHeight + 1) x.style.overflowY = 'auto'; });
         this.fbPages = pages;
-        this.fbShow(keep || 0);
+        this.fbShow(keep || 0, reload);
       };
+      this._fbReload = 0;
       settle(0);
-      // 牌の絵が読み込まれて行の高さが変わっても、はみ出さないように組み直す
-      let tmr = null;
-      body.addEventListener('load', () => { clearTimeout(tmr); tmr = setTimeout(() => settle(this.fbI), 60); }, true);
+      // 牌の絵が読み込まれて行の高さが変わっても、はみ出さないように組み直す(カーソルは動かさない。答え合わせが出ている間だけ)
+      this._fbSettle = settle;
+      if (!body._ldBound) {
+        body._ldBound = true;
+        body.addEventListener('load', () => { clearTimeout(this._fbT); this._fbT = setTimeout(() => {
+          // 組み直しは、はみ出したときだけ(組み直すと絵がまた読み込まれ、組み直しがくり返されて、カーソルが戻されていた)
+          const bx = $('#dq-exp'); if ($('#dq-fb').classList.contains('hidden') || !this._fbSettle || !bx) return;
+          const over = (this.fbPages || []).some((x) => x.classList.contains('on') && x.style.overflowY !== 'auto' && x.scrollHeight > bx.clientHeight + 1);
+          if (over && (this._fbReload = (this._fbReload || 0) + 1) <= 3) this._fbSettle(this.fbI, true);
+        }, 60); }, true);
+      }
     },
-    fbShow(i) {
+    fbShow(i, reload) {
       const pages = this.fbPages || [];
       this.fbI = Math.max(0, Math.min(pages.length - 1, i));
       pages.forEach((p, k) => { p.classList.toggle('on', k === this.fbI); if (k === this.fbI) { p.style.maxHeight = ''; if (p.style.overflowY === 'auto') p.style.maxHeight = $('#dq-exp').clientHeight + 'px'; } });
@@ -417,7 +426,7 @@
       const pv = $('#dq-prev'), nx = $('#dq-nextp');
       if (pv) { pv.style.display = pages.length > 1 ? '' : 'none'; pv.classList.toggle('off', this.fbI <= 0); }
       if (nx) { nx.style.display = pages.length > 1 ? '' : 'none'; nx.classList.toggle('off', this.fbI >= pages.length - 1); }
-      if (MJ.Pad && MJ.Pad.on) { MJ.Pad.cur = null; MJ.Pad.desc = null; MJ.Pad.refocus(); }
+      if (MJ.Pad && MJ.Pad.on) { if (!reload) { MJ.Pad.cur = null; MJ.Pad.desc = null; } MJ.Pad.refocus(); } // 組み直しだけのときは、カーソルを動かさない
     },
 
     init() {
