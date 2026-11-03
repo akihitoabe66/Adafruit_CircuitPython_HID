@@ -195,6 +195,33 @@
     return v;
   };
 
+
+  /* 鳴いている手が、この待ちで上がったとき、役があるか(ロン)。リーチはできない手なので、役がなければ上がれない */
+  A.waitHasYaku = function (game, p, c, w) {
+    try {
+      const counts = c.slice(); counts[w]++;
+      const r = MJ.evaluate({ counts, melds: p.melds, winTile: w, tsumo: false, riichi: false, ippatsu: false, roundWind: game.roundWind, seatWind: game.seatWindOf(p), haitei: false, houtei: false, flowers: 0, rinshan: false, dora: [], ura: [], aka: 0 });
+      return !!r;
+    } catch (e) { return true; }
+  };
+  /* 鳴いている手に、役がつく見込みがあるか(役牌の刻子・対子 / タンヤオ / 一色手)。c=手牌(捨てたあと) */
+  A.yakuPath = function (game, p, c) {
+    for (const m of p.melds) if (m.kind !== 'chi' && isYakuhaiFor(game, p, m.t)) return true; // 役牌の鳴き
+    for (let t = 27; t < 34; t++) if (c[t] >= 2 && isYakuhaiFor(game, p, t)) return true; // 役牌の対子・刻子
+    if (MJ.RULES.kuitan !== false) { // タンヤオ: 鳴きに么九がなく、手牌の么九が少ない
+      const meldYao = p.melds.some((m) => (m.kind === 'chi' ? m.t % 9 === 0 || m.t % 9 === 6 : MJ.isYaochu(m.t)));
+      let yao = 0; for (let t = 0; t < 34; t++) if (MJ.isYaochu(t)) yao += c[t];
+      if (!meldYao && yao <= 3) return true;
+    }
+    const suit = [0, 0, 0]; let hon = 0; // 混一色・清一色
+    for (let t = 0; t < 27; t++) suit[(t / 9) | 0] += c[t];
+    for (let t = 27; t < 34; t++) hon += c[t];
+    for (const m of p.melds) { if (m.t >= 27) hon += 3; else suit[(m.t / 9) | 0] += 3; }
+    const total = suit[0] + suit[1] + suit[2] + hon, top = Math.max(suit[0], suit[1], suit[2]);
+    if (top + hon >= total - 2) return true;
+    return false;
+  };
+
   /* ---- 打牌分析 ---- */
   A.analyze = function (game, p, opt = {}) {
     const f = p.melds.length;
@@ -225,6 +252,15 @@
         c[e.t]++;
       }
     }
+    // 鳴いている手: 役がない形になる切り方(役なしテンパイ・役の見込みがない形)は、上がれないので、おすすめにしない
+    if (f > 0 && p.melds.some((m) => m.kind !== 'ankan')) {
+      for (const e of evals) {
+        c[e.t]--;
+        if (e.sh === 0 && e.waits) e.noYaku = !e.waits.some((w) => A.waitHasYaku(game, p, c, w));
+        else e.noYakuPath = !A.yakuPath(game, p, c);
+        c[e.t]++;
+      }
+    }
     // 2手先の読み(上位の候補だけ): 受け入れ枚数が同程度でも、形の良い方を選べるようにする
     if (opt.deep && minSh > 0) {
       const top = evals.filter((e) => e.sh === minSh).sort((a, b) => b.ukeire.n - a.ukeire.n).slice(0, opt.deepN || 6);
@@ -250,7 +286,7 @@
     }
     return { f, c, vis, evals, minSh, opps, others };
   };
-  A.effScore = (e) => (e.furiten ? -45 : 0) + -e.sh * 100 + (e.eff2 !== undefined ? (e.ukeire.n + e.eff2) * 0.75 : e.ukeire.n) * 1.5 + e.adj; // adj: 大きいほど「切りたい牌」(ドラ・役牌の対子は負=残したい)
+  A.effScore = (e) => (e.noYaku ? -130 : 0) + (e.noYakuPath ? -35 : 0) + (e.furiten ? -45 : 0) + -e.sh * 100 + (e.eff2 !== undefined ? (e.ukeire.n + e.eff2) * 0.75 : e.ukeire.n) * 1.5 + e.adj; // adj: 大きいほど「切りたい牌」(ドラ・役牌の対子は負=残したい)
   A.byEff = (evals) => evals.slice().sort((a, b) => A.effScore(b) - A.effScore(a));
   A.bySafety = (evals) => evals.slice().sort((a, b) => (a.danger ? a.danger.score : 0) - (b.danger ? b.danger.score : 0) || A.effScore(b) - A.effScore(a));
 
