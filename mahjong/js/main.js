@@ -63,7 +63,7 @@
       $('#hm-rec').addEventListener('click', () => MJ.Rank.open('rank', { from: 'menu' }));
       $('#hm-quiz').addEventListener('click', () => MJ.DrillUI.openAuto());
       $('#hm-study').addEventListener('click', () => MJ.Study.open());
-      $('#hm-set').addEventListener('click', () => showSettings());
+      $('#hm-set').addEventListener('click', () => showSettings(null));
       this.buildStatsOnly();
     },
     /* 「麻雀をはじめる」: 前回のつづきがあれば「つづきから」「新しく始める」をたずねる。なければ、麻雀先生の確認へ */
@@ -167,7 +167,7 @@
     },
     launch(cfg, sv) {
       this.stopGame();
-      const chars = cfg.picks.map((id) => MJ.CHARS.find((c) => c.id === id));
+      const chars = MJ.Oni.apply(cfg.picks.map((id) => MJ.CHARS.find((c) => c.id === id))); // 雀鬼モード・覚醒: 強さと顔の色
       const game = new MJ.Game({ chars, mode: cfg.mode, length: cfg.length, ui: MJ.UI });
       this.game = game;
       if (sv && MJ.Rank) MJ.Rank.apply(game, sv); // つづきから: 点数・局・本場を戻す
@@ -332,29 +332,51 @@
         <label class="vol">読み上げの音量 <input type="range" class="ac" data-audio="rvol" min="0.1" max="1" step="0.05"></label>
         <label class="vol">読み上げの速さ <input type="range" class="ac" data-audio="rrate" min="0.6" max="1.6" step="0.05"></label>
       </div>`;
-  function showSettings() {
-    MJ.UI.overlay(`<h2>設定</h2><div class="st-list">
-      <button class="btn big" id="st-audio">🔊 音の大きさ</button>
-      <button class="btn big" id="st-think"></button>
-      <button class="btn big" id="st-spd"></button>
-      <button class="btn big" id="st-fx"></button>
-      <button class="btn big" id="st-fxl"></button>
-      <button class="btn big" id="st-res"></button>
-      <button class="btn big" id="st-pad">🎮 コントローラー</button>
-      <button class="btn big" id="st-simple"></button>
-      <button class="btn big" id="st-perf">📈 動作の測定</button>
-      <button class="btn big" id="st-rec">📊 通しの記録</button>
-      <button class="btn big" id="st-save"></button>
-      <button class="btn big" id="st-roster">🎴 雀士列伝</button>
-      <button class="btn big" id="st-notes">📖 麻雀参考書</button>
-      <button class="btn big" data-open-yaku>📖 役一覧</button>
-      <button class="btn big" data-open-gloss>📚 用語辞典</button>
-      <button class="btn big" data-open-rules>⚙ ルール</button>
-      <button class="btn big" data-open-credits>ℹ クレジット</button>
-      <button class="btn big" id="st-reset">🗑 セーブのリセット</button>
-    </div><div class="res-foot"><button class="btn big" id="st-close">◀ もどる</button></div>`, { plain: true });
+  /* 設定: 項目が多いので、グループに分ける(トップ → グループ)。ボタンの動きは、ひとまとめに作ってあり、いまのグループの分だけ見せる */
+  const SGROUPS = [
+    ['sound', '🔊 音・ひとこと', ['st-audio', 'st-think']],
+    ['play', '🀄 対局のしかた', ['st-spd', 'st-save', 'open-rules']],
+    ['view', '✨ 表示・演出', ['st-fx', 'st-fxl', 'st-res', 'st-simple']],
+    ['info', '📚 しらべる', ['st-roster', 'st-notes', 'open-yaku', 'open-gloss', 'open-credits']],
+    ['data', '🧰 データ・診断', ['st-perf', 'st-rec', 'st-reset']],
+  ];
+  let stLast = null; // 直前に開いていたグループ(下の画面から戻ったとき、同じグループに戻る)
+  function showSettings(grp) {
+    if (grp === undefined) grp = stLast;
+    stLast = grp || null;
+    const g = SGROUPS.find((x) => x[0] === grp);
+    const sh = (id) => (g && g[2].includes(id) ? '' : ' hidden');
+    const top = (id) => (g ? ' hidden' : '');
+    MJ.UI.overlay(`<h2>設定${g ? ' ― ' + g[1] : ''}</h2><div class="st-list">
+      <button class="btn big st-oni" id="st-oni"${top()}></button>
+      ${SGROUPS.map((x) => `<button class="btn big" data-sgrp="${x[0]}"${top()}>${x[1]} ▶</button>`).join('')}
+      <button class="btn big" id="st-pad"${top()}>🎮 コントローラー</button>
+      <button class="btn big" id="st-audio"${sh('st-audio')}>🔊 音の大きさ</button>
+      <button class="btn big" id="st-think"${sh('st-think')}></button>
+      <button class="btn big" id="st-spd"${sh('st-spd')}></button>
+      <button class="btn big" id="st-fx"${sh('st-fx')}></button>
+      <button class="btn big" id="st-fxl"${sh('st-fxl')}></button>
+      <button class="btn big" id="st-res"${sh('st-res')}></button>
+      <button class="btn big" id="st-simple"${sh('st-simple')}></button>
+      <button class="btn big" id="st-perf"${sh('st-perf')}>📈 動作の測定</button>
+      <button class="btn big" id="st-rec"${sh('st-rec')}>📊 通しの記録</button>
+      <button class="btn big" id="st-save"${sh('st-save')}></button>
+      <button class="btn big" id="st-roster"${sh('st-roster')}>🎴 雀士列伝</button>
+      <button class="btn big" id="st-notes"${sh('st-notes')}>📖 麻雀参考書</button>
+      <button class="btn big" data-open-yaku${sh('open-yaku')}>📖 役一覧</button>
+      <button class="btn big" data-open-gloss${sh('open-gloss')}>📚 用語辞典</button>
+      <button class="btn big" data-open-rules${sh('open-rules')}>⚙ ルール</button>
+      <button class="btn big" data-open-credits${sh('open-credits')}>ℹ クレジット</button>
+      <button class="btn big" id="st-reset"${sh('st-reset')}>🗑 セーブのリセット</button>
+    </div>${g ? '' : '<p class="st-note" id="st-oni-note"></p>'}<div class="res-foot"><button class="btn big" id="st-close">◀ もどる</button></div>`, { plain: true });
     const o = document.querySelector('#overlay');
-    o.querySelector('#st-close').addEventListener('click', () => MJ.UI.closeOverlay());
+    o.querySelector('#st-close').addEventListener('click', () => { if (g) showSettings(null); else MJ.UI.closeOverlay(); });
+    o.querySelectorAll('[data-sgrp]').forEach((b) => b.addEventListener('click', () => showSettings(b.dataset.sgrp)));
+    { // 対局モード(ふつう / 雀鬼モード / 覚醒): いつでも切り替えられる
+      const ob = o.querySelector('#st-oni'), on = o.querySelector('#st-oni-note');
+      const os = () => { if (!ob) return; const m = MJ.Oni.mode(); ob.textContent = '🔥 対局モード: ' + MJ.Oni.JP[m]; if (on) on.textContent = MJ.Oni.NOTE[m] + (MJ.Oni.awakeOK() ? '' : '(覚醒は、雀鬼モードで昇段すると解放されます)'); };
+      if (ob) { os(); ob.addEventListener('click', () => { MJ.Oni.next(); os(); }); }
+    }
     const TL = { off: 'なし', normal: 'ふつう', slow: 'ゆっくり' };
     const thBtn = o.querySelector('#st-think');
     const thSync = () => { thBtn.textContent = '💬 悩んだときのひとこと: ' + TL[MJ.UI.thinkMode()]; };

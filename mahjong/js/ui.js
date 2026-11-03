@@ -1331,7 +1331,7 @@
     /* ---------- 演出 ---------- */
     /* キャラの顔: どこでも同じ「輪郭の切り抜き(首元まで・丸い枠なし)」。自分のシルエットだけは正方形の画像 */
     faceImg(ch, cls = '', seat = -1) {
-      if (ch && ch.face) return `<img class="fcut ${cls}" src="${seat >= 0 && MJ.faceFlipped(ch, seat) ? ch.face.replace(/\.webp$/, '_f.webp') : ch.face}" alt="">`;
+      if (ch && ch.face) return `<img class="fcut ${cls}" src="${MJ.faceSrc(ch, seat >= 0 && MJ.faceFlipped(ch, seat))}" alt="">`;
       if (ch && ch.img) return `<img class="fyou ${cls}" src="${ch.img}" alt="">`;
       return '';
     },
@@ -1975,7 +1975,7 @@
         const msg = me.rank === 1 ? '🎉 トップ!おめでとうございます!' : me.rank === 4 ? '残念…ラスでした。振り返って次に活かそう!' : `${me.rank}位でした。`;
         let rk = null; try { rk = MJ.Rank && MJ.Rank.record(game, final); } catch (e) { /* ignore */ } // 段位のポイント(東風・東南だけ)
         const rows = final.results.map((r, i) => `<div class="rank${i === 0 ? ' first' : ''}${r.p.isHuman ? ' me' : ''}"><div class="crown-col">${i === 0 ? '👑' : ''}</div><div class="rk">${r.rank}</div>${MJ.UI.faceImg(r.p.char) || '<div style="font-size:30px;width:56px;text-align:center">🀄</div>'}<div class="rnm"><b>${r.p.name}</b></div><div class="rsc">${fmt(r.p.score)}点</div></div>`).join('');
-        this.overlay(`<h2>対局終了</h2><p>${msg}</p><div class="ranks">${rows}</div>${MJ.Rank && rk ? MJ.Rank.gainLine(rk) : ''}<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="end-menu">メニューへ</button><button class="btn pri" id="end-again">もう一度</button></div>`);
+        this.overlay(`<h2>対局終了</h2><p>${msg}</p><div class="ranks">${rows}</div>${MJ.Rank && rk ? MJ.Rank.gainLine(rk) : ''}${MJ.Oni ? MJ.Oni.afterGame(rk, MJ.Rank && rk ? MJ.Rank.get().maxdan : 0) : ''}<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="end-menu">メニューへ</button><button class="btn pri" id="end-again">もう一度</button></div>`);
         try {
           const st = JSON.parse(localStorage.getItem('mj_stats') || '{"games":0,"ranks":[0,0,0,0]}');
           st.games++; st.ranks[me.rank - 1]++;

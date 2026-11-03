@@ -1,0 +1,46 @@
+"""雀鬼モード(赤)・覚醒(金)用の顔画像を作る。顔の画像(img/chars/face/NN.webp, NN_f.webp)の、緑の背景だけを、赤・金に置き換える。
+使い方: python3 tools/gen_oni_faces.py   (Pillow と numpy が必要)"""
+import os, glob, collections
+import numpy as np
+from PIL import Image
+
+D = os.path.join(os.path.dirname(__file__), '..', 'img', 'chars', 'face')
+COL = {'r': (0.85, 0.07, 0.10), 'g': (0.98, 0.72, 0.10)}
+
+def bg_mask(a):
+    h, w, _ = a.shape
+    mx = a.max(2); mn = a.min(2); d = mx - mn + 1e-9
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    hue = np.where(mx == r, ((g - b) / d) % 6, np.where(mx == g, (b - r) / d + 2, (r - g) / d + 4)) * 60
+    sat = d / (mx + 1e-9)
+    green = (hue > 75) & (hue < 175) & (sat > 0.30) & (mx > 0.25)
+    seen = np.zeros((h, w), bool); q = collections.deque()
+    for (x, y) in [(10, 10), (w - 11, 10), (10, h - 11), (w - 11, h - 11), (w // 2, 8), (8, h // 2), (w - 9, h // 2)]:
+        if green[y, x] and not seen[y, x]:
+            seen[y, x] = True; q.append((x, y))
+    while q:
+        x, y = q.popleft()
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < w and 0 <= ny < h and green[ny, nx] and not seen[ny, nx]:
+                seen[ny, nx] = True; q.append((nx, ny))
+    return seen, mx
+
+def recolor(im, key):
+    a = np.asarray(im.convert('RGB')).astype(float) / 255
+    seen, mx = bg_mask(a)
+    out = a.copy()
+    ref = mx[seen].mean() if seen.any() else 1
+    lum = np.clip(mx / ref, 0.6, 1.25)  # 背景の陰影は、残す
+    for c in range(3):
+        out[..., c] = np.where(seen, np.clip(COL[key][c] * lum, 0, 1), a[..., c])
+    return Image.fromarray((out * 255).astype('uint8'))
+
+for p in sorted(glob.glob(os.path.join(D, '*.webp'))):
+    n = os.path.basename(p)
+    if n[:-5].endswith(('_r', '_g')):
+        continue
+    im = Image.open(p)
+    for key in ('r', 'g'):
+        recolor(im, key).save(os.path.join(D, n[:-5] + '_' + key + '.webp'), 'WEBP', quality=88, method=6)
+print('done', len(glob.glob(os.path.join(D, '*_r.webp'))), len(glob.glob(os.path.join(D, '*_g.webp'))))

@@ -1642,3 +1642,10 @@ body .plq:not(.act) { opacity: 1 !important; filter: none !important; background
 /* チーのボタンの下の小さな文字(▼ 牌をえらぶ など): 白いボタンの上でも読めるよう、濃い色に */
 body .callq .cq-btn .cq-sub:not(.cq-rec) { color: #3a3a2a !important; font-size: 14px !important; font-weight: 800 !important; }
 body .callq .cq-btn.b-ron .cq-sub:not(.cq-rec), body .callq .cq-btn.b-riichi .cq-sub:not(.cq-rec) { color: #7a1018 !important; }
+
+/* 設定の対局モード・お知らせ */
+.st-note { font-size: 15px; color: #ffe27a; text-align: center; margin: 6px 0 0; min-height: 20px; }
+.oni-note { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 2px; padding: 6px 12px; border-radius: 12px; background: linear-gradient(90deg, #7a1018, #c8141c); border: 3px solid #ffd23f; color: #fff; text-align: center; }
+.oni-note b { font-size: 22px; color: #ffe27a; } .oni-note span { font-size: 15px; }
+.st-list [hidden] { display: none !important; }
+.st-list .st-oni { grid-column: span 2; }
