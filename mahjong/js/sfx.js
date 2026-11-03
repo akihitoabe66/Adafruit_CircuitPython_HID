@@ -281,7 +281,7 @@
           if (b === false) { t += 0.28; return; }
           if (!b) return;
           const src = ctx.createBufferSource(); src.buffer = b;
-          const g = ctx.createGain(), gv = Math.min(0.5, S.rv() * 0.5); // 大きくしすぎると、BGMと重なって割れる
+          const g = ctx.createGain(), gv = Math.min(0.62, S.rv() * 0.62); // 大きくしすぎると、BGMと重なって割れる
           // 切れ目の「プツッ」を防ぐ: 頭とおしりを、短くなめらかに
           g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gv, t + 0.01);
           g.gain.setValueAtTime(gv, Math.max(t + 0.01, t + b.duration - 0.02)); g.gain.linearRampToValueAtTime(0, t + b.duration);

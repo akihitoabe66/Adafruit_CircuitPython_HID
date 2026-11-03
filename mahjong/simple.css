@@ -1638,3 +1638,7 @@ body.short #overlay .modal:has(.ranks) h2 { font-size: 20px; } body.short #overl
 body .plq:not(.act) { opacity: 1 !important; filter: none !important; background: rgba(0, 0, 0, .55) !important; border: 2px solid rgba(255, 255, 255, .85) !important; color: #fff; }
 /* 自分の名札: リーチの文字が右で切れないよう、リーチ中は少し広げる(左へ) */
 .plq.p0.rch-on { width: 262px !important; left: 454px !important; }
+
+/* チーのボタンの下の小さな文字(▼ 牌をえらぶ など): 白いボタンの上でも読めるよう、濃い色に */
+body .callq .cq-btn .cq-sub:not(.cq-rec) { color: #3a3a2a !important; font-size: 14px !important; font-weight: 800 !important; }
+body .callq .cq-btn.b-ron .cq-sub:not(.cq-rec), body .callq .cq-btn.b-riichi .cq-sub:not(.cq-rec) { color: #7a1018 !important; }

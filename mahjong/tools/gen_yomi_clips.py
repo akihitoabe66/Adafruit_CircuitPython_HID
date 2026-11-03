@@ -40,8 +40,8 @@ def main():
             a = os.path.join(d, 'a.wav')
             with wave.open(a, 'wb') as w:
                 w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes(x.astype(np.int16).tobytes())
-            f = 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.02,areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.04,areverse,loudnorm=I=-17:TP=-1.5:LRA=7'
-            subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', a, '-af', f, '-ar', '44100', '-ac', '1', '-b:a', '56k', os.path.join(OUT, fn)], check=True)
+            f = 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.02,areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.04,areverse,lowpass=f=7500,loudnorm=I=-18:TP=-3:LRA=7'
+            subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', a, '-af', f, '-ar', '44100', '-ac', '1', '-b:a', '160k', os.path.join(OUT, fn)], check=True)
         manifest[key] = fn
     with open(os.path.join(OUT, 'manifest.json'), 'w') as fp:
         json.dump(manifest, fp, ensure_ascii=False)
