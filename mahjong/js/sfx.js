@@ -268,7 +268,7 @@
       const fn = S._yk && S._yk[key];
       if (!fn || !ctx) return Promise.resolve(null);
       if (S._ykBuf[key]) return S._ykBuf[key];
-      S._ykBuf[key] = MJ.fetch(/^data:/.test(fn) ? fn : `audio/yk/${fn}`).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng))).catch(() => null);
+      S._ykBuf[key] = (/^data:/.test(fn) ? Promise.resolve((() => { const t = atob(fn.slice(fn.indexOf(',') + 1)), a = new Uint8Array(t.length); for (let i = 0; i < t.length; i++) a[i] = t.charCodeAt(i); return a.buffer; })()) : MJ.fetch(`audio/yk/${fn}`).then((r) => r.arrayBuffer())).then((ab) => new Promise((ok, ng) => ctx.decodeAudioData(ab, ok, ng))).catch(() => null);
       return S._ykBuf[key];
     },
     /* keys: 'y:タンヤオ' などの並び。null は少し間をあける。つなげて鳴らす。鳴らせたら true */
