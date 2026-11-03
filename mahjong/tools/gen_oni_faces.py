@@ -14,7 +14,7 @@ def bg_mask(a):
     r, g, b = a[..., 0], a[..., 1], a[..., 2]
     hue = np.where(mx == r, ((g - b) / d) % 6, np.where(mx == g, (b - r) / d + 2, (r - g) / d + 4)) * 60
     sat = d / (mx + 1e-9)
-    green = (hue > 75) & (hue < 175) & (sat > 0.30) & (mx > 0.25)
+    green = (hue > 70) & (hue < 180) & (sat > 0.18) & (mx > 0.10)
     seen = np.zeros((h, w), bool); q = collections.deque()
     for (x, y) in [(10, 10), (w - 11, 10), (10, h - 11), (w - 11, h - 11), (w // 2, 8), (8, h // 2), (w - 9, h // 2)]:
         if green[y, x] and not seen[y, x]:
