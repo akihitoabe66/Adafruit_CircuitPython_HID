@@ -12,3 +12,8 @@ C → SDL2 → Linux。ゲームの頭脳(js/ のルール・CPU)は QuickJS で
 - 操作: 矢印キー(コントローラーの十字/スティック)、決定=Enter/Space/Z/ボタン、もどる=Esc/X/ボタン1
 - 自動テスト: `--auto --shots /tmp/shots`(自動で最後まで打って画面を保存)
 - 成績の保存先: mahjong/save.json
+
+## 電源を入れたら自動で起動(デスクトップなし)
+    sh mahjong/native/app/autostart_on.sh && sudo reboot
+- 終了: **Ctrl+Q**(ターミナルに戻る)。 手で起動し直す: `sh mahjong/native/app/start.sh`
+- やめる: `sh mahjong/native/app/autostart_off.sh && sudo reboot`
