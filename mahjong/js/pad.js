@@ -468,7 +468,7 @@
   const loadMap = () => { try { return JSON.parse(localStorage.getItem(PM) || '{}') || {}; } catch (e) { return {}; } };
   const autoMap = (gp) => (gp.mapping === 'standard' ? { a: 0, b: 1 } : { a: 1, b: 2 });
   P.mapFor = (gp) => { const m = loadMap()[gp.id]; if (m && isFinite(m.a) && isFinite(m.b)) return { a: +m.a, b: +m.b, learned: true, xa: m.xa || [], xb: m.xb || [], xc: m.xc || [], xn: m.xn || [] }; const d = autoMap(gp); return { a: d.a, b: d.b, learned: false, xa: [], xb: [], xc: [], xn: [] }; };
-  P.saveMap = (gp, k, idx) => { const all = loadMap(); const cur = Object.assign({}, P.mapFor(gp)); delete cur.learned; if (k === 'xa' || k === 'xb') { const o = k === 'xa' ? 'xb' : 'xa'; cur[o] = (cur[o] || []).filter((x) => x !== idx); cur[k] = (cur[k] || []).filter((x) => x !== idx).concat([idx]); } else cur[k] = idx; all[gp.id] = cur; try { localStorage.setItem(PM, JSON.stringify(all)); } catch (e) { /* ignore */ } };
+  P.saveMap = (gp, k, idx) => { const all = loadMap(); const cur = Object.assign({}, P.mapFor(gp)); delete cur.learned; if (k === 'xa' || k === 'xb') { const o = k === 'xa' ? 'xb' : 'xa'; cur[o] = (cur[o] || []).filter((x) => x !== idx); cur[k] = (cur[k] || []).filter((x) => x !== idx).concat([idx]); } else { cur[k] = idx; ['xa', 'xb', 'xc', 'xn'].forEach((x) => { cur[x] = (cur[x] || []).filter((v) => v !== idx); }); } all[gp.id] = cur; try { localStorage.setItem(PM, JSON.stringify(all)); } catch (e) { /* ignore */ } };
   /* ボタンの名前(押す位置が分かるように。標準配置のコントローラーは、位置も添える) */
   const STD = ['下', '右', '左', '上', 'L1', 'R1', 'L2', 'R2', '選択', '開始', 'L3', 'R3'];
   P.btnName = (gp, i) => (gp && gp.mapping === 'standard' && STD[i] ? `ボタン${i + 1}(${STD[i]})` : `ボタン${i + 1}`);
@@ -539,8 +539,8 @@
       const pm = P.mapFor(gp);
       // スーファミ型などの、ほかのボタン: X・R・スタート=Aと同じ / Y・L・セレクト=Bと同じ。おぼえさせた分があれば、それを使う。なければ自動(標準配置は X=2、ほかは X=0。R=5・L=4・セレクト=6か8・スタート=7か9)
       const MAP = { [gp.mapping === 'standard' ? 2 : 0]: 'a', 5: 'a', 7: 'a', 9: 'a', 3: 'b', 4: 'b', 6: 'b', 8: 'b' };
-      MAP[pm.a] = 'a'; MAP[pm.b] = 'b';
-      (pm.xa || []).forEach((i) => { MAP[i] = 'a'; }); (pm.xb || []).forEach((i) => { MAP[i] = 'b'; }); (pm.xc || []).forEach((i) => { MAP[i] = 'c'; }); (pm.xn || []).forEach((i) => { delete MAP[i]; }); // おぼえさせたボタンは、いちばん優先(決定・もどるの割り当てとぶつかっても、おぼえさせた方)
+      (pm.xa || []).forEach((i) => { MAP[i] = 'a'; }); (pm.xb || []).forEach((i) => { MAP[i] = 'b'; }); (pm.xc || []).forEach((i) => { MAP[i] = 'c'; }); (pm.xn || []).forEach((i) => { delete MAP[i]; });
+      MAP[pm.a] = 'a'; MAP[pm.b] = 'b'; // 設定で選んだ「A」「B」のボタンは、ほかの割り当てより優先(前に「そのほか」に入れたボタンと重なっても、逆にならない) // おぼえさせたボタンは、いちばん優先(決定・もどるの割り当てとぶつかっても、おぼえさせた方)
       const down = {};
       gp.buttons.forEach((b, i) => { if (MAP[i] && (b.pressed || b.value > 0.6)) down[MAP[i]] = true; });
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
