@@ -82,6 +82,9 @@
       this.sync();
     }
 
+    /* 最終局(オーラス): 東風戦=東四局 / 南風戦=南四局 */
+    isOras() { return (this.length === 'east' && this.kyoku === 3) || (this.length === 'south' && this.kyoku === 7); }
+
     kyokuLabel() { const K = ['一', '二', '三', '四', '五', '六', '七', '八', '九']; return `${MJ.windName(this.roundWind)}${K[this.kyoku % 4]}局${this.honba ? ' ' + (K[this.honba - 1] || this.honba) + '本場' : ''}`; }
 
     setupHand() {

@@ -9,7 +9,7 @@
   const QUIZ = 'audio/quiz.mp3'; // 麻雀クイズの画面だけ流れる曲(thirteen_gates_to_glory)
   const LATE = ['audio/game8.mp3', 'audio/game9.mp3']; // 東二局以降だけ流れる曲(game9 = sovereign_hand)
   const GAME = ['audio/game1.mp3', 'audio/game2.mp3', 'audio/game3.mp3', 'audio/game4.mp3', 'audio/game5.mp3', 'audio/game6.mp3', 'audio/game7.mp3', 'audio/game10.mp3', 'audio/game11.mp3']; // game10 = paper_lanterns_at_dawn / game11 = jade_winds_rising
-  const FINAL = ['audio/game12.mp3']; // 4局目(東4局・南4局)だけ、ほかの曲にまざって、ランダムで流れる曲(one_tile_remaining)
+  const FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3']; // 4局目(東4局・南4局)だけ、ほかの曲にまざって、ランダムで流れる曲(one_tile_remaining)
   let el = null, gain = null, wired = false, last = null;
 
   /* 曲を先に取り寄せておく(押してから数秒待たされないように)。順番: ホーム → 対局曲 → 結果曲 */
@@ -91,9 +91,13 @@
       // 取り寄せ済みの曲を優先して選ぶ(なければ通常どおり)
       // game8 は、東二局以降だけ選ばれる
       const g = MJ.App && MJ.App.game;
-      const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []).concat(g && g.kyoku % 4 === 3 ? FINAL : []);
-      const ready = cand.filter((s) => s !== last && warmed.has(s));
-      const pool = ready.length ? ready : cand.filter((s) => s !== last);
+      // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」(FINAL)から選ぶ。残りは、ふつうの曲から
+      const finalHand = !!g && g.kyoku % 4 === 3;
+      const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []);
+      const fin = FINAL.filter((s) => s !== last);
+      const base = finalHand && Math.random() < 0.6 && fin.length ? fin : cand.filter((s) => s !== last);
+      const ready = base.filter((s) => warmed.has(s));
+      const pool = ready.length ? ready : base;
       last = pool[Math.floor(Math.random() * pool.length)];
       A._load(last, true); // 1局のあいだは、同じ曲をくり返す。局が終わって結果画面を閉じたら、新しい曲に変わる
       MJ.warmAudioLater([...GAME, ...LATE, ...FINAL, 'audio/result_win.mp3', 'audio/result_win2.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3'], 8000, 3000);

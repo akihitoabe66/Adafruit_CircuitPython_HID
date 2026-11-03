@@ -1658,3 +1658,6 @@ body .callq .cq-btn.b-ron .cq-sub:not(.cq-rec), body .callq .cq-btn.b-riichi .cq
 .plq.rch-on em { font-size: 13px; padding: 0 3px; letter-spacing: -.02em; }
 .plq.rch-on .fls { margin-left: 2px; }
 .plq.p1 { left: 515px; width: 280px; } .plq.p3 { left: -88px; width: 280px; } /* 左右の名札: リーチ中+季節牌が入るよう、少し長く(中心は同じ) */
+
+/* 最終局(オーラス): 局の名前の下に、赤い札で出す */
+.ky-ora { margin: calc(1px) auto 0; width: max-content; background: #d8362f; color: #fff; font-size: 26px; font-weight: 900; letter-spacing: .25em; padding: 2px 18px 2px 22px; border-radius: 10px; box-shadow: 0 0 0 3px #ffd35a; }

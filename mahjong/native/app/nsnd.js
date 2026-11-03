@@ -2,7 +2,7 @@
 (function () {
   const MJ = window.MJ;
   const GAME = ['game1', 'game2', 'game3', 'game4', 'game5', 'game6', 'game7', 'game10', 'game11'].map((n) => 'audio/' + n + '.mp3');
-  const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], FINAL = ['audio/game12.mp3'], HOME = 'audio/home.mp3';
+  const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3'], HOME = 'audio/home.mp3';
   const SFX = ['click', 'select', 'draw', 'deal4', 'deal1', 'sort1', 'sort2', 'deal', 'discard', 'call', 'kan', 'riichi', 'ron', 'tsumo', 'win', 'lose', 'drawgame', 'slam', 'start', 'end', 'ok', 'ng', 'error'];
   const V = { bgm: 0.22, sfx: 0.7, voice: 0.85, read: 0.6 };
   let yk = null, token = 0, last = null, cur = '', duckT = 0;
@@ -12,8 +12,12 @@
     music(p) { if (!A.on) { snd.music(''); cur = ''; return; } if (cur === p) return; cur = p; snd.musicVol(V.bgm); snd.music(p, true); },
     home() { A.music(HOME); },
     game(g) {
-      const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []).concat(g && g.kyoku % 4 === 3 ? FINAL : []).filter((s) => s !== last);
-      last = cand[Math.floor(Math.random() * cand.length)]; cur = ''; A.music(last);
+      // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」から選ぶ
+      const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []).filter((x) => x !== last);
+      const fin = FINAL.filter((x) => x !== last);
+      const finalHand = !!g && g.kyoku % 4 === 3;
+      const pool = finalHand && Math.random() < 0.6 && fin.length ? fin : cand;
+      last = pool[Math.floor(Math.random() * pool.length)]; cur = ''; A.music(last);
     },
     result(kind) { const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; cur = ''; A.music(kind === 'calm' ? 'audio/study.mp3' : 'audio/' + n + '.mp3'); },
     toggle() { A.on = !A.on; if (!A.on) { snd.music(''); cur = ''; } return A.on; },
@@ -69,6 +73,7 @@
       const keys = ['x:' + W[game.roundWind % 4], null, 'x:' + (KY[game.kyoku % 4] || 'イッキョク')];
       const HB = { 1: 'イッポンバ', 2: 'ニホンバ', 3: 'サンボンバ', 4: 'ヨンホンバ', 5: 'ゴホンバ', 6: 'ロッポンバ', 7: 'ナナホンバ', 8: 'ハッポンバ', 9: 'キュウホンバ' };
       if (game.honba && HB[Math.min(9, game.honba)]) keys.push(null, 'x:' + HB[Math.min(9, game.honba)]);
+      if (game.isOras && game.isOras()) keys.push(null, 'x:オーラス'); // 最終局
       A.speak(keys);
     },
   });

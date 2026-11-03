@@ -1580,8 +1580,10 @@
         const KY = ['イッキョク', 'ニキョク', 'サンキョク', 'ヨンキョク'];
         const keys = ['x:' + w, null, 'x:' + (KY[game.kyoku % 4] || 'イッキョク')];
         if (game.honba && HB[Math.min(9, game.honba)]) keys.push(null, 'x:' + HB[Math.min(9, game.honba)]);
+        const oras = !!(game.isOras && game.isOras() && MJ.SFX.ykHas('x:オーラス')); // 最終局: 「オーラス!」
+        if (oras) keys.push(null, 'x:オーラス');
         if (MJ.SFX.speakClips && MJ.SFX.ykHas('x:' + w) && MJ.SFX.speakClips(keys)) return;
-        MJ.SFX.read(`${w}、${['いっ', 'に', 'さん', 'よん'][game.kyoku % 4] || 'いっ'}きょく!${game.honba ? (HB[Math.min(9, game.honba)] || '') + '!' : ''}`, null, { pitch: 0.2, rate: 1.1, gap: 120 }); // (録音がないときの、予備)
+        MJ.SFX.read(`${w}、${['いっ', 'に', 'さん', 'よん'][game.kyoku % 4] || 'いっ'}きょく!${game.honba ? (HB[Math.min(9, game.honba)] || '') + '!' : ''}${game.isOras && game.isOras() ? 'オーラス!' : ''}`, null, { pitch: 0.2, rate: 1.1, gap: 120 }); // (録音がないときの、予備)
       } catch (e) { /* ignore */ }
     },
     async kyokuSlam(game) {
@@ -1595,7 +1597,7 @@
       const face = src ? `<img class="ky-face" src="${src}" alt="" draggable="false">` : '';
       const el = document.createElement('div');
       el.className = 'ky-slam';
-      el.innerHTML = `<div class="ky-ring"></div><div class="ky-box"><div class="ky-t${game.honba ? ' hb' : ''}">${game.kyokuLabel()}</div><div class="ky-d">${face}<span><small>親</small><br>${dl.name}</span></div></div><div class="ky-flash"></div>`;
+      el.innerHTML = `<div class="ky-ring"></div><div class="ky-box"><div class="ky-t${game.honba ? ' hb' : ''}">${game.kyokuLabel()}</div>${game.isOras && game.isOras() ? '<div class="ky-ora">オーラス</div>' : ''}<div class="ky-d">${face}<span><small>親</small><br>${dl.name}</span></div></div><div class="ky-flash"></div>`;
       el.classList.add('pre'); // 描画の準備ができるまで、動きは止めておく(落ちてくる最初の動きが、飛ばされないように)
       sc.appendChild(el);
       void el.offsetWidth;
