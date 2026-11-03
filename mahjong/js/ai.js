@@ -423,7 +423,7 @@
   A.chooseSelf = function (game, p, opts) {
     if (opts.tsumo) return { act: 'tsumo' };
     const lv = p.char.ai || p.char.level, st = p.char.style;
-    const an = A.analyze(game, p, { know: lv >= 4 ? 2 : 1, deep: lv >= 4, deepN: lv >= 5 ? 6 : 4, budget: 120 });
+    const an = A.analyze(game, p, { know: lv >= 4 ? 2 : 1, deep: lv >= 4, deepN: lv >= 5 ? 6 : 4, budget: lv >= 4 ? 80 : 50 });
     const { evals, minSh, opps } = an;
     if (!evals.length) return { act: 'discard', tile: p.drawn || p.hand[p.hand.length - 1] };
 

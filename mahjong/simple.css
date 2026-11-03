@@ -1633,3 +1633,8 @@ body.short .ranks .rank .crown-col { font-size: 22px; } body.short .ranks .rank 
 body.short .ranks .rank img.fcut, body.short .ranks .rank img.fyou { height: 36px !important; }
 body.short #overlay .modal:has(.ranks) { padding: 6px 14px !important; gap: 2px; }
 body.short #overlay .modal:has(.ranks) h2 { font-size: 20px; } body.short #overlay .modal:has(.ranks) > p { font-size: 15px; }
+
+/* 番でない人の名札: 暗くしすぎず、中央の「残り牌」の箱と同じ、半透明の黒い背景に白い枠(番の人が、ひときわ光って見える) */
+body .plq:not(.act) { opacity: 1 !important; filter: none !important; background: rgba(0, 0, 0, .55) !important; border: 2px solid rgba(255, 255, 255, .85) !important; color: #fff; }
+/* 自分の名札: リーチの文字が右で切れないよう、リーチ中は少し広げる(左へ) */
+.plq.p0.rch-on { width: 262px !important; left: 454px !important; }

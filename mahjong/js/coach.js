@@ -255,7 +255,7 @@
   /* ---------- 自分の手番のアドバイス ---------- */
   C.selfAdvice = function (game, p, opts, st) {
     const mode = game.mode;
-    const an = A.analyze(game, p, { know: 2, deep: true, deepN: 8, budget: 300 });
+    const an = A.analyze(game, p, { know: 2, deep: true, deepN: 8, budget: 110 });
     const marks = {};
     const cards = [];
     const eff = A.byEff(an.evals);

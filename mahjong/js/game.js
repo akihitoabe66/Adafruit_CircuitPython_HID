@@ -266,6 +266,7 @@
     async playHand() {
       if (this.ui && MJ.perf) MJ.perf._handAt = performance.now(); // 配牌から、手牌が画面に見えるまでを測る
       this.setupHand();
+      this.turn = -1; // 配牌のあいだは、だれの番でもない(前の局の最後の人が光ったままにならないように)
       if (this.ui) await this.ui.handStart(this);
       if (this.ui && MJ.Banter) MJ.Banter.handStart(this);
       if (this.ui && this.ui.dealPrep) this.ui.dealPrep(this);

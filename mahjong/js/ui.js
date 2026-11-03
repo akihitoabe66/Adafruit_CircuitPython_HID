@@ -1576,7 +1576,7 @@
         const W = ['トン', 'ナン', 'シャー', 'ペイ'], N = ['イチ', 'ニ', 'サン', 'ヨン', 'ゴ', 'ロク', 'ナナ', 'ハチ', 'キュウ'];
         const HB = ['', 'イッポンバ', 'ニホンバ', 'サンボンバ', 'ヨンホンバ', 'ゴホンバ', 'ロッポンバ', 'ナナホンバ', 'ハッポンバ', 'キュウホンバ'];
         const k = N[game.kyoku % 4] || 'イチ', w = W[game.roundWind] || 'トン';
-        MJ.SFX.read(`${w}${k}キョク!${game.honba ? (HB[Math.min(9, game.honba)] || '') + '!' : ''}`, null, { pitch: 0.4, rate: 1.18, gap: 120 }); // 元気よく: 高め・少し速め
+        MJ.SFX.read(`${w}${k}キョク!${game.honba ? (HB[Math.min(9, game.honba)] || '') + '!' : ''}`, null, { pitch: 0.2, rate: 1.1, gap: 120 }); // 元気よく: 高め・少し速め
       } catch (e) { /* ignore */ }
     },
     async kyokuSlam(game) {
