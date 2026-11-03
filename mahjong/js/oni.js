@@ -12,8 +12,14 @@
     NOTE: { off: '相手は、ふつうの強さです。', oni: '相手3人の強さが ★1つ 上がります(顔の背景: 赤)。', awake: '相手3人の強さが ★2つ 上がります(顔の背景: 金)。' },
     mode() { const o = load(); return o.mode === 'awake' && !o.awake ? 'off' : o.mode; },
     awakeOK() { return !!load().awake; },
-    set(m) { const o = load(); if (m === 'awake' && !o.awake) return false; o.mode = m; save(o); return true; },
+    set(m) { const o = load(); if (m === 'awake' && !o.awake) return false; o.mode = m; save(o); if (m !== 'off') O.ready(); return true; },
     next() { const o = load(); const order = o.awake ? ['off', 'oni', 'awake'] : ['off', 'oni']; const i = order.indexOf(O.mode()); O.set(order[(i + 1) % order.length]); return O.mode(); },
+    /* 赤・金の顔の画像(大きいので、使うときだけ読み込む)。読み込めたら解決する */
+    ready() {
+      if (MJ.OniFaces) return Promise.resolve();
+      if (!O._p) O._p = new Promise((ok) => { const sc = document.createElement('script'); sc.src = 'js/oni_faces.js?v=' + (MJ.VER || 1); sc.onload = sc.onerror = () => ok(); document.head.appendChild(sc); setTimeout(ok, 8000); });
+      return O._p;
+    },
     boost() { return { off: 0, oni: 1, awake: 2 }[O.mode()] || 0; },
     /* 対局の相手に、強さの上乗せと、顔の色の印をつける(元のデータは書き換えない) */
     apply(chars) {
@@ -32,4 +38,5 @@
       return '';
     },
   });
+  if (O.mode() !== 'off') O.ready(); // 前回の設定が雀鬼モード・覚醒なら、顔の画像を、先に読み込んでおく
 })(typeof window !== 'undefined' ? window : globalThis);

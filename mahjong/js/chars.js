@@ -60,6 +60,10 @@
   MJ.unlockDan = (id) => { for (let i = 0; i < MJ.UNLOCK.length; i++) if (MJ.UNLOCK[i].includes(id)) return i; return 0; };
   /* 強さの★の表示: 5以下は ★★★☆☆、6以上は ★★★★★+◯ */
   MJ.starStr = (lv) => (lv <= 5 ? '★'.repeat(lv) + '☆'.repeat(5 - lv) : '★★★★★' + '+'.repeat(Math.min(5, lv - 5)));
-  /* 顔の画像: 雀鬼モードの相手(ch.oni='oni')は赤、覚醒('awake')は金の背景。flipped=左右反転版 */
-  MJ.faceSrc = (ch, flipped) => ch.face.replace(/\.webp$/, (flipped ? '_f' : '') + (ch.oni === 'oni' ? '_r' : ch.oni === 'awake' ? '_g' : '') + '.webp');
+  /* 顔の画像: 雀鬼モードの相手(ch.oni='oni')は赤、覚醒('awake')は金の背景(js/oni_faces.js の data URI)。flipped=左右反転版 */
+  MJ.faceSrc = (ch, flipped) => {
+    const base = ch.face.replace(/\.webp$/, '');
+    if (ch.oni && MJ.OniFaces) { const k = base.split('/').pop() + (flipped ? '_f' : '') + (ch.oni === 'awake' ? '_g' : '_r'); if (MJ.OniFaces[k]) return MJ.OniFaces[k]; }
+    return base + (flipped ? '_f' : '') + '.webp';
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

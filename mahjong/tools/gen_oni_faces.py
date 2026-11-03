@@ -1,5 +1,6 @@
 """雀鬼モード(赤)・覚醒(金)用の顔画像を作る。顔の画像(img/chars/face/NN.webp, NN_f.webp)の、緑の背景だけを、赤・金に置き換える。
-使い方: python3 tools/gen_oni_faces.py   (Pillow と numpy が必要)"""
+ファイルを128個も増やさないよう、js/oni_faces.js(data URI)1つにまとめる。使い方: python3 tools/gen_oni_faces.py   (Pillow と numpy が必要)"""
+import base64, io, json
 import os, glob, collections
 import numpy as np
 from PIL import Image
@@ -36,11 +37,15 @@ def recolor(im, key):
         out[..., c] = np.where(seen, np.clip(COL[key][c] * lum, 0, 1), a[..., c])
     return Image.fromarray((out * 255).astype('uint8'))
 
+out = {}
 for p in sorted(glob.glob(os.path.join(D, '*.webp'))):
-    n = os.path.basename(p)
-    if n[:-5].endswith(('_r', '_g')):
-        continue
+    n = os.path.basename(p)[:-5]
     im = Image.open(p)
     for key in ('r', 'g'):
-        recolor(im, key).save(os.path.join(D, n[:-5] + '_' + key + '.webp'), 'WEBP', quality=88, method=6)
-print('done', len(glob.glob(os.path.join(D, '*_r.webp'))), len(glob.glob(os.path.join(D, '*_g.webp'))))
+        buf = io.BytesIO()
+        recolor(im, key).save(buf, 'WEBP', quality=86, method=6)
+        out[n + '_' + key] = 'data:image/webp;base64,' + base64.b64encode(buf.getvalue()).decode()
+dst = os.path.join(os.path.dirname(__file__), '..', 'js', 'oni_faces.js')
+with open(dst, 'w') as f:
+    f.write('/* 雀鬼モード(赤)・覚醒(金)の顔画像(tools/gen_oni_faces.py で作る) */\n(window.MJ = window.MJ || {}).OniFaces = ' + json.dumps(out) + ';\n')
+print('done', len(out), os.path.getsize(dst) // 1024, 'KB')

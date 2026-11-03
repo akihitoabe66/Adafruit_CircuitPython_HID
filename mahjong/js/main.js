@@ -176,7 +176,7 @@
       MJ.SFX.unlock();
       MJ.SFX.preloadVoices([0].concat(chars.map((c) => c.voice || c.id)));
       this.show('game');
-      MJ.Intro.play(game).then(() => { if (this.game === game) game.run().catch((e) => { console.error(e); }); }); // スタート演出のあとで、対局を始める
+      (MJ.Oni.boost() ? MJ.Oni.ready() : Promise.resolve()).then(() => MJ.Intro.play(game)).then(() => { if (this.game === game) game.run().catch((e) => { console.error(e); }); }); // スタート演出のあとで、対局を始める
     },
     again() { if (this.lastCfg) this.launch(this.lastCfg); },
     stopGame() {
