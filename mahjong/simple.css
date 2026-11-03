@@ -1617,3 +1617,19 @@ body .plq.act .wd { background: #1b1b12; color: #ffd23f; }
 .pdn-h { font-size: 16px; color: #cfe6d9; margin: 10px 0 6px; text-align: center; line-height: 1.4; }
 .pdn .cf-btns { gap: 10px; flex-wrap: wrap; justify-content: center; }
 body #overlay .pdn .cf-btns .btn { font-size: 20px !important; padding: 8px 16px !important; white-space: nowrap; min-width: 0; }
+#mine .tipline { width: 430px !important; }
+/* 手番の強調が、画面の端で切れないように(右端の自分の名札は、右を基準に広げる) */
+body .plq.act { scale: 1.06 !important; }
+body .plq.p0.act { transform-origin: 100% 50%; }
+/* 「あなたの番です」は、手牌の上の説明文に重ならない高さに */
+body .myturn { top: 247px; }
+
+/* 背の低い画面(スマホ横など): 対局終了の順位表を、縮めて収める(上の見出しが切れないように) */
+body.short .ranks { gap: 3px !important; margin: 2px 0 !important; }
+body.short .ranks .rank { padding: 1px 12px !important; gap: 10px !important; grid-template-columns: 34px 28px 44px minmax(0, 1fr) 150px !important; }
+body.short .ranks .rank .rnm b { font-size: 22px !important; } body.short .ranks .rank .rsc { font-size: 22px; }
+body.short .ranks .rank.first .rnm b, body.short .ranks .rank.first .rsc { font-size: 24px !important; }
+body.short .ranks .rank .crown-col { font-size: 22px; } body.short .ranks .rank .rk { font-size: 22px !important; }
+body.short .ranks .rank img.fcut, body.short .ranks .rank img.fyou { height: 36px !important; }
+body.short #overlay .modal:has(.ranks) { padding: 6px 14px !important; gap: 2px; }
+body.short #overlay .modal:has(.ranks) h2 { font-size: 20px; } body.short #overlay .modal:has(.ranks) > p { font-size: 15px; }

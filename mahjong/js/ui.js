@@ -868,7 +868,7 @@
 
     msgText(s) {
       const o = s.opts;
-      return !s.p.riichi && o.riichi.length && !this.riichiMode ? '<b class="rch-hint">テンパイ!リーチできます</b>' : s.p.riichi ? 'リーチ中: ツモ切りです' : s.st.afterCall ? '鳴いた直後です。<b>暗い牌は、ルールで切れません</b>(食い替え禁止)。明るい牌から1枚切ります' : this.riichiMode ? '光っている牌を切ると、リーチ成立' : this.oneClick ? '切る牌をタップ' : '牌を選んで、もう一度タッチで捨てる';
+      return !s.p.riichi && o.riichi.length && !this.riichiMode ? '<b class="rch-hint">テンパイ!リーチできます</b>' : s.p.riichi ? 'リーチ中: ツモ切りです' : s.st.afterCall ? '鳴いた直後: <b>暗い牌は切れません</b>(食い替え禁止)。明るい牌を1枚切ります' : this.riichiMode ? '光っている牌を切ると、リーチ成立' : this.oneClick ? '切る牌をタップ' : '牌を選んで、もう一度タッチで捨てる';
     },
     /* 右端の縦ボタン列(いつも同じ並びで、押せないものは灰色) */
     /* 右の列: 「いまできる操作」だけを、決まった場所に出す(できることがない枠は、点線の空き枠)。下に、あたり牌の欄 */
