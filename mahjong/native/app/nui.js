@@ -2,7 +2,7 @@
    画面は 720x428。キー: left/right/up/down/ok/back */
 (function () {
   const MJ = window.MJ; const W = 720, H = 428;
-  const S = { mode: 'menu', game: null, dirty: true, bub: {}, banner: null, shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  const S = { mode: 'menu', game: null, dirty: true, bub: {}, banner: null, keep: 0, shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const dirty = () => { S.dirty = true; };
   const WIND = ['東', '南', '西', '北'];
@@ -261,8 +261,10 @@
     __runTimers(now);
     if (__auto && now > nextAuto) { nextAuto = now + 90; window.__key('ok'); }
     if (__lsDirty && now - lastSave > 1500) { lastSave = now; __lsDirty = false; try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ } }
-    if (!S.dirty) return false;
-    S.dirty = false;
+    /* 画面の入れかえ(ダブル/トリプルバッファ)で、古い絵が交互に出て点滅しないよう、変化のあとは3回続けて描く */
+    if (S.dirty) { S.keep = 3; S.dirty = false; }
+    if (!S.keep) return false;
+    S.keep--;
     if (S.mode === 'menu') drawMenu();
     else if (S.game) drawTable(S.game);
     if (S.result) { drawResult(S.result); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }

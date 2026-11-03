@@ -141,7 +141,7 @@ int main(int argc, char **argv){
     }
     int dirty = callframe();
     Uint32 t = SDL_GetTicks();
-    if (dirty || t - lastdraw > 1000) { lastdraw = t; SDL_RenderPresent(ren); if (shots && frames % 20 == 0 && shotn < 40) { char p[1600]; snprintf(p, sizeof p, "%s/s%02d.bmp", shots, shotn++); JSValue sg = JS_GetPropertyStr(ctx, g, "gfx"); JS_FreeValue(ctx, sg); int ow, oh; SDL_GetRendererOutputSize(ren, &ow, &oh); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, ow, oh, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, p); SDL_FreeSurface(su); } }
+    if (dirty) { lastdraw = t; SDL_RenderPresent(ren); if (shots && frames % 20 == 0 && shotn < 40) { char p[1600]; snprintf(p, sizeof p, "%s/s%02d.bmp", shots, shotn++); JSValue sg = JS_GetPropertyStr(ctx, g, "gfx"); JS_FreeValue(ctx, sg); int ow, oh; SDL_GetRendererOutputSize(ren, &ow, &oh); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, ow, oh, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, p); SDL_FreeSurface(su); } }
     frames++; if (maxframes && frames >= maxframes) break;
     double d = nowms() - last; (void)d; SDL_Delay(auto_ ? 4 : 16); last = nowms();
   }
