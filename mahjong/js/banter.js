@@ -358,6 +358,7 @@
       })();
       if (worst.isHuman) text = text.replace(/\{n\}(さん|殿|どん|はん)?/g, 'あなた'); // あなた を呼ぶときは「あなたさん」にしない
       text = text.replace(/\{n\}/g, () => worst.name).replace(/\{r\}/g, opt.r || pick(others).name).replace(/\{k\}/g, opt.k || pick(others).name);
+      text = text.replace(/あなた(さん|殿|どん|はん)/g, 'あなた'); // あなたを呼ぶときは、敬称をつけない(リーチ・カンをしたのがあなたのとき、「あなたさん」にならないように)
       if (text[0] === '!') text = text.slice(1); // 「!」で始まるセリフも、ふつうの吹き出しで出す(カットインは、リーチ・ポン・ロンなど、何かが起きた時だけ)
       lastAt = now;
       game.ui.speak(game, p, text, opt.ms);
