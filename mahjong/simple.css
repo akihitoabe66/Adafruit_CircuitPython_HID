@@ -1663,3 +1663,7 @@ body .callq .cq-btn.b-ron .cq-sub:not(.cq-rec), body .callq .cq-btn.b-riichi .cq
 .ky-ora { margin: calc(1px) auto 0; width: max-content; background: #d8362f; color: #fff; font-size: 26px; font-weight: 900; letter-spacing: .25em; padding: 2px 18px 2px 22px; border-radius: 10px; box-shadow: 0 0 0 3px #ffd35a; }
 .ky-slam.ora .ky-box, .ky-slam.ora .ky-ring { top: 100px; height: 190px; }
 .ky-slam.ora .ky-box { gap: 5px; }
+/* サイコロ: 光る顔の縁が、下の名前の札と重ならないように、顔と名前のあいだをあける */
+.dc-pc { gap: calc(var(--u) * 12); }
+.dc-pc.hit img.fcut { outline-width: calc(var(--u) * 4); outline-offset: 0; transform: scale(1.03); box-shadow: 0 0 calc(var(--u) * 16) calc(var(--u) * 3) rgba(242, 194, 48, .8); }
+.dc-pc .dc-nm { position: relative; z-index: 3; }
