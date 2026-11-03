@@ -604,6 +604,7 @@
     finishWin(wins, delta, extra = {}) {
       const before = this.players.map((p) => p.score);
       this.players.forEach((p, i) => { p.score += delta[i]; });
+      { let mi = 0; delta.forEach((d, i) => { if (d < delta[mi]) mi = i; }); this.lastLoser = delta[mi] < 0 ? this.players[mi] : null; } // いちばん点を取られた人(セリフで名前を呼ぶ相手に使う)
       const result = Object.assign({ type: 'win', wins, delta, before, after: this.players.map((p) => p.score), tsumo: wins[0].tsumo }, extra);
       return this.ui ? this.ui.showResult(this, result).then(() => result) : result;
     }

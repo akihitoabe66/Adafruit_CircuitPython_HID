@@ -343,7 +343,12 @@
       let text = pick(cand.length ? cand : pool);
       h.push(text); if (h.length > 8) h.shift();
       const others = game.players.filter((q) => q !== p);
-      text = text.replace(/\{n\}/g, () => pick(others).name).replace(/\{r\}/g, opt.r || pick(others).name).replace(/\{k\}/g, opt.k || pick(others).name);
+      // {n}(他の人の名前)は、状況に合う人を呼ぶ: いまいちばん点が低い人(ビリ)。同点なら、さっき点を取られた人。いなければ、だれか
+      const worst = (() => {
+        const mn = Math.min(...others.map((q) => q.score)), low = others.filter((q) => q.score === mn); // 点がいちばん低い人たち
+        return game.lastLoser && low.includes(game.lastLoser) ? game.lastLoser : pick(low);
+      })();
+      text = text.replace(/\{n\}/g, () => worst.name).replace(/\{r\}/g, opt.r || pick(others).name).replace(/\{k\}/g, opt.k || pick(others).name);
       if (text[0] === '!') text = text.slice(1); // 「!」で始まるセリフも、ふつうの吹き出しで出す(カットインは、リーチ・ポン・ロンなど、何かが起きた時だけ)
       lastAt = now;
       game.ui.speak(game, p, text, opt.ms);
