@@ -270,10 +270,18 @@
 
 
   /* どのキャラでも言える「掛け合い」。{n}=他のプレイヤー名 */
-  const MIX = [
-    '{n}、さっきから静かですね。', '{n}、手が止まってますよ?', '{n}、本当にそれでいいんですか?', 'おや、{n}の顔色が…。', '{n}、焦っていませんか?', '{n}、勝負はこれからだぞ。',
+  /* 男性・女性で、語尾(口調)を分ける。女性: 紫式部・静御前・楊貴妃・クレオパトラ・かぐや姫・乙姫・織姫 */
+  const FEMALE_IDS = [13, 14, 15, 16, 21, 22, 23];
+  MJ.isFemaleChar = (ch) => !!ch && FEMALE_IDS.includes(ch.id);
+  const MIX_M = [
+    '{n}、さっきから静かだな。', '{n}、手が止まってるぞ?', '{n}、本当にそれでいいのか?', 'おや、{n}の顔色が…。', '{n}、焦っていないか?', '{n}、勝負はこれからだぞ。',
     '誰が勝つかな。', '空気が変わってきたな。', 'ほう…静かな局だ。', '一気に流れが来る予感がする。…気のせいかな。', 'さて、誰が先に動くかな?', 'みんな、顔が固いぞ?',
   ];
+  const MIX_F = [
+    '{n}さん、さっきから静かですわね。', '{n}さん、手が止まっていますわよ?', '{n}さん、本当にそれでよろしいの?', 'あら、{n}さんの顔色が…。', '{n}さん、焦っていませんこと?', '{n}さん、勝負はこれからですわ。',
+    '誰が勝つのかしら。', '空気が変わってきましたわね。', 'あら…静かな局ですこと。', '一気に流れが来そうな予感がしますわ。…気のせいかしら。', 'さて、誰が先に動くのかしら?', 'みなさん、お顔が固いですわよ?',
+  ];
+  MJ.BanterGEN = { m: { genbutsu: ['それを捨てるとは、勝負を捨てたな!'], avoid: ['一発回避したな!'] }, f: { genbutsu: ['それを捨てるなんて、勝負を捨てましたわね!'], avoid: ['一発回避しましたわね!'] } };
 
 
   /* 次の局の開始: 点数で勝っている人は意気込み・煽り、負けている人は悔しがる(点数は公開情報なので、答えバレにはならない) */
@@ -334,10 +342,10 @@
       if (!opt.force && now - lastAt < 3300) return false; // 立て続けにしゃべらない
       const set = L[p.char.id];
       if (!set) return false;
-      let pool = set[kind];
+      let pool = set[kind] || ((kind === 'genbutsu' || kind === 'avoid') && MJ.BanterGEN ? MJ.BanterGEN[MJ.isFemaleChar(p.char) ? 'f' : 'm'][kind] : null); // 現物切り・一発回避は、どのキャラも同じ言い回し(男性・女性で口調だけ分ける)
       if (!pool || !pool.length) return false;
       // 掛け合い(他の人の名前を使うセリフ)を少し混ぜる
-      if ((kind === 'idle' || kind === 'taunt') && Math.random() < 0.22) pool = MIX;
+      if ((kind === 'idle' || kind === 'taunt') && Math.random() < 0.22) pool = MJ.isFemaleChar(p.char) ? MIX_F : MIX_M;
       const h = (hist[p.seat] = hist[p.seat] || []);
       const cand = pool.filter((x) => !h.includes(x));
       let text = pick(cand.length ? cand : pool);
@@ -348,6 +356,7 @@
         const mn = Math.min(...others.map((q) => q.score)), low = others.filter((q) => q.score === mn); // 点がいちばん低い人たち
         return game.lastLoser && low.includes(game.lastLoser) ? game.lastLoser : pick(low);
       })();
+      if (worst.isHuman) text = text.replace(/\{n\}(さん|殿|どん|はん)?/g, 'あなた'); // あなた を呼ぶときは「あなたさん」にしない
       text = text.replace(/\{n\}/g, () => worst.name).replace(/\{r\}/g, opt.r || pick(others).name).replace(/\{k\}/g, opt.k || pick(others).name);
       if (text[0] === '!') text = text.slice(1); // 「!」で始まるセリフも、ふつうの吹き出しで出す(カットインは、リーチ・ポン・ロンなど、何かが起きた時だけ)
       lastAt = now;

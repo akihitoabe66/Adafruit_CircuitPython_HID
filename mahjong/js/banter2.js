@@ -274,7 +274,7 @@
   /* リーチがあったとき: 向かい(対面)の人がリーチなら、向かいに座っているキャラが、ほぼ必ず反応する */
   // 現物切り(降り)へのひとこと: どのキャラも同じ言い回し
   const GEN = ['それを捨てるとは、勝負を捨てたな!'], AVO = ['一発回避したな!'];
-  Object.keys(B.lines).forEach((id) => { B.lines[id].genbutsu = GEN; B.lines[id].avoid = AVO; });
+  Object.keys(B.lines).forEach((id) => { const g = MJ.BanterGEN[MJ.isFemaleChar({ id: +id }) ? 'f' : 'm']; B.lines[id].genbutsu = g.genbutsu; B.lines[id].avoid = g.avoid; }); // 男性・女性で口調を分ける
   const baseRiichi = B.riichi;
   B.riichi = function (game, p) {
     const opp = game.players[(p.seat + 2) % 4];
