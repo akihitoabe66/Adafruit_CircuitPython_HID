@@ -44,6 +44,7 @@
     if (ov && !ov.classList.contains('hidden')) return [ov];
     const cq = $('.callq:not(.selfq)');
     if (cq && visible(cq)) return [cq]; // 鳴きの確認が出ている間は、そのボタンだけを選べる
+    const dfb = $('#dq-fb:not(.hidden)'); if (dfb && visible(dfb)) return [dfb]; // クイズの答え合わせが出ている間は、その中のボタンだけ(裏の問題文の用語リンクには、行かない)
     const roots = [...document.querySelectorAll('.screen:not(.hidden)')];
     const tools = $('#sd-tools');
     if (tools && !tools.classList.contains('hidden')) return [tools];
@@ -442,6 +443,10 @@
   G.addEventListener('keydown', (e) => {
     const t = e.target;
     if (t && /^(TEXTAREA)$/.test(t.tagName)) return;
+    if (t && t.tagName === 'INPUT' && /^(text|search|)$/.test(t.type || '')) { // 文字を入れる欄: 文字・Backspace・Space・←→・日本語入力の変換中は、そのまま入力に使う(Enterで確定/ブラウザ任せ)
+      if (e.isComposing || e.keyCode === 229 || e.key === 'Backspace' || e.key === ' ' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Delete' || e.key === 'Home' || e.key === 'End') return;
+      if (e.key === 'Enter') { e.preventDefault(); t.blur(); return; }
+    }
     let n = KEYS[e.key];
     if (!n && (e.key === ' ' && P.on)) n = 'a';
     if (!n) return;

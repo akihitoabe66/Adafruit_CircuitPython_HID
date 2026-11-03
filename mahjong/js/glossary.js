@@ -290,6 +290,7 @@
     /* ---- 辞典(検索・一覧) ---- */
     /* 辞典: 縦にスクロールしない作り。左に分類、右に「一覧(1ページ10語)」か「1語の説明」を出す(832×428を拡大・縮小) */
     panel(focusId, preCat) {
+      if (!document.body.classList.contains('gp-open')) Gl._opener = MJ.Pad && MJ.Pad.on ? MJ.Pad.cur : null;
       let el = document.getElementById('gloss-panel');
       if (!el) { el = document.createElement('div'); el.id = 'gloss-panel'; document.body.appendChild(el); }
       el.innerHTML = '<div class="gp2" id="gp2"></div>';
@@ -309,7 +310,7 @@
         root.style.transform = `translate(${Math.round((w - 832 * sc) / 2)}px, ${Math.round((h - 428 * sc) / 2)}px) scale(${sc})`;
       };
       Gl._fit = fit;
-      const draw = () => {
+      const draw = (partial) => {
         const list = hits(), pages = Math.max(1, Math.ceil(list.length / PER));
         st.page = Math.max(0, Math.min(pages - 1, st.page));
         const title = st.cat === '役' ? '📖 役一覧' : '📚 用語辞典';
@@ -332,8 +333,11 @@
             <div class="gp2-pager"><button class="gp2-pb" id="gp2-dl" type="button">一覧へ</button><button class="gp2-pb" id="gp2-dp" type="button"${idx <= 0 ? ' disabled' : ''}>◀ 前の言葉</button><button class="gp2-pb" id="gp2-dn" type="button"${idx < 0 || idx >= list.length - 1 ? ' disabled' : ''}>次の言葉 ▶</button></div>`;
         }
         const keep = document.activeElement && document.activeElement.id === 'gp-q';
-        root.innerHTML = `<div class="gp2-top">${top}</div><div class="gp2-cats">${cats}</div><div class="gp2-main">${main}</div>`;
-        if (keep) { const q = root.querySelector('#gp-q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+        const topEl = root.querySelector('.gp2-top');
+        if (partial && topEl && keep) { // 文字を入れている最中は、入力欄を作り直さない(日本語入力の変換が切れないように)
+          root.querySelector('.gp2-cats').innerHTML = cats; root.querySelector('.gp2-main').innerHTML = main;
+        } else root.innerHTML = `<div class="gp2-top">${top}</div><div class="gp2-cats">${cats}</div><div class="gp2-main">${main}</div>`;
+        if (keep && !partial) { const q = root.querySelector('#gp-q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
         const d = root.querySelector('#gp2-d');
         if (d) { // 文字は小さくしすぎない範囲で、はみ出すときだけ少し縮める
           for (let f = 24; f >= 19 && d.scrollHeight > d.clientHeight + 1; f--) d.style.fontSize = f + 'px';
@@ -341,7 +345,7 @@
         if (MJ.Pad && MJ.Pad.preselect && !keep) MJ.Pad.preselect(true);
       };
       Gl._draw = draw;
-      root.addEventListener('input', (ev) => { if (ev.target.id === 'gp-q') { st.q = ev.target.value; st.view = 'list'; st.page = 0; draw(); } });
+      root.addEventListener('input', (ev) => { if (ev.target.id === 'gp-q') { st.q = ev.target.value; st.view = 'list'; st.page = 0; draw(true); } });
       root.addEventListener('click', (ev) => {
         const b = ev.target.closest('button'); if (!b) return;
         if (b.id === 'gp2-back') return Gl.panelBack();
@@ -365,7 +369,11 @@
       if (st && st.view === 'detail') { st.view = 'list'; const list = Gl._hits(); st.page = Math.max(0, Math.floor(Math.max(0, list.findIndex((x) => x.id === st.id)) / 10)); Gl._draw(); return; }
       Gl.closePanel();
     },
-    closePanel() { const el = document.getElementById('gloss-panel'); if (el) el.classList.remove('on'); document.body.classList.remove('gp-open'); },
+    closePanel() {
+      const el = document.getElementById('gloss-panel'); if (el) el.classList.remove('on'); document.body.classList.remove('gp-open');
+      const P = MJ.Pad; // コントローラーのカーソルを、開く前のボタンへ戻す(なければ、その画面の最初のボタン)
+      if (P && P.on) setTimeout(() => { const o = Gl._opener; Gl._opener = null; if (o && o.isConnected && o.offsetParent !== null && P.setCur) P.setCur(o); else if (P.preselect) P.preselect(true); }, 30);
+    },
 
     init() {
       document.addEventListener('click', (e) => {
