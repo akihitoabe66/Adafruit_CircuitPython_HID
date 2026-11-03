@@ -206,7 +206,9 @@
       return;
     }
     if (!cur) { setCur(pickDefault()); return; }
-    if (dy > 0 && cur.matches('.hand .tile[data-id]') && P.toDrawn()) return; // 手牌の上で「下」= 引いた牌へ戻る
+    const coachOpen = document.body.classList.contains('coach-open') && !!$('#coach') && visible($('#coach')); // 解説の窓が出ているとき
+    if (dy > 0 && cur.matches('.hand .tile[data-id]') && !coachOpen && P.toDrawn()) return;
+    if (dy > 0 && coachOpen && cur.matches('.hand .tile[data-id], .hand .tile.ph')) return; // 解説が出ているときは、手牌の「下」は何もしない // 手牌の上で「下」= 引いた牌へ戻る
     // 手牌の左右: 位置を計算せず、隣の牌へ直接移る(速い)。左端からさらに左は右のボタン列へ、右のボタン列からさらに右は左端の牌へ(ぐるっと一周)
     if (dx && cur.matches('.rs-c') && MJ.Roster && MJ.Roster.edge(cur, dx)) return; // 雀士列伝: 端で、さらに左右 = となりのページへ
     if (dx && cur.matches('.hand .tile[data-id]')) {
@@ -244,9 +246,14 @@
     if (dy < 0 && cur.matches('.hand .tile[data-id], .hand .tile.ph')) {
       const act = [...document.querySelectorAll('.selfq .cq-btn[data-act]')].find((e) => !e.disabled && visible(e));
       if (act) { setCur(act); return; }
+      if (coachOpen) { // 解説の窓が出ているときは、「上」=その窓のボタンへ(1牌目・14牌目へ飛ぶ操作は、しない)
+        const cb = $('#coach .chip.on') || [...document.querySelectorAll('#coach [data-pj], #coach .chb button, #coach .cnav')].find((e) => visible(e) && !e.classList.contains('off'));
+        if (cb) { setCur(cb); return; }
+      }
       const first = handStops()[0]; // ボタンがないときは、「上」=いちばん左の牌へ(「下」=引いた牌、と対になる)
       if (first) { if (first !== cur) setCur(first); return; }
     }
+    if (dy > 0 && cur.closest('#coach')) { const hs = handStops(), t = hs.find((e) => e.classList.contains('rec')) || hs.find((e) => e.classList.contains('drawn')) || hs[hs.length - 1]; if (t) { setCur(t); return; } } // 解説の窓から「下」=手牌へ戻る
     if (dy > 0 && cur.closest('.selfq')) { const hs = handStops(), t = hs.find((e) => e.classList.contains('drawn')) || hs[hs.length - 1]; if (t) { setCur(t); return; } }
     // ボタンの列から「左」を押すと手牌へ戻る
     if (dx < 0 && cur.closest('#sd-act, #btn-coach, #btn-tools')) {

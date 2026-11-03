@@ -33,7 +33,7 @@
             ctx = new AC(); master = ctx.createGain(); master.gain.value = S.vol;
             // 音が重なっても、割れて(ビリビリして)聞こえないように、最後にリミッターを通す
             const lim = ctx.createDynamicsCompressor();
-            lim.threshold.value = -8; lim.knee.value = 12; lim.ratio.value = 8; lim.attack.value = 0.008; lim.release.value = 0.25; // きつくかけすぎると、声がビリビリする
+            lim.threshold.value = -3; lim.knee.value = 8; lim.ratio.value = 4; lim.attack.value = 0.02; lim.release.value = 0.3; // 割れ防止の最後の保険だけ(きつくかけると、声がビリビリする。しきい値を上げ、ゆるくした)
             // 出口の手前に少し余裕(0.8倍)を持たせる。BGMも同じ出口を通して、足し算で1.0を超えて割れないようにする
             bus = ctx.createGain(); bus.gain.value = 0.8;
             lim0 = lim; master.connect(lim); lim.connect(bus); bus.connect(ctx.destination);

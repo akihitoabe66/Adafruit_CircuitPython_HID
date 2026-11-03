@@ -1573,10 +1573,15 @@
     kyokuVoice(game) {
       try {
         if (!MJ.SFX || MJ.SFX.voiceOn === false || game.stopped) return;
-        const W = ['トン', 'ナン', 'シャー', 'ペイ'], N = ['イチ', 'ニ', 'サン', 'ヨン', 'ゴ', 'ロク', 'ナナ', 'ハチ', 'キュウ'];
+        const W = ['トン', 'ナン', 'シャー', 'ペー'], N = ['イチ', 'ニ', 'サン', 'ヨン', 'ゴ', 'ロク', 'ナナ', 'ハチ', 'キュウ'];
         const HB = ['', 'イッポンバ', 'ニホンバ', 'サンボンバ', 'ヨンホンバ', 'ゴホンバ', 'ロッポンバ', 'ナナホンバ', 'ハッポンバ', 'キュウホンバ'];
         const k = N[game.kyoku % 4] || 'イチ', w = W[game.roundWind] || 'トン';
-        MJ.SFX.read(`${w}${k}キョク!${game.honba ? (HB[Math.min(9, game.honba)] || '') + '!' : ''}`, null, { pitch: 0.2, rate: 1.1, gap: 120 }); // 元気よく: 高め・少し速め
+        // 「東一局」は、「トン、イッキョク!」。録音した音声があれば、それで読む(iPhoneでも鳴る。声の質も安定)
+        const KY = ['イッキョク', 'ニキョク', 'サンキョク', 'ヨンキョク'];
+        const keys = ['x:' + w, null, 'x:' + (KY[game.kyoku % 4] || 'イッキョク')];
+        if (game.honba && HB[Math.min(9, game.honba)]) keys.push(null, 'x:' + HB[Math.min(9, game.honba)]);
+        if (MJ.SFX.speakClips && MJ.SFX.ykHas('x:' + w) && MJ.SFX.speakClips(keys)) return;
+        MJ.SFX.read(`${w}、${['いっ', 'に', 'さん', 'よん'][game.kyoku % 4] || 'いっ'}きょく!${game.honba ? (HB[Math.min(9, game.honba)] || '') + '!' : ''}`, null, { pitch: 0.2, rate: 1.1, gap: 120 }); // (録音がないときの、予備)
       } catch (e) { /* ignore */ }
     },
     async kyokuSlam(game) {
@@ -1810,7 +1815,8 @@
       row.classList.add('rd0');
       const reveal = () => { row.classList.remove('rd0'); cards.forEach((c) => c.classList.remove('now')); };
       const sl = (ms) => new Promise((r) => setTimeout(r, ms));
-      const say = (t, o) => new Promise((r) => { let ok = false; try { ok = MJ.SFX.read(t, (ev) => { if (!ev) r(); }, o); } catch (e) { ok = false; } if (!ok) setTimeout(r, 450); setTimeout(r, 2200); });
+      const CLIPK = { 'りゅうきょく': 'x:りゅうきょく', 'テンパイ': 'x:テンパイ', 'ノーテン': 'x:ノーテン' };
+      const say = (t, o) => new Promise((r) => { let ok = false; try { if (CLIPK[t] && MJ.SFX.ykHas(CLIPK[t]) && MJ.SFX.speakClips([CLIPK[t]], () => r())) { setTimeout(r, 2200); return; } ok = MJ.SFX.read(t, (ev) => { if (!ev) r(); }, o); } catch (e) { ok = false; } if (!ok) setTimeout(r, 450); setTimeout(r, 2200); });
       (async () => {
         await sl(250); if (tok !== this._drTok) return;
         await say('りゅうきょく', { rate: 1.4, gap: 0, lead: 20 }); await sl(120);
