@@ -17,7 +17,7 @@ const r=await p.evaluate(async({V,N})=>{
   for(let i=0;i<N;i++){
     const g=new MJ.Game({fast:true,allCpu:true,cpuLevel:4,chars:[MJ.CHARS[1],MJ.CHARS[3],MJ.CHARS[5]],length:'east'});
     g.players[0].char=Object.assign({},g.players[0].char,{style:'balanced',level:4,ai:4});
-    if(type!=='cpu'){g.players[0].coachType=type;g.players[0].coachSaki=saki;g.players[0].coachNoRank=/norank/.test(V);}
+    if(type!=='cpu'){g.players[0].coachType=type;g.players[0].coachSaki=saki;g.players[0].coachNoRank=/norank/.test(V);g.players[0].coachNoType=/notype/.test(V);}
     const f=await g.run(); const rank=f.order.findIndex(x=>x.seat===0); rk[rank]++; sumScore+=g.players[0].score; sumPt+=PT[rank];
   }
   MJ.Game.prototype.playHand=orig;

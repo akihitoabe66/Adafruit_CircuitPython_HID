@@ -470,7 +470,7 @@
   /* 先生のタイプ(defense=守備 / balance=バランス / attack=攻撃)と、順位・残り枚数を考えた「押し引き」。リーチ者がいないときは null */
   A.stance = function (game, p, an, type) {
     const base = A.stance0(game, p, an);
-    if (!base || !type) return base;
+    if (!base || !type || p.coachNoType) return base;
     const R = A.rankInfo(game, p);
     if (p.coachNoRank) { R.rank = 2; R.live = 99; } // (測定用)順位・残り枚数を考えない
     let k = KI[base.kind], why = base.why;
