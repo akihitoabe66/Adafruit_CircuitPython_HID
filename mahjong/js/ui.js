@@ -478,14 +478,14 @@
         a.onfinish = done; a.oncancel = done;
       } catch (e) { /* ignore */ }
     },
-    dealSkip() { this._dealSkip = true; },
+    dealSkip() { if (Date.now() - (this._dealT0 || 0) < 1500) return; this._dealSkip = true; }, // 始まって1.5秒は、飛ばさない(ボタンが押されっぱなしの信号や、直前の決定ボタンで、アニメが一瞬で終わらないように)
     async dealAnim(game) {
       // サイコロの画面を、先にどける。どいて、卓が見えてから始める(見えない間に、音だけ鳴らない)
       if (MJ.Dice && MJ.Dice.hold) MJ.Dice.hold();
       for (let i = 0; i < 40 && document.querySelector('#dice'); i++) await new Promise((r) => setTimeout(r, 30));
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       if (!this._dealOK) { document.body.classList.remove('deal-hide'); return; }
-      this._dealOK = false; this.dealing = true; this._dealSkip = false;
+      this._dealOK = false; this.dealing = true; this._dealSkip = false; this._dealT0 = Date.now();
       const sl = (ms) => new Promise((r) => setTimeout(r, this._dealSkip ? 0 : ms));
       const S = MJ.SFX, vis = (e) => e && e.isConnected;
       try {
