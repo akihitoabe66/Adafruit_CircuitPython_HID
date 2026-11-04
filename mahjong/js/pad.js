@@ -549,6 +549,10 @@
       MAP[pm.a] = 'a'; MAP[pm.b] = 'b'; // 設定で選んだ「A」「B」のボタンは、ほかの割り当てより優先(前に「そのほか」に入れたボタンと重なっても、逆にならない) // おぼえさせたボタンは、いちばん優先(決定・もどるの割り当てとぶつかっても、おぼえさせた方)
       const down = {};
       gp.buttons.forEach((b, i) => { if (MAP[i] && (b.pressed || b.value > 0.6)) down[MAP[i]] = true; });
+      if (gp.mapping === 'standard' && gp.buttons.length > 15) { // 標準配置(PS5・Xboxなど)の十字キーは、ボタン12〜15で届く(上・下・左・右)
+        const on = (i) => gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.6);
+        if (on(12)) down.up = true; if (on(13)) down.down = true; if (on(14)) down.left = true; if (on(15)) down.right = true;
+      }
       const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
       if (gp.mapping !== 'standard' && gp.axes.length > 9 && isFinite(gp.axes[9]) && Math.abs(gp.axes[9]) < 1.2 && Math.abs(gp.axes[9]) > 0.05) { // 十字キーが、ハット(軸9)で届くコントローラー
         const h = gp.axes[9], q = [-1, -5 / 7, -3 / 7, -1 / 7, 1 / 7, 3 / 7, 5 / 7, 1].map((v) => Math.abs(h - v)); const k = q.indexOf(Math.min(...q));
