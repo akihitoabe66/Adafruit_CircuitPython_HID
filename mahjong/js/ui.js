@@ -1245,9 +1245,10 @@
       this.coachCards = cards.length;
       if (cards.length <= 1) { cards.forEach((c) => c.classList.add('on')); if (tabs) tabs.remove(); el.querySelectorAll('.cnav').forEach((n) => n.classList.add('off')); this.growFont(el); return; }
       const hd = (c) => ((c.querySelector('.cc-h') || {}).textContent || '').trim();
-      const key = cards.length + '|' + hd(cards[0]);
+      const key = cards.filter((c) => !c.dataset.cont).map(hd).join('|'); // 続きのカード(分割のしかたで増減する)は数えない: ボタンを押して文字の大きさが変わり、分割が変わっても、「新しい内容」と間違えない
       const star = cards.findIndex((c) => /★|おすすめ/.test(hd(c)));
-      if (key !== this.coachKey) { this.coachKey = key; this.coachPage = 0; this.coachStar = true; }
+      if (key !== this.coachKey) { this.coachKey = key; if (!this._keepPage) { this.coachPage = 0; this.coachStar = true; } } // (ボタンで選んだページへ移るときは、「おすすめ」へ戻さない)
+      this._keepPage = false;
       let i = Math.max(0, Math.min(this.coachPage || 0, cards.length - 1));
       const show = (from, g) => cards.forEach((c, j) => c.classList.toggle('on', j >= from && j < from + g));
       const fits = (px) => { el.style.fontSize = px + 'px'; return el.scrollHeight <= el.clientHeight + 1; };
@@ -1321,6 +1322,7 @@
     goCoachPage(d, abs) {
       const el = $('#coach');
       const n = this.coachCards || 1, g = this.coachG || 1;
+      this._keepPage = true; this.coachStar = false;
       if (abs != null) this.coachPage = abs;
       else { let nx = (this.coachPage || 0) + d * g; if (nx >= n) nx = n - g > 0 ? Math.max(0, this.coachPage || 0) : 0; if (nx < 0) nx = 0; this.coachPage = nx; }
       this.pageCoach(el);
