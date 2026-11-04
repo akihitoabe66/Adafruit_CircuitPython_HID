@@ -221,7 +221,7 @@
 
     async decideSelf(p, opts, st) {
       if (p.isHuman) return this.ui.askSelf(this, p, opts, st);
-      const act = MJ.AI.chooseSelf(this, p, opts);
+      const act = p.coachType ? MJ.AI.coachSelf(this, p, opts, p.coachType, { saki: !!p.coachSaki }) : MJ.AI.chooseSelf(this, p, opts);
       if (this.cfg.cpuDelay != null) { await this.wait(this.cfg.cpuDelay); return act; }
       // 考える時間にゆらぎを持たせる: 引いた牌をそのまま切るときは短め、手を入れかえるときは長め。ときどき、じっくり考える
       const r = Math.random();

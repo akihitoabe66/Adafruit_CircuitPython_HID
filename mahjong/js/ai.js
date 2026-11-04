@@ -418,7 +418,17 @@
   };
 
   /* ---- リーチを受けたときの構え: 押す(攻める) / 半押し(役を残して危険の少ない牌を選ぶ) / 回す(安全に降りる) ---- */
-  A.stance = function (game, p, an) {
+  /* 構え(push/mid/fold)に合う牌を選ぶ */
+  A.stancePick = function (kind, ev) {
+    const dn = (e) => (e.danger ? e.danger.score : 0);
+    if (kind === 'push') return ev.slice().sort((a, b) => (A.effScore(b) - dn(b) * 0.6) - (A.effScore(a) - dn(a) * 0.6))[0];
+    if (kind === 'mid') {
+      const okc = ev.filter((e) => dn(e) < 8);
+      return (okc.length ? okc : ev).slice().sort((a, b) => (A.effScore(b) - dn(b) * 4) - (A.effScore(a) - dn(a) * 4))[0];
+    }
+    return ev.slice().sort((a, b) => (-dn(b) * 10 - b.sh * 3 + b.ukeire.n * 0.2) - (-dn(a) * 10 - a.sh * 3 + a.ukeire.n * 0.2))[0];
+  };
+  A.stance0 = function (game, p, an) {
     const opps = an.opps, minSh = an.minSh;
     if (!opps.length) return null;
     let dora = 0;
@@ -443,16 +453,60 @@
       if (opps.length === 1 && (dora >= 2 || yaku) && !dealerRiichi) { kind = 'mid'; why = '手は少し遠いですが、役・ドラがあります。危険の少ない牌で、様子を見ましょう。'; }
       else { kind = 'fold'; why = '手が遠いので、安全な牌で回しましょう。'; }
     } else { kind = 'fold'; why = '手が遠いので、安全な牌で降りましょう。'; }
-    // 牌を選ぶ
-    const ev = an.evals;
-    const dn = (e) => (e.danger ? e.danger.score : 0);
-    let pick;
-    if (kind === 'push') pick = ev.slice().sort((a, b) => (A.effScore(b) - dn(b) * 0.6) - (A.effScore(a) - dn(a) * 0.6))[0];
-    else if (kind === 'mid') {
-      const okc = ev.filter((e) => dn(e) < 8);
-      pick = (okc.length ? okc : ev).slice().sort((a, b) => (A.effScore(b) - dn(b) * 4) - (A.effScore(a) - dn(a) * 4))[0];
-    } else pick = ev.slice().sort((a, b) => (-dn(b) * 10 - b.sh * 3 + b.ukeire.n * 0.2) - (-dn(a) * 10 - a.sh * 3 + a.ukeire.n * 0.2))[0];
+    const pick = A.stancePick(kind, an.evals);
     return { kind, why, pick, label: kind === 'push' ? '押す' : kind === 'mid' ? '半押し' : '回す(降り)' };
+  };
+
+
+  /* 順位・点差・残り枚数(押し引きの材料) */
+  A.rankInfo = function (game, p) {
+    const sc = game.players.map((q) => q.score), me = p.score;
+    const order = game.players.map((q, i) => i).sort((x, y) => sc[y] - sc[x] || x - y);
+    const rank = order.indexOf(p.seat) + 1;
+    const third = sc[order[2]], second = sc[order[1]], top = sc[order[0]], last = sc[order[3]];
+    return { rank, gap3: rank === 4 ? third - me : 0, leadOver2: rank === 1 ? me - second : 0, behindTop: top - me, live: game.live.length, oras: game.isOras ? game.isOras() : false };
+  };
+  const KI = { fold: 0, mid: 1, push: 2 }, KN = ['fold', 'mid', 'push'], KL = ['回す(降り)', '半押し', '押す'];
+  /* 先生のタイプ(defense=守備 / balance=バランス / attack=攻撃)と、順位・残り枚数を考えた「押し引き」。リーチ者がいないときは null */
+  A.stance = function (game, p, an, type) {
+    const base = A.stance0(game, p, an);
+    if (!base || !type) return base;
+    const R = A.rankInfo(game, p);
+    if (p.coachNoRank) { R.rank = 2; R.live = 99; } // (測定用)順位・残り枚数を考えない
+    let k = KI[base.kind], why = base.why;
+    const notes = [];
+    if (type === 'attack' && an.minSh <= 2 && R.rank >= 2) { k += 1; notes.push('攻める型なので、前に出ます。'); }
+    if (type === 'defense' && !(an.minSh === 0) && R.rank !== 4) { k -= 1; notes.push('守る型なので、安全を優先します。'); }
+    if (R.rank === 4 && R.gap3 <= 12000 && an.minSh <= 2) { k += 1; notes.push(`いまは4位です。3位まで${R.gap3.toLocaleString()}点。降りるだけでは3位に上がれません。`); }
+    if (R.rank === 4 && R.gap3 > 12000 && an.minSh <= 1) { k += 1; notes.push('4位で点差が大きいので、降りても順位は変わりません。勝負になるところは、前に出ます。'); }
+    if (R.rank === 1 && R.leadOver2 >= 8000 && type !== 'attack') { k -= 1; notes.push(`トップで${R.leadOver2.toLocaleString()}点リードしています。守りを重くします。`); }
+    if (R.live <= 16 && an.minSh >= 2) { k -= 1; notes.push('山が残り少なく、手が遠いので、降り寄りです。'); }
+    if (an.minSh >= 3 && R.live >= 20 && k > 1) k = 1;
+    k = Math.max(0, Math.min(2, k));
+    const kind = KN[k];
+    const pick = kind === base.kind ? base.pick : A.stancePick(kind, an.evals);
+    return { kind, why: notes.length ? notes.join('') + (kind === base.kind ? base.why : '') : why, pick, label: KL[k], rank: R.rank, notes };
+  };
+
+  /* 麻雀先生の言うとおりに打つプレイヤー(自動対戦で、先生のタイプの強さを測る用)。opt.saki=true: 先制ならリーチ(愚形でも) */
+  A.coachSelf = function (game, p, opts, type, opt = {}) {
+    if (opts.tsumo) return { act: 'tsumo' };
+    const an = A.analyze(game, p, { know: 2, deep: true, deepN: 6, budget: 60 });
+    if (!an.evals.length) return { act: 'discard', tile: p.drawn || p.hand[p.hand.length - 1] };
+    const stc = an.opps.length ? A.stance(game, p, an, type) : null;
+    let pick;
+    if (stc && stc.pick) {
+      pick = stc.pick;
+      if (opts.riichi.includes(pick.t) && stc.kind === 'push' && A.wantRiichi(game, p, pick, an)) return { act: 'riichi', tile: pick.tile };
+      return { act: 'discard', tile: pick.tile };
+    }
+    pick = A.byEff(an.evals)[0];
+    const sorted = A.byEff(an.evals);
+    const rp = sorted.find((e) => opts.riichi.includes(e.t));
+    if (rp && rp.sh === 0) {
+      if (opt.saki ? (rp.wl > 0) : A.wantRiichi(game, p, rp, an)) return { act: 'riichi', tile: rp.tile };
+    }
+    return { act: 'discard', tile: pick.tile };
   };
 
   /* ================= CPU 行動決定 ================= */
