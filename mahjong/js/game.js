@@ -275,6 +275,7 @@
       if (this.ui && this.ui.dealPrep) this.ui.dealPrep(this);
       this.sync();
       if (this.ui && this.ui.dealAnim) await this.ui.dealAnim(this); // 配牌のアニメ(4牌ずつ流れる)
+      this.resumed = false; // 「つづきから」の印は、最初の1局だけ。2局目以降は、ふつうに配牌のアニメを見せる
       if (this.stopped) return { type: 'draw', dealerTenpai: false };
       if (this.ui && this.ui.padHand) this.ui.padHand(); // コントローラーのカーソルを、手牌に
       let cur = this.dealer;
