@@ -1667,3 +1667,8 @@ body .callq .cq-btn.b-ron .cq-sub:not(.cq-rec), body .callq .cq-btn.b-riichi .cq
 .dc-pc { gap: calc(var(--u) * 12); }
 .dc-pc.hit img.fcut { outline-width: calc(var(--u) * 4); outline-offset: 0; transform: scale(1.03); box-shadow: 0 0 calc(var(--u) * 16) calc(var(--u) * 3) rgba(242, 194, 48, .8); }
 .dc-pc .dc-nm { position: relative; z-index: 3; }
+
+/* 見やすさ(Windowsの読みやすさ): 流局の文字は暗い帯の上に / 「勝負!」は赤い字を白縁で / ホームは、太すぎる字(900)をやめて漢字がつぶれないようにする */
+.dr-banner { background: linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.78) 18%, rgba(0,0,0,.78) 82%, rgba(0,0,0,0)); padding: 6px 0 10px; color: #fff; text-shadow: 0 3px 0 #000, 0 0 18px #000; }
+.in-word .inw { -webkit-text-stroke: .9cqw #fff4e0; }
+#mn, #mn * , #sy .sy-side, .hm-side, .mk-rec { font-weight: 700 !important; }
