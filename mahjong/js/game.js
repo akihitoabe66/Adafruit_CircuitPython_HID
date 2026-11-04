@@ -476,10 +476,7 @@
         const actionable = o.ron || o.pon || o.kan || o.chi.length;
         if (!any) continue;
         let d;
-        // ほかの人がロンできるときは、あなたのポン・チー・カンは、ロンに負けて成立しない: 選ぶ画面は出さない
-        const otherRon = q.isHuman && !o.ron && this.players.some((r) => r !== p && r !== q && !r.isHuman && this.reactOptions(r, p, tile).ron);
-        if (q.isHuman && otherRon) d = { act: 'pass' };
-        else if (q.isHuman && (actionable || o.ronBlock)) d = await this.ui.askReact(this, q, o);
+        if (q.isHuman && (actionable || o.ronBlock)) d = await this.ui.askReact(this, q, o);
         else if (q.isHuman) d = { act: 'pass' };
         else d = MJ.AI.chooseReact(this, q, o);
         if (this.stopped) return { type: 'none' };
