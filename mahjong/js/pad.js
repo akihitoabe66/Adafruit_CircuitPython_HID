@@ -517,7 +517,7 @@
       fetch('http://127.0.0.1:8778/pad', { cache: 'no-store' }).then((r) => r.json()).then((a) => {
         NAT.on = true; NAT.pads = a.map(conv);
         if (a.length && !NAT.shown) { NAT.shown = true; if (MJ.UI && MJ.UI.toast) MJ.UI.toast('コントローラーを認識しました。十字キー=えらぶ / A=決定 / B=もどる'); }
-        setTimeout(loop, 12);
+        setTimeout(loop, document.hidden ? 500 : 33); // 12ミリ秒ごとは、非力なPCでは重すぎた(PowerShellとEdgeが奪い合う)ので、33ミリ秒ごと
       }).catch(() => { NAT.on = false; NAT.pads = []; setTimeout(loop, 1500); });
     };
     loop();
@@ -578,7 +578,7 @@
   };
   // 入力の読み取りは、画面を描くタイミングだけに頼らず、10ミリ秒ごとにも行う(画面の描画が遅れても、入力の取りこぼし・遅れを小さくする)
   const poll = () => { pollOnce(); G.requestAnimationFrame(poll); };
-  if (navigator.getGamepads) { G.requestAnimationFrame(poll); setInterval(pollOnce, 10); }
+  if (navigator.getGamepads) { G.requestAnimationFrame(poll); setInterval(pollOnce, 25); }
   G.addEventListener('gamepadconnected', () => { if (MJ.UI && MJ.UI.toast) MJ.UI.toast('コントローラーを認識しました。十字キー=えらぶ / A=決定 / B=もどる'); });
 
   /* 画面が組み替わってカーソルが消えたら、近い場所に戻す */
