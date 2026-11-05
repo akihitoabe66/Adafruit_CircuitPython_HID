@@ -1672,3 +1672,6 @@ body .callq .cq-btn.b-ron .cq-sub:not(.cq-rec), body .callq .cq-btn.b-riichi .cq
 .dr-banner { background: linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.78) 18%, rgba(0,0,0,.78) 82%, rgba(0,0,0,0)); padding: 6px 0 10px; color: #fff; text-shadow: 0 3px 0 #000, 0 0 18px #000; }
 .in-word .inw { -webkit-text-stroke: .9cqw #fff4e0; }
 #mn, #mn * , #sy .sy-side, .hm-side, .mk-rec { font-weight: 700 !important; }
+
+/* コントローラーで操作中は、マウスカーソルを隠す(マウスを動かすと、また出る) */
+body.pad-on, body.pad-on * { cursor: none !important; }

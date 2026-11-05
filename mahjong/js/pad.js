@@ -464,6 +464,8 @@
     if (document.body.classList.contains('locked')) return;
     setCur(el);
   }, true);
+  { let mx = -1, my = -1; // マウスが大きく動いたら、コントローラー操作を終えて、カーソルを出す
+    G.addEventListener('mousemove', (e) => { if (!P.on) { mx = e.clientX; my = e.clientY; return; } if (mx < 0) { mx = e.clientX; my = e.clientY; return; } if (Math.abs(e.clientX - mx) + Math.abs(e.clientY - my) > 12) { P.dev = 'mouse'; P.fromMouse = true; P.on = false; document.body.classList.remove('pad-on'); if (P.cur) P.cur.classList.remove('pf'); mx = -1; } }, true); }
   G.addEventListener('pointerdown', () => { P.dev = 'mouse'; P.fromMouse = true; if (P.on) { P.on = false; document.body.classList.remove('pad-on'); if (P.cur) P.cur.classList.remove('pf'); } }, true);
 
   /* ゲームパッドのボタンの割り当て。
