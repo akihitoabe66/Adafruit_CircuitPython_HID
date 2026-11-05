@@ -15,8 +15,8 @@
   const suitMemo = new Map();
   function suitCombos(c, off, n, num) {
     let key = 0;
-    for (let i = 0; i < n; i++) key = key * 8 + Math.min(7, c[off + i]);
-    if (!num) key += 134217728;
+    for (let i = 0; i < n; i++) key = (key << 3) | (c[off + i] & 7);
+    if (!num) key |= 134217728;
     let r = suitMemo.get(key);
     if (r) return r;
     const a = [];
@@ -26,7 +26,7 @@
     (function rec(i, m, t, j) {
       while (i < n && a[i] === 0) i++;
       if (i >= n) { seen.add(m * 64 + Math.min(t, 4) * 2 + j); return; }
-      let ek = 0; for (let x = i; x < n; x++) ek = ek * 8 + Math.min(7, a[x]);
+      let ek = 0; for (let x = i; x < n; x++) ek = (ek << 3) | (a[x] & 7);
       const vk = (((ek * 10 + i) * 5 + m) * 8 + Math.min(t, 7)) * 2 + j;
       if (vis.has(vk)) return; vis.add(vk);
       if (a[i] >= 3) { a[i] -= 3; rec(i, m + 1, t, j); a[i] += 3; }
