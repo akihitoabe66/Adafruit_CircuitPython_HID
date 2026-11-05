@@ -465,17 +465,25 @@
       if (!tg || rv.length <= T.n || Date.now() - T.at > 1500) { if (tg && Date.now() - T.at > 1500) tg.style.visibility = ''; return; } // 新しい牌が河に出てから
       if (tg._thrown) return; this._throwWait = null; tg._thrown = true;
       try {
-        const tr = tg.getBoundingClientRect(), fr = T.r;
+        const fr = T.r, n0 = T.n;
         const c = document.createElement('div'); c.className = 'dl-fly'; c.innerHTML = T.html;
         const inner = c.firstElementChild; if (inner) { inner.style.cssText = `width:${fr.width}px;height:${fr.height}px;margin:0;position:static;transform:none`; inner.classList.remove('picked', 'rec', 'pf', 'drawn'); }
-        c.style.cssText = `position:fixed;left:${fr.left}px;top:${fr.top}px;width:${fr.width}px;height:${fr.height}px;z-index:90;pointer-events:none`;
+        c.style.cssText = `position:fixed;left:${fr.left}px;top:${fr.top}px;width:${fr.width}px;height:${fr.height}px;z-index:90;pointer-events:none;transform-origin:50% 50%`;
         document.body.appendChild(c);
         tg.style.visibility = 'hidden';
-        const dx = tr.left + tr.width / 2 - (fr.left + fr.width / 2), dy = tr.top + tr.height / 2 - (fr.top + fr.height / 2), sc = tr.width / fr.width;
-        const done = () => { c.remove(); tg.style.visibility = ''; try { MJ.SFX.play('discard'); } catch (e) { /* ignore */ } };
-        if (!c.animate) { done(); return; }
-        const a = c.animate([{ transform: 'none' }, { transform: `translate(${dx * 0.55}px,${dy * 0.55 - 46}px) scale(${1 + (sc - 1) * 0.5 + 0.12}) rotate(-8deg)`, offset: 0.55 }, { transform: `translate(${dx}px,${dy}px) scale(${sc}) rotate(0deg)` }], { duration: 300, easing: 'cubic-bezier(.3,.7,.4,1)', fill: 'forwards' });
-        a.onfinish = done; a.oncancel = done;
+        // 行き先は、毎コマ、河の最後の牌の「いまの場所」を測り直す(画面の組み替えや拡大が、飛んでいる最中に起きても、河に着く)
+        const target = () => { const l = [...document.querySelectorAll('#table .river.r0 .tile')], t = l.length > n0 ? l[l.length - 1] : null; if (t && t.isConnected) { const r = t.getBoundingClientRect(); if (r.width > 0) return { el: t, r }; } return null; };
+        let last = tg.getBoundingClientRect(); const t0 = performance.now(), D = 300;
+        const done = () => { c.remove(); const t = target(); if (t) t.el.style.visibility = ''; tg.style.visibility = ''; try { MJ.SFX.play('discard'); } catch (e) { /* ignore */ } };
+        const step = (now) => {
+          const k = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - k, 3);
+          const t = target(); if (t) { last = t.r; if (!t.el._hid) { t.el.style.visibility = 'hidden'; t.el._hid = 1; } }
+          const sc = last.width / fr.width;
+          const x = fr.left + (last.left + last.width / 2 - (fr.left + fr.width / 2)) * e, y = fr.top + (last.top + last.height / 2 - (fr.top + fr.height / 2)) * e - 46 * Math.sin(Math.PI * e);
+          c.style.transform = `translate(${x - fr.left}px,${y - fr.top}px) scale(${1 + (sc - 1) * e + 0.12 * Math.sin(Math.PI * e)}) rotate(${-8 * Math.sin(Math.PI * e)}deg)`;
+          if (k < 1) requestAnimationFrame(step); else done();
+        };
+        requestAnimationFrame(step);
       } catch (e) { /* ignore */ }
     },
     dealSkip() { if (Date.now() - (this._dealT0 || 0) < 1500) return; this._dealSkip = true; }, // 始まって1.5秒は、飛ばさない(ボタンが押されっぱなしの信号や、直前の決定ボタンで、アニメが一瞬で終わらないように)
