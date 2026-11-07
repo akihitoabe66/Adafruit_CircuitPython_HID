@@ -7,6 +7,7 @@
   const dirty = () => { S.dirty = true; };
   const WIND = ['東', '南', '西', '北'];
   try { MJ.loadRules && MJ.loadRules(); } catch (e) { /* ignore */ }
+  MJ.MEMO_CAP = 30000; // 計算の記憶表の上限(メモリを食いすぎないように)
   MJ.AI_BUDGET = 0.4; // Pi Zeroでは、CPUの思考の時間上限を縮める(考えている間、画面と入力が止まるため)
   if (globalThis.__cpuEnv && MJ.CPU_SPEEDS.includes(globalThis.__cpuEnv)) MJ.setCpuSpeed(globalThis.__cpuEnv); // 例: MJ_CPU=fast ./mj .
 

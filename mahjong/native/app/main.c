@@ -21,17 +21,19 @@ static char fontpath[1024];
 static double nowms(void){ struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t); return t.tv_sec*1000.0+t.tv_nsec/1e6; }
 
 /* ---- 画像・文字のキャッシュ ---- */
-typedef struct { char key[200]; SDL_Texture *tex; int w, h; } Ent;
+typedef struct { char key[200]; unsigned hs; SDL_Texture *tex; int w, h; } Ent;
+static unsigned hashs(const char *s){ unsigned h = 2166136261u; while (*s) { h ^= (unsigned char)*s++; h *= 16777619u; } return h; }
 #define NIMG 400
 #define NTXT 1200
 static Ent imgs[NIMG]; static int nimg = 0; static Ent txts[NTXT]; static int ntxt = 0; static int txtnext = 0;
 static SDL_Texture *getimg(const char *path, int *w, int *h){
-  for (int i = 0; i < nimg; i++) if (!strcmp(imgs[i].key, path)) { if (w) *w = imgs[i].w; if (h) *h = imgs[i].h; return imgs[i].tex; }
+  unsigned hp = hashs(path);
+  for (int i = 0; i < nimg; i++) if (imgs[i].hs == hp && !strcmp(imgs[i].key, path)) { if (w) *w = imgs[i].w; if (h) *h = imgs[i].h; return imgs[i].tex; }
   if (nimg >= NIMG) return NULL;
   char full[1400]; snprintf(full, sizeof full, "%s/%s", root, path);
   SDL_Surface *s = IMG_Load(full); if (!s) { fprintf(stderr, "img? %s (%s)\n", full, IMG_GetError()); return NULL; }
   SDL_Texture *t = SDL_CreateTextureFromSurface(ren, s);
-  Ent *e = &imgs[nimg++]; strncpy(e->key, path, 199); e->tex = t; e->w = s->w; e->h = s->h; SDL_FreeSurface(s);
+  Ent *e = &imgs[nimg++]; e->hs = hp; strncpy(e->key, path, 199); e->tex = t; e->w = s->w; e->h = s->h; SDL_FreeSurface(s);
   if (w) *w = e->w; if (h) *h = e->h; return t;
 }
 static TTF_Font *getfont(int sz){
@@ -42,12 +44,13 @@ static TTF_Font *getfont(int sz){
 }
 static SDL_Texture *gettext(const char *s, int sz, int r, int g, int b, int *w, int *h){
   char key[200]; snprintf(key, sizeof key, "%d|%d,%d,%d|%.150s", sz, r, g, b, s);
-  for (int i = 0; i < ntxt; i++) if (!strcmp(txts[i].key, key)) { *w = txts[i].w; *h = txts[i].h; return txts[i].tex; }
+  unsigned hk = hashs(key);
+  for (int i = 0; i < ntxt; i++) if (txts[i].hs == hk && !strcmp(txts[i].key, key)) { *w = txts[i].w; *h = txts[i].h; return txts[i].tex; }
   TTF_Font *f = getfont(sz); if (!f) return NULL;
   SDL_Color c = { r, g, b, 255 }; SDL_Surface *su = TTF_RenderUTF8_Blended(f, s, c); if (!su) return NULL;
   SDL_Texture *t = SDL_CreateTextureFromSurface(ren, su);
   Ent *e; if (ntxt < NTXT) e = &txts[ntxt++]; else { e = &txts[txtnext]; txtnext = (txtnext + 1) % NTXT; if (e->tex) SDL_DestroyTexture(e->tex); } /* いっぱいになったら、古いものから1つずつ入れ替える(全部捨てて作り直すと、一瞬止まる) */
-  strncpy(e->key, key, 199); e->tex = t; e->w = su->w; e->h = su->h; SDL_FreeSurface(su);
+  e->hs = hk; strncpy(e->key, key, 199); e->tex = t; e->w = su->w; e->h = su->h; SDL_FreeSurface(su);
   *w = e->w; *h = e->h; return t;
 }
 
@@ -224,13 +227,13 @@ int main(int argc, char **argv){
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
   SDL_Texture *tgt = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, W, H);
   if (!tgt) { fprintf(stderr, "target: %s\n", SDL_GetError()); return 1; }
-  int frames = 0, shotn = 0, keep = 0; double perf_t0 = nowms(), perf_draw = 0, perf_pres = 0; int perf_n = 0, perf_p = 0; int perf = getenv("MJ_PERF") != NULL;
+  int frames = 0, shotn = 0, keep = 0; double perf_t0 = nowms(), perf_draw = 0, perf_pres = 0, perf_logic = 0, perf_logicmax = 0; int perf_n = 0, perf_p = 0; int perf = getenv("MJ_PERF") != NULL;
   JSValue gg = JS_GetGlobalObject(ctx);
   while (!quitf) {
     SDL_Event e; int got = SDL_WaitEventTimeout(&e, keep ? 1 : 8);
     while (got) { handle_event(&e); got = SDL_PollEvent(&e); }
     { int both = (jb[8] && jb[9]) || (jb[6] && jb[7]); if (both) { if (!menu_t0) menu_t0 = nowms(); else if (menu_t0 > 0 && nowms() - menu_t0 > 1200) { callkey("menu"); menu_t0 = -1; } } else menu_t0 = 0; } /* スタート+セレクトを長押し: メニュー(終了など) */
-    int need = callframe();
+    double tl0 = nowms(); int need = callframe(); { double d = nowms() - tl0; perf_logic += d; if (d > perf_logicmax) perf_logicmax = d; }
     if (need) {
       double t0 = nowms(); SDL_SetRenderTarget(ren, tgt);
       JSValue f = JS_GetPropertyStr(ctx, gg, "__draw"); JSValue r = JS_Call(ctx, f, gg, 0, NULL); if (JS_IsException(r)) dump_err(ctx); JS_FreeValue(ctx, r); JS_FreeValue(ctx, f); jobs();
@@ -239,7 +242,7 @@ int main(int argc, char **argv){
     }
     if (keep > 0) { double t0 = nowms(); SDL_RenderClear(ren); SDL_RenderCopy(ren, tgt, NULL, NULL); SDL_RenderPresent(ren); keep--; perf_pres += nowms() - t0; perf_p++; }
     frames++; if (maxframes && frames >= maxframes) break;
-    if (perf && nowms() - perf_t0 > 3000) { printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = 0; perf_n = perf_p = 0; }
+    if (perf && nowms() - perf_t0 > 3000) { printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); { long rss = 0; FILE *sf = fopen("/proc/self/statm", "r"); if (sf) { long a; if (fscanf(sf, "%ld %ld", &a, &rss) < 2) rss = 0; fclose(sf); } JSMemoryUsage mu; JS_ComputeMemoryUsage(rt, &mu); printf("perf2: 思考・進行 合計%.0fms 最大%.0fms / JS %ldMB / 全体 %ldMB / 絵%d 文字%d\n", perf_logic, perf_logicmax, (long)(mu.malloc_size / 1048576), rss * 4 / 1024, nimg, ntxt); } fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = perf_logic = perf_logicmax = 0; perf_n = perf_p = 0; }
   }
   return 0;
 }

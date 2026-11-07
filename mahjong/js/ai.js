@@ -101,7 +101,7 @@
   const shanC = (c, f) => {
     const k = f + ':' + c.join('');
     let v = shMemo.get(k);
-    if (v === undefined) { v = MJ.shanten(c, f); if (shMemo.size > 120000) shMemo.clear(); shMemo.set(k, v); }
+    if (v === undefined) { v = MJ.shanten(c, f); if (shMemo.size > (MJ.MEMO_CAP || 120000)) shMemo.clear(); shMemo.set(k, v); }
     return v;
   };
   A.shanC = shanC;

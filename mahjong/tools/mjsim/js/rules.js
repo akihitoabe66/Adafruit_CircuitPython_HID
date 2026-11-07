@@ -42,7 +42,7 @@
       a[i]--; rec(i, m, t, j); a[i]++;
     })(0, 0, 0, 0);
     r = [...seen];
-    if (suitMemo.size > 200000) suitMemo.clear();
+    if (suitMemo.size > (MJ.MEMO_CAP || 200000)) suitMemo.clear();
     suitMemo.set(key, r);
     return r;
   }
