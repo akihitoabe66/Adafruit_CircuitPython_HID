@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <dirent.h>
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
@@ -21,8 +22,8 @@ static double nowms(void){ struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t);
 /* ---- 画像・文字のキャッシュ ---- */
 typedef struct { char key[200]; SDL_Texture *tex; int w, h; } Ent;
 #define NIMG 400
-#define NTXT 500
-static Ent imgs[NIMG]; static int nimg = 0; static Ent txts[NTXT]; static int ntxt = 0;
+#define NTXT 1200
+static Ent imgs[NIMG]; static int nimg = 0; static Ent txts[NTXT]; static int ntxt = 0; static int txtnext = 0;
 static SDL_Texture *getimg(const char *path, int *w, int *h){
   for (int i = 0; i < nimg; i++) if (!strcmp(imgs[i].key, path)) { if (w) *w = imgs[i].w; if (h) *h = imgs[i].h; return imgs[i].tex; }
   if (nimg >= NIMG) return NULL;
@@ -41,13 +42,14 @@ static TTF_Font *getfont(int sz){
 static SDL_Texture *gettext(const char *s, int sz, int r, int g, int b, int *w, int *h){
   char key[200]; snprintf(key, sizeof key, "%d|%d,%d,%d|%.150s", sz, r, g, b, s);
   for (int i = 0; i < ntxt; i++) if (!strcmp(txts[i].key, key)) { *w = txts[i].w; *h = txts[i].h; return txts[i].tex; }
-  if (ntxt >= NTXT) { for (int i = 0; i < ntxt; i++) SDL_DestroyTexture(txts[i].tex); ntxt = 0; }
   TTF_Font *f = getfont(sz); if (!f) return NULL;
   SDL_Color c = { r, g, b, 255 }; SDL_Surface *su = TTF_RenderUTF8_Blended(f, s, c); if (!su) return NULL;
   SDL_Texture *t = SDL_CreateTextureFromSurface(ren, su);
-  Ent *e = &txts[ntxt++]; strncpy(e->key, key, 199); e->tex = t; e->w = su->w; e->h = su->h; SDL_FreeSurface(su);
+  Ent *e; if (ntxt < NTXT) e = &txts[ntxt++]; else { e = &txts[txtnext]; txtnext = (txtnext + 1) % NTXT; if (e->tex) SDL_DestroyTexture(e->tex); } /* いっぱいになったら、古いものから1つずつ入れ替える(全部捨てて作り直すと、一瞬止まる) */
+  strncpy(e->key, key, 199); e->tex = t; e->w = su->w; e->h = su->h; SDL_FreeSurface(su);
   *w = e->w; *h = e->h; return t;
 }
+
 
 /* ---- JS に渡す描画の道具 ---- */
 static int ai(JSContext *c, JSValueConst v){ int32_t x = 0; JS_ToInt32(c, &x, v); return x; }
@@ -105,6 +107,35 @@ static JSValue j_music(JSContext *c, JSValueConst t, int n, JSValueConst *a){
 static JSValue j_mvol(JSContext *c, JSValueConst t, int n, JSValueConst *a){ double v = 1; JS_ToFloat64(c, &v, a[0]); if (audio_ok) Mix_VolumeMusic((int)(v * 128)); return JS_UNDEFINED; }
 static JSValue j_readtext(JSContext *c, JSValueConst t, int n, JSValueConst *a){ const char *p = JS_ToCString(c, a[0]); char full[1400]; snprintf(full, sizeof full, "%s/%s", root, p); JS_FreeCString(c, p); FILE *f = fopen(full, "rb"); if (!f) return JS_NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET); char *b = malloc(L + 1); fread(b, 1, L, f); b[L] = 0; fclose(f); JSValue v = JS_NewString(c, b); free(b); return v; }
 
+/* ---- 起動時の読み込み: 画像と効果音を先に読み、「起動中」の画面に進み具合を出す(初回プレイ中の、読み込みによる止まりを避ける) ---- */
+static int cmpstr(const void *a, const void *b){ return strcmp(*(char *const *)a, *(char *const *)b); }
+static int listdir(const char *sub, const char *ext, char **out, int max, int n){
+  char d[1400]; snprintf(d, sizeof d, "%s/%s", root, sub); DIR *dp = opendir(d); if (!dp) return n;
+  struct dirent *de; while ((de = readdir(dp)) && n < max) { size_t L = strlen(de->d_name), E = strlen(ext); if (L > E && !strcmp(de->d_name + L - E, ext)) { char p[300]; snprintf(p, sizeof p, "%s/%s", sub, de->d_name); out[n++] = strdup(p); } }
+  closedir(dp); return n; }
+static void loading_screen(int done, int total){
+  SDL_SetRenderTarget(ren, NULL); SDL_SetRenderDrawColor(ren, 14, 40, 30, 255); SDL_RenderClear(ren);
+  int w, h; SDL_Texture *t = gettext("麻雀ゲーム 起動中", 40, 255, 240, 200, &w, &h); if (t) { SDL_Rect d = { (W - w) / 2, 120, w, h }; SDL_RenderCopy(ren, t, NULL, &d); }
+  t = gettext("お待ちください", 28, 230, 230, 230, &w, &h); if (t) { SDL_Rect d = { (W - w) / 2, 190, w, h }; SDL_RenderCopy(ren, t, NULL, &d); }
+  SDL_SetRenderDrawColor(ren, 70, 90, 80, 255); SDL_Rect bar = { 160, 270, 400, 18 }; SDL_RenderFillRect(ren, &bar);
+  SDL_SetRenderDrawColor(ren, 255, 210, 63, 255); SDL_Rect fg = { 160, 270, total ? 400 * done / total : 0, 18 }; SDL_RenderFillRect(ren, &fg);
+  SDL_RenderPresent(ren); }
+static void preload(void){
+  static char *list[1200]; int n = 0;
+  n = listdir("img", ".webp", list, 1200, n); n = listdir("img/tiles", ".webp", list, 1200, n); n = listdir("img/chars", ".webp", list, 1200, n); n = listdir("img/chars/face", ".webp", list, 1200, n);
+  n = listdir("img/you", ".webp", list, 1200, n); n = listdir("img/teacher", ".webp", list, 1200, n);
+  int nimgs = n; n = listdir("audio/sfx", ".wav", list, 1200, n);
+  qsort(list, n, sizeof(char *), cmpstr);
+  double t0 = nowms(); int last = -1;
+  for (int i = 0; i < n; i++) {
+    size_t L = strlen(list[i]); if (L > 4 && !strcmp(list[i] + L - 4, ".wav")) { if (audio_ok) (void)getsnd(list[i]); } else getimg(list[i], NULL, NULL);
+    SDL_PumpEvents(); int pc = i * 20 / (n ? n : 1); if (pc != last) { last = pc; loading_screen(i, n); }
+  }
+  (void)nimgs; loading_screen(n, n); printf("preload: %d files, %.0fms\n", n, nowms() - t0); fflush(stdout);
+  for (int i = 0; i < n; i++) free(list[i]);
+}
+
+
 static char *readfile(const char *p, size_t *n){ FILE *f = fopen(p, "rb"); if (!f) return NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET); char *b = malloc(L + 1); fread(b, 1, L, f); b[L] = 0; fclose(f); *n = L; return b; }
 static void dump_err(JSContext *c){ JSValue e = JS_GetException(c); const char *m = JS_ToCString(c, e); JSValue st = JS_GetPropertyStr(c, e, "stack"); const char *ss = JS_ToCString(c, st); fprintf(stderr, "JS ERR: %s\n%s\n", m ? m : "?", ss ? ss : ""); }
 static void jobs(void){ JSContext *c1; int r; do { r = JS_ExecutePendingJob(rt, &c1); if (r < 0) dump_err(c1); } while (r > 0); }
@@ -160,6 +191,7 @@ int main(int argc, char **argv){
   SDL_RenderSetLogicalSize(ren, W, H); SDL_ShowCursor(SDL_DISABLE);
   SDL_RendererInfo ri; SDL_GetRendererInfo(ren, &ri); printf("renderer: %s\n", ri.name);
   for (int i = 0; i < SDL_NumJoysticks(); i++) { SDL_JoystickOpen(i); }
+  preload();
   rt = JS_NewRuntime(); JS_SetMemoryLimit(rt, 192 * 1024 * 1024); JS_SetMaxStackSize(rt, 2 * 1024 * 1024); JS_SetHostPromiseRejectionTracker(rt, rejected, NULL);
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
