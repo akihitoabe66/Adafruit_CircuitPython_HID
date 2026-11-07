@@ -265,7 +265,7 @@
     if (opt.deep && minSh > 0) {
       const top = evals.filter((e) => e.sh === minSh).sort((a, b) => b.ukeire.n - a.ukeire.n).slice(0, opt.deepN || 6);
       let r = 0, rn = 0;
-      const deadline = Date.now() + (opt.budget || 250);
+      const deadline = Date.now() + (opt.budget || 250) * (MJ.AI_BUDGET || 1); // (非力な機械では、考える時間の上限を縮める)
       for (const e of top) {
         c[e.t]--; const v = A.eff2(c, f, e.sh, vis, e.ukeire, deadline); c[e.t]++;
         if (v !== null) { e.eff2 = v; if (e.ukeire.n) { r += v / e.ukeire.n; rn++; } }

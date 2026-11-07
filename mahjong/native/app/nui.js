@@ -7,6 +7,8 @@
   const dirty = () => { S.dirty = true; };
   const WIND = ['東', '南', '西', '北'];
   try { MJ.loadRules && MJ.loadRules(); } catch (e) { /* ignore */ }
+  MJ.AI_BUDGET = 0.4; // Pi Zeroでは、CPUの思考の時間上限を縮める(考えている間、画面と入力が止まるため)
+  if (globalThis.__cpuEnv && MJ.CPU_SPEEDS.includes(globalThis.__cpuEnv)) MJ.setCpuSpeed(globalThis.__cpuEnv); // 例: MJ_CPU=fast ./mj .
 
 
   /* ---------- セーブ(手動・最新から5件) ---------- */
@@ -23,7 +25,8 @@
     return ok;
   }
   const kyokuText = (sn) => ['東', '南', '西', '北'][Math.min(3, Math.floor(sn.kyoku / 4))] + ['一', '二', '三', '四'][sn.kyoku % 4] + '局' + (sn.honba ? ' ' + sn.honba + '本場' : '');
-  const titleItems = () => (slotRead().length ? ['つづきから', '東風戦をはじめる', 'おわる'] : ['東風戦をはじめる', 'おわる']);
+  const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
+  const titleItems = () => (slotRead().length ? ['つづきから', '東風戦をはじめる', speedLabel(), 'おわる'] : ['東風戦をはじめる', speedLabel(), 'おわる']);
   const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right']; // 隠しコマンド(タイトル): 5件のセーブから選べる
 
   /* ---------- 描く道具 ---------- */
@@ -217,7 +220,7 @@
       const items = menuItems();
       if (k === 'up' || k === 'down') S.menuP.idx = wrap(S.menuP.idx + (k === 'up' ? -1 : 1), items.length);
       else if (k === 'back') S.menuP = null;
-      else if (k === 'ok') { const it = items[S.menuP.idx]; S.menuP = null; if (it === 'おわる(電源を切れます)') __quit(); else if (it === 'タイトルにもどる') stopGame(); }
+      else if (k === 'ok') { const it = items[S.menuP.idx]; if (it.indexOf('CPUの速さ') === 0) { MJ.cycleCpuSpeed(); return; } S.menuP = null; if (it === 'おわる(電源を切れます)') __quit(); else if (it === 'タイトルにもどる') stopGame(); }
       return;
     }
     if (S.saveP) {
@@ -236,7 +239,7 @@
       S.hid.push(k); if (S.hid.length > HIDDEN.length) S.hid.shift();
       if (S.hid.join() === HIDDEN.join()) { S.hid = []; S.slots = slotRead(); S.slotIdx = 0; S.mode = 'slots'; return; }
       if (k === 'up' || k === 'down') S.menuIdx = wrap(S.menuIdx + (k === 'up' ? -1 : 1), items.length);
-      else if (k === 'ok') { const it = items[S.menuIdx]; if (it === 'おわる') __quit(); else if (it === 'つづきから') { const l = slotRead(); startGame(l.length ? l[0].v.snap : null); } else startGame(); }
+      else if (k === 'ok') { const it = items[S.menuIdx]; if (it.indexOf('CPUの速さ') === 0) MJ.cycleCpuSpeed(); else if (it === 'おわる') __quit(); else if (it === 'つづきから') { const l = slotRead(); startGame(l.length ? l[0].v.snap : null); } else startGame(); }
       return;
     }
     if (S.result) { if (k === 'ok') { const r = S.result; S.result = null; r.done(); } return; }
@@ -327,7 +330,7 @@
     S.game = null; S.mode = 'menu'; S.menuIdx = 0; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
   }
-  const menuItems = () => (S.mode === 'menu' ? ['つづける', 'おわる(電源を切れます)'] : ['つづける', 'タイトルにもどる', 'おわる(電源を切れます)']);
+  const menuItems = () => ['つづける', speedLabel(), 'タイトルにもどる', 'おわる(電源を切れます)'];
 
   /* ---------- メインループから ---------- */
   let nextAuto = 0, lastSave = 0;
