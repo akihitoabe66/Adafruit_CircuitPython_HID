@@ -65,6 +65,7 @@
         if (this.length === 'east' && this.kyoku >= 4) end = true;
         if (this.length === 'south' && this.kyoku >= 8) end = true;
         this.roundWind = Math.min(1, Math.floor(this.kyoku / 4));
+        if (!end && this.ui && this.ui.askSave) { await this.ui.askSave(this); if (this.stopped) return null; } // 局の結果のあと: 「セーブして次の局へ」(ネイティブ版だけが持つ画面)
         if (end) {
           if (this.ui && MJ.Rank) MJ.Rank.clearSave(); // 終わった対局には、戻れない
           const order = this.players.slice().sort((a, b) => b.score - a.score || a.seat - b.seat);
@@ -74,6 +75,9 @@
         }
       }
     }
+
+    /* 続きから始めるための、最小限の状態(局・本場・点数・相手) */
+    snapshot() { return { v: 1, length: this.length, chars: this.players.slice(1).map((p) => p.char.id), dealer: this.dealer, kyoku: this.kyoku, honba: this.honba, kyotaku: this.kyotaku, roundWind: this.roundWind, handCount: this.handCount, scores: this.players.map((p) => p.score) }; }
 
     /* 局と局のあいだ: 前の局の手牌・河・副露・ドラ表示牌を、卓から消す(次の配牌までの間に、前の局の牌が見えて紛らわしいため) */
     blankTable() {

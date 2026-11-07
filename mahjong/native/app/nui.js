@@ -2,11 +2,29 @@
    画面は 720x428。キー: left/right/up/down/ok/back */
 (function () {
   const MJ = window.MJ; const W = 720, H = 428;
-  const S = { mode: 'menu', game: null, dirty: true, bub: {}, banner: null, keep: 0, shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  const S = { mode: 'menu', game: null, dirty: true, bub: {}, banner: null, keep: 0, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const dirty = () => { S.dirty = true; };
   const WIND = ['東', '南', '西', '北'];
   try { MJ.loadRules && MJ.loadRules(); } catch (e) { /* ignore */ }
+
+
+  /* ---------- セーブ(手動・最新から5件) ---------- */
+  const NSLOT = 5;
+  function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
+    const out = [];
+    try { __slotlist().forEach((q) => { try { const t = __slotload(q); const v = t && JSON.parse(t); if (v && v.snap && v.snap.scores && v.snap.chars) out.push({ seq: q, v }); } catch (e) { /* 壊れたものは、とばす */ } }); } catch (e) { /* ignore */ }
+    return out;
+  }
+  function slotWrite(snap) {
+    let seq = 1; try { const l = __slotlist(); if (l.length) seq = l[0] + 1; } catch (e) { /* ignore */ }
+    const ok = __slotsave(seq, JSON.stringify({ seq, snap }));
+    try { __slotlist().slice(NSLOT).forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ }
+    return ok;
+  }
+  const kyokuText = (sn) => ['東', '南', '西', '北'][Math.min(3, Math.floor(sn.kyoku / 4))] + ['一', '二', '三', '四'][sn.kyoku % 4] + '局' + (sn.honba ? ' ' + sn.honba + '本場' : '');
+  const titleItems = () => (slotRead().length ? ['つづきから', '東風戦をはじめる', 'おわる'] : ['東風戦をはじめる', 'おわる']);
+  const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right']; // 隠しコマンド(タイトル): 5件のセーブから選べる
 
   /* ---------- 描く道具 ---------- */
   const fill = (x, y, w, h, c, a) => gfx.fill(x, y, w, h, c[0], c[1], c[2], a == null ? 255 : a);
@@ -128,7 +146,7 @@
     gfx.image('img/title_art.webp', 0, 0, W, H, 150);
     fill(0, 0, W, H, [0, 0, 0], 90);
     text('操作シンプル', 360, 50, 28, WHITE, 1); text('本格麻雀', 360, 84, 56, YEL, 1);
-    ['東風戦をはじめる', 'おわる'].forEach((l, i) => button(260, 220 + i * 52, 200, 40, l, S.menuIdx === i));
+    titleItems().forEach((l, i) => button(260, 210 + i * 50, 200, 40, l, S.menuIdx === i));
     text('↑↓ えらぶ   決定ボタンで すすむ', 360, 380, 14, WHITE, 1);
   }
   function overlay(a) { fill(0, 0, W, H, [0, 0, 0], a == null ? 200 : a); }
@@ -173,14 +191,52 @@
     text('決定ボタンで タイトルへ', 360, 380, 16, WHITE, 1);
   }
 
+
+  function drawDialog(title, items, idx, note) {
+    overlay(190); const h = 70 + items.length * 50; const y0 = Math.round((H - h) / 2);
+    fill(150, y0, 420, h, [20, 60, 42]); frame(150, y0, 420, h, [240, 210, 120], 3);
+    text(title, 360, y0 + 12, 22, YEL, 1);
+    items.forEach((l, i) => button(190, y0 + 48 + i * 50, 340, 40, l, idx === i));
+    if (note) text(note, 360, y0 + h + 6, 14, WHITE, 1);
+  }
+  function drawSlots() {
+    gfx.clear(14, 84, 52); text('セーブデータをえらぶ', 360, 18, 28, YEL, 1);
+    if (!S.slots.length) text('セーブデータがありません', 360, 180, 20, WHITE, 1);
+    S.slots.forEach((q, i) => { const sn = q.v.snap, y = 62 + i * 56; fill(80, y, 560, 48, S.slotIdx === i ? YEL : WHITE, 235); frame(80, y, 560, 48, [120, 120, 120], 1);
+      text((i === 0 ? '最新  ' : (i + 1) + '番目  ') + kyokuText(sn), 94, y + 6, 18, BLACK); text('持ち点 ' + sn.scores.join(' / '), 94, y + 27, 14, [60, 60, 60]); });
+    text('↑↓ えらぶ   決定 ロード   もどる でタイトルへ', 360, 400, 14, WHITE, 1);
+  }
+
   /* ---------- 入力 ---------- */
   const wrap = (i, n) => (i + n) % n;
   window.__key = function (k) {
     S.dirty = true;
     NSND.sfx(k === 'ok' ? 'click' : k === 'back' ? 'click' : 'select', 0.5);
+    if (k === 'menu' && !S.menuP) { S.menuP = { idx: 0 }; return; } // スタート+セレクト長押し
+    if (S.menuP) {
+      const items = menuItems();
+      if (k === 'up' || k === 'down') S.menuP.idx = wrap(S.menuP.idx + (k === 'up' ? -1 : 1), items.length);
+      else if (k === 'back') S.menuP = null;
+      else if (k === 'ok') { const it = items[S.menuP.idx]; S.menuP = null; if (it === 'おわる(電源を切れます)') __quit(); else if (it === 'タイトルにもどる') stopGame(); }
+      return;
+    }
+    if (S.saveP) {
+      if (k === 'up' || k === 'down' || k === 'left' || k === 'right') S.saveP.idx = 1 - S.saveP.idx;
+      else if (k === 'ok') { const p = S.saveP; S.saveP = null; if (p.idx === 0) { const ok = slotWrite(p.snap); S.toast = { text: ok ? 'セーブしました' : 'セーブできませんでした', until: __now() + 1400 }; setTimeout(dirty, 1500); } p.res(); }
+      return;
+    }
+    if (S.mode === 'slots') {
+      if (k === 'up' || k === 'down') { if (S.slots.length) S.slotIdx = wrap(S.slotIdx + (k === 'up' ? -1 : 1), S.slots.length); }
+      else if (k === 'back') { S.mode = 'menu'; S.slots = []; S.menuIdx = 0; }
+      else if (k === 'ok' && S.slots.length) { const q = S.slots[S.slotIdx]; S.slots = []; startGame(q.v.snap); } // ロードしたら、この一覧は、また見えなくなる
+      return;
+    }
     if (S.mode === 'menu') {
-      if (k === 'up' || k === 'down') S.menuIdx = 1 - S.menuIdx;
-      else if (k === 'ok') { if (S.menuIdx === 1) __quit(); else startGame(); }
+      const items = titleItems();
+      S.hid.push(k); if (S.hid.length > HIDDEN.length) S.hid.shift();
+      if (S.hid.join() === HIDDEN.join()) { S.hid = []; S.slots = slotRead(); S.slotIdx = 0; S.mode = 'slots'; return; }
+      if (k === 'up' || k === 'down') S.menuIdx = wrap(S.menuIdx + (k === 'up' ? -1 : 1), items.length);
+      else if (k === 'ok') { const it = items[S.menuIdx]; if (it === 'おわる') __quit(); else if (it === 'つづきから') { const l = slotRead(); startGame(l.length ? l[0].v.snap : null); } else startGame(); }
       return;
     }
     if (S.result) { if (k === 'ok') { const r = S.result; S.result = null; r.done(); } return; }
@@ -244,6 +300,7 @@
       if (r.type === 'win') NSND.readWin(g, r); else NSND.sfx('drawgame');
       return new Promise((done) => { S.result = Object.assign({ done }, r, { done: () => { NSND.stopSpeak(); done(); } }); dirty(); });
     },
+    askSave(g) { return new Promise((res) => { S.saveP = { idx: 0, res, snap: g.snapshot() }; dirty(); }); },
     gameEnd(g, f) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({ done }, f); dirty(); }); },
   };
 
@@ -252,14 +309,25 @@
     while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
     return out;
   }
-  async function startGame() {
+  function stopGame() { // ゲームを途中でやめて、タイトルへ
+    const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
+    g.stopped = true;
+    const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP;
+    S.self = S.react = S.result = S.end = S.saveP = null;
+    if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
+    dirty();
+  }
+  async function startGame(sn) {
     S.mode = 'game'; dirty();
-    const g = new MJ.Game({ chars: pickChars(), length: 'east', ui, cpuDelay: __auto ? 40 : undefined });
+    const chars = sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
+    const g = new MJ.Game({ chars: chars.length === 3 ? chars : pickChars(), length: sn && sn.length || 'east', ui, cpuDelay: __auto ? 40 : undefined });
+    if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; }
     S.game = g;
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
-    S.game = null; S.mode = 'menu'; NSND.home(); S.self = S.react = S.result = S.end = null; dirty();
+    S.game = null; S.mode = 'menu'; S.menuIdx = 0; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
   }
+  const menuItems = () => (S.mode === 'menu' ? ['つづける', 'おわる(電源を切れます)'] : ['つづける', 'タイトルにもどる', 'おわる(電源を切れます)']);
 
   /* ---------- メインループから ---------- */
   let nextAuto = 0, lastSave = 0;
@@ -272,11 +340,14 @@
     S.dirty = false; return true;
   };
   window.__draw = function () {
-    if (S.mode === 'menu') drawMenu();
+    if (S.mode === 'menu') drawMenu(); else if (S.mode === 'slots') drawSlots();
     else if (S.game) drawTable(S.game);
     if (S.result) { drawResult(S.result); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
     if (__auto && globalThis.__shotDir && (S.react || (S.self && S.self.btns.length)) && S.shotR < 6) { gfx.shot(__shotDir + '/act' + (++S.shotR) + '.bmp'); }
     if (S.end) { drawEnd(S.end); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/end.bmp'); }
+    if (S.saveP) drawDialog('この局が おわりました', ['セーブして次の局へ', 'セーブしないで次の局へ'], S.saveP.idx, S.saveP.snap ? kyokuText(S.saveP.snap) + ' の つづきから' : '');
+    if (S.toast && S.toast.until > __now()) { fill(200, 190, 320, 44, [0, 0, 0], 200); text(S.toast.text, 360, 198, 24, YEL, 1); }
+    if (S.menuP) drawDialog('メニュー', menuItems(), S.menuP.idx, '');
     return true;
   };
   NSND.home();

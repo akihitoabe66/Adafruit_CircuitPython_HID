@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <dirent.h>
+#include <unistd.h>
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
@@ -137,6 +138,20 @@ static void preload(void){
 
 
 static char *readfile(const char *p, size_t *n){ FILE *f = fopen(p, "rb"); if (!f) return NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET); char *b = malloc(L + 1); fread(b, 1, L, f); b[L] = 0; fclose(f); *n = L; return b; }
+
+/* ---- セーブの置き場(microSDなど): 環境変数 MJ_DATA、なければ ~/mjdata。save_<連番>.json を、最新から数件ぶん持つ。書くときは、別名で書いてから名前を変える(途中で電源が切れても、前のものは壊れない) ---- */
+static char datadir[1200];
+static void initdata(void){ const char *d = getenv("MJ_DATA"); if (d && *d) strncpy(datadir, d, sizeof datadir - 1); else { const char *h = getenv("HOME"); snprintf(datadir, sizeof datadir, "%s/mjdata", h ? h : "."); } char cmd[1300]; snprintf(cmd, sizeof cmd, "mkdir -p '%s'", datadir); if (system(cmd)) {} }
+static JSValue j_slotlist(JSContext *c, JSValueConst t, int n, JSValueConst *a){
+  JSValue arr = JS_NewArray(c); DIR *dp = opendir(datadir); if (!dp) return arr; int seqs[256], m = 0; struct dirent *de;
+  while ((de = readdir(dp)) && m < 256) { int q; char tail[8]; if (sscanf(de->d_name, "save_%d.%7s", &q, tail) == 2 && !strcmp(tail, "json")) seqs[m++] = q; }
+  closedir(dp); for (int i = 0; i < m; i++) for (int j = i + 1; j < m; j++) if (seqs[j] > seqs[i]) { int x = seqs[i]; seqs[i] = seqs[j]; seqs[j] = x; }
+  for (int i = 0; i < m; i++) JS_SetPropertyUint32(c, arr, i, JS_NewInt32(c, seqs[i])); return arr; }
+static JSValue j_slotload(JSContext *c, JSValueConst t, int n, JSValueConst *a){ char p[1500]; snprintf(p, sizeof p, "%s/save_%d.json", datadir, ai(c, a[0])); size_t L; char *b = readfile(p, &L); if (!b) return JS_NULL; JSValue v = JS_NewString(c, b); free(b); return v; }
+static JSValue j_slotsave(JSContext *c, JSValueConst t, int n, JSValueConst *a){
+  char p[1500], q[1520]; snprintf(p, sizeof p, "%s/save_%d.json", datadir, ai(c, a[0])); snprintf(q, sizeof q, "%s.tmp", p); const char *s = JS_ToCString(c, a[1]); int ok = 0;
+  FILE *f = fopen(q, "wb"); if (f && s) { size_t L = strlen(s); ok = fwrite(s, 1, L, f) == L; fflush(f); fsync(fileno(f)); fclose(f); if (ok) ok = rename(q, p) == 0; } JS_FreeCString(c, s); sync(); return JS_NewBool(c, ok); }
+static JSValue j_slotdel(JSContext *c, JSValueConst t, int n, JSValueConst *a){ char p[1500]; snprintf(p, sizeof p, "%s/save_%d.json", datadir, ai(c, a[0])); remove(p); return JS_UNDEFINED; }
 static void dump_err(JSContext *c){ JSValue e = JS_GetException(c); const char *m = JS_ToCString(c, e); JSValue st = JS_GetPropertyStr(c, e, "stack"); const char *ss = JS_ToCString(c, st); fprintf(stderr, "JS ERR: %s\n%s\n", m ? m : "?", ss ? ss : ""); }
 static void jobs(void){ JSContext *c1; int r; do { r = JS_ExecutePendingJob(rt, &c1); if (r < 0) dump_err(c1); } while (r > 0); }
 static void rejected(JSContext *c, JSValueConst p, JSValueConst reason, JS_BOOL handled, void *o){ if (handled) return; const char *m = JS_ToCString(c, reason); JSValue st = JS_GetPropertyStr(c, reason, "stack"); const char *ss = JS_ToCString(c, st); fprintf(stderr, "UNHANDLED: %s\n%s\n", m ? m : "?", ss ? ss : ""); }
@@ -150,7 +165,7 @@ static const char *findfont(void){
   static const char *c[] = { "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf", "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf", "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "/usr/share/fonts/truetype/takao-gothic/TakaoGothic.ttf", NULL };
   for (int i = 0; c[i]; i++) { FILE *f = fopen(c[i], "rb"); if (f) { fclose(f); return c[i]; } } return NULL; }
 
-static int axisdir[2] = { 0, 0 };
+static int axisdir[2] = { 0, 0 }; static int jb[32]; static double menu_t0 = 0;
 static void joyaxis(int axis, int v){ int d = v > 16000 ? 1 : v < -16000 ? -1 : 0; if (axis > 1) return; if (d != axisdir[axis]) { axisdir[axis] = d; if (d) callkey(axis == 0 ? (d > 0 ? "right" : "left") : (d > 0 ? "down" : "up")); } }
 
 static void handle_event(SDL_Event *ep){
@@ -166,7 +181,8 @@ static void handle_event(SDL_Event *ep){
   }
   else if (e.type == SDL_JOYHATMOTION) { if (e.jhat.value & SDL_HAT_LEFT) callkey("left"); else if (e.jhat.value & SDL_HAT_RIGHT) callkey("right"); else if (e.jhat.value & SDL_HAT_UP) callkey("up"); else if (e.jhat.value & SDL_HAT_DOWN) callkey("down"); }
   else if (e.type == SDL_JOYAXISMOTION) joyaxis(e.jaxis.axis, e.jaxis.value);
-  else if (e.type == SDL_JOYBUTTONDOWN) callkey(e.jbutton.button == 1 || e.jbutton.button == 3 ? "back" : "ok");
+  else if (e.type == SDL_JOYBUTTONUP) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 0; }
+  else if (e.type == SDL_JOYBUTTONDOWN) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 1; { int b = e.jbutton.button; if (b >= 6 && b <= 9) return; /* スタート・セレクトは、長押しのメニュー専用 */ callkey(b == 1 || b == 3 ? "back" : "ok"); } }
 }
 
 int main(int argc, char **argv){
@@ -191,7 +207,7 @@ int main(int argc, char **argv){
   SDL_RenderSetLogicalSize(ren, W, H); SDL_ShowCursor(SDL_DISABLE);
   SDL_RendererInfo ri; SDL_GetRendererInfo(ren, &ri); printf("renderer: %s\n", ri.name);
   for (int i = 0; i < SDL_NumJoysticks(); i++) { SDL_JoystickOpen(i); }
-  preload();
+  initdata(); preload();
   rt = JS_NewRuntime(); JS_SetMemoryLimit(rt, 192 * 1024 * 1024); JS_SetMaxStackSize(rt, 2 * 1024 * 1024); JS_SetHostPromiseRejectionTracker(rt, rejected, NULL);
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
@@ -200,7 +216,7 @@ int main(int argc, char **argv){
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1);
-  reg(g, "print", j_print, 1); reg(g, "__now", j_now, 0); reg(g, "__quit", j_quit, 0); reg(g, "__load", j_load, 0); reg(g, "__save", j_save, 1);
+  reg(g, "print", j_print, 1); reg(g, "__now", j_now, 0); reg(g, "__quit", j_quit, 0); reg(g, "__load", j_load, 0); reg(g, "__save", j_save, 1); reg(g, "__slotlist", j_slotlist, 0); reg(g, "__slotload", j_slotload, 1); reg(g, "__slotsave", j_slotsave, 2); reg(g, "__slotdel", j_slotdel, 1);
   JS_SetPropertyStr(ctx, g, "__auto", JS_NewBool(ctx, auto_)); if (shots) JS_SetPropertyStr(ctx, g, "__shotDir", JS_NewString(ctx, shots));
   const char *list[] = { "native/app/prelude.js", "js/tiles.js", "js/rules.js", "js/forms.js", "js/chars.js", "js/ai.js", "js/game.js", "native/app/nsnd.js", "native/app/nui.js", NULL };
   for (int i = 0; list[i]; i++) { char p[1500]; snprintf(p, sizeof p, "%s/%s", root, list[i]); if (evalfile(p)) return 3; }
@@ -212,6 +228,7 @@ int main(int argc, char **argv){
   while (!quitf) {
     SDL_Event e; int got = SDL_WaitEventTimeout(&e, keep ? 1 : 8);
     while (got) { handle_event(&e); got = SDL_PollEvent(&e); }
+    { int both = (jb[8] && jb[9]) || (jb[6] && jb[7]); if (both) { if (!menu_t0) menu_t0 = nowms(); else if (menu_t0 > 0 && nowms() - menu_t0 > 1200) { callkey("menu"); menu_t0 = -1; } } else menu_t0 = 0; } /* スタート+セレクトを長押し: メニュー(終了など) */
     int need = callframe();
     if (need) {
       double t0 = nowms(); SDL_SetRenderTarget(ren, tgt);
