@@ -47,6 +47,7 @@
     return r;
   }
   function stdShanten(c, f) {
+    if (typeof G.__shanten === 'function') return G.__shanten(c, f); // ネイティブ版(Pi): C言語で計算(JSの約100倍速い)
     // 状態: 面子数 m(0〜4) × ターツ数 t(0〜4) × 雀頭 j(0/1) を、50個の旗で持つ
     let cur = new Uint8Array(50);
     cur[Math.min(f, 4) * 10] = 1;

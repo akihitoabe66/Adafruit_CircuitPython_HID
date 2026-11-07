@@ -99,6 +99,7 @@
   /* ---- 受け入れ ---- */
   const shMemo = new Map();
   const shanC = (c, f) => {
+    if (typeof globalThis.__shanten === 'function') return MJ.shanten(c, f); // C言語で計算できるときは、記憶表を使うより速い
     const k = f + ':' + c.join('');
     let v = shMemo.get(k);
     if (v === undefined) { v = MJ.shanten(c, f); if (shMemo.size > (MJ.MEMO_CAP || 120000)) shMemo.clear(); shMemo.set(k, v); }

@@ -12,6 +12,7 @@
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
 #include "quickjs.h"
+#include "shanten.h"
 
 static SDL_Window *win; static SDL_Renderer *ren; static JSContext *ctx; static JSRuntime *rt;
 static char root[1024] = "."; static int quitf = 0; static TTF_Font *fonts[24]; static int fsz[24]; static int nfonts = 0;
@@ -155,6 +156,7 @@ static JSValue j_slotsave(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   char p[1500], q[1520]; snprintf(p, sizeof p, "%s/save_%d.json", datadir, ai(c, a[0])); snprintf(q, sizeof q, "%s.tmp", p); const char *s = JS_ToCString(c, a[1]); int ok = 0;
   FILE *f = fopen(q, "wb"); if (f && s) { size_t L = strlen(s); ok = fwrite(s, 1, L, f) == L; fflush(f); fsync(fileno(f)); fclose(f); if (ok) ok = rename(q, p) == 0; } JS_FreeCString(c, s); sync(); return JS_NewBool(c, ok); }
 static JSValue j_slotdel(JSContext *c, JSValueConst t, int n, JSValueConst *a){ char p[1500]; snprintf(p, sizeof p, "%s/save_%d.json", datadir, ai(c, a[0])); remove(p); return JS_UNDEFINED; }
+static JSValue j_shanten(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int cc[34]; for (int i = 0; i < 34; i++) { JSValue v = JS_GetPropertyUint32(c, a[0], i); int32_t x = 0; JS_ToInt32(c, &x, v); JS_FreeValue(c, v); cc[i] = x; } return JS_NewInt32(c, sh_std(cc, ai(c, a[1]))); }
 static void dump_err(JSContext *c){ JSValue e = JS_GetException(c); const char *m = JS_ToCString(c, e); JSValue st = JS_GetPropertyStr(c, e, "stack"); const char *ss = JS_ToCString(c, st); fprintf(stderr, "JS ERR: %s\n%s\n", m ? m : "?", ss ? ss : ""); }
 static void jobs(void){ JSContext *c1; int r; do { r = JS_ExecutePendingJob(rt, &c1); if (r < 0) dump_err(c1); } while (r > 0); }
 static void rejected(JSContext *c, JSValueConst p, JSValueConst reason, JS_BOOL handled, void *o){ if (handled) return; const char *m = JS_ToCString(c, reason); JSValue st = JS_GetPropertyStr(c, reason, "stack"); const char *ss = JS_ToCString(c, st); fprintf(stderr, "UNHANDLED: %s\n%s\n", m ? m : "?", ss ? ss : ""); }
@@ -219,7 +221,7 @@ int main(int argc, char **argv){
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1);
-  reg(g, "print", j_print, 1); reg(g, "__now", j_now, 0); reg(g, "__quit", j_quit, 0); reg(g, "__load", j_load, 0); reg(g, "__save", j_save, 1); reg(g, "__slotlist", j_slotlist, 0); reg(g, "__slotload", j_slotload, 1); reg(g, "__slotsave", j_slotsave, 2); reg(g, "__slotdel", j_slotdel, 1);
+  reg(g, "print", j_print, 1); reg(g, "__now", j_now, 0); reg(g, "__quit", j_quit, 0); reg(g, "__load", j_load, 0); reg(g, "__save", j_save, 1); reg(g, "__shanten", j_shanten, 2); reg(g, "__slotlist", j_slotlist, 0); reg(g, "__slotload", j_slotload, 1); reg(g, "__slotsave", j_slotsave, 2); reg(g, "__slotdel", j_slotdel, 1);
   { const char *cp = getenv("MJ_CPU"); if (cp) JS_SetPropertyStr(ctx, g, "__cpuEnv", JS_NewString(ctx, cp)); }
   JS_SetPropertyStr(ctx, g, "__auto", JS_NewBool(ctx, auto_)); if (shots) JS_SetPropertyStr(ctx, g, "__shotDir", JS_NewString(ctx, shots));
   const char *list[] = { "native/app/prelude.js", "js/tiles.js", "js/rules.js", "js/forms.js", "js/chars.js", "js/ai.js", "js/game.js", "native/app/nsnd.js", "native/app/nui.js", NULL };
