@@ -47,6 +47,7 @@
     fill(x + 1, y + 1, w, h, [0, 0, 0], 70);
     if (!gfx.image(MJ.tileSrc(t, red), x, y, w, h, dim ? 100 : 255)) { fill(x, y, w, h, [240, 240, 230]); text(MJ.tileName(t), x + w / 2, y + 2, 10, BLACK, 1); }
   }
+  function panel(x, y, w, h, r, c, bc, bw, a) { rrect(x, y, w, h, r, bc, a); rrect(x + bw, y + bw, w - 2 * bw, h - 2 * bw, Math.max(1, r - bw), c, a); } // 角の丸い板(縁つき)
   function rrect(x, y, w, h, r, c, a) { // 角の丸い四角(細い線を重ねる)
     r = Math.min(r, Math.floor(h / 2), Math.floor(w / 2));
     for (let dy = 0; dy < r; dy++) { const d = r - dy - 0.5, inset = r - Math.floor(Math.sqrt(Math.max(0, r * r - d * d))); fill(x + inset, y + dy, w - 2 * inset, 1, c, a); fill(x + inset, y + h - 1 - dy, w - 2 * inset, 1, c, a); }
@@ -58,7 +59,7 @@
     frame(x, y, w, h, [138, 150, 168], 1);
   }
   function button(x, y, w, h, label, sel) {
-    fill(x, y, w, h, sel ? YEL : WHITE); frame(x, y, w, h, sel ? [160, 110, 0] : [120, 120, 120], sel ? 3 : 1);
+    panel(x, y, w, h, 7, sel ? YEL : WHITE, sel ? [160, 110, 0] : [120, 120, 120], sel ? 3 : 1);
     text(label, x + w / 2, y + (h - 16) / 2 - 1, 15, BLACK, 1);
   }
   function face(p, x, y, w, h) {
@@ -96,7 +97,7 @@
     return parts;
   }
   function drawBar(g, p, x, y, w, h, rot) {
-    fill(x, y, w, h, BAR, 240); frame(x, y, w, h, [225, 225, 215], 2);
+    panel(x, y, w, h, 9, BAR, [225, 225, 215], 2, 240);
     const parts = barPieces(g, p);
     if (!rot) { let cx = x + 10; parts.forEach((q) => { text(q.s, cx, y + (h - q.sz) / 2 - 2, q.sz, q.c); cx += gfx.measure(q.s, q.sz) + 12; }); return; }
     let cy = y + 10; const cxm = x + w / 2;
@@ -157,9 +158,8 @@
   /* ---------- 右の操作の列(Edge版と同じ並び): MENU / 局 / あたり牌 / 解説 / 麻雀先生 ---------- */
   const SIDE_ORDER = [0, 3, 1, 2]; // 上から: MENU(と音) / 解説 / 麻雀先生
   function sbtn(x, y, w, h, c1, c2, lines, focus, sz) {
-    fill(x, y, w, h, c2); fill(x, y, w, h - 3, c1);
+    if (focus) rrect(x - 3, y - 3, w + 6, h + 6, 11, [255, 255, 255]); rrect(x, y, w, h, 8, c2); rrect(x, y, w, h - 3, 8, c1);
     lines.forEach((l, i) => text(l, x + w / 2, y + (h - lines.length * (sz + 3)) / 2 + i * (sz + 3), sz, WHITE, 1));
-    if (focus) frame(x - 2, y - 2, w + 4, h + 4, [255, 255, 255], 3);
   }
   function drawSide(g) {
     const f = S.side ? S.side.idx : -1;
@@ -168,7 +168,7 @@
     { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 46, 22, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 72, 12, GREY, 1); }
     if (teacherOn()) {
       const w = waitInfoOf(g);
-      if (w) { fill(726, 94, 100, 40 + Math.ceil(w.length / 3) * 58, [6, 44, 26], 235); frame(726, 94, 100, 40 + Math.ceil(w.length / 3) * 58, [255, 220, 40], 2); text('あたり牌', 776, 98, 14, YEL, 1);
+      if (w) { panel(726, 94, 100, 40 + Math.ceil(w.length / 3) * 58, 10, [6, 44, 26], [255, 220, 40], 2, 235); text('あたり牌', 776, 98, 14, YEL, 1);
         w.forEach((x, i) => { const tx = 731 + (i % 3) * 32, ty = 118 + Math.floor(i / 3) * 58; tile(x.t, tx, ty, 28, 38); text('あと' + x.left, tx + 14, ty + 40, 11, WHITE, 1); }); }
     }
     sbtn(726, 330, 100, 40, [40, 90, 190], [20, 50, 120], ['解説'], f === 1, 20);
@@ -196,7 +196,7 @@
   }
   const shortTitle = (t) => /おすすめ|★/.test(t) ? 'おすすめ' : /どうして/.test(t) ? 'どうして?' : /役/.test(t) ? '目指す役' : /警戒|危/.test(t) ? '警戒' : /手牌/.test(t) ? '手牌' : (t.replace(/^[^\u3040-\u9fff]+/, '').slice(0, 4) || t.slice(0, 4));
   function drawCoach() {
-    fill(10, 8, 700, 412, [14, 40, 32], 247); frame(10, 8, 700, 412, [240, 210, 120], 3);
+    panel(10, 8, 700, 412, 18, [14, 40, 32], [240, 210, 120], 3, 247);
     text('麻雀先生', 24, 14, 22, YEL);
     const c = S.coach, cards = c.cards;
     if (!teacherOn()) { text('麻雀先生が「なし」です。右の「麻雀先生」ボタンで「あり」にしてください。', 28, 80, 18, WHITE); text('決定・もどる で とじる', 360, 396, 14, GREY, 1); return; }
@@ -211,9 +211,9 @@
   }
   function drawTeacher(g) {
     if (!teacherOn()) return;
-    const h = S.hint, s = S.self; if ((!h || !s || s.row !== 0) && S.tmsg && __now() < S.tmsg.until) { fill(6, 304, 430, 46, [6, 44, 26], 240); frame(6, 304, 430, 46, [255, 220, 40], 2); text('麻雀先生', 14, 306, 14, YEL); text(S.tmsg.text, 14, 325, 17, WHITE); return; }
+    const h = S.hint, s = S.self; if ((!h || !s || s.row !== 0) && S.tmsg && __now() < S.tmsg.until) { panel(6, 304, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生', 14, 306, 14, YEL); text(S.tmsg.text, 14, 325, 17, WHITE); return; }
     if (!h || !s || s.row !== 0) return;
-    fill(6, 304, 430, 46, [6, 44, 26], 240); frame(6, 304, 430, 46, [255, 220, 40], 2);
+    panel(6, 304, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240);
     text('★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), 14, 306, 17, YEL);
     text((h.sh === 0 ? 'テンパイ' : 'テンパイまであと' + h.sh + '歩') + ' 受け入れ' + h.n + '枚  ' + (h.label || ''), 14, 327, 14, WHITE);
   }
@@ -264,7 +264,7 @@
     // 名札(横長の板)
     drawBar(g, P[2], 190, 3, 322, 28, 0); drawBar(g, P[3], 35, 21, 27, 280, 90); drawBar(g, P[1], 643, 21, 27, 280, 270); drawBar(g, P[0], 501, 317, 221, 34, 0);
     // 中央の情報
-    fill(218, 163, 281, 101, [6, 44, 26]); frame(218, 163, 281, 101, [90, 140, 110], 2);
+    panel(218, 163, 281, 101, 14, [6, 44, 26], [90, 140, 110], 2);
     const lb = g.kyokuLabel().split(' '); text(lb[0], 234, 172, 24, WHITE); text('供託 ' + g.kyotaku + (lb[1] ? '  ' + lb[1] : ''), 234, 204, 12, GREY);
     text('残り', 234, 226, 14, WHITE); text(String(g.live.length), 262, 220, 34, YEL); text('枚', 316, 232, 14, WHITE);
     { const WX = 356, WY = 188, WS = 128 / 219; gfx.image('img/wall.webp', WX, WY, 128, Math.round(88 * WS), 255); // 王牌の絵の上に、ドラ表示牌を重ねる
@@ -366,7 +366,7 @@
     gfx.clear(14, 84, 52); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
     text('設定', SW / 2, 8, 30, YEL, 1);
     SETS.forEach((s, i) => {
-      const y = 48 + i * 46, sel = S.setIdx === i; fill(110, y, 612, 40, sel ? YEL : WHITE); frame(110, y, 612, 40, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
+      const y = 48 + i * 46, sel = S.setIdx === i; panel(110, y, 612, 40, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
       text(s.label, 130, y + 8, 22, BLACK);
       if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 9, 24, 22, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 8, 20, BLACK, 2); }
       else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 8, 22, BLACK, 1);
@@ -561,7 +561,7 @@
   }
   function drawDialog(title, items, idx, note) {
     overlay(190); const h = 70 + items.length * 50; const y0 = Math.round((H - h) / 2);
-    fill(150, y0, 420, h, [20, 60, 42]); frame(150, y0, 420, h, [240, 210, 120], 3);
+    panel(150, y0, 420, h, 16, [20, 60, 42], [240, 210, 120], 3);
     text(title, 360, y0 + 12, 22, YEL, 1);
     items.forEach((l, i) => button(190, y0 + 48 + i * 50, 340, 40, l, idx === i));
     if (note) text(note, 360, y0 + h + 6, 14, WHITE, 1);
@@ -569,7 +569,7 @@
   function drawSlots() {
     gfx.clear(14, 84, 52); text('セーブデータをえらぶ', 360, 18, 28, YEL, 1);
     if (!S.slots.length) text('セーブデータがありません', 360, 180, 20, WHITE, 1);
-    S.slots.forEach((q, i) => { const sn = q.v.snap, y = 62 + i * 56; fill(80, y, 560, 48, S.slotIdx === i ? YEL : WHITE, 235); frame(80, y, 560, 48, [120, 120, 120], 1);
+    S.slots.forEach((q, i) => { const sn = q.v.snap, y = 62 + i * 56; panel(80, y, 560, 48, 10, S.slotIdx === i ? YEL : WHITE, [120, 120, 120], 1, 235);
       text((i === 0 ? '最新  ' : (i + 1) + '番目  ') + kyokuText(sn), 94, y + 6, 18, BLACK); text('持ち点 ' + sn.scores.join(' / '), 94, y + 27, 14, [60, 60, 60]); });
     text('↑↓ えらぶ   決定 ロード   もどる でタイトルへ', 360, 400, 14, WHITE, 1);
   }
