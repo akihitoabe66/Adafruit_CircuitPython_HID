@@ -2,7 +2,7 @@
    画面は 720x428。キー: left/right/up/down/ok/back */
 (function () {
   const MJ = window.MJ; const W = 720, H = 428, SW = 832, SH = 468; // W,H=卓の大きさ / SW,SH=画面全体(右に操作の列)
-  const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, lay: [], teachQ: null, homeBot: false, homeBotIdx: 0, playQ: null, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, pressT: -9999, locked: false, lay: [], teachQ: null, homeBot: false, homeBotIdx: 0, playQ: null, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const dirty = () => { S.dirty = true; };
   const WIND = ['東', '南', '西', '北'];
@@ -15,6 +15,8 @@
 
   /* ---------- セーブ(手動・最新から5件) ---------- */
   const wrap = (i, n) => (i + n) % n;
+  const pressing = () => __now() - S.pressT < 170;
+  const later = (fn) => { S.pressT = __now(); S.locked = true; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 170); }; // 押したボタンが光ってから、次へ
   const NSLOT = 5;
   function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
     const out = [];
@@ -301,9 +303,10 @@
     gfx.image('img/btn_exit.webp', SW - 130, SH - 60, 108, 37, 255);
     const ring = [[(SW - 250) / 2 - 3, SH - 103, 256, 84], [SW - 123, 7, 114, 43], [SW - 133, SH - 63, 114, 43]][f];
     if (f !== 0) frame(ring[0], ring[1], ring[2], ring[3], [255, 255, 255], 3); // (はじめるのボタンは、絵に枠がある)
+    if (pressing()) { rrect(ring[0] - 4, ring[1] - 4, ring[2] + 8, ring[3] + 8, 22, [255, 255, 255], 120); } // 押した瞬間に光る
   }
   function btnR(x, y, w, h, r, sel, off, label, sz, arrow) {
-    if (sel) { rrect(x - 5, y - 5, w + 10, h + 10, r + 5, [30, 30, 30]); rrect(x - 3, y - 3, w + 6, h + 6, r + 3, [255, 255, 255]); rrect(x, y, w, h, r, [253, 213, 63]); }
+    if (sel) { rrect(x - 5, y - 5, w + 10, h + 10, r + 5, [30, 30, 30]); rrect(x - 3, y - 3, w + 6, h + 6, r + 3, [255, 255, 255]); rrect(x, y, w, h, r, pressing() ? [255, 246, 170] : [253, 213, 63]); if (pressing()) rrect(x - 9, y - 9, w + 18, h + 18, r + 9, [255, 255, 255], 90); }
     else rrect(x, y, w, h, r, off ? [200, 206, 200] : [238, 242, 236], off ? 200 : 245);
     if (arrow && sel) text('▶', x + 22, y + (h - sz) / 2 - 1, sz - 4, BLACK);
     text(label, x + (arrow ? 70 : 62), y + (h - sz) / 2 - 1, sz, off ? [150, 156, 150] : BLACK);
@@ -321,7 +324,7 @@
     const bw = [138, 160, 150, 210];
     let bx = 23; HOME_BOTTOM.forEach((b, i) => {
       const lab = b.k === 'rank' ? '成績・' + MJ.Rank.label() : b.k === 'teacher' ? teacherLabel() : b.label, sel = S.homeBot && S.homeBotIdx === i;
-      if (sel) { rrect(bx - 3, 372, bw[i] + 6, 46, 16, [255, 255, 255]); }
+      if (sel) { rrect(bx - 3, 372, bw[i] + 6, 46, 16, pressing() ? [255, 246, 170] : [255, 255, 255]); }
       rrect(bx, 375, bw[i], 40, 14, [96, 66, 30]); rrect(bx + 2, 377, bw[i] - 4, 36, 12, sel ? [150, 105, 40] : [64, 42, 18]);
       text(lab, bx + bw[i] / 2, 384, 18, sel ? [255, 245, 200] : [245, 224, 160], 1); bx += bw[i] + 8;
     });
@@ -378,9 +381,10 @@
   const PIP = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
   function drawDie(x, y, v, s) { // 立体に見えるサイコロ(正面・上・右の3面)。s=手前ほど大きい
     s = s || 72; const d = Math.round(s * 0.2);
-    fill(x + d + 4, y + s - 2, s, Math.round(s * 0.18), [0, 0, 0], 80); // 影
-    fill(x + s, y - d + 2, d, s, [196, 194, 184]); frame(x + s, y - d + 2, d, s, [110, 108, 100], 1); // 右の面
-    fill(x + d, y - d, s, d, [255, 255, 250]); frame(x + d, y - d, s, d, [140, 138, 130], 1); // 上の面
+    fill(x + 4, y + s - 1, s + d, Math.round(s * 0.14), [0, 0, 0], 70); // 影
+    for (let r = 0; r < d; r++) fill(x + d - r, y - r - 1, s, 1, [255, 255, 250]); // 上の面(斜めに)
+    for (let c = 0; c < d; c++) fill(x + s + c, y - c - 1, 1, s, [190, 188, 178]); // 右の面(斜めに)
+    fill(x + d, y - d - 1, s, 1, [130, 128, 120]); fill(x + s + d - 1, y - d, 1, s, [110, 108, 100]);
     fill(x, y, s, s, [250, 248, 240]); frame(x, y, s, s, [120, 120, 110], 2); // 正面
     const u = s / 3.2, pr = Math.max(3, Math.round(s / 13));
     (PIP[v] || []).forEach((i) => { const cx = x + Math.round(s / 2 + ((i % 3) - 1) * u * 0.9), cy = y + Math.round(s / 2 + (Math.floor(i / 3) - 1) * u * 0.9); fill(cx - pr, cy - pr, pr * 2, pr * 2, v === 1 ? [220, 40, 40] : [30, 30, 30]); });
@@ -449,35 +453,36 @@
   }
   function overlay(a) { fill(-S.vx, -S.vy, SW, SH, [0, 0, 0], a == null ? 200 : a); }
   function drawResult(r) {
-    const g = S.game; gfx.clear(10, 50, 35);
+    const g = S.game; stage(); rrect(40, 12, 752, 444, 18, [240, 200, 60]); rrect(43, 15, 746, 438, 16, [10, 38, 30]);
     if (r.type === 'win') {
-      let y = 8;
-      r.wins.forEach((w) => {
-        text(w.winner.name + '  ' + (w.tsumo ? 'ツモ' : 'ロン') + '   ' + (w.res.limit || ''), 12, y, 20, YEL); y += 28;
-        const v = w.view; let x = 12;
-        v.concealed.forEach((h) => { tile(h.t, x, y, 24, 33, h.red); x += 25; });
-        x += 8; if (w.winTile) { tile(w.winTile.t, x, y, 24, 33, w.winTile.red); frame(x, y, 24, 33, YEL, 2); x += 33; }
-        v.melds.forEach((m) => { m.tiles.forEach((h) => { tile(h.t, x, y, 20, 27, h.red); x += 21; }); x += 5; });
-        y += 38;
-        const ys = w.res.yaku; const col = ys.length > 6 ? 2 : 1;
-        ys.forEach((yk, i) => { text(yk.n, 16 + Math.floor(i / 6) * 220, y + (i % 6) * 18, 15, WHITE); text((yk.h || yk.han || '') + (w.res.yakuman ? '' : '飜'), 190 + Math.floor(i / 6) * 220, y + (i % 6) * 18, 15, GREY, 2); });
-        y += Math.min(6, ys.length) * 18 + 4;
-        const pay = w.pay; const pts = pay.ron != null ? pay.ron + '点' : (pay.each != null ? pay.each + '点オール' : pay.fromOther + ' / ' + pay.fromDealer + '点');
-        text((w.res.yakuman ? '役満' : w.res.han + '飜 ' + w.res.fu + '符') + '   ' + pts, 12, y, 18, YEL); y += 30;
-      });
-      scoreTable(r, 300);
+      const w = r.wins[0], res = w.res, v = w.view;
+      text(w.winner.name, 70, 26, 30, WHITE); { const nw = gfx.measure(w.winner.name, 30); rrect(70 + nw + 14, 28, 84, 34, 10, w.tsumo ? [60, 130, 200] : [210, 60, 50]); text(w.tsumo ? 'ツモ' : 'ロン', 70 + nw + 56, 33, 22, WHITE, 1); }
+      if (r.wins.length > 1) text('ほか ' + r.wins.slice(1).map((x) => x.winner.name).join('・') + ' もロン', 760, 36, 15, GREY, 2);
+      if (res.limit) text(res.limit, 760, 62, 30, [255, 120, 90], 2);
+      // 手牌(大きく、中央ぞろえ)
+      const tw = 36, th = 48, gap = 14, melds = v.melds.reduce((a, m) => a + m.tiles.length * 30 + 10, 0), total = v.concealed.length * (tw + 1) + gap + (w.winTile ? tw : 0) + (melds ? 16 + melds : 0);
+      let x = Math.round((SW - total) / 2); const y0 = 78;
+      v.concealed.forEach((h) => { tile(h.t, x, y0, tw, th, h.red); x += tw + 1; });
+      x += gap; if (w.winTile) { tile(w.winTile.t, x, y0, tw, th, w.winTile.red); frame(x - 1, y0 - 1, tw + 2, th + 2, YEL, 3); x += tw + 16; }
+      v.melds.forEach((m) => { m.tiles.forEach((h) => { tile(h.t, x, y0 + 10, 28, 38, h.red); x += 30; }); x += 10; });
+      // 役
+      const ys = res.yaku; const col = ys.length > 6 ? 2 : 1, cw = col === 2 ? 340 : 480, x0 = col === 2 ? 70 : 160;
+      ys.slice(0, 12).forEach((yk, i) => { const cx = x0 + Math.floor(i / 6) * (cw + 20), cy = 148 + (i % 6) * 32; fill(cx, cy + 28, cw, 1, [60, 90, 80]); text(yk.n, cx + 6, cy, 22, WHITE); text((yk.h || yk.han || '') + (res.yakuman ? '' : '飜'), cx + cw - 6, cy, 22, YEL, 2); });
+      const pay = w.pay; const pts = pay.ron != null ? pay.ron + '点' : (pay.each != null ? pay.each + '点オール' : pay.fromOther + ' / ' + pay.fromDealer + '点');
+      rrect(70, 336, 692, 48, 12, [30, 70, 56]); text((res.yakuman ? '役満' : res.han + '飜 ' + res.fu + '符'), 90, 354, 28, YEL); text(pts, 742, 342, 32, WHITE, 2);
+      scoreCards(r, 396);
     } else {
-      text('流局', 360, 30, 40, YEL, 1);
-      r.tenpai.forEach((t, i) => { const p = g.players[i]; text(p.name, 160, 100 + i * 28, 18, WHITE); text(t ? 'テンパイ' : 'ノーテン', 360, 100 + i * 28, 18, t ? YEL : GREY); });
-      scoreTable(r, 230);
+      text('流局', SW / 2, 30, 42, YEL, 1);
+      r.tenpai.forEach((t, i) => { const p = g.players[i]; rrect(150 + (i % 2) * 280, 110 + Math.floor(i / 2) * 70, 250, 56, 12, [30, 70, 56]); text(p.name, 168 + (i % 2) * 280, 118 + Math.floor(i / 2) * 70, 22, WHITE); text(t ? 'テンパイ' : 'ノーテン', 380 + (i % 2) * 280, 120 + Math.floor(i / 2) * 70, 20, t ? YEL : GREY, 2); });
+      scoreCards(r, 330);
     }
-    text('決定ボタンで つぎへ', 360, 404, 15, WHITE, 1);
   }
-  function scoreTable(r, y0) {
+  function scoreCards(r, y0) { // 4人の点数(前 → 後、増減)を、4枚のカードで
     const g = S.game;
     g.players.forEach((p, i) => {
-      const y = y0 + i * 24; text(p.name, 140, y, 17, WHITE); text(r.before[i], 400, y, 17, GREY, 2); text('→', 430, y, 17, GREY, 1);
-      text(r.after[i], 520, y, 17, YEL, 2); const d = r.delta[i]; text((d > 0 ? '+' : '') + d, 610, y, 17, d > 0 ? [120, 230, 140] : d < 0 ? RED : GREY, 2);
+      const x = 62 + i * 178, d = r.delta[i];
+      rrect(x, y0, 168, 54, 10, [24, 56, 46]); text(p.name, x + 10, y0 + 4, 16, WHITE);
+      text(r.before[i] + ' → ' + r.after[i], x + 10, y0 + 28, 15, GREY); text((d > 0 ? '+' : '') + d, x + 158, y0 + 4, 18, d > 0 ? [120, 230, 140] : d < 0 ? RED : GREY, 2);
     });
   }
   function drawEnd(f) {
@@ -496,7 +501,7 @@
     gfx.image('img/teacher/t14.webp', x + 24, y + 10, 98, 100, 255);
     text('麻雀先生を', x + 140, y + 24, 30, WHITE); text('つけますか?', x + 140, y + 64, 30, WHITE);
     const labs = ['つけない', '麻雀先生をつける', '◀ もどる'], bws = [120, 176, 112]; let bx = x + 12;
-    labs.forEach((l, i) => { const sel = S.teachQ.idx === i; if (sel) { rrect(bx - 3, y + 128, bws[i] + 6, 50, 14, [30, 30, 30]); rrect(bx - 1, y + 130, bws[i] + 2, 46, 12, [255, 255, 255]); } rrect(bx + 1, y + 132, bws[i] - 2, 42, 10, sel ? [253, 213, 63] : [245, 247, 244]); text(l, bx + bws[i] / 2, y + 143, 17, BLACK, 1); bx += bws[i] + 12; });
+    labs.forEach((l, i) => { const sel = S.teachQ.idx === i; if (sel) { rrect(bx - 3, y + 128, bws[i] + 6, 50, 14, [30, 30, 30]); rrect(bx - 1, y + 130, bws[i] + 2, 46, 12, [255, 255, 255]); } rrect(bx + 1, y + 132, bws[i] - 2, 42, 10, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : [245, 247, 244]); text(l, bx + bws[i] / 2, y + 143, 17, BLACK, 1); bx += bws[i] + 12; });
     shotOnce('teach');
   }
   function drawDialog(title, items, idx, note) {
@@ -516,8 +521,8 @@
 
   /* ---------- 入力 ---------- */
   window.__key = function (k) {
-    S.dirty = true;
-    NSND.sfx(k === 'ok' ? 'click' : k === 'back' ? 'click' : 'select', 0.5);
+    S.dirty = true; if (S.locked) return;
+    NSND.sfx(k === 'ok' ? 'ok' : k === 'back' ? 'click' : 'select', 0.5);
     if (S.rankScr) { if (k === 'ok' || k === 'back') { const r = S.rankScr; S.rankScr = null; r.done(); } return; }
     if (k === 'menu' && !S.menuP) { S.menuP = { idx: 0 }; return; } // スタート+セレクト長押し
     if (S.menuP) {
@@ -546,7 +551,7 @@
       const q = S.teachQ;
       if (k === 'left') q.idx = wrap(q.idx - 1, 3); else if (k === 'right' || k === 'up' || k === 'down') q.idx = wrap(q.idx + 1, 3);
       else if (k === 'back') S.teachQ = null;
-      else if (k === 'ok') { if (q.idx === 2) { S.teachQ = null; return; } S.teachQ = null; try { localStorage.setItem('mj_teacher', q.idx === 1 ? '1' : '0'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; startGame(q.snap); }
+      else if (k === 'ok') { if (q.idx === 2) { S.teachQ = null; return; } later(() => { S.teachQ = null; try { localStorage.setItem('mj_teacher', q.idx === 1 ? '1' : '0'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; startGame(q.snap); }); }
       return;
     }
     if (S.playQ) { // 麻雀をはじめる: つづきから / はじめから
@@ -567,7 +572,7 @@
     }
     if (S.mode === 'title') { // タイトル: はじめる / BGM / 終了
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { const m = { 0: { up: 1, left: 1, right: 2, down: 2 }, 1: { down: 0, left: 0, right: 2, up: 2 }, 2: { up: 1, right: 1, left: 0, down: 0 } }; S.titleIdx = m[S.titleIdx][k]; }
-      else if (k === 'ok') { if (S.titleIdx === 0) { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); } else if (S.titleIdx === 1) { NSND.toggle(); if (NSND.on) NSND.home(); } else S.confirmQ = { idx: 0 }; }
+      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }); else if (S.titleIdx === 1) { NSND.toggle(); if (NSND.on) NSND.home(); } else S.confirmQ = { idx: 0 }; }
       return;
     }
     if (S.mode === 'settings') {
@@ -594,7 +599,7 @@
         if (k === 'left' || k === 'right') S.homeBotIdx = wrap(S.homeBotIdx + (k === 'right' ? 1 : -1), HOME_BOTTOM.length);
         else if (k === 'up') { S.homeBot = false; S.menuIdx = firstOn(items, items.length - 1, -1); }
         else if (k === 'back') S.mode = 'title';
-        else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else toggleTeacher(); }
+        else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; later(() => { if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else toggleTeacher(); }); }
         return;
       }
       if (k === 'up') { const j = firstOn(items, S.menuIdx - 1, -1); if (j < S.menuIdx) S.menuIdx = j; }
@@ -602,8 +607,8 @@
       else if (k === 'back') S.mode = 'title';
       else if (k === 'ok') {
         const it = items[S.menuIdx]; if (!it || it.off) return;
-        if (it.act === 'play') { const l = slotRead(); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else S.teachQ = { idx: teacherOn() ? 1 : 0, snap: null }; }
-        else if (it.act === 'settings') { S.mode = 'settings'; S.setIdx = 0; }
+        if (it.act === 'play') later(() => { const l = slotRead(); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else S.teachQ = { idx: teacherOn() ? 1 : 0, snap: null }; });
+        else if (it.act === 'settings') later(() => { S.mode = 'settings'; S.setIdx = 0; });
       }
       return;
     }
@@ -731,7 +736,7 @@
     if (__auto && now > nextAuto && !S.coach && !S.side) { nextAuto = now + 90; window.__key('ok'); }
     if (__lsDirty && now - lastSave > 1500) { lastSave = now; __lsDirty = false; try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ } }
     /* 画面の入れかえ(ダブル/トリプルバッファ)で、古い絵が交互に出て点滅しないよう、変化のあとは3回続けて描く */
-    if (S.intro || S.dice || S.fly || S.deal || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
+    if (pressing() || S.intro || S.dice || S.fly || S.deal || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
     if (!S.dirty) return false;
     S.dirty = false; return true;
   };
@@ -740,7 +745,7 @@
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end;
-    if (full || inGame) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
+    if (full || inGame || S.result) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
     gfx.view(S.vx, S.vy);
     if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'slots') { gfx.clear(14, 84, 52); drawSlots(); }
     else if (S.game) { gfx.clear(14, 84, 52); drawTable(S.game); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
