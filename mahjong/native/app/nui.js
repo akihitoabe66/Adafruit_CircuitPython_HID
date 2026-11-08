@@ -47,7 +47,7 @@
     fill(x + 1, y + 1, w, h, [0, 0, 0], 70);
     if (!gfx.image(MJ.tileSrc(t, red), x, y, w, h, dim ? 100 : 255)) { fill(x, y, w, h, [240, 240, 230]); text(MJ.tileName(t), x + w / 2, y + 2, 10, BLACK, 1); }
   }
-  function panel(x, y, w, h, r, c, bc, bw, a) { rrect(x, y, w, h, r, bc, a); rrect(x + bw, y + bw, w - 2 * bw, h - 2 * bw, Math.max(1, r - bw), c, a); } // 角の丸い板(縁つき)
+  function panel(x, y, w, h, r, c, bc, bw, a) { r = Math.max(2, Math.min(5, Math.round(r * 0.35))); rrect(x, y, w, h, r, bc, a); rrect(x + bw, y + bw, w - 2 * bw, h - 2 * bw, Math.max(1, r - bw), c, a); } // 角の丸い板(縁つき)
   function rrect(x, y, w, h, r, c, a) { // 角の丸い四角(細い線を重ねる)
     r = Math.min(r, Math.floor(h / 2), Math.floor(w / 2));
     for (let dy = 0; dy < r; dy++) { const d = r - dy - 0.5, inset = r - Math.floor(Math.sqrt(Math.max(0, r * r - d * d))); fill(x + inset, y + dy, w - 2 * inset, 1, c, a); fill(x + inset, y + h - 1 - dy, w - 2 * inset, 1, c, a); }
@@ -158,7 +158,7 @@
   /* ---------- 右の操作の列(Edge版と同じ並び): MENU / 局 / あたり牌 / 解説 / 麻雀先生 ---------- */
   const SIDE_ORDER = [0, 3, 1, 2]; // 上から: MENU(と音) / 解説 / 麻雀先生
   function sbtn(x, y, w, h, c1, c2, lines, focus, sz) {
-    if (focus) rrect(x - 3, y - 3, w + 6, h + 6, 11, [255, 255, 255]); rrect(x, y, w, h, 8, c2); rrect(x, y, w, h - 3, 8, c1);
+    if (focus) rrect(x - 3, y - 3, w + 6, h + 6, 6, [255, 255, 255]); rrect(x, y, w, h, 4, c2); rrect(x, y, w, h - 3, 4, c1);
     lines.forEach((l, i) => text(l, x + w / 2, y + (h - lines.length * (sz + 3)) / 2 + i * (sz + 3), sz, WHITE, 1));
   }
   function drawSide(g) {
@@ -542,22 +542,22 @@
   function tri(cx, cy, r, dir) { for (let i = -r; i <= r; i++) { const w = Math.round(r * 1.6 * (1 - Math.abs(i) / r)) + 1; fill(dir < 0 ? cx + r * 0.8 - w : cx - r * 0.8, cy + i, w, 1, [20, 20, 20]); } }
   function drawSound() {
     overlay(190); const x0 = 60, w = 600, h = 352, y0 = Math.round((H - h) / 2);
-    rrect(x0 - 3, y0 - 3, w + 6, h + 6, 20, [240, 210, 100]); rrect(x0, y0, w, h, 18, [36, 74, 58]);
+    rrect(x0 - 3, y0 - 3, w + 6, h + 6, 8, [240, 210, 100]); rrect(x0, y0, w, h, 6, [36, 74, 58]);
     text('音のせってい', 360, y0 + 12, 26, WHITE, 1); fill(236, y0 + 20, 5, 10, WHITE); fill(241, y0 + 17, 4, 16, WHITE); fill(245, y0 + 14, 4, 22, WHITE);
     const sp = S.soundP, names = ['BGM', '効果音', '読み上げ'], K = ['bgm', 'sfx', 'voice'];
     for (let i = 0; i < 4; i++) {
-      const ry = y0 + 58 + i * 52, sel = sp.idx === i; if (sel) rrect(x0 + 8, ry - 4, w - 16, 52, 12, [70, 120, 92]);
+      const ry = y0 + 58 + i * 52, sel = sp.idx === i; if (sel) rrect(x0 + 8, ry - 4, w - 16, 52, 6, [70, 120, 92]);
       text(names[i] || 'CPU', x0 + 24, ry + 8, i === 2 ? 20 : 24, WHITE);
       if (i < 3) {
         const lv = NSND.getLevel(K[i]);
-        rrect(x0 + 130, ry, 52, 44, 10, [232, 238, 228]); tri(x0 + 156, ry + 22, 11, -1);
+        rrect(x0 + 130, ry, 52, 44, 5, [232, 238, 228]); tri(x0 + 156, ry + 22, 11, -1);
         rrect(x0 + 192, ry + 10, 270, 24, 12, [24, 46, 36]); if (lv) rrect(x0 + 192, ry + 10, Math.max(24, Math.round(270 * lv / 10)), 24, 12, [240, 200, 80]);
-        rrect(x0 + 472, ry, 52, 44, 10, [232, 238, 228]); tri(x0 + 498, ry + 22, 11, 1);
+        rrect(x0 + 472, ry, 52, 44, 5, [232, 238, 228]); tri(x0 + 498, ry + 22, 11, 1);
         text(String(lv), x0 + 560, ry + 4, 30, YEL, 1);
-      } else { rrect(x0 + 130, ry, 394, 44, 10, [232, 238, 228]); text('速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()], x0 + 327, ry + 8, 24, BLACK, 1); }
+      } else { rrect(x0 + 130, ry, 394, 44, 5, [232, 238, 228]); text('速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()], x0 + 327, ry + 8, 24, BLACK, 1); }
     }
     text('0にすると、その音が消えます。対局は、とじるまで止まります。', 360, y0 + 58 + 4 * 52 + 2, 15, [190, 205, 195], 1);
-    const cy = y0 + h - 56; if (sp.idx === 4) rrect(300, cy - 4, 120, 52, 16, [255, 255, 255]); rrect(304, cy, 112, 44, 14, [248, 208, 80]); text('とじる', 360, cy + 9, 22, BLACK, 1);
+    const cy = y0 + h - 56; if (sp.idx === 4) rrect(300, cy - 4, 120, 52, 7, [255, 255, 255]); rrect(304, cy, 112, 44, 6, [248, 208, 80]); text('とじる', 360, cy + 9, 22, BLACK, 1);
   }
   function drawDialog(title, items, idx, note) {
     overlay(190); const h = 70 + items.length * 50; const y0 = Math.round((H - h) / 2);
