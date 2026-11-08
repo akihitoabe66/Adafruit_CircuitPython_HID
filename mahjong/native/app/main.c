@@ -194,8 +194,10 @@ static const char *findfont(void){
   for (int i = 0; c[i]; i++) { FILE *f = fopen(c[i], "rb"); if (f) { fclose(f); return c[i]; } } return NULL; }
 
 static int swapab = 1; static JSValue j_swapab(JSContext *c, JSValueConst t, int n, JSValueConst *a){ swapab = ai(c,a[0]); return JS_UNDEFINED; }
+static int held = 0; static double held_next = 0; static const char *HELD[5] = { "", "left", "right", "up", "down" }; /* 押しっぱなしの連続移動 */
+static void setheld(int d){ held = d; held_next = nowms() + 380; }
 static int axisdir[2] = { 0, 0 }; static int jb[32]; static double menu_t0 = 0;
-static void joyaxis(int axis, int v){ int d = v > 16000 ? 1 : v < -16000 ? -1 : 0; if (axis > 1) return; if (d != axisdir[axis]) { axisdir[axis] = d; if (d) callkey(axis == 0 ? (d > 0 ? "right" : "left") : (d > 0 ? "down" : "up")); } }
+static void joyaxis(int axis, int v){ int d = v > 16000 ? 1 : v < -16000 ? -1 : 0; if (axis > 1) return; if (d != axisdir[axis]) { axisdir[axis] = d; if (d) { callkey(axis == 0 ? (d > 0 ? "right" : "left") : (d > 0 ? "down" : "up")); setheld(axis == 0 ? (d > 0 ? 2 : 1) : (d > 0 ? 4 : 3)); } else held = 0; } }
 
 static void handle_event(SDL_Event *ep){
   SDL_Event e = *ep;
@@ -203,12 +205,13 @@ static void handle_event(SDL_Event *ep){
   else if (e.type == SDL_JOYDEVICEADDED) SDL_JoystickOpen(e.jdevice.which);
   else if (e.type == SDL_KEYDOWN && !e.key.repeat) {
     switch (e.key.keysym.sym) {
-      case SDLK_LEFT: callkey("left"); break; case SDLK_RIGHT: callkey("right"); break; case SDLK_UP: callkey("up"); break; case SDLK_DOWN: callkey("down"); break;
+      case SDLK_LEFT: callkey("left"); setheld(1); break; case SDLK_RIGHT: callkey("right"); setheld(2); break; case SDLK_UP: callkey("up"); setheld(3); break; case SDLK_DOWN: callkey("down"); setheld(4); break;
       case SDLK_RETURN: case SDLK_SPACE: case SDLK_z: callkey("ok"); break;
       case SDLK_ESCAPE: case SDLK_BACKSPACE: case SDLK_x: callkey("back"); break;
       case SDLK_q: if (e.key.keysym.mod & KMOD_CTRL) quitf = 1; break; }
   }
-  else if (e.type == SDL_JOYHATMOTION) { if (e.jhat.value & SDL_HAT_LEFT) callkey("left"); else if (e.jhat.value & SDL_HAT_RIGHT) callkey("right"); else if (e.jhat.value & SDL_HAT_UP) callkey("up"); else if (e.jhat.value & SDL_HAT_DOWN) callkey("down"); }
+  else if (e.type == SDL_KEYUP) { int k = e.key.keysym.sym; if ((k == SDLK_LEFT && held == 1) || (k == SDLK_RIGHT && held == 2) || (k == SDLK_UP && held == 3) || (k == SDLK_DOWN && held == 4)) held = 0; }
+  else if (e.type == SDL_JOYHATMOTION) { if (e.jhat.value & SDL_HAT_LEFT) { callkey("left"); setheld(1); } else if (e.jhat.value & SDL_HAT_RIGHT) { callkey("right"); setheld(2); } else if (e.jhat.value & SDL_HAT_UP) { callkey("up"); setheld(3); } else if (e.jhat.value & SDL_HAT_DOWN) { callkey("down"); setheld(4); } else held = 0; }
   else if (e.type == SDL_JOYAXISMOTION) joyaxis(e.jaxis.axis, e.jaxis.value);
   else if (e.type == SDL_JOYBUTTONUP) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 0; }
   else if (e.type == SDL_JOYBUTTONDOWN) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 1; { int b = e.jbutton.button; if (b >= 6 && b <= 9) return; /* スタート・セレクトは、長押しのメニュー専用 */ callkey((swapab ? (b == 0 || b == 2) : (b == 1 || b == 3)) ? "back" : "ok"); } }
@@ -261,6 +264,7 @@ int main(int argc, char **argv){
     SDL_Event e; int got = SDL_WaitEventTimeout(&e, keep ? 1 : 8);
     while (got) { handle_event(&e); got = SDL_PollEvent(&e); }
     { int both = (jb[8] && jb[9]) || (jb[6] && jb[7]); if (both) { if (!menu_t0) menu_t0 = nowms(); else if (menu_t0 > 0 && nowms() - menu_t0 > 1200) { callkey("menu"); menu_t0 = -1; } } else menu_t0 = 0; } /* スタート+セレクトを長押し: メニュー(終了など) */
+    if (held && nowms() >= held_next) { callkey(HELD[held]); held_next = nowms() + 95; }
     double tl0 = nowms(); int need = callframe(); { double d = nowms() - tl0; perf_logic += d; if (d > perf_logicmax) perf_logicmax = d; }
     if (need) {
       double t0 = nowms(); SDL_SetRenderTarget(ren, tgt); ntop = 0;

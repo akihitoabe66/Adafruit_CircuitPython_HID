@@ -736,10 +736,10 @@
     if (r && __now() - r.t0 < 600) return; // 確認が出た直後は、キーを受け付けない(連打で押してしまうのを防ぐ。Edge版と同じ)
     if (r && k === 'back' && !r.pick) return; // 確認の間は、戻るは何もしない(誤操作防止)
     if (S.mode === 'game' && !s && !r && S.game && (k === 'left' || k === 'right' || k === 'up' || k === 'down')) { // 相手の番でも、牌をなぞれる
-      const n = myTiles(S.game.players[0]).length; if (!n) return; if (S.curIdx == null) { S.curIdx = (k === 'right' || k === 'down') ? 0 : n - 1; dirty(); return; } const c = Math.min(S.curIdx, n - 1);
+      const n = myTiles(S.game.players[0]).length; if (!n) return; if (S.curIdx == null) { S.curIdx = (k === 'right' || k === 'up') ? 0 : n - 1; dirty(); return; } const c = Math.min(S.curIdx, n - 1);
       if (k === 'left') { if (c === 0) S.side = { idx: 2 }; else S.curIdx = c - 1; }
       else if (k === 'right') { if (c >= n - 1) S.side = { idx: 1 }; else S.curIdx = c + 1; }
-      else S.curIdx = k === 'up' ? n - 1 : 0;
+      else S.curIdx = k === 'up' ? 0 : n - 1;
       dirty(); return;
     }
     if (k === 'left' && S.mode === 'game' && s && s.row === 0 && s.idx === 0) { S.side = { idx: 2 }; return; } // いちばん左から、さらに左へ: 麻雀先生のボタン
@@ -748,8 +748,8 @@
       const tiles = s.tiles;
       if (k === 'left' || k === 'right') {
         const n = s.row === 0 ? tiles.length : s.btns.length; if (!n) return; s.idx = wrap(s.idx + (k === 'left' ? -1 : 1), n);
-      } else if (k === 'up') { if (s.row === 0 && s.idx !== tiles.length - 1) s.idx = tiles.length - 1; else if (s.row === 0 && s.btns.length) { s.row = 1; s.idx = 0; } } // 上: いちばん右の牌へ(そこで、もう一度上: ボタンへ)
-      else if (k === 'down') { if (s.row === 1) { s.row = 0; s.idx = 0; } else s.idx = 0; } // 下: 1枚目の牌へ
+      } else if (k === 'up') { if (s.row === 0 && s.idx !== 0) s.idx = 0; else if (s.row === 0 && s.btns.length) { s.row = 1; s.idx = 0; } } // 上: 1枚目の牌へ(そこで、もう一度上: ボタンへ)
+      else if (k === 'down') { if (s.row === 1) { s.row = 0; s.idx = tiles.length - 1; } else s.idx = tiles.length - 1; } // 下: いちばん右の牌(14枚目。まだ引いていなければ13枚目)へ
       else if (k === 'back' && s.rm) { s.rm = false; }
       else if (k === 'ok') {
         if (s.row === 0) { const h = tiles[s.idx]; if (allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.curIdx = s.idx; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
