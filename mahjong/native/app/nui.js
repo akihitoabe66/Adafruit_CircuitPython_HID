@@ -696,14 +696,14 @@
       if (S.menuIdx >= items.length) S.menuIdx = 0;
       if (S.homeBot) { // 下の段: ゲーム終了 / 成績 / 対戦成績 / 麻雀先生
         if (k === 'left') S.homeBotIdx = 0; else if (k === 'right') { if (S.homeBotIdx === 0) S.homeBotIdx = 1; else S.homeBot = false; } // 右: もとの項目へ(menuIdx は覚えている)
-        else if (k === 'up') { S.homeBot = false; S.menuIdx = firstOn(items, 0, 1); } // 上: 「麻雀をはじめる」へ
-        else if (k === 'down') { S.homeBot = false; S.menuIdx = firstOn(items, items.length - 1, -1); } // 下: 「設定」へ
+        else if (k === 'up') { S.homeBot = false; S.menuIdx = firstOn(items, items.length - 1, -1); } // 上: 「設定」へ
+        else if (k === 'down') { S.homeBot = false; S.menuIdx = firstOn(items, 0, 1); } // 下: 「麻雀をはじめる」へ(ぐるっと回る)
         else if (k === 'back') S.mode = 'title';
         else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; later(() => { if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else toggleTeacher(); }); }
         return;
       }
-      if (k === 'up') { const j = firstOn(items, S.menuIdx - 1, -1); if (j < S.menuIdx) S.menuIdx = j; }
-      else if (k === 'down') { const j = firstOn(items, S.menuIdx + 1, 1); if (j > S.menuIdx) S.menuIdx = j; }
+      if (k === 'up') { const j = firstOn(items, S.menuIdx - 1, -1); S.menuIdx = j < S.menuIdx ? j : firstOn(items, items.length - 1, -1); } // いちばん上から上: いちばん下(設定)へ
+      else if (k === 'down') { const j = firstOn(items, S.menuIdx + 1, 1); S.menuIdx = j > S.menuIdx ? j : firstOn(items, 0, 1); } // いちばん下から下: いちばん上へ
       else if (k === 'left') { S.homeBot = true; S.homeBotIdx = 1; }
       else if (k === 'back') S.mode = 'title';
       else if (k === 'ok') {
