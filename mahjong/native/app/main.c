@@ -69,6 +69,14 @@ static JSValue j_text(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   if (!tx) return JS_NewInt32(c, 0);
   int x = ai(c,a[1]); if (al == 1) x -= w / 2; else if (al == 2) x -= w;
   SDL_Rect d = { x, ai(c,a[2]), w, h }; SDL_SetTextureAlphaMod(tx, 255); SDL_RenderCopy(ren, tx, NULL, &d); return JS_NewInt32(c, w); }
+static JSValue j_imagerot(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 回して描く: (x,y)は、回したあとの外枠の左上。w,hは、回す前の大きさ */
+  const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getimg(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE;
+  int x = ai(c,a[1]), y = ai(c,a[2]), dw = ai(c,a[3]), dh = ai(c,a[4]), ang = ai(c,a[6]); int bw = (ang == 90 || ang == 270) ? dh : dw, bh = (ang == 90 || ang == 270) ? dw : dh;
+  SDL_Rect d = { x + bw / 2 - dw / 2, y + bh / 2 - dh / 2, dw, dh }; SDL_SetTextureAlphaMod(tx, ai(c,a[5])); SDL_RenderCopyEx(ren, tx, NULL, &d, (double)ang, NULL, SDL_FLIP_NONE); return JS_TRUE; }
+static JSValue j_textrot(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 回した文字: (cx,cy)を中心に */
+  const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0; SDL_Texture *tx = (s && *s) ? gettext(s, ai(c,a[3]), ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), &w, &h) : NULL; JS_FreeCString(c, s);
+  if (!tx) return JS_NewInt32(c, 0);
+  SDL_Rect d = { ai(c,a[1]) - w / 2, ai(c,a[2]) - h / 2, w, h }; SDL_SetTextureAlphaMod(tx, 255); SDL_RenderCopyEx(ren, tx, NULL, &d, (double)ai(c,a[7]), NULL, SDL_FLIP_NONE); return JS_NewInt32(c, w); }
 static JSValue j_measure(JSContext *c, JSValueConst t, int n, JSValueConst *a){ const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0; TTF_Font *f = getfont(ai(c,a[1])); if (f && s) TTF_SizeUTF8(f, s, &w, &h); JS_FreeCString(c, s); return JS_NewInt32(c, w); }
 static JSValue j_view(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_Rect r = { ai(c,a[0]), ai(c,a[1]), W - ai(c,a[0]), H - ai(c,a[1]) }; SDL_RenderSetViewport(ren, &r); return JS_UNDEFINED; } /* 描く原点を動かす(画面の外側は切れる) */
 static JSValue j_clear(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_SetRenderDrawColor(ren, ai(c,a[0]), ai(c,a[1]), ai(c,a[2]), 255); SDL_RenderClear(ren); return JS_UNDEFINED; }
@@ -217,7 +225,7 @@ int main(int argc, char **argv){
   rt = JS_NewRuntime(); JS_SetMemoryLimit(rt, 192 * 1024 * 1024); JS_SetMaxStackSize(rt, 2 * 1024 * 1024); JS_SetHostPromiseRejectionTracker(rt, rejected, NULL);
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
-  reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "text", j_text, 8); reg(gfx, "measure", j_measure, 2);
+  reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
   reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "shot", j_shot, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);

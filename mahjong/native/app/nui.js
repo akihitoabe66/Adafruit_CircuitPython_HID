@@ -2,7 +2,7 @@
    画面は 720x428。キー: left/right/up/down/ok/back */
 (function () {
   const MJ = window.MJ; const W = 720, H = 428, SW = 832, SH = 468; // W,H=卓の大きさ / SW,SH=画面全体(右に操作の列)
-  const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, playQ: null, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const dirty = () => { S.dirty = true; };
   const WIND = ['東', '南', '西', '北'];
@@ -34,7 +34,6 @@
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
   const homeItems = () => {
     const out = [];
-    if (slotRead().length) out.push({ label: 'つづきから', act: 'continue' });
     out.push({ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz', off: true }, { label: '点数計算の勉強', act: 'study', off: true }, { label: '設定', act: 'settings' }, { label: 'あなたの段位', act: 'rank' }, { label: '対戦成績', act: 'stats' }, { label: teacherLabel(), act: 'teacher' });
     return out;
   };
@@ -63,15 +62,32 @@
   const posOf = { 0: 'bottom', 1: 'right', 2: 'top', 3: 'left' };
 
   /* ---------- 卓の描画 ---------- */
-  function drawPlate(g, p, x, y, mini) {
-    const fs = mini ? 26 : 44;
-    face(p, x, y, fs, fs);
-    const tx = mini ? x + 30 : x + 50;
-    text(p.name, tx, y, 13, WHITE);
-    text(p.score, tx, y + (mini ? 15 : 17), 16, p.score < 0 ? RED : YEL);
-    const sw = g.seatWindOf(p);
-    text((p.seat === g.dealer ? '親 ' : '') + WIND[sw], tx, y + (mini ? 34 : 37), 12, p.seat === g.dealer ? [255, 150, 120] : GREY);
-    if (p.riichi) text('リーチ', tx, y + (mini ? 48 : 51), 12, RED);
+  /* Edge版の卓と同じ配置(座標は、画面 832x468 の中) */
+  const HX0 = 17, HPITCH = 45.5, HY = 387, HW = 44, HH = 58, RW = 26, RH = 33;
+  const handX = (i, gap) => Math.round(HX0 + i * HPITCH + (gap ? 15 : 0));
+  function riverPos(seat, i) { // 河の i 番目の牌: 外枠の位置と、回す角度
+    const c = i % 6, r = Math.floor(i / 6);
+    if (seat === 0) return { x: 281 + c * RW, y: 268 + r * RH, rot: 0, bw: RW, bh: RH };
+    if (seat === 2) return { x: 412 - c * RW, y: 127 - r * RH, rot: 180, bw: RW, bh: RH };
+    if (seat === 3) return { x: 181 - r * 35, y: 157 + c * RW, rot: 90, bw: RH, bh: RW };
+    return { x: 503 + r * 35, y: 287 - c * RW, rot: 270, bw: RH, bh: RW };
+  }
+  function tileR(t, x, y, w, h, red, dim, rot) {
+    if (!rot) { tile(t, x, y, w, h, red, dim); return; }
+    if (!gfx.imageRot(MJ.tileSrc(t, red), x, y, w, h, dim ? 100 : 255, rot)) { const bw = (rot === 90 || rot === 270) ? h : w, bh = (rot === 90 || rot === 270) ? w : h; fill(x, y, bw, bh, [240, 240, 230]); }
+  }
+  const BAR = [8, 26, 18];
+  function barPieces(g, p) {
+    const sw = g.seatWindOf(p), parts = [{ s: WIND[sw], c: sw === 0 ? [235, 90, 70] : [120, 160, 230], sz: 18 }, { s: p.name, c: WHITE, sz: 16 }, { s: String(p.score).replace(/\B(?=(\d{3})+(?!\d))/g, ','), c: p.score < 0 ? RED : YEL, sz: 18 }];
+    if (p.riichi) parts.push({ s: 'リーチ中', c: [255, 120, 100], sz: 15 });
+    return parts;
+  }
+  function drawBar(g, p, x, y, w, h, rot) {
+    fill(x, y, w, h, BAR, 240); frame(x, y, w, h, [225, 225, 215], 2);
+    const parts = barPieces(g, p);
+    if (!rot) { let cx = x + 10; parts.forEach((q) => { text(q.s, cx, y + (h - q.sz) / 2 - 2, q.sz, q.c); cx += gfx.measure(q.s, q.sz) + 12; }); return; }
+    let cy = y + 10; const cxm = x + w / 2;
+    parts.forEach((q) => { const tw = gfx.measure(q.s, q.sz); if (rot === 90) { gfx.textRot(q.s, Math.round(cxm), Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); cy += tw + 12; } else { /* 270: 下から上へ */ gfx.textRot(q.s, Math.round(cxm), Math.round(y + h - 10 - (cy - y - 10) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); cy += tw + 12; } });
   }
   function drawMelds(p, x, y, w, h, dir) {
     let cx = x, cy = y;
@@ -85,14 +101,14 @@
       if (dir === 'row') cx += 6; else cy += 5;
     }
   }
-  function drawRiver(g, p, x, y) {
-    const tw = 18, th = 24;
+  const meldW = (p, w) => p.melds.reduce((a, m) => a + m.tiles.length * (w + 1) + 6, 0);
+  function drawRiver(g, p) {
     p.discards.forEach((d, i) => {
       if (S.fly && S.fly.d === d && __now() < S.fly.t0 + S.fly.dur) return; // 飛んでいる間は、河には描かない
-      const cx = x + (i % 6) * (tw + 1), cy = y + Math.floor(i / 6) * (th + 1);
-      tile(d.tile.t, cx, cy, tw, th, d.tile.red, d.called);
-      if (d.riichi) frame(cx, cy, tw, th, RED, 2);
-      if (g.lastDiscard && g.lastDiscard.d === d) frame(cx - 1, cy - 1, tw + 2, th + 2, YEL, 2);
+      const q = riverPos(p.seat, i);
+      tileR(d.tile.t, q.x, q.y, RW, RH, d.tile.red, d.called, q.rot);
+      if (d.riichi) frame(q.x, q.y, q.bw, q.bh, RED, 2);
+      if (g.lastDiscard && g.lastDiscard.d === d) frame(q.x - 1, q.y - 1, q.bw + 2, q.bh + 2, YEL, 2);
     });
   }
   /* ---------- 麻雀先生(バランス型) ---------- */
@@ -173,61 +189,61 @@
   function drawTeacher(g) {
     if (!teacherOn()) return;
     const h = S.hint, s = S.self; if (!h || !s || s.row !== 0) return;
-    fill(8, 252, 292, 56, [6, 44, 26], 240); frame(8, 252, 292, 56, [255, 220, 40], 2);
-    text('★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), 14, 255, 15, YEL);
-    text((h.sh === 0 ? 'テンパイ' : 'テンパイまであと' + h.sh + '歩') + ' 受け入れ' + h.n + '枚', 14, 275, 12, WHITE);
-    if (h.label) text(h.label + ' ' + String(h.why || '').slice(0, 14), 14, 291, 12, [255, 200, 150]);
+    fill(6, 304, 430, 46, [6, 44, 26], 240); frame(6, 304, 430, 46, [255, 220, 40], 2);
+    text('★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), 14, 306, 17, YEL);
+    text((h.sh === 0 ? 'テンパイ' : 'テンパイまであと' + h.sh + '歩') + ' 受け入れ' + h.n + '枚  ' + (h.label || ''), 14, 327, 14, WHITE);
   }
 
   /* ---------- 軽い動き(牌が河へ飛ぶ・配牌・札の拡大) ---------- */
-  const RIVER = { 2: [306, 30], 0: [306, 212], 3: [160, 134], 1: [452, 134] };
-  const HANDSRC = { 2: [330, 6], 3: [132, 150], 1: [572, 150] };
+  const HANDSRC = { 2: [330, 30], 3: [12, 150], 1: [700, 150] };
   function startFly(g, ld) {
     if (g.fast || ld.by == null) return;
     const p = g.players[ld.by], i = p.discards.indexOf(ld.d); if (i < 0) return;
-    const to = [RIVER[ld.by][0] + (i % 6) * 19, RIVER[ld.by][1] + Math.floor(i / 6) * 25];
+    const q = riverPos(ld.by, i);
     const from = ld.by === 0 && S.pick ? S.pick : (HANDSRC[ld.by] || [360, 300]);
-    S.fly = { d: ld.d, t: ld.tile.t, red: ld.tile.red, from, to, t0: __now(), dur: ld.by === 0 ? 220 : 160 }; S.pick = null;
+    S.fly = { d: ld.d, t: ld.tile.t, red: ld.tile.red, from, to: [q.x, q.y], rot: q.rot, bw: q.bw, bh: q.bh, t0: __now(), dur: ld.by === 0 ? 220 : 160 }; S.pick = null;
   }
   function drawFly() {
     const f = S.fly; if (!f) return; const k = (__now() - f.t0) / f.dur; if (k >= 1) { S.fly = null; dirty(); return; }
-    const e = 1 - Math.pow(1 - k, 3), x = f.from[0] + (f.to[0] - f.from[0]) * e, y = f.from[1] + (f.to[1] - f.from[1]) * e - 26 * Math.sin(Math.PI * e);
-    const w = 36 + (18 - 36) * e, h = 50 + (24 - 50) * e; tile(f.t, Math.round(x), Math.round(y), Math.round(w), Math.round(h), f.red);
+    const e = 1 - Math.pow(1 - k, 3), x = f.from[0] + (f.to[0] - f.from[0]) * e, y = f.from[1] + (f.to[1] - f.from[1]) * e - 30 * Math.sin(Math.PI * e);
+    const w = HW + (RW - HW) * e, h = HH + (RH - HH) * e; tile(f.t, Math.round(x), Math.round(y), Math.round(w), Math.round(h), f.red);
   }
   const dealF = () => { const d = S.deal; if (!d) return 1; const k = (__now() - d.t0) / d.dur; if (k >= 1) { S.deal = null; return 1; } return Math.max(0, k); };
   function drawTable(g) {
     if (!g.doraInd || !g.players[0].hand) return; // 始まる前は、まだ描くものがない
     gfx.clear(14, 84, 52);
-    fill(150, 24, 420, 290, [10, 66, 40]);
+    fill(140, 8, 440, 300, [10, 66, 40]); // 卓の中ほど
     if (g.blank) return;
     const P = g.players;
     // 河
-    drawRiver(g, P[2], 306, 30); drawRiver(g, P[0], 306, 212); drawRiver(g, P[3], 160, 134); drawRiver(g, P[1], 452, 134);
-    // 伏せた手牌
+    P.forEach((p) => drawRiver(g, p));
+    // 伏せた手牌(小さな牌)
     const DF = dealF(); const nHand = (p) => Math.ceil(p.hand.length * DF);
-    for (let i = 0; i < nHand(P[2]); i++) back(258 + i * 15, 4, 13, 19);
-    for (let i = 0; i < nHand(P[3]); i++) back(130, 100 + i * 12, 20, 10);
-    for (let i = 0; i < nHand(P[1]); i++) back(570, 100 + i * 12, 20, 10);
-    // 名札・副露
-    drawPlate(g, P[2], 470, 2, false); drawMelds(P[2], 470, 56, 14, 19, 'row');
-    drawPlate(g, P[3], 4, 100, false); drawMelds(P[3], 4, 168, 14, 19, 'row');
-    drawPlate(g, P[1], 604, 100, false); drawMelds(P[1], 604, 168, 14, 19, 'row');
-    drawPlate(g, P[0], 566, 318, false);
+    for (let i = 0; i < nHand(P[2]); i++) back(265 + i * 17, 23, 16, 24);
+    for (let i = 0; i < nHand(P[3]); i++) back(3, 66 + i * 17, 24, 16);
+    for (let i = 0; i < nHand(P[1]); i++) back(692, 66 + i * 17, 24, 16);
+    // 副露
+    drawMelds(P[2], 520, 34, 16, 22, 'row'); drawMelds(P[3], 3, 312, 16, 22, 'row'); drawMelds(P[1], 700 - meldW(P[1], 16), 312, 16, 22, 'row');
+    // 名札(横長の板)
+    drawBar(g, P[2], 190, 3, 322, 28, 0); drawBar(g, P[3], 35, 21, 27, 280, 90); drawBar(g, P[1], 643, 21, 27, 280, 270); drawBar(g, P[0], 501, 317, 221, 34, 0);
     // 中央の情報
-    fill(282, 134, 156, 72, [6, 44, 26]); frame(282, 134, 156, 72, [90, 140, 110], 1);
-    text(g.kyokuLabel(), 360, 137, 16, WHITE, 1);
-    for (let i = 0; i < 5; i++) { const x = 296 + i * 26, y = 158; if (g.doraInd[i]) tile(g.doraInd[i].t, x, y, 22, 29, g.doraInd[i].red); else back(x, y, 22, 29); }
-    text('残り ' + g.live.length + '牌   供託 ' + g.kyotaku, 360, 190, 12, GREY, 1);
+    fill(218, 163, 281, 101, [6, 44, 26]); frame(218, 163, 281, 101, [90, 140, 110], 2);
+    const lb = g.kyokuLabel().split(' '); text(lb[0], 234, 172, 24, WHITE); text('供託 ' + g.kyotaku + (lb[1] ? '  ' + lb[1] : ''), 234, 204, 12, GREY);
+    text('残り', 234, 226, 14, WHITE); text(String(g.live.length), 262, 220, 34, YEL); text('枚', 316, 232, 14, WHITE);
+    for (let i = 0; i < 7; i++) { const x = 356 + i * 18; back(x, 186, 16, 24); back(x, 212, 16, 24); }
+    (g.doraInd || []).forEach((d, k) => { const x = 356 + (4 - k) * 18; if (d && k < 5) tile(d.t, x, 212, 16, 24, d.red); });
     // 自分の手牌
     drawHand(g);
     // 吹き出し
     const now = __now();
+    const BUB = { 0: [360, 340], 1: [560, 300], 2: [360, 60], 3: [160, 300] };
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; }
-      const w = Math.min(380, gfx.measure(b.text, 14) + 20); const bx = 360 - w / 2, by = 244 + (k * 1 === 2 ? -150 : k * 1 === 1 || k * 1 === 3 ? -70 : 0);
-      fill(bx, by, w, 28, WHITE); frame(bx, by, w, 28, [90, 90, 90], 1); text(b.text.slice(0, 26), 360, by + 5, 14, BLACK, 1); }
+      const w = Math.min(380, gfx.measure(b.text, 14) + 20); const pos = BUB[k] || [360, 200], bx = pos[0] - w / 2, by = pos[1];
+      fill(bx, by, w, 28, WHITE); frame(bx, by, w, 28, [90, 90, 90], 1); text(b.text.slice(0, 26), pos[0], by + 5, 14, BLACK, 1); }
     drawFly(); drawTeacher(g);
+    if (__auto && globalThis.__shotDir && S.self && !S._stbl && (S._stn = (S._stn || 0) + 1) > 12) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
     // 演出: 札の文字が、少し大きいところから縮んで止まる
-    if (S.banner) { const k = Math.min(1, (__now() - (S.banner.t0 || 0)) / 180), sz = k < 0.34 ? 78 : k < 0.67 ? 66 : 56; fill(0, 160, W, 80, [0, 0, 0], 170); text(S.banner.text, 360, 200 - Math.round(sz * 0.55), sz, YEL, 1); }
+    if (S.banner) { const k = Math.min(1, (__now() - (S.banner.t0 || 0)) / 180), sz = k < 0.34 ? 78 : k < 0.67 ? 66 : 56; fill(0, 200, W, 80, [0, 0, 0], 170); text(S.banner.text, 360, 240 - Math.round(sz * 0.55), sz, YEL, 1); }
   }
   function myTiles(p) { const hs = p.hand.filter((h) => h !== p.drawn); if (p.drawn) hs.push(p.drawn); return hs; }
   function allowed(s, h) { const p = s.p; if (p.riichi) return h === p.drawn; if (s.opts.forbid.includes(h.t)) return false; if (s.rm) return s.opts.riichi.includes(h.t); return true; }
@@ -236,31 +252,27 @@
     const gapAt = p.drawn ? hs.length - 1 : -1; const DF = dealF(), shown = Math.ceil(hs.length * DF);
     hs.forEach((h, i) => {
       if (i >= shown) return;
-      const x = 8 + i * 38 + (i === gapAt ? 10 : 0); let y = 346;
+      const x = handX(i, i === gapAt); let y = HY;
       const sel = s && s.row === 0 && s.idx === i;
       const dim = s ? !allowed(s, h) : false;
-      if (sel) y -= 10;
-      tile(h.t, x, y, 36, 50, h.red, dim);
-      if (teacherOn() && S.hint && S.hint.tile === h && s && s.row === 0) text('★', x + 18, y - 17, 15, YEL, 1);
-      if (sel) frame(x - 1, y - 1, 38, 52, YEL, 3);
+      if (sel) y -= 8;
+      tile(h.t, x, y, HW, HH, h.red, dim);
+      if (teacherOn() && S.hint && S.hint.tile === h && s && s.row === 0) text('★', x + 22, y - 20, 16, YEL, 1);
+      if (sel) frame(x - 1, y - 1, HW + 2, HH + 2, YEL, 3);
     });
-    drawMelds(p, 4, 404, 16, 22, 'row');
+    drawMelds(p, 713 - meldW(p, 31), 398, 31, 40, 'row');
     if (s) {
       const bw = 92; let bx = 8;
-      s.btns.forEach((b, i) => { button(bx, 312, bw, 28, b.label, s.row === 1 && s.idx === i); bx += bw + 8; });
-      if (s.rm) text('リーチする牌をえらんで決定', 8 + s.btns.length * 100 + 4, 318, 13, YEL);
+      s.btns.forEach((b, i) => { button(bx, 354, bw, 26, b.label, s.row === 1 && s.idx === i); bx += bw + 8; });
+      if (s.rm) text('リーチする牌をえらんで決定', 8 + s.btns.length * 100 + 4, 359, 14, YEL);
     }
     if (S.react) {
       const r = S.react; const ld = g.lastDiscard; const who = ld ? g.players[ld.by].name : '';
-      if (ld) { tile(ld.tile.t, 8, 306, 22, 29, ld.tile.red); text(who + ' が ' + MJ.tileName(ld.tile.t), 36, 314, 14, WHITE); }
-      let bx = 230; r.btns.forEach((b, i) => { button(bx, 312, b.w || 92, 28, b.label, r.idx === i); bx += (b.w || 92) + 8; });
-      if (r.note) text(r.note, 8, 290, 13, YEL);
+      if (ld) { tile(ld.tile.t, 8, 352, 22, 29, ld.tile.red); text(who + ' が ' + MJ.tileName(ld.tile.t), 36, 358, 15, WHITE); }
+      let bx = 250; r.btns.forEach((b, i) => { button(bx, 354, b.w || 92, 26, b.label, r.idx === i); bx += (b.w || 92) + 8; });
+      if (r.note) text(r.note, 8, 334, 14, YEL);
     }
-    if (!s && !S.react) text('', 0, 0, 12, WHITE);
-    else text(S.self && S.self.row === 0 ? '←→ えらぶ  決定 きる  ↑ ボタン' : '←→ えらぶ  決定 おす  ↓ 牌へ', 712, 408, 12, GREY, 2);
   }
-
-  /* ---------- 画面: メニュー・結果・終了 ---------- */
   function drawTitle() {
     gfx.clear(14, 84, 52);
     gfx.image('img/title_art.webp', 0, 0, SW, SH, 255); // タイトルの文字は、絵に入っている
@@ -269,14 +281,14 @@
     gfx.image(NSND.on ? 'img/bgm_on.webp' : 'img/bgm_off.webp', SW - 120, 10, 108, 37, 255);
     gfx.image('img/btn_exit.webp', SW - 130, SH - 60, 108, 37, 255);
     const ring = [[(SW - 250) / 2 - 3, SH - 103, 256, 84], [SW - 123, 7, 114, 43], [SW - 133, SH - 63, 114, 43]][f];
-    frame(ring[0], ring[1], ring[2], ring[3], [255, 255, 255], 3);
+    if (f !== 0) frame(ring[0], ring[1], ring[2], ring[3], [255, 255, 255], 3); // (はじめるのボタンは、絵に枠がある)
   }
   function drawHome() {
     gfx.clear(14, 84, 52);
     gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255);
     gfx.image('img/logo.webp', 24, 6, 262, 149, 255);
-    fill(24, 166, 262, 84, [12, 20, 34], 190); frame(24, 166, 262, 84, [200, 210, 225], 2);
-    text('メニューを', 155, 172, 18, WHITE, 1); text('選択', 155, 196, 20, [255, 225, 74], 1); text('してください。', 155, 222, 18, WHITE, 1);
+    const ot = (s, x, y, sz, c) => { [[-2, 0], [2, 0], [0, -2], [0, 2]].forEach((d) => text(s, x + d[0], y + d[1], sz, [10, 14, 24], 1)); text(s, x, y, sz, c, 1); };
+    ot('メニューを', 155, 176, 20, WHITE); ot('選択', 155, 202, 24, [255, 225, 74]); ot('してください。', 155, 232, 20, WHITE);
     const items = homeItems();
     items.forEach((it, i) => {
       const x = 340, y = 24 + i * 50, w = 440, h = 42, sel = !it.off && S.menuIdx === i;
@@ -285,7 +297,6 @@
     });
     const ex = S.menuIdx === -1;
     fill(24, SH - 54, 130, 38, ex ? YEL : [150, 60, 50]); frame(24, SH - 54, 130, 38, ex ? [160, 110, 0] : [90, 30, 25], ex ? 4 : 2); text('ゲーム終了', 89, SH - 46, 17, ex ? BLACK : WHITE, 1);
-    text('↑↓ えらぶ   決定 きめる', SW - 20, SH - 26, 13, WHITE, 2);
   }
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
@@ -302,7 +313,6 @@
       else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 10, 22, BLACK, 1);
       else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 10, 22, BLACK, 1);
     });
-    text('↑↓ えらぶ   ←→ かえる   もどる で ホームへ', SW / 2, SH - 24, 14, WHITE, 1);
   }
   /* ---------- 対局のはじめの演出: 顔の登場 → 東一局 → 勝負! → サイコロ ---------- */
   const SEATPOS = { 0: [SW / 2 - 28, 318], 1: [SW - 200, 150], 2: [SW / 2 - 28, 26], 3: [96, 150] };
@@ -330,16 +340,18 @@
     (PIP[v] || []).forEach((i) => { const cx = x + 14 + (i % 3) * 22, cy = y + 14 + Math.floor(i / 3) * 22; fill(cx - 5, cy - 5, 12, 12, v === 1 ? [220, 40, 40] : [30, 30, 30]); });
   }
   function drawDice() {
-    const d = S.dice, g = S.game, now = __now(); gfx.clear(14, 84, 52); fill(120, 70, 592, 330, [10, 66, 40]); frame(120, 70, 592, 330, [90, 140, 110], 2);
+    const d = S.dice, g = S.game, now = __now(); gfx.clear(14, 84, 52);
+    if (!d.started && now - d.t0 > 600) { d.started = true; d.rolling = true; d.t0 = now; NSND.sfx('deal4'); }
+    if (d.settled && now - d.t1 > 1800 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); } fill(120, 70, 592, 330, [10, 66, 40]); frame(120, 70, 592, 330, [90, 140, 110], 2);
     const P = g.players, dealer = d.settled ? d.target : -1;
     [2, 3, 1, 0].forEach((s) => seatBox(P[s], s, SEATPOS[s][0], SEATPOS[s][1], false, dealer >= 0 ? ['東', '南', '西', '北'][(s - dealer + 4) % 4] : ''));
     let va = d.a, vb = d.b, by = 0;
     if (d.rolling) { const k = (now - d.t0) / 1100; if (k >= 1) { d.rolling = false; d.settled = true; d.t1 = now; NSND.sfx('slam'); } else { const f = Math.floor((now - d.t0) / 80); va = 1 + (f * 5 + 3) % 6; vb = 1 + (f * 3 + 1) % 6; by = Math.round(Math.abs(Math.sin(k * 9)) * 34 * (1 - k)); } }
     if (d.started) { drawDie(318, 190 - by, va); drawDie(410, 180 - by * 0.8, vb); } else { drawDie(318, 190, 1); drawDie(410, 180, 6); }
     fill(150, 276, 532, 34, [0, 0, 0], 180);
-    if (!d.started) text('決定ボタンで サイコロを振ります', SW / 2, 281, 20, YEL, 1);
+    if (!d.started) text('サイコロを振ります', SW / 2, 281, 20, YEL, 1);
     else if (d.rolling) text('…', SW / 2, 281, 20, WHITE, 1);
-    else text('合計 ' + (d.a + d.b) + ' → ' + P[d.target].name + ' が 東家(親)です。決定ボタンで すすむ', SW / 2, 284, 17, YEL, 1);
+    else text('合計 ' + (d.a + d.b) + ' → ' + P[d.target].name + ' が 東家(親)です', SW / 2, 284, 17, YEL, 1);
     if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
     if (d.settled) dirty();
   }
@@ -357,7 +369,6 @@
     if (!cur.length) text('まだ、対戦の記録がありません。', 600, 120, 18, WHITE, 1);
     cur.forEach((x, i) => { const y = 70 + i * 92; fill(560, y, 252, 84, [235, 235, 225], 235); gfx.image(x.c.face, 566, y + 6, 72, 72, 255); text(x.c.short || x.c.name, 646, y + 8, 18, BLACK); text('対戦 ' + x.o.n + '回', 646, y + 34, 15, [70, 70, 70]); text('勝ち ' + x.o.w + '  勝率 ' + Math.round(x.o.w / x.o.n * 100) + '%', 646, y + 56, 15, [20, 90, 50]); });
     text('◀ ' + (pg + 1) + ' / ' + pages + ' ▶', 686, 352, 16, WHITE, 1);
-    text('←→ ページ   もどる で ホームへ', SW / 2, SH - 24, 14, WHITE, 1);
   }
   /* ---------- 段位の画面(背景の絵の座標は、絵のピクセル 1404x768) ---------- */
   function drawRankScreen() {
@@ -453,12 +464,16 @@
     if (S.intro) { if (k === 'ok' && !__auto) S.intro.t0 -= 3600; return; }
     if (S.dice) {
       const d = S.dice;
-      if (!d.started) { if (k === 'ok') { d.started = true; d.rolling = true; d.t0 = __now(); NSND.sfx('deal4'); } }
-      else if (d.settled && k === 'ok') { const r = S.dice; S.dice = null; r.done(d.target); }
+      if (k === 'ok' && d.settled) { const r = S.dice; S.dice = null; r.done(d.target); } // (自動で進む。決定ボタンで、早く進めることもできる)
       return;
     }
     if (S.mode === 'stats') {
       if (k === 'back') S.mode = 'menu'; else if (k === 'left' || k === 'right') { const o = Object.keys(MJ.Rank.get().opp).length, pages = Math.max(1, Math.ceil(o / 3)); S.statsPg = wrap(S.statsPg + (k === 'right' ? 1 : -1), pages); }
+      return;
+    }
+    if (S.playQ) { // 麻雀をはじめる: つづきから / はじめから
+      if (k === 'up' || k === 'down') S.playQ.idx = 1 - S.playQ.idx; else if (k === 'back') S.playQ = null;
+      else if (k === 'ok') { const q = S.playQ; S.playQ = null; startGame(q.idx === 0 ? q.snap : null); }
       return;
     }
     if (S.confirmQ) {
@@ -502,7 +517,7 @@
       else if (k === 'ok') {
         if (S.menuIdx === -1) { S.confirmQ = { idx: 0 }; return; }
         const it = items[S.menuIdx]; if (!it || it.off) return;
-        if (it.act === 'play') startGame(); else if (it.act === 'continue') { const l = slotRead(); startGame(l.length ? l[0].v.snap : null); }
+        if (it.act === 'play') { const l = slotRead(); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else startGame(); }
         else if (it.act === 'settings') { S.mode = 'settings'; S.setIdx = 0; } else if (it.act === 'teacher') toggleTeacher();
         else if (it.act === 'stats') { S.mode = 'stats'; S.statsPg = 0; }
         else if (it.act === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } };
@@ -539,7 +554,7 @@
       else if (k === 'down' && s.row === 1) { s.row = 0; s.idx = tiles.length - 1; }
       else if (k === 'back' && s.rm) { s.rm = false; }
       else if (k === 'ok') {
-        if (s.row === 0) { const h = tiles[s.idx]; if (allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.pick = [8 + s.idx * 38 + (s.idx === gp ? 10 : 0), 336]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
+        if (s.row === 0) { const h = tiles[s.idx]; if (allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
         else {
           const b = s.btns[s.idx];
           if (b.act === 'riichi') { s.rm = !s.rm; s.row = 0; const okI = tiles.findIndex((h) => allowed(s, h)); if (s.rm) { const d = tiles.indexOf(s.p.drawn); s.idx = d >= 0 && allowed(s, tiles[d]) ? d : Math.max(0, okI); } else s.idx = tiles.length - 1; }
@@ -560,7 +575,7 @@
     banner(g, p, t) { S.banner = { text: t, t0: __now() }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 750).then(() => { S.banner = null; dirty(); }); },
     handStart(g) { S.game = g; NSND.game(g); NSND.sfx('slam'); NSND.readKyoku(g); S.banner = { text: g.kyokuLabel(), t0: __now() }; S.deal = g.fast ? null : { t0: __now() + 300, dur: 700 }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
     padHand() {},
-    dice(g, first) { if (g.fast) return Promise.resolve(null); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: 0, t1: 0, done }; dirty(); }); },
+    dice(g, first) { if (g.fast) return Promise.resolve(null); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done }; dirty(); }); },
     askSelf(g, p, opts, st) {
       return new Promise((res) => {
         const tiles = myTiles(p); const btns = [];
@@ -641,10 +656,10 @@
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end;
-    if (full) { S.vx = 0; S.vy = 0; } else { S.vx = inGame ? 0 : 56; S.vy = 20; }
+    if (full || inGame) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
     gfx.view(S.vx, S.vy);
     if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'slots') { gfx.clear(14, 84, 52); drawSlots(); }
-    else if (S.game) { gfx.clear(14, 84, 52); drawTable(S.game); if (inGame) { gfx.view(0, 0); fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); } }
+    else if (S.game) { gfx.clear(14, 84, 52); drawTable(S.game); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
     if (S.result) { drawResult(S.result); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
     if (__auto && globalThis.__shotDir && (S.react || (S.self && S.self.btns.length)) && S.shotR < 6) { gfx.shot(__shotDir + '/act' + (++S.shotR) + '.bmp'); }
     if (S.end) { drawEnd(S.end); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/end.bmp'); }
@@ -656,6 +671,7 @@
     if (S.saveP) drawDialog('この局が おわりました', ['セーブして次の局へ', 'セーブしないで次の局へ'], S.saveP.idx, S.saveP.snap ? kyokuText(S.saveP.snap) + ' の つづきから' : '');
     if (S.toast && S.toast.until > __now()) { fill(200, 190, 320, 44, [0, 0, 0], 200); text(S.toast.text, 360, 198, 24, YEL, 1); }
     if (S.menuP) drawDialog('メニュー', menuItems(), S.menuP.idx, '');
+    if (S.playQ) drawDialog('麻雀をはじめます', ['つづきから(' + kyokuText(S.playQ.snap) + ')', 'はじめから'], S.playQ.idx, '');
     if (S.confirmQ) drawDialog('ゲームを おわりますか?', ['もどる', 'おわる(電源を切れます)'], S.confirmQ.idx, '');
     gfx.view(0, 0);
     return true;
