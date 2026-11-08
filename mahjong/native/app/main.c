@@ -17,8 +17,8 @@
 static SDL_Window *win; static SDL_Renderer *ren; static JSContext *ctx; static JSRuntime *rt;
 static char root[1024] = "."; static int quitf = 0; static TTF_Font *fonts[24]; static int fsz[24]; static int nfonts = 0;
 static char fontpath[1024];
-#define W 720
-#define H 428
+#define W 832
+#define H 468
 static double nowms(void){ struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t); return t.tv_sec*1000.0+t.tv_nsec/1e6; }
 
 /* ---- 画像・文字のキャッシュ ---- */
@@ -70,6 +70,7 @@ static JSValue j_text(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   int x = ai(c,a[1]); if (al == 1) x -= w / 2; else if (al == 2) x -= w;
   SDL_Rect d = { x, ai(c,a[2]), w, h }; SDL_SetTextureAlphaMod(tx, 255); SDL_RenderCopy(ren, tx, NULL, &d); return JS_NewInt32(c, w); }
 static JSValue j_measure(JSContext *c, JSValueConst t, int n, JSValueConst *a){ const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0; TTF_Font *f = getfont(ai(c,a[1])); if (f && s) TTF_SizeUTF8(f, s, &w, &h); JS_FreeCString(c, s); return JS_NewInt32(c, w); }
+static JSValue j_view(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_Rect r = { ai(c,a[0]), ai(c,a[1]), W - ai(c,a[0]), H - ai(c,a[1]) }; SDL_RenderSetViewport(ren, &r); return JS_UNDEFINED; } /* 描く原点を動かす(画面の外側は切れる) */
 static JSValue j_clear(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_SetRenderDrawColor(ren, ai(c,a[0]), ai(c,a[1]), ai(c,a[2]), 255); SDL_RenderClear(ren); return JS_UNDEFINED; }
 static JSValue j_present(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_RenderPresent(ren); return JS_UNDEFINED; }
 static JSValue j_shot(JSContext *c, JSValueConst t, int n, JSValueConst *a){
@@ -120,10 +121,10 @@ static int listdir(const char *sub, const char *ext, char **out, int max, int n)
   closedir(dp); return n; }
 static void loading_screen(int done, int total){
   SDL_SetRenderTarget(ren, NULL); SDL_SetRenderDrawColor(ren, 14, 40, 30, 255); SDL_RenderClear(ren);
-  int w, h; SDL_Texture *t = gettext("麻雀ゲーム 起動中", 40, 255, 240, 200, &w, &h); if (t) { SDL_Rect d = { (W - w) / 2, 120, w, h }; SDL_RenderCopy(ren, t, NULL, &d); }
-  t = gettext("お待ちください", 28, 230, 230, 230, &w, &h); if (t) { SDL_Rect d = { (W - w) / 2, 190, w, h }; SDL_RenderCopy(ren, t, NULL, &d); }
-  SDL_SetRenderDrawColor(ren, 70, 90, 80, 255); SDL_Rect bar = { 160, 270, 400, 18 }; SDL_RenderFillRect(ren, &bar);
-  SDL_SetRenderDrawColor(ren, 255, 210, 63, 255); SDL_Rect fg = { 160, 270, total ? 400 * done / total : 0, 18 }; SDL_RenderFillRect(ren, &fg);
+  int w, h; SDL_Texture *t = gettext("麻雀ゲーム 起動中", 40, 255, 240, 200, &w, &h); if (t) { SDL_Rect d = { (W - w) / 2, 130, w, h }; SDL_RenderCopy(ren, t, NULL, &d); }
+  t = gettext("お待ちください", 28, 230, 230, 230, &w, &h); if (t) { SDL_Rect d = { (W - w) / 2, 200, w, h }; SDL_RenderCopy(ren, t, NULL, &d); }
+  SDL_SetRenderDrawColor(ren, 70, 90, 80, 255); SDL_Rect bar = { (W - 400) / 2, 290, 400, 18 }; SDL_RenderFillRect(ren, &bar);
+  SDL_SetRenderDrawColor(ren, 255, 210, 63, 255); SDL_Rect fg = { (W - 400) / 2, 290, total ? 400 * done / total : 0, 18 }; SDL_RenderFillRect(ren, &fg);
   SDL_RenderPresent(ren); }
 static void preload(void){
   static char *list[1200]; int n = 0;
@@ -217,11 +218,12 @@ int main(int argc, char **argv){
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
   reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "text", j_text, 8); reg(gfx, "measure", j_measure, 2);
-  reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "shot", j_shot, 1);
+  reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "shot", j_shot, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1);
   reg(g, "print", j_print, 1); reg(g, "__now", j_now, 0); reg(g, "__quit", j_quit, 0); reg(g, "__load", j_load, 0); reg(g, "__save", j_save, 1); reg(g, "__shanten", j_shanten, 2); reg(g, "__slotlist", j_slotlist, 0); reg(g, "__slotload", j_slotload, 1); reg(g, "__slotsave", j_slotsave, 2); reg(g, "__slotdel", j_slotdel, 1);
+  { const char *tp = getenv("MJ_TEACHER"); if (tp) JS_SetPropertyStr(ctx, g, "__teacherEnv", JS_NewString(ctx, tp)); }
   { const char *cp = getenv("MJ_CPU"); if (cp) JS_SetPropertyStr(ctx, g, "__cpuEnv", JS_NewString(ctx, cp)); }
   JS_SetPropertyStr(ctx, g, "__auto", JS_NewBool(ctx, auto_)); if (shots) JS_SetPropertyStr(ctx, g, "__shotDir", JS_NewString(ctx, shots));
   const char *list[] = { "native/app/prelude.js", "js/tiles.js", "js/rules.js", "js/forms.js", "js/chars.js", "js/ai.js", "js/game.js", "native/app/nsnd.js", "native/app/nui.js", NULL };

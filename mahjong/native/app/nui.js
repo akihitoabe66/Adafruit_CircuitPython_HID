@@ -1,13 +1,14 @@
 /* ネイティブ版の画面と操作(試作)。ゲームの頭脳(game.js)が呼ぶ「ui」を、SDL2の描画で作る。
    画面は 720x428。キー: left/right/up/down/ok/back */
 (function () {
-  const MJ = window.MJ; const W = 720, H = 428;
-  const S = { mode: 'menu', game: null, dirty: true, bub: {}, banner: null, keep: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  const MJ = window.MJ; const W = 720, H = 428, SW = 832, SH = 468; // W,H=卓の大きさ / SW,SH=画面全体(右に操作の列)
+  const S = { mode: 'menu', game: null, dirty: true, bub: {}, banner: null, keep: 0, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const dirty = () => { S.dirty = true; };
   const WIND = ['東', '南', '西', '北'];
   try { MJ.loadRules && MJ.loadRules(); } catch (e) { /* ignore */ }
   MJ.MEMO_CAP = 30000; // 計算の記憶表の上限(メモリを食いすぎないように)
+  if (globalThis.__teacherEnv) { try { localStorage.setItem('mj_teacher', globalThis.__teacherEnv); } catch (e) { /* ignore */ } } // 例: MJ_TEACHER=1 ./mj .
   MJ.AI_BUDGET = 0.4; // Pi Zeroでは、CPUの思考の時間上限を縮める(考えている間、画面と入力が止まるため)
   if (globalThis.__cpuEnv && MJ.CPU_SPEEDS.includes(globalThis.__cpuEnv)) MJ.setCpuSpeed(globalThis.__cpuEnv); // 例: MJ_CPU=fast ./mj .
 
@@ -108,11 +109,47 @@
     g.doraInd.forEach((d) => seen[d.t]++);
     S.waitInfo = ws.slice(0, 5).map((t) => ({ t, left: Math.max(0, 4 - seen[t]) })); return S.waitInfo;
   }
+  /* ---------- 右の操作の列(Edge版と同じ並び): MENU / 局 / あたり牌 / 解説 / 麻雀先生 ---------- */
+  const SIDE = ['MENU', '解説', '麻雀先生'];
+  function sbtn(x, y, w, h, c1, c2, lines, focus, sz) {
+    fill(x, y, w, h, c2); fill(x, y, w, h - 3, c1);
+    lines.forEach((l, i) => text(l, x + w / 2, y + (h - lines.length * (sz + 3)) / 2 + i * (sz + 3), sz, WHITE, 1));
+    if (focus) frame(x - 2, y - 2, w + 4, h + 4, [255, 255, 255], 3);
+  }
+  function drawSide(g) {
+    const f = S.side ? S.side.idx : -1;
+    sbtn(726, 6, 100, 32, [235, 120, 30], [160, 70, 10], ['☰ MENU'], f === 0, 16);
+    text(g.kyokuLabel().replace(' ', ''), 776, 46, 22, WHITE, 1); text({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦', 776, 72, 13, GREY, 1);
+    if (teacherOn()) {
+      const w = waitInfoOf(g);
+      if (w) { fill(726, 94, 100, 40 + Math.ceil(w.length / 3) * 58, [6, 44, 26], 235); frame(726, 94, 100, 40 + Math.ceil(w.length / 3) * 58, [255, 220, 40], 2); text('あたり牌', 776, 98, 14, YEL, 1);
+        w.forEach((x, i) => { const tx = 731 + (i % 3) * 32, ty = 118 + Math.floor(i / 3) * 58; tile(x.t, tx, ty, 28, 38); text('あと' + x.left, tx + 14, ty + 40, 11, WHITE, 1); }); }
+    }
+    sbtn(726, 330, 100, 40, [40, 90, 190], [20, 50, 120], ['解説'], f === 1, 20);
+    sbtn(726, 378, 100, 44, teacherOn() ? [30, 120, 80] : [90, 90, 90], teacherOn() ? [15, 70, 45] : [50, 50, 50], ['麻雀先生', teacherOn() ? 'あり' : 'なし'], f === 2, 15);
+  }
+  function wrapText(s, sz, maxw) { // 文字列を、幅に収まるように、行に分ける
+    const out = []; let cur = '';
+    for (const ch of String(s)) { if (ch === '\n') { out.push(cur); cur = ''; continue; } if (gfx.measure(cur + ch, sz) > maxw) { out.push(cur); cur = ch; } else cur += ch; }
+    if (cur) out.push(cur); return out;
+  }
+  const COACH_TABS = ['おすすめ', 'どうして?'];
+  function coachBody(tab) {
+    const h = S.hint;
+    if (!teacherOn()) return ['麻雀先生が「なし」です。', '右の「麻雀先生」ボタンを押して、「あり」にしてください。'];
+    if (!h) return ['あなたの番になったら、もう一度、開いてください。'];
+    if (tab === 0) return ['★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切って、リーチ' : ' を切る'), '', (h.sh === 0 ? 'テンパイです。' : 'テンパイまで、あと' + h.sh + '歩です。') + '(受け入れ ' + h.n + '枚)'];
+    return [h.label ? '今の方針: ' + h.label : '今の方針: 自分の形を進める', '', String(h.why || '他家に、危ない動きが見えないので、手を進めるのを優先します。')];
+  }
+  function drawCoach() {
+    fill(10, 8, 700, 412, [14, 40, 32], 245); frame(10, 8, 700, 412, [240, 210, 120], 3);
+    text('麻雀先生', 24, 14, 22, YEL);
+    COACH_TABS.forEach((t, i) => { const on = S.coach.tab === i; fill(190 + i * 130, 14, 120, 30, on ? YEL : [60, 90, 80]); text(t, 250 + i * 130, 18, 18, on ? BLACK : WHITE, 1); });
+    let y = 64; coachBody(S.coach.tab).forEach((ln) => wrapText(ln, 20, 660).forEach((l) => { text(l, 28, y, 20, WHITE); y += 28; }));
+    text('← → タブをえらぶ   決定・もどる とじる', 360, 396, 14, GREY, 1);
+  }
   function drawTeacher(g) {
     if (!teacherOn()) return;
-    const w = waitInfoOf(g);
-    if (w) { const bw = 12 + w.length * 34; fill(704 - bw, 214, bw, 74, [6, 44, 26], 235); frame(704 - bw, 214, bw, 74, [255, 220, 40], 2); text('あたり牌', 704 - bw / 2, 217, 13, YEL, 1);
-      w.forEach((x, i) => { const tx = 704 - bw + 6 + i * 34; tile(x.t, tx, 234, 28, 38); text('あと' + x.left, tx + 14, 273, 11, WHITE, 1); }); }
     const h = S.hint, s = S.self; if (!h || !s || s.row !== 0) return;
     fill(8, 252, 292, 56, [6, 44, 26], 240); frame(8, 252, 292, 56, [255, 220, 40], 2);
     text('★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), 14, 255, 15, YEL);
@@ -203,11 +240,11 @@
   /* ---------- 画面: メニュー・結果・終了 ---------- */
   function drawMenu() {
     gfx.clear(14, 84, 52);
-    gfx.image('img/title_art.webp', 0, 0, W, H, 255); // タイトルの文字は、絵に入っている
-    titleItems().forEach((l, i) => button(235, 268 + i * 38, 250, 32, l, S.menuIdx === i));
+    gfx.image('img/title_art.webp', 0, 0, SW, SH, 255); // タイトルの文字は、絵に入っている
+    titleItems().forEach((l, i) => button((SW - 250) / 2, 296 + i * 38, 250, 32, l, S.menuIdx === i));
     
   }
-  function overlay(a) { fill(0, 0, W, H, [0, 0, 0], a == null ? 200 : a); }
+  function overlay(a) { fill(-S.vx, -S.vy, SW, SH, [0, 0, 0], a == null ? 200 : a); }
   function drawResult(r) {
     const g = S.game; gfx.clear(10, 50, 35);
     if (r.type === 'win') {
@@ -299,7 +336,23 @@
     }
     if (S.result) { if (k === 'ok') { const r = S.result; S.result = null; r.done(); } return; }
     if (S.end) { if (k === 'ok') { const r = S.end; S.end = null; r.done(); } return; }
+    if (S.coach) { // 解説の窓
+      if (k === 'left' || k === 'right') S.coach.tab = (S.coach.tab + 1) % COACH_TABS.length; else if (k === 'ok' || k === 'back') S.coach = null;
+      return;
+    }
+    if (S.side) { // 右の操作の列
+      if (k === 'up' || k === 'down') S.side.idx = wrap(S.side.idx + (k === 'up' ? -1 : 1), SIDE.length);
+      else if (k === 'left' || k === 'back') S.side = null;
+      else if (k === 'ok') {
+        const i = S.side.idx;
+        if (i === 0) S.menuP = { idx: 0 };
+        else if (i === 1) S.coach = { tab: 0 };
+        else { toggleTeacher(); if (teacherOn() && S.self && !S.self.p.riichi && !S.game.fast) { try { S.hint = teacherAdvice(S.game, S.self.p, S.self.opts); } catch (e) { /* ignore */ } } else S.hint = null; }
+      }
+      return;
+    }
     const s = S.self, r = S.react;
+    if (k === 'right' && S.mode === 'game' && ((!s && !r) || (s && s.row === 0 && s.idx === s.tiles.length - 1) || (s && s.row === 1 && s.idx === s.btns.length - 1) || (r && r.idx === r.btns.length - 1))) { S.side = { idx: 1 }; return; } // いちばん右から、さらに右へ: 操作の列へ
     if (s) {
       const tiles = s.tiles;
       if (k === 'left' || k === 'right') {
@@ -336,6 +389,7 @@
         if (opts.riichi.length && !p.riichi) btns.push({ label: 'リーチ', act: 'riichi' });
         opts.ankan.forEach((t) => btns.push({ label: 'カン ' + MJ.tileName(t), act: 'ankan', t }));
         opts.kakan.forEach((t) => btns.push({ label: '加カン ' + MJ.tileName(t), act: 'kakan', t }));
+        S.side = null; S.coach = null;
         S.hint = null; if (teacherOn() && !p.riichi && !g.fast) { try { S.hint = teacherAdvice(g, p, opts); } catch (e) { print('teacher err ' + e); } }
         S.self = { p, opts, res, tiles, btns, rm: false, row: opts.tsumo ? 1 : 0, idx: opts.tsumo ? 0 : tiles.length - 1 };
         dirty();
@@ -349,6 +403,7 @@
         if (o.pon) btns.push({ label: 'ポン', d: { act: 'pon' } });
         o.chi.forEach((c) => btns.push({ label: 'チー ' + c.use.map((t) => MJ.tileName(t)).join(''), w: 130, d: { act: 'chi', use: c.use } }));
         btns.push({ label: 'パス', d: { act: 'pass' } });
+        S.side = null;
         S.react = { res, btns, idx: o.ron ? 0 : btns.length - 1, note: o.ronBlock ? 'フリテンです(ロンできません)' : '' };
         dirty();
       });
@@ -370,7 +425,7 @@
   }
   function stopGame() { // ゲームを途中でやめて、タイトルへ
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
-    g.stopped = true;
+    g.stopped = true; S.side = S.coach = null;
     const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP;
     S.self = S.react = S.result = S.end = S.saveP = null;
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
@@ -383,7 +438,7 @@
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; }
     S.game = g;
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
-    S.game = null; S.mode = 'menu'; S.menuIdx = 0; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
+    S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
   }
   const menuItems = () => ['つづける', teacherLabel(), speedLabel(), 'タイトルにもどる', 'おわる(電源を切れます)'];
@@ -400,14 +455,19 @@
     S.dirty = false; return true;
   };
   window.__draw = function () {
-    if (S.mode === 'menu') drawMenu(); else if (S.mode === 'slots') drawSlots();
-    else if (S.game) drawTable(S.game);
+    const inGame = S.mode !== 'menu' && S.mode !== 'slots' && S.game && !S.result && !S.end;
+    if (S.mode === 'menu') { S.vx = 0; S.vy = 0; } else { S.vx = inGame ? 0 : 56; S.vy = 20; }
+    gfx.view(S.vx, S.vy);
+    if (S.mode === 'menu') drawMenu(); else if (S.mode === 'slots') { gfx.clear(14, 84, 52); drawSlots(); }
+    else if (S.game) { gfx.clear(14, 84, 52); drawTable(S.game); if (inGame) { gfx.view(0, 0); fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); } }
     if (S.result) { drawResult(S.result); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
     if (__auto && globalThis.__shotDir && (S.react || (S.self && S.self.btns.length)) && S.shotR < 6) { gfx.shot(__shotDir + '/act' + (++S.shotR) + '.bmp'); }
     if (S.end) { drawEnd(S.end); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/end.bmp'); }
+    S.vx = 56; S.vy = 20; gfx.view(56, 20); // 以降の板(メニューなど)は、画面の中央に
     if (S.saveP) drawDialog('この局が おわりました', ['セーブして次の局へ', 'セーブしないで次の局へ'], S.saveP.idx, S.saveP.snap ? kyokuText(S.saveP.snap) + ' の つづきから' : '');
     if (S.toast && S.toast.until > __now()) { fill(200, 190, 320, 44, [0, 0, 0], 200); text(S.toast.text, 360, 198, 24, YEL, 1); }
     if (S.menuP) drawDialog('メニュー', menuItems(), S.menuP.idx, '');
+    gfx.view(0, 0);
     return true;
   };
   NSND.home();
