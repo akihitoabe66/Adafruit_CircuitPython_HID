@@ -54,7 +54,7 @@
   /* ---------- 卓の描画 ---------- */
   function drawPlate(g, p, x, y, mini) {
     const fs = mini ? 26 : 44;
-    face(p, x, y, fs, mini ? 28 : 48);
+    face(p, x, y, fs, fs);
     const tx = mini ? x + 30 : x + 50;
     text(p.name, tx, y, 13, WHITE);
     text(p.score, tx, y + (mini ? 15 : 17), 16, p.score < 0 ? RED : YEL);
@@ -147,11 +147,9 @@
   /* ---------- 画面: メニュー・結果・終了 ---------- */
   function drawMenu() {
     gfx.clear(14, 84, 52);
-    gfx.image('img/title_art.webp', 0, 0, W, H, 150);
-    fill(0, 0, W, H, [0, 0, 0], 90);
-    text('操作シンプル', 360, 50, 28, WHITE, 1); text('本格麻雀', 360, 84, 56, YEL, 1);
-    titleItems().forEach((l, i) => button(260, 210 + i * 50, 200, 40, l, S.menuIdx === i));
-    text('↑↓ えらぶ   決定ボタンで すすむ', 360, 380, 14, WHITE, 1);
+    gfx.image('img/title_art.webp', 0, 0, W, H, 255); // タイトルの文字は、絵に入っている
+    titleItems().forEach((l, i) => button(235, 268 + i * 38, 250, 32, l, S.menuIdx === i));
+    
   }
   function overlay(a) { fill(0, 0, W, H, [0, 0, 0], a == null ? 200 : a); }
   function drawResult(r) {
