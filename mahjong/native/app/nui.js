@@ -211,7 +211,7 @@
   }
   function drawTeacher(g) {
     if (!teacherOn()) return;
-    const h = S.hint, s = S.self; if ((!h || !s || s.row !== 0) && S.tmsg && __now() < S.tmsg.until) { panel(6, 304, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生', 14, 306, 14, YEL); text(S.tmsg.text, 14, 325, 17, WHITE); return; }
+    const h = S.hint, s = S.self; if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 304, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生', 14, 306, 14, YEL); text(S.tmsg.text, 14, 325, 17, WHITE); return; }
     if (!h || !s || s.row !== 0) return;
     panel(6, 304, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240);
     text('★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), 14, 306, 17, YEL);
@@ -291,31 +291,53 @@
   }
   function myTiles(p) { const hs = p.hand.filter((h) => h !== p.drawn); if (p.drawn) hs.push(p.drawn); return hs; }
   function allowed(s, h) { const p = s.p; if (p.riichi) return h === p.drawn; if (s.opts.forbid.includes(h.t)) return false; if (s.rm) return s.opts.riichi.includes(h.t); return true; }
+  function actBtn(x, y, w, h, label, sub, sel, pass) { // Edge版ふうの、大きな操作ボタン(青 / 見送るは灰色)
+    if (sel) rrect(x - 4, y - 4, w + 8, h + 8, 7, [255, 255, 255]); rrect(x + 1, y + 3, w, h, 6, [0, 0, 0], 90);
+    rrect(x, y, w, h, 6, pass ? [150, 148, 130] : [34, 84, 190]); rrect(x, y, w, h - 3, 6, pass ? [226, 224, 206] : [74, 134, 238]);
+    const col = pass ? [30, 30, 30] : WHITE;
+    if (sub) { text(label, x + w / 2, y + 4, 17, col, 1); text(sub, x + w / 2, y + 23, 12, [215, 230, 255], 1); } else text(label, x + w / 2, y + (h - 3 - 20) / 2, 20, col, 1);
+  }
+  function reactHL(r, g) { // 副露に使う牌(手牌の中で、金の枠をつける)
+    const b = r.btns[r.idx]; if (!b || !b.d) return null; const ld = g.lastDiscard; const need = {};
+    const add = (t) => { need[t] = (need[t] || 0) + 1; };
+    if (r.pick) r.chis[r.pick.idx].use.forEach(add);
+    else if (b.d.act === 'pon') { add(ld.tile.t); add(ld.tile.t); } else if (b.d.act === 'kan') { add(ld.tile.t); add(ld.tile.t); add(ld.tile.t); }
+    else if (b.d.act === 'chi') (b.d.use || [].concat(...r.chis.map((c) => c.use))).forEach((t, i, a) => { if (b.d.use) add(t); else if (!need[t]) add(t); });
+    return need;
+  }
   function drawHand(g) {
     const p = g.players[0]; const s = S.self; const hs = myTiles(p);
     const gapAt = p.drawn ? hs.length - 1 : -1; const DS = dealState(), shown = Math.min(hs.length, DS.n);
     let order = hs; if (!DS.sorted && S.deal && S.deal.perm) order = S.deal.perm.filter((j) => j < hs.length).map((j) => hs[j]); // 配られている間は、並び替える前の順で見せる
+    S._hl = S.react ? reactHL(S.react, g) : null;
     order.forEach((h, i) => {
       if (i >= shown) return;
       const x = handX(i, i === gapAt); let y = HY;
       const sel = s ? (!S.side && s.row === 0 && s.idx === i) : (!S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && Math.min(S.curIdx, hs.length - 1) === i);
       const dim = s ? !allowed(s, h) : false;
       if (sel) y -= 8;
+      const hl = S.react && S._hl && S._hl[h.t] > 0 ? (S._hl[h.t]--, true) : false;
       tile(h.t, x, y, HW, HH, h.red, dim);
       if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, y - 20, 16, YEL, 1);
       if (sel) frame(x - 1, y - 1, HW + 2, HH + 2, YEL, 3);
+      if (hl) { rrect(x - 3, y - 3, HW + 6, HH + 6, 4, YEL); tile(h.t, x, y, HW, HH, h.red, false); }
     });
     drawMelds(p, 713 - meldWH(p, 31, 40), 398, 31, 40);
     if (s) {
-      const bw = 92; let bx = 8;
-      s.btns.forEach((b, i) => { button(bx, 354, bw, 26, b.label, s.row === 1 && s.idx === i); bx += bw + 8; });
-      if (s.rm) text('リーチする牌をえらんで決定', 8 + s.btns.length * 100 + 4, 359, 14, YEL);
+      const bw = 112; let bx = 8;
+      s.btns.forEach((b, i) => { actBtn(bx, 332, bw, 40, b.label, '', s.row === 1 && s.idx === i, false); bx += bw + 12; });
+      if (s.rm) text('リーチする牌をえらんで決定', 8 + s.btns.length * 124 + 4, 344, 15, YEL);
     }
     if (S.react) {
       const r = S.react; const ld = g.lastDiscard; const who = ld ? g.players[ld.by].name : '';
-      if (ld) { tile(ld.tile.t, 8, 352, 22, 29, ld.tile.red); text(who + ' が ' + MJ.tileName(ld.tile.t), 36, 358, 15, WHITE); }
-      let bx = 250; r.btns.forEach((b, i) => { button(bx, 354, b.w || 92, 26, b.label, r.idx === i); bx += (b.w || 92) + 8; });
-      if (r.note) text(r.note, 8, 334, 14, YEL);
+      if (ld) { panel(8, 332, 170, 40, 6, [6, 44, 26], [90, 140, 110], 2, 235); tile(ld.tile.t, 14, 336, 22, 29, ld.tile.red); text(who + ' の ' + MJ.tileName(ld.tile.t), 42, 342, 15, WHITE); }
+      let bx = 196; r.btns.forEach((b, i) => { actBtn(bx, 332, 124, 40, b.label, b.sub || '', r.idx === i && !r.pick, b.pass); bx += 124 + 14; });
+      if (r.note) text(r.note, 196, 312, 14, YEL);
+      if (r.pick) { // チーの組み合わせ
+        const n = r.chis.length, gw = 118, pw = 150 + n * (gw + 8) + 6; panel(8, 268, pw, 58, 6, [10, 30, 22], [90, 140, 110], 2, 240); text('チーの組み合わせ', 18, 288, 14, YEL);
+        r.chis.forEach((c, i) => { const gx = 150 + i * (gw + 8), ts = c.use.concat([ld.tile.t]).sort((a, b) => a - b); panel(gx, 273, gw, 48, 5, [20, 50, 36], r.pick.idx === i ? YEL : [120, 130, 120], r.pick.idx === i ? 3 : 1);
+          ts.forEach((t, k) => { const tx = gx + 6 + k * 37; if (t === ld.tile.t) rrect(tx - 2, 276, 36, 43, 3, [255, 100, 150]); tile(t, tx, 278, 32, 40, t === ld.tile.t ? ld.tile.red : false); }); });
+      }
     }
   }
   function drawTitle() {
@@ -713,7 +735,7 @@
       dirty(); return;
     }
     if (k === 'left' && S.mode === 'game' && s && s.row === 0 && s.idx === 0) { S.side = { idx: 2 }; return; } // いちばん左から、さらに左へ: 麻雀先生のボタン
-    if (k === 'right' && S.mode === 'game' && ((!s && !r) || (s && s.row === 0 && s.idx === s.tiles.length - 1) || (s && s.row === 1 && s.idx === s.btns.length - 1) || (r && r.idx === r.btns.length - 1))) { S.side = { idx: 1 }; return; } // いちばん右から、さらに右へ: 操作の列へ
+    if (k === 'right' && S.mode === 'game' && ((!s && !r) || (s && s.row === 0 && s.idx === s.tiles.length - 1) || (s && s.row === 1 && s.idx === s.btns.length - 1) || (r && !r.pick && r.idx === r.btns.length - 1))) { S.side = { idx: 1 }; return; } // いちばん右から、さらに右へ: 操作の列へ
     if (s) {
       const tiles = s.tiles;
       if (k === 'left' || k === 'right') {
@@ -730,8 +752,13 @@
         }
       }
     } else if (r) {
-      if (k === 'left' || k === 'right') r.idx = wrap(r.idx + (k === 'left' ? -1 : 1), r.btns.length);
-      else if (k === 'ok') { S.react = null; r.res(r.btns[r.idx].d); }
+      if (r.pick) { // チーの組み合わせをえらぶ
+        if (k === 'left' || k === 'right') r.pick.idx = wrap(r.pick.idx + (k === 'left' ? -1 : 1), r.chis.length);
+        else if (k === 'back' || k === 'up') r.pick = null;
+        else if (k === 'ok') { const c = r.chis[r.pick.idx]; S.react = null; r.res({ act: 'chi', use: c.use }); }
+      }
+      else if (k === 'left' || k === 'right') r.idx = wrap(r.idx + (k === 'left' ? -1 : 1), r.btns.length);
+      else if (k === 'ok') { const b = r.btns[r.idx]; if (b.pick) r.pick = { idx: 0 }; else { S.react = null; r.res(b.d); } }
     }
   };
 
@@ -764,10 +791,11 @@
         if (o.ron) btns.push({ label: 'ロン', d: { act: 'ron' } });
         if (o.kan) btns.push({ label: 'カン', d: { act: 'kan' } });
         if (o.pon) btns.push({ label: 'ポン', d: { act: 'pon' } });
-        o.chi.forEach((c) => btns.push({ label: 'チー ' + c.use.map((t) => MJ.tileName(t)).join(''), w: 130, d: { act: 'chi', use: c.use } }));
-        btns.push({ label: 'パス', d: { act: 'pass' } });
+        if (o.chi.length === 1) btns.push({ label: 'チー', d: { act: 'chi', use: o.chi[0].use } });
+        else if (o.chi.length > 1) btns.push({ label: 'チー', sub: '▼ 牌をえらぶ', pick: true, d: { act: 'chi' } });
+        btns.push({ label: '見送る', pass: true, d: { act: 'pass' } });
         S.side = null;
-        S.react = { res, btns, idx: o.ron ? 0 : btns.length - 1, note: o.ronBlock ? 'フリテンです(ロンできません)' : '' };
+        S.react = { res, btns, chis: o.chi, pick: null, idx: o.ron ? 0 : btns.length - 1, note: o.ronBlock ? 'フリテンです(ロンできません)' : '' };
         dirty();
       });
     },
