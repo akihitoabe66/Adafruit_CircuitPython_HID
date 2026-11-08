@@ -2,7 +2,7 @@
    画面は 720x428。キー: left/right/up/down/ok/back */
 (function () {
   const MJ = window.MJ; const W = 720, H = 428, SW = 832, SH = 468; // W,H=卓の大きさ / SW,SH=画面全体(右に操作の列)
-  const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, playQ: null, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, homeBot: false, homeBotIdx: 0, playQ: null, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const dirty = () => { S.dirty = true; };
   const WIND = ['東', '南', '西', '北'];
@@ -32,11 +32,7 @@
   const teacherLabel = () => '麻雀先生: ' + (teacherOn() ? 'あり' : 'なし');
   const toggleTeacher = () => { try { localStorage.setItem('mj_teacher', teacherOn() ? '0' : '1'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; };
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
-  const homeItems = () => {
-    const out = [];
-    out.push({ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz', off: true }, { label: '点数計算の勉強', act: 'study', off: true }, { label: '設定', act: 'settings' }, { label: 'あなたの段位', act: 'rank' }, { label: '対戦成績', act: 'stats' }, { label: teacherLabel(), act: 'teacher' });
-    return out;
-  };
+  const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz', off: true }, { label: '点数計算の勉強', act: 'study', off: true }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
   const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right']; // 隠しコマンド(タイトル): 5件のセーブから選べる
 
@@ -49,7 +45,16 @@
     fill(x + 1, y + 1, w, h, [0, 0, 0], 70);
     if (!gfx.image(MJ.tileSrc(t, red), x, y, w, h, dim ? 100 : 255)) { fill(x, y, w, h, [240, 240, 230]); text(MJ.tileName(t), x + w / 2, y + 2, 10, BLACK, 1); }
   }
-  function back(x, y, w, h) { fill(x, y, w, h, [34, 78, 160]); frame(x, y, w, h, [200, 210, 235], 1); }
+  function rrect(x, y, w, h, r, c, a) { // 角の丸い四角(細い線を重ねる)
+    r = Math.min(r, Math.floor(h / 2), Math.floor(w / 2));
+    for (let dy = 0; dy < r; dy++) { const d = r - dy - 0.5, inset = r - Math.floor(Math.sqrt(Math.max(0, r * r - d * d))); fill(x + inset, y + dy, w - 2 * inset, 1, c, a); fill(x + inset, y + h - 1 - dy, w - 2 * inset, 1, c, a); }
+    fill(x, y + r, w, h - 2 * r, c, a);
+  }
+  function back(x, y, w, h, side) { // 裏向きの牌(Edge版と同じ: 青い面と、クリーム色の縁)
+    fill(x, y, w, h, [243, 236, 212]);
+    if (side === 'l') fill(x, y, Math.round(w * 0.72), h, [74, 143, 224]); else if (side === 'r') fill(x + w - Math.round(w * 0.72), y, Math.round(w * 0.72), h, [74, 143, 224]); else fill(x, y, w, Math.round(h * 0.72), [74, 143, 224]);
+    frame(x, y, w, h, [138, 150, 168], 1);
+  }
   function button(x, y, w, h, label, sel) {
     fill(x, y, w, h, sel ? YEL : WHITE); frame(x, y, w, h, sel ? [160, 110, 0] : [120, 120, 120], sel ? 3 : 1);
     text(label, x + w / 2, y + (h - 16) / 2 - 1, 15, BLACK, 1);
@@ -195,18 +200,17 @@
   }
 
   /* ---------- 軽い動き(牌が河へ飛ぶ・配牌・札の拡大) ---------- */
-  const HANDSRC = { 2: [330, 30], 3: [12, 150], 1: [700, 150] };
   function startFly(g, ld) {
     if (g.fast || ld.by == null) return;
     const p = g.players[ld.by], i = p.discards.indexOf(ld.d); if (i < 0) return;
     const q = riverPos(ld.by, i);
-    const from = ld.by === 0 && S.pick ? S.pick : (HANDSRC[ld.by] || [360, 300]);
-    S.fly = { d: ld.d, t: ld.tile.t, red: ld.tile.red, from, to: [q.x, q.y], rot: q.rot, bw: q.bw, bh: q.bh, t0: __now(), dur: ld.by === 0 ? 220 : 160 }; S.pick = null;
+    const off = { 0: [0, -34], 2: [0, 34], 3: [34, 0], 1: [-34, 0] }[ld.by]; // 手元の側から、すっと置かれる(置かれる形のまま)
+    S.fly = { d: ld.d, t: ld.tile.t, red: ld.tile.red, off, to: [q.x, q.y], rot: q.rot, t0: __now(), dur: 130 }; S.pick = null;
   }
   function drawFly() {
     const f = S.fly; if (!f) return; const k = (__now() - f.t0) / f.dur; if (k >= 1) { S.fly = null; dirty(); return; }
-    const e = 1 - Math.pow(1 - k, 3), x = f.from[0] + (f.to[0] - f.from[0]) * e, y = f.from[1] + (f.to[1] - f.from[1]) * e - 30 * Math.sin(Math.PI * e);
-    const w = HW + (RW - HW) * e, h = HH + (RH - HH) * e; tile(f.t, Math.round(x), Math.round(y), Math.round(w), Math.round(h), f.red);
+    const step = k < 0.34 ? 0.34 : k < 0.67 ? 0.67 : 1; // 3コマだけの動き
+    const r = 1 - step; tileR(f.t, Math.round(f.to[0] + f.off[0] * r * r * 1.0), Math.round(f.to[1] + f.off[1] * r * r * 1.0), RW, RH, f.red, false, f.rot);
   }
   const dealF = () => { const d = S.deal; if (!d) return 1; const k = (__now() - d.t0) / d.dur; if (k >= 1) { S.deal = null; return 1; } return Math.max(0, k); };
   function drawTable(g) {
@@ -220,8 +224,8 @@
     // 伏せた手牌(小さな牌)
     const DF = dealF(); const nHand = (p) => Math.ceil(p.hand.length * DF);
     for (let i = 0; i < nHand(P[2]); i++) back(265 + i * 17, 23, 16, 24);
-    for (let i = 0; i < nHand(P[3]); i++) back(3, 66 + i * 17, 24, 16);
-    for (let i = 0; i < nHand(P[1]); i++) back(692, 66 + i * 17, 24, 16);
+    for (let i = 0; i < nHand(P[3]); i++) back(3, 66 + i * 17, 24, 16, 'l');
+    for (let i = 0; i < nHand(P[1]); i++) back(692, 66 + i * 17, 24, 16, 'r');
     // 副露
     drawMelds(P[2], 520, 34, 16, 22, 'row'); drawMelds(P[3], 3, 312, 16, 22, 'row'); drawMelds(P[1], 700 - meldW(P[1], 16), 312, 16, 22, 'row');
     // 名札(横長の板)
@@ -230,8 +234,8 @@
     fill(218, 163, 281, 101, [6, 44, 26]); frame(218, 163, 281, 101, [90, 140, 110], 2);
     const lb = g.kyokuLabel().split(' '); text(lb[0], 234, 172, 24, WHITE); text('供託 ' + g.kyotaku + (lb[1] ? '  ' + lb[1] : ''), 234, 204, 12, GREY);
     text('残り', 234, 226, 14, WHITE); text(String(g.live.length), 262, 220, 34, YEL); text('枚', 316, 232, 14, WHITE);
-    for (let i = 0; i < 7; i++) { const x = 356 + i * 18; back(x, 186, 16, 24); back(x, 212, 16, 24); }
-    (g.doraInd || []).forEach((d, k) => { const x = 356 + (4 - k) * 18; if (d && k < 5) tile(d.t, x, 212, 16, 24, d.red); });
+    { const WX = 356, WY = 188, WS = 128 / 219; gfx.image('img/wall.webp', WX, WY, 128, Math.round(88 * WS), 255); // 王牌の絵の上に、ドラ表示牌を重ねる
+      (g.doraInd || []).slice(0, 5).forEach((d, k) => { if (d) tile(d.t, WX + Math.round((3.4 + (4 - k) * 30.1) * WS), WY + Math.round(4.4 * WS), Math.round(29.2 * WS), Math.round(39.4 * WS), d.red); }); }
     // 自分の手牌
     drawHand(g);
     // 吹き出し
@@ -241,7 +245,7 @@
       const w = Math.min(380, gfx.measure(b.text, 14) + 20); const pos = BUB[k] || [360, 200], bx = pos[0] - w / 2, by = pos[1];
       fill(bx, by, w, 28, WHITE); frame(bx, by, w, 28, [90, 90, 90], 1); text(b.text.slice(0, 26), pos[0], by + 5, 14, BLACK, 1); }
     drawFly(); drawTeacher(g);
-    if (__auto && globalThis.__shotDir && S.self && !S._stbl && (S._stn = (S._stn || 0) + 1) > 12) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
+    if (__auto && globalThis.__shotDir && !S._stbl && g.players[2].discards.length >= 4 && g.players[3].discards.length >= 4) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
     // 演出: 札の文字が、少し大きいところから縮んで止まる
     if (S.banner) { const k = Math.min(1, (__now() - (S.banner.t0 || 0)) / 180), sz = k < 0.34 ? 78 : k < 0.67 ? 66 : 56; fill(0, 200, W, 80, [0, 0, 0], 170); text(S.banner.text, 360, 240 - Math.round(sz * 0.55), sz, YEL, 1); }
   }
@@ -283,20 +287,29 @@
     const ring = [[(SW - 250) / 2 - 3, SH - 103, 256, 84], [SW - 123, 7, 114, 43], [SW - 133, SH - 63, 114, 43]][f];
     if (f !== 0) frame(ring[0], ring[1], ring[2], ring[3], [255, 255, 255], 3); // (はじめるのボタンは、絵に枠がある)
   }
+  function btnR(x, y, w, h, r, sel, off, label, sz, arrow) {
+    if (sel) { rrect(x - 5, y - 5, w + 10, h + 10, r + 5, [30, 30, 30]); rrect(x - 3, y - 3, w + 6, h + 6, r + 3, [255, 255, 255]); rrect(x, y, w, h, r, [253, 213, 63]); }
+    else rrect(x, y, w, h, r, off ? [200, 206, 200] : [238, 242, 236], off ? 200 : 245);
+    if (arrow && sel) text('▶', x + 22, y + (h - sz) / 2 - 1, sz - 4, BLACK);
+    text(label, x + (arrow ? 70 : 62), y + (h - sz) / 2 - 1, sz, off ? [150, 156, 150] : BLACK);
+  }
+  const HOME_BOTTOM = [{ k: 'exit', label: 'ゲーム終了' }, { k: 'rank', label: '成績・' }, { k: 'stats', label: '対戦成績' }, { k: 'teacher', label: '' }];
   function drawHome() {
     gfx.clear(14, 84, 52);
     gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255);
-    gfx.image('img/logo.webp', 24, 6, 262, 149, 255);
-    const ot = (s, x, y, sz, c) => { [[-2, 0], [2, 0], [0, -2], [0, 2]].forEach((d) => text(s, x + d[0], y + d[1], sz, [10, 14, 24], 1)); text(s, x, y, sz, c, 1); };
-    ot('メニューを', 155, 176, 20, WHITE); ot('選択', 155, 202, 24, [255, 225, 74]); ot('してください。', 155, 232, 20, WHITE);
+    fill(0, SH - 34, SW, 34, [0, 0, 0], 130);
+    gfx.image('img/logo.webp', 50, 38, 240, 136, 255);
+    const ot = (s, x, y, sz, c) => { [[-2, 0], [2, 0], [0, -2], [0, 2]].forEach((d) => text(s, x + d[0], y + d[1], sz, [10, 14, 24], 0)); text(s, x, y, sz, c, 0); };
+    ot('メニューを', 70, 196, 30, WHITE); ot('選択', 70, 232, 34, [255, 225, 74]); { const w1 = gfx.measure('選択', 34); ot('して', 70 + w1, 236, 30, WHITE); } ot('ください。', 70, 276, 30, WHITE);
     const items = homeItems();
-    items.forEach((it, i) => {
-      const x = 340, y = 24 + i * 50, w = 440, h = 42, sel = !it.off && S.menuIdx === i;
-      fill(x, y, w, h, sel ? YEL : it.off ? [120, 126, 122] : WHITE, it.off ? 200 : 255); frame(x, y, w, h, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
-      text(it.label, x + w / 2, y + 7, 22, it.off ? [185, 190, 186] : BLACK, 1);
+    items.forEach((it, i) => { const sel = !it.off && !S.homeBot && S.menuIdx === i; if (sel) btnR(372, 62 + i * 78, 432, 66, 20, true, false, it.label, 30, true); else btnR(385, 66 + i * 78, 407, 58, 20, false, it.off, it.label, 28, false); });
+    const bw = [138, 160, 150, 210];
+    let bx = 23; HOME_BOTTOM.forEach((b, i) => {
+      const lab = b.k === 'rank' ? '成績・' + MJ.Rank.label() : b.k === 'teacher' ? teacherLabel() : b.label, sel = S.homeBot && S.homeBotIdx === i;
+      if (sel) { rrect(bx - 3, 372, bw[i] + 6, 46, 16, [255, 255, 255]); }
+      rrect(bx, 375, bw[i], 40, 14, [96, 66, 30]); rrect(bx + 2, 377, bw[i] - 4, 36, 12, sel ? [150, 105, 40] : [64, 42, 18]);
+      text(lab, bx + bw[i] / 2, 384, 18, sel ? [255, 245, 200] : [245, 224, 160], 1); bx += bw[i] + 8;
     });
-    const ex = S.menuIdx === -1;
-    fill(24, SH - 54, 130, 38, ex ? YEL : [150, 60, 50]); frame(24, SH - 54, 130, 38, ex ? [160, 110, 0] : [90, 30, 25], ex ? 4 : 2); text('ゲーム終了', 89, SH - 46, 17, ex ? BLACK : WHITE, 1);
   }
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
@@ -489,7 +502,7 @@
     }
     if (S.mode === 'title') { // タイトル: はじめる / BGM / 終了
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { const m = { 0: { up: 1, left: 1, right: 2, down: 2 }, 1: { down: 0, left: 0, right: 2, up: 2 }, 2: { up: 1, right: 1, left: 0, down: 0 } }; S.titleIdx = m[S.titleIdx][k]; }
-      else if (k === 'ok') { if (S.titleIdx === 0) { S.mode = 'menu'; S.menuIdx = firstOn(homeItems(), 0, 1); } else if (S.titleIdx === 1) { NSND.toggle(); if (NSND.on) NSND.home(); } else S.confirmQ = { idx: 0 }; }
+      else if (k === 'ok') { if (S.titleIdx === 0) { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); } else if (S.titleIdx === 1) { NSND.toggle(); if (NSND.on) NSND.home(); } else S.confirmQ = { idx: 0 }; }
       return;
     }
     if (S.mode === 'settings') {
@@ -511,16 +524,20 @@
       S.hid.push(k); if (S.hid.length > HIDDEN.length) S.hid.shift();
       if (S.hid.join() === HIDDEN.join()) { S.hid = []; S.slots = slotRead(); S.slotIdx = 0; S.mode = 'slots'; return; }
       if (S.menuIdx >= items.length) S.menuIdx = 0;
-      if (k === 'up') S.menuIdx = S.menuIdx === -1 ? firstOn(items, items.length - 1, -1) : (firstOn(items, S.menuIdx - 1, -1) < S.menuIdx ? firstOn(items, S.menuIdx - 1, -1) : -1);
-      else if (k === 'down') S.menuIdx = S.menuIdx === -1 ? firstOn(items, 0, 1) : (firstOn(items, S.menuIdx + 1, 1) > S.menuIdx ? firstOn(items, S.menuIdx + 1, 1) : -1);
+      if (S.homeBot) { // 下の段: ゲーム終了 / 成績 / 対戦成績 / 麻雀先生
+        if (k === 'left' || k === 'right') S.homeBotIdx = wrap(S.homeBotIdx + (k === 'right' ? 1 : -1), HOME_BOTTOM.length);
+        else if (k === 'up') { S.homeBot = false; S.menuIdx = firstOn(items, items.length - 1, -1); }
+        else if (k === 'back') S.mode = 'title';
+        else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else toggleTeacher(); }
+        return;
+      }
+      if (k === 'up') { const j = firstOn(items, S.menuIdx - 1, -1); if (j < S.menuIdx) S.menuIdx = j; }
+      else if (k === 'down') { const j = firstOn(items, S.menuIdx + 1, 1); if (j > S.menuIdx) S.menuIdx = j; else { S.homeBot = true; S.homeBotIdx = 0; } }
       else if (k === 'back') S.mode = 'title';
       else if (k === 'ok') {
-        if (S.menuIdx === -1) { S.confirmQ = { idx: 0 }; return; }
         const it = items[S.menuIdx]; if (!it || it.off) return;
         if (it.act === 'play') { const l = slotRead(); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else startGame(); }
-        else if (it.act === 'settings') { S.mode = 'settings'; S.setIdx = 0; } else if (it.act === 'teacher') toggleTeacher();
-        else if (it.act === 'stats') { S.mode = 'stats'; S.statsPg = 0; }
-        else if (it.act === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } };
+        else if (it.act === 'settings') { S.mode = 'settings'; S.setIdx = 0; }
       }
       return;
     }
@@ -635,7 +652,7 @@
     S.game = g;
     if (!g.resumed && !g.fast) { await new Promise((done) => { S.intro = { t0: __now(), done }; NSND.sfx('slam'); setTimeout(() => NSND.sfx('slam'), 1250); dirty(); }); }
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
-    S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
+    S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; S.homeBot = false; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
   }
   const menuItems = () => ['つづける', teacherLabel(), speedLabel(), 'タイトルにもどる', 'おわる(電源を切れます)'];
