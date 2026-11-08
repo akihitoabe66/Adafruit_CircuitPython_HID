@@ -263,7 +263,7 @@
     // 麻雀先生のおすすめは、リーチをかけた人がいるとき「押す・半押し・回す」を決めて、その構えで選ぶ(降りるだけにしない)
     let stance = null;
     if (an.opps.length && an.evals.length && (mode === 'free' || mode === 'beginner')) {
-      stance = A.stance(game, p, an);
+      stance = A.stance(game, p, an, p.coachType);
       if (stance && stance.pick) best = stance.pick;
     }
     let recId = best ? best.tile.id : null;

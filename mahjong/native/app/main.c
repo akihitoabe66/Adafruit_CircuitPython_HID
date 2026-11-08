@@ -15,7 +15,7 @@
 #include "shanten.h"
 
 static SDL_Window *win; static SDL_Renderer *ren; static JSContext *ctx; static JSRuntime *rt;
-static char root[1024] = "."; static int quitf = 0; static TTF_Font *fonts[24]; static int fsz[24]; static int nfonts = 0;
+static char root[1024] = "."; static int quitf = 0; static TTF_Font *fonts[64]; static int fsz[64]; static int nfonts = 0;
 static char fontpath[1024];
 #define W 832
 #define H 468
@@ -39,7 +39,7 @@ static SDL_Texture *getimg(const char *path, int *w, int *h){
 }
 static TTF_Font *getfont(int sz){
   for (int i = 0; i < nfonts; i++) if (fsz[i] == sz) return fonts[i];
-  if (nfonts >= 24) return fonts[0];
+  if (nfonts >= 64) return fonts[0];
   TTF_Font *f = TTF_OpenFont(fontpath, sz); if (!f) { fprintf(stderr, "font? %s\n", TTF_GetError()); return NULL; }
   fonts[nfonts] = f; fsz[nfonts++] = sz; return f;
 }
@@ -226,7 +226,7 @@ int main(int argc, char **argv){
   { const char *tp = getenv("MJ_TEACHER"); if (tp) JS_SetPropertyStr(ctx, g, "__teacherEnv", JS_NewString(ctx, tp)); }
   { const char *cp = getenv("MJ_CPU"); if (cp) JS_SetPropertyStr(ctx, g, "__cpuEnv", JS_NewString(ctx, cp)); }
   JS_SetPropertyStr(ctx, g, "__auto", JS_NewBool(ctx, auto_)); if (shots) JS_SetPropertyStr(ctx, g, "__shotDir", JS_NewString(ctx, shots));
-  const char *list[] = { "native/app/prelude.js", "js/tiles.js", "js/rules.js", "js/forms.js", "js/chars.js", "js/ai.js", "js/game.js", "native/app/nsnd.js", "native/app/nui.js", NULL };
+  const char *list[] = { "native/app/prelude.js", "js/tiles.js", "js/rules.js", "js/forms.js", "js/chars.js", "js/ai.js", "js/coach.js", "js/game.js", "native/app/nsnd.js", "native/app/nui.js", NULL };
   for (int i = 0; list[i]; i++) { char p[1500]; snprintf(p, sizeof p, "%s/%s", root, list[i]); if (evalfile(p)) return 3; }
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
   SDL_Texture *tgt = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, W, H);
