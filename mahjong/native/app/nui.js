@@ -342,6 +342,8 @@
     if (t > 350) seatBox(P[3], 3, SEATPOS[3][0], SEATPOS[3][1], true);
     if (t > 700) seatBox(P[1], 1, SEATPOS[1][0], SEATPOS[1][1], true);
     if (t > 1000) seatBox(P[0], 0, SEATPOS[0][0], SEATPOS[0][1] - 20, true);
+    if (t > 1200 && !it.v1) { it.v1 = 1; S.skipKyokuVoice = true; try { NSND.readKyoku(g); } catch (e) { /* ignore */ } }
+    if (t >= 2400 && !it.v2) { it.v2 = 1; try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }
     if (t > 1200 && t < 2400) { const k = Math.min(1, (t - 1200) / 160), sz = k < 0.5 ? 96 : 78; fill(0, 190, SW, 90, [0, 0, 0], 170); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz / 2, sz, YEL, 1); }
     if (t >= 2400 && t < 3500) { const k = Math.min(1, (t - 2400) / 160), sz = k < 0.5 ? 110 : 90; fill(0, 180, SW, 110, [0, 0, 0], 170); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((d) => text('勝負!', SW / 2 + d[0], 235 - sz / 2 + d[1], sz, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz / 2, sz, [225, 40, 30], 1); }
     if (t > 1000) shotOnce('intro1'); if (t > 1900) shotOnce('intro2'); if (t > 2900) shotOnce('intro3');
@@ -358,9 +360,20 @@
     if (d.settled && now - d.t1 > 1800 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); } fill(120, 70, 592, 330, [10, 66, 40]); frame(120, 70, 592, 330, [90, 140, 110], 2);
     const P = g.players, dealer = d.settled ? d.target : -1;
     [2, 3, 1, 0].forEach((s) => seatBox(P[s], s, SEATPOS[s][0], SEATPOS[s][1], false, dealer >= 0 ? ['東', '南', '西', '北'][(s - dealer + 4) % 4] : ''));
-    let va = d.a, vb = d.b, by = 0;
-    if (d.rolling) { const k = (now - d.t0) / 1100; if (k >= 1) { d.rolling = false; d.settled = true; d.t1 = now; NSND.sfx('slam'); } else { const f = Math.floor((now - d.t0) / 80); va = 1 + (f * 5 + 3) % 6; vb = 1 + (f * 3 + 1) % 6; by = Math.round(Math.abs(Math.sin(k * 9)) * 34 * (1 - k)); } }
-    if (d.started) { drawDie(318, 190 - by, va); drawDie(410, 180 - by * 0.8, vb); } else { drawDie(318, 190, 1); drawDie(410, 180, 6); }
+    let va = d.started ? d.a : 1, vb = d.started ? d.b : 6; const T = [[350, 188], [446, 176]];
+    const pos = [T[0].slice(), T[1].slice()];
+    if (d.rolling) {
+      const k = (now - d.t0) / 1300;
+      if (k >= 1) { d.rolling = false; d.settled = true; d.t1 = now; NSND.sfx('slam'); }
+      else {
+        const f = Math.floor((now - d.t0) / 70); if (k < 0.85) { va = 1 + (f * 5 + 3) % 6; vb = 1 + (f * 3 + 1) % 6; }
+        [0, 1].forEach((i) => { // 2Dで転がる: 手前から投げられ、はずみながら、止まる
+          const e = 1 - Math.pow(1 - k, 2.2), amp = 70 * Math.pow(1 - k, 1.4), bounce = Math.abs(Math.sin(k * (i ? 11 : 9))) * amp;
+          pos[i] = [Math.round(T[i][0] + (i ? 90 : -120) * (1 - e)), Math.round(T[i][1] + 130 * (1 - e) - bounce)];
+        });
+      }
+    }
+    pos.forEach((p, i) => drawDie(p[0], p[1], i ? vb : va));
     fill(150, 276, 532, 34, [0, 0, 0], 180);
     if (!d.started) text('サイコロを振ります', SW / 2, 281, 20, YEL, 1);
     else if (d.rolling) text('…', SW / 2, 281, 20, WHITE, 1);
@@ -590,7 +603,7 @@
     sfx(name) { NSND.sfx(name); },
     speak(g, p, t) { S.bub[p.seat] = { text: p.name + '「' + t + '」', until: __now() + 1900 }; dirty(); setTimeout(dirty, 2000); },
     banner(g, p, t) { S.banner = { text: t, t0: __now() }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 750).then(() => { S.banner = null; dirty(); }); },
-    handStart(g) { S.game = g; NSND.game(g); NSND.sfx('slam'); NSND.readKyoku(g); S.banner = { text: g.kyokuLabel(), t0: __now() }; S.deal = g.fast ? null : { t0: __now() + 300, dur: 700 }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
+    handStart(g) { S.game = g; NSND.game(g); NSND.sfx('slam'); if (S.skipKyokuVoice) S.skipKyokuVoice = false; else NSND.readKyoku(g); S.banner = { text: g.kyokuLabel(), t0: __now() }; S.deal = g.fast ? null : { t0: __now() + 300, dur: 700 }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
     padHand() {},
     dice(g, first) { if (g.fast) return Promise.resolve(null); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done }; dirty(); }); },
     askSelf(g, p, opts, st) {
