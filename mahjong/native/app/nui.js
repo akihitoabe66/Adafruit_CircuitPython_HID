@@ -315,31 +315,36 @@
   function btnR(x, y, w, h, r, sel, off, label, sz, arrow) {
     if (sel) { rrect(x - 5, y - 5, w + 10, h + 10, r + 5, [30, 30, 30]); rrect(x - 3, y - 3, w + 6, h + 6, r + 3, [255, 255, 255]); rrect(x, y, w, h, r, pressing() ? [255, 246, 170] : [253, 213, 63]); if (pressing()) rrect(x - 9, y - 9, w + 18, h + 18, r + 9, [255, 255, 255], 90); }
     else rrect(x, y, w, h, r, off ? [200, 206, 200] : [238, 242, 236], off ? 200 : 245);
-    if (arrow && sel) text('▶', x + 22, y + (h - sz) / 2 - 1, sz - 4, BLACK);
-    text(label, x + (arrow ? 70 : 62), y + (h - sz) / 2 - 1, sz, off ? [150, 156, 150] : BLACK);
+    if (arrow && sel) text('▶', x + 24, y + (h - (sz - 6)) / 2, sz - 6, BLACK);
+    text(label, x + (arrow ? 80 : 66), y + (h - sz) / 2, sz, off ? [150, 156, 150] : BLACK);
   }
   const HOME_BOTTOM = [{ k: 'exit', label: 'ゲーム終了' }, { k: 'rank', label: '成績・' }, { k: 'stats', label: '対戦成績' }, { k: 'teacher', label: '' }];
+  function brownBtn(x, y, w, h, label, sel, sz) { // Edge版と同じ、茶色の板に金の縁のボタン
+    if (sel) rrect(x - 4, y - 4, w + 8, h + 8, 14, pressing() ? [255, 246, 170] : [255, 255, 255]);
+    rrect(x, y, w, h, 11, [201, 154, 61]); rrect(x + 2, y + 2, w - 4, h - 4, 9, sel ? [120, 84, 36] : [74, 52, 24]);
+    text(label, x + w / 2, y + (h - (sz || 18)) / 2, sz || 18, sel ? [255, 245, 200] : [243, 227, 176], 1);
+  }
   function drawHome() {
     gfx.clear(14, 84, 52);
     gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255);
-    fill(0, SH - 34, SW, 34, [0, 0, 0], 130);
-    gfx.image('img/logo.webp', 50, 38, 240, 136, 255);
-    const ot = (s, x, y, sz, c) => { [[-2, 0], [2, 0], [0, -2], [0, 2]].forEach((d) => text(s, x + d[0], y + d[1], sz, [10, 14, 24], 0)); text(s, x, y, sz, c, 0); };
-    ot('メニューを', 70, 196, 30, WHITE); ot('選択', 70, 232, 34, [255, 225, 74]); { const w1 = gfx.measure('選択', 34); ot('して', 70 + w1, 236, 30, WHITE); } ot('ください。', 70, 276, 30, WHITE);
-    const items = homeItems();
-    items.forEach((it, i) => { const sel = !it.off && !S.homeBot && S.menuIdx === i; if (sel) btnR(372, 62 + i * 78, 432, 66, 12, true, false, it.label, 32, true); else btnR(385, 66 + i * 78, 407, 58, 12, false, it.off, it.label, 30, false); });
-    const bw = [138, 160, 150, 210];
-    let bx = 23; HOME_BOTTOM.forEach((b, i) => {
+    gfx.image('img/logo.webp', 52, 22, 244, 139, 255);
+    rrect(21, 165, 292, 170, 16, [10, 18, 32], 150); // 左の説明: 半透明の黒い囲い(Edge版と同じ)
+    const ot = (s, x, y, sz, c) => { [[-1, 1], [1, 1], [0, 2]].forEach((d) => text(s, x + d[0], y + d[1], sz, [0, 0, 0], 0)); text(s, x, y, sz, c, 0); };
+    ot('メニューを', 67, 178, 38, WHITE); ot('選択', 67, 226, 42, [255, 225, 74]); { const w1 = gfx.measure('選択', 42); ot('して', 67 + w1 + 2, 229, 38, WHITE); } ot('ください。', 67, 278, 38, WHITE);
+    const items = homeItems(); const IY = [58, 145, 227, 309];
+    items.forEach((it, i) => { const sel = !it.off && !S.homeBot && S.menuIdx === i; if (sel) btnR(370, IY[i] - (i ? 4 : 0), 433, 67, 16, true, false, it.label, 34, true); else btnR(383, IY[i], 408, 58, 16, false, it.off, it.label, 32, false); });
+    const bw = [134, 152, 150, 214];
+    let bx = 19; HOME_BOTTOM.forEach((b, i) => {
       const lab = b.k === 'rank' ? '成績・' + MJ.Rank.label() : b.k === 'teacher' ? teacherLabel() : b.label, sel = S.homeBot && S.homeBotIdx === i;
-      if (sel) { rrect(bx - 3, 372, bw[i] + 6, 46, 16, pressing() ? [255, 246, 170] : [255, 255, 255]); }
-      rrect(bx, 375, bw[i], 40, 10, [96, 66, 30]); rrect(bx + 2, 377, bw[i] - 4, 36, 8, sel ? [150, 105, 40] : [64, 42, 18]);
-      text(lab, bx + bw[i] / 2, 384, 18, sel ? [255, 245, 200] : [245, 224, 160], 1); bx += bw[i] + 8;
+      brownBtn(bx, 350, bw[i], 44, lab, sel, 19); bx += bw[i] + 10;
     });
   }
+  const swapOn = () => { try { const v = localStorage.getItem('mj_swapab'); return v === null ? true : v === '1'; } catch (e) { return true; } };
+  try { __swapab(swapOn() ? 1 : 0); } catch (e) { /* ignore */ }
   const perfOn = () => { try { return localStorage.getItem('mj_perf') === '1' || !!globalThis.__perfEnv; } catch (e) { return false; } };
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'perf', label: '速度の表示(開発用)' }, { k: 'back', label: 'もどる' },
+    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'perf', label: '速度の表示(開発用)' }, { k: 'back', label: 'もどる' },
   ];
   function drawSettings() {
     gfx.clear(14, 84, 52); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
@@ -352,6 +357,7 @@
       else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 10, 22, BLACK, 1);
       else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 10, 22, BLACK, 1);
       else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 10, 22, BLACK, 1);
+      else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 10, 22, BLACK, 1);
     });
   }
   /* ---------- 対局のはじめの演出: 顔の登場 → 東一局 → 勝負! → サイコロ ---------- */
@@ -449,8 +455,8 @@
     const bx = Math.round(531 * K), by = Math.round(506 * K) + 6, bw = Math.round(350 * K), bh = Math.round(46 * K);
     fill(bx, by, bw, bh, [26, 18, 10]); fill(bx, by, Math.round(bw * Math.max(f.prog > 0 ? 0.04 : 0, f.prog)), bh, [235, 200, 110]);
     if (f.next) at(706, 529, 26, (f.s.pt - f.base) + ' / ' + (f.next_pt - f.base), DK);
+    { const bl = ['対戦成績', '◀ もどる'], bwid = [150, 150]; let bx2 = SW / 2 - 160; const idx = S.rankScr.idx || 0; bl.forEach((l, i) => { brownBtn(bx2, SH - 52, bwid[i], 38, l, idx === i, 18); bx2 += bwid[i] + 20; }); }
     if (rk) at(702, 625, 28, (rk.delta > 0 ? '+' : '') + rk.delta + '点' + (rk.msg ? '  ' + rk.msg : ''), CR);
-    text('決定で すすむ', SW / 2, SH - 20, 13, GREY, 1);
     if (__auto && globalThis.__shotDir && !S._rkShot) { S._rkShot = 1; gfx.shot(__shotDir + '/rank.bmp'); }
   }
   function overlay(a) { fill(-S.vx, -S.vy, SW, SH, [0, 0, 0], a == null ? 200 : a); }
@@ -525,7 +531,7 @@
   window.__key = function (k) {
     S.dirty = true; if (S.locked) return;
     NSND.sfx(k === 'ok' ? 'ok' : k === 'back' ? 'click' : 'select', 0.5);
-    if (S.rankScr) { if (k === 'ok' || k === 'back') { const r = S.rankScr; S.rankScr = null; r.done(); } return; }
+    if (S.rankScr) { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = 1 - (r.idx || 0); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 1)) { S.rankScr = null; r.done(); } else if (k === 'ok') { S.rankScr = null; r.done(); S.mode = 'stats'; S.statsPg = 0; } return; }
     if (k === 'menu' && !S.menuP) { S.menuP = { idx: 0 }; return; } // スタート+セレクト長押し
     if (S.menuP) {
       const items = menuItems();
@@ -587,6 +593,7 @@
         else if (it.k === 'bgmon') { NSND.toggle(); if (NSND.on) NSND.home(); }
         else if (it.k === 'speed') MJ.cycleCpuSpeed();
         else if (it.k === 'teacher') toggleTeacher();
+        else if (it.k === 'swap') { try { localStorage.setItem('mj_swapab', swapOn() ? '0' : '1'); } catch (e) { /* ignore */ } __swapab(swapOn() ? 1 : 0); }
         else if (it.k === 'perf') { try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } }
         else if (it.k === 'back' && k === 'ok') S.mode = 'menu';
       }
@@ -625,7 +632,8 @@
     }
     if (S.side) { // 右の操作の列
       if (k === 'up' || k === 'down') S.side.idx = wrap(S.side.idx + (k === 'up' ? -1 : 1), SIDE.length);
-      else if (k === 'left' || k === 'back') S.side = null;
+      else if (k === 'left' || k === 'back') { S.side = null; if (S.self && k === 'left' && S.self.row === 0) S.self.idx = S.self.tiles.length - 1; } // 左: いちばん右の牌へ
+      else if (k === 'right') { S.side = null; if (S.self) { S.self.row = 0; S.self.idx = 0; } } // 右: いちばん左の牌へもどる
       else if (k === 'ok') {
         const i = S.side.idx;
         if (i === 0) S.menuP = { idx: 0 };
@@ -635,13 +643,14 @@
       return;
     }
     const s = S.self, r = S.react;
+    if (k === 'left' && S.mode === 'game' && s && s.row === 0 && s.idx === 0) { S.side = { idx: 2 }; return; } // いちばん左から、さらに左へ: 麻雀先生のボタン
     if (k === 'right' && S.mode === 'game' && ((!s && !r) || (s && s.row === 0 && s.idx === s.tiles.length - 1) || (s && s.row === 1 && s.idx === s.btns.length - 1) || (r && r.idx === r.btns.length - 1))) { S.side = { idx: 1 }; return; } // いちばん右から、さらに右へ: 操作の列へ
     if (s) {
       const tiles = s.tiles;
       if (k === 'left' || k === 'right') {
         const n = s.row === 0 ? tiles.length : s.btns.length; if (!n) return; s.idx = wrap(s.idx + (k === 'left' ? -1 : 1), n);
-      } else if (k === 'up' && s.row === 0 && s.btns.length) { s.row = 1; s.idx = 0; }
-      else if (k === 'down' && s.row === 1) { s.row = 0; s.idx = tiles.length - 1; }
+      } else if (k === 'up') { if (s.row === 0 && s.idx !== 0) s.idx = 0; else if (s.row === 0 && s.btns.length) { s.row = 1; s.idx = 0; } } // 上: 1枚目の牌へ(1枚目で、もう一度上: ボタンへ)
+      else if (k === 'down') { if (s.row === 1) { s.row = 0; s.idx = tiles.length - 1; } else s.idx = tiles.length - 1; } // 下: いちばん右の牌へ
       else if (k === 'back' && s.rm) { s.rm = false; }
       else if (k === 'ok') {
         if (s.row === 0) { const h = tiles[s.idx]; if (allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }

@@ -69,7 +69,8 @@ static JSValue j_text(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   SDL_Texture *tx = (s && *s) ? gettext(s, ai(c,a[3]), ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), &w, &h) : NULL; JS_FreeCString(c, s);
   if (!tx) return JS_NewInt32(c, 0);
   int x = ai(c,a[1]); if (al == 1) x -= w / 2; else if (al == 2) x -= w;
-  SDL_Rect d = { x, ai(c,a[2]), w, h }; SDL_SetTextureAlphaMod(tx, 255); SDL_RenderCopy(ren, tx, NULL, &d); return JS_NewInt32(c, w); }
+  TTF_Font *ft = getfont(ai(c,a[3])); int dyn = ft ? (int)(ai(c,a[3]) * 0.86) - TTF_FontAscent(ft) : 0; /* 漢字の字面の上端を y に合わせる(フォントごとの行の高さの違いで、下に寄らないように) */
+  SDL_Rect d = { x, ai(c,a[2]) + dyn, w, h }; SDL_SetTextureAlphaMod(tx, 255); SDL_RenderCopy(ren, tx, NULL, &d); return JS_NewInt32(c, w); }
 static JSValue j_imagerot(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 回して描く: (x,y)は、回したあとの外枠の左上。w,hは、回す前の大きさ */
   const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getimg(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE;
   int x = ai(c,a[1]), y = ai(c,a[2]), dw = ai(c,a[3]), dh = ai(c,a[4]), ang = ai(c,a[6]); int bw = (ang == 90 || ang == 270) ? dh : dw, bh = (ang == 90 || ang == 270) ? dw : dh;
@@ -77,6 +78,7 @@ static JSValue j_imagerot(JSContext *c, JSValueConst t, int n, JSValueConst *a){
 static JSValue j_textrot(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 回した文字: (cx,cy)を中心に */
   const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0; SDL_Texture *tx = (s && *s) ? gettext(s, ai(c,a[3]), ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), &w, &h) : NULL; JS_FreeCString(c, s);
   if (!tx) return JS_NewInt32(c, 0);
+  TTF_Font *ft2 = getfont(ai(c,a[3])); int sz2 = ai(c,a[3]), off2 = ft2 ? (TTF_FontAscent(ft2) - (int)(sz2 * 0.38)) - h / 2 : 0; /* 字面の中心を、中心に合わせる */
   SDL_Rect d = { ai(c,a[1]) - w / 2, ai(c,a[2]) - h / 2, w, h }; SDL_SetTextureAlphaMod(tx, 255); SDL_RenderCopyEx(ren, tx, NULL, &d, (double)ai(c,a[7]), NULL, SDL_FLIP_NONE); return JS_NewInt32(c, w); }
 static JSValue j_measure(JSContext *c, JSValueConst t, int n, JSValueConst *a){ const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0; TTF_Font *f = getfont(ai(c,a[1])); if (f && s) TTF_SizeUTF8(f, s, &w, &h); JS_FreeCString(c, s); return JS_NewInt32(c, w); }
 static JSValue j_view(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_Rect r = { ai(c,a[0]), ai(c,a[1]), W - ai(c,a[0]), H - ai(c,a[1]) }; curview = r; SDL_RenderSetViewport(ren, &r); return JS_UNDEFINED; }
@@ -184,6 +186,7 @@ static const char *findfont(void){
   static const char *c[] = { "/usr/share/fonts/opentype/noto/NotoSansCJK-Medium.ttc", "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf", "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf", "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "/usr/share/fonts/truetype/takao-gothic/TakaoGothic.ttf", NULL };
   for (int i = 0; c[i]; i++) { FILE *f = fopen(c[i], "rb"); if (f) { fclose(f); return c[i]; } } return NULL; }
 
+static int swapab = 1; static JSValue j_swapab(JSContext *c, JSValueConst t, int n, JSValueConst *a){ swapab = ai(c,a[0]); return JS_UNDEFINED; }
 static int axisdir[2] = { 0, 0 }; static int jb[32]; static double menu_t0 = 0;
 static void joyaxis(int axis, int v){ int d = v > 16000 ? 1 : v < -16000 ? -1 : 0; if (axis > 1) return; if (d != axisdir[axis]) { axisdir[axis] = d; if (d) callkey(axis == 0 ? (d > 0 ? "right" : "left") : (d > 0 ? "down" : "up")); } }
 
@@ -201,7 +204,7 @@ static void handle_event(SDL_Event *ep){
   else if (e.type == SDL_JOYHATMOTION) { if (e.jhat.value & SDL_HAT_LEFT) callkey("left"); else if (e.jhat.value & SDL_HAT_RIGHT) callkey("right"); else if (e.jhat.value & SDL_HAT_UP) callkey("up"); else if (e.jhat.value & SDL_HAT_DOWN) callkey("down"); }
   else if (e.type == SDL_JOYAXISMOTION) joyaxis(e.jaxis.axis, e.jaxis.value);
   else if (e.type == SDL_JOYBUTTONUP) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 0; }
-  else if (e.type == SDL_JOYBUTTONDOWN) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 1; { int b = e.jbutton.button; if (b >= 6 && b <= 9) return; /* スタート・セレクトは、長押しのメニュー専用 */ callkey(b == 1 || b == 3 ? "back" : "ok"); } }
+  else if (e.type == SDL_JOYBUTTONDOWN) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 1; { int b = e.jbutton.button; if (b >= 6 && b <= 9) return; /* スタート・セレクトは、長押しのメニュー専用 */ callkey((swapab ? (b == 0 || b == 2) : (b == 1 || b == 3)) ? "back" : "ok"); } }
 }
 
 int main(int argc, char **argv){
@@ -235,7 +238,7 @@ int main(int argc, char **argv){
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1);
-  reg(g, "print", j_print, 1); reg(g, "__now", j_now, 0); reg(g, "__quit", j_quit, 0); reg(g, "__load", j_load, 0); reg(g, "__save", j_save, 1); reg(g, "__shanten", j_shanten, 2); reg(g, "__slotlist", j_slotlist, 0); reg(g, "__slotload", j_slotload, 1); reg(g, "__slotsave", j_slotsave, 2); reg(g, "__slotdel", j_slotdel, 1);
+  reg(g, "print", j_print, 1); reg(g, "__now", j_now, 0); reg(g, "__quit", j_quit, 0); reg(g, "__load", j_load, 0); reg(g, "__save", j_save, 1); reg(g, "__swapab", j_swapab, 1); reg(g, "__shanten", j_shanten, 2); reg(g, "__slotlist", j_slotlist, 0); reg(g, "__slotload", j_slotload, 1); reg(g, "__slotsave", j_slotsave, 2); reg(g, "__slotdel", j_slotdel, 1);
   { if (getenv("MJ_FPS")) JS_SetPropertyStr(ctx, g, "__perfEnv", JS_NewBool(ctx, 1)); }
   { const char *tp = getenv("MJ_TEACHER"); if (tp) JS_SetPropertyStr(ctx, g, "__teacherEnv", JS_NewString(ctx, tp)); }
   { const char *cp = getenv("MJ_CPU"); if (cp) JS_SetPropertyStr(ctx, g, "__cpuEnv", JS_NewString(ctx, cp)); }
