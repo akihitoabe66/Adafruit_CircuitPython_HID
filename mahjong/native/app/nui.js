@@ -210,7 +210,8 @@
   }
   function drawTeacher(g) {
     if (!teacherOn()) return;
-    const h = S.hint, s = S.self; if (!h || !s || s.row !== 0) return;
+    const h = S.hint, s = S.self; if ((!h || !s || s.row !== 0) && S.tmsg && __now() < S.tmsg.until) { fill(6, 304, 430, 46, [6, 44, 26], 240); frame(6, 304, 430, 46, [255, 220, 40], 2); text('麻雀先生', 14, 306, 14, YEL); text(S.tmsg.text, 14, 325, 17, WHITE); return; }
+    if (!h || !s || s.row !== 0) return;
     fill(6, 304, 430, 46, [6, 44, 26], 240); frame(6, 304, 430, 46, [255, 220, 40], 2);
     text('★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), 14, 306, 17, YEL);
     text((h.sh === 0 ? 'テンパイ' : 'テンパイまであと' + h.sh + '歩') + ' 受け入れ' + h.n + '枚  ' + (h.label || ''), 14, 327, 14, WHITE);
@@ -281,7 +282,7 @@
     if (__auto && globalThis.__shotDir && !S._stbl && g.players[2].discards.length >= 4 && g.players[3].discards.length >= 4) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
     // 演出: 札の文字が、少し大きいところから縮んで止まる
     if (S.banner && S.banner.call && S.banner.p) { // ポン・チー・ロンなど: 顔と、色のついた大きな文字(Edge版と同じ)
-      const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = k < 0.5 ? 100 : 84, col = bn.text === 'リーチ' ? [255, 91, 138] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [255, 123, 90] : [196, 139, 255];
+      const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = 84, col = bn.text === 'リーチ' ? [255, 91, 138] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [255, 123, 90] : [196, 139, 255];
       face(bn.p, 215, 96, 108, 108); frame(214, 95, 110, 110, [240, 210, 120], 2);
       { const by = 124 - Math.round((sz - 84) / 2); text(bn.text, 345, by + 7, sz, [0, 0, 0], 0); [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, 340 + d[0], by + d[1], sz, [255, 255, 255])); }
       text(bn.text, 340, 124 - Math.round((sz - 84) / 2), sz, col);
@@ -296,11 +297,11 @@
     order.forEach((h, i) => {
       if (i >= shown) return;
       const x = handX(i, i === gapAt); let y = HY;
-      const sel = s ? (s.row === 0 && s.idx === i) : (!S.react && !S.side && S.mode === 'game' && !S.deal && Math.min(S.curIdx || 0, hs.length - 1) === i);
+      const sel = s ? (!S.side && s.row === 0 && s.idx === i) : (!S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && Math.min(S.curIdx, hs.length - 1) === i);
       const dim = s ? !allowed(s, h) : false;
       if (sel) y -= 8;
       tile(h.t, x, y, HW, HH, h.red, dim);
-      if (teacherOn() && S.hint && S.hint.tile === h && s && s.row === 0) text('★', x + 22, y - 20, 16, YEL, 1);
+      if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, y - 20, 16, YEL, 1);
       if (sel) frame(x - 1, y - 1, HW + 2, HH + 2, YEL, 3);
     });
     drawMelds(p, 713 - meldWH(p, 31, 40), 398, 31, 40);
@@ -350,7 +351,7 @@
     const BW = [[150, 230]];
     HOME_BOTTOM.forEach((b, i) => {
       const row = i >> 1, col = i & 1, lab = b.k === 'rank' ? '成績・' + MJ.Rank.label() : b.k === 'teacher' ? teacherLabel() : b.label, sel = S.homeBot && S.homeBotIdx === i;
-      brownBtn(19 + (col ? BW[row][0] + 12 : 0), 362, BW[row][col], 48, lab, sel, 21);
+      brownBtn(19 + (col ? BW[row][0] + 12 : 0), 398, BW[row][col], 46, lab, sel, 21);
     });
   }
   const swapOn = () => { try { const v = localStorage.getItem('mj_swapab'); return v === null ? true : v === '1'; } catch (e) { return true; } };
@@ -413,7 +414,7 @@
   }
   const DPOS = { 2: [SW / 2 - 44, 8], 3: [66, 150], 1: [SW - 154, 150], 0: [SW / 2 - 44, 352] };
   function diceSeat(p, s, hi, wind) { // サイコロの画面の、4人の顔(大きく)と名前
-    const x = DPOS[s][0], y = DPOS[s][1], fs = 88; face(p, x, y, fs, fs); frame(x - 1, y - 1, fs + 2, fs + 2, hi ? [255, 230, 80] : [240, 210, 120], hi ? 5 : 2);
+    const x = DPOS[s][0], y = DPOS[s][1], fs = 88; if (hi) { rrect(x - 12, y - 12, fs + 24, fs + 24, 14, [255, 120, 40]); rrect(x - 8, y - 8, fs + 16, fs + 16, 10, [255, 230, 80]); } face(p, x, y, fs, fs); frame(x - 1, y - 1, fs + 2, fs + 2, hi ? [255, 255, 255] : [240, 210, 120], hi ? 3 : 2);
     plate(x + fs / 2, y + fs + 6, p.name, 0);
     if (wind) text(wind, x - 28, y + 28, 38, wind === '東' ? RED : YEL, 1);
   }
@@ -674,7 +675,7 @@
     }
     const s = S.self, r = S.react;
     if (S.mode === 'game' && !s && !r && S.game && (k === 'left' || k === 'right' || k === 'up' || k === 'down')) { // 相手の番でも、牌をなぞれる
-      const n = myTiles(S.game.players[0]).length; if (!n) return; const c = Math.min(S.curIdx || 0, n - 1);
+      const n = myTiles(S.game.players[0]).length; if (!n) return; if (S.curIdx == null) { S.curIdx = (k === 'right' || k === 'down') ? 0 : n - 1; dirty(); return; } const c = Math.min(S.curIdx, n - 1);
       if (k === 'left') { if (c === 0) S.side = { idx: 2 }; else S.curIdx = c - 1; }
       else if (k === 'right') { if (c >= n - 1) S.side = { idx: 1 }; else S.curIdx = c + 1; }
       else S.curIdx = k === 'up' ? n - 1 : 0;
@@ -690,7 +691,7 @@
       else if (k === 'down') { if (s.row === 1) { s.row = 0; s.idx = 0; } else s.idx = 0; } // 下: 1枚目の牌へ
       else if (k === 'back' && s.rm) { s.rm = false; }
       else if (k === 'ok') {
-        if (s.row === 0) { const h = tiles[s.idx]; if (allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
+        if (s.row === 0) { const h = tiles[s.idx]; if (allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.curIdx = null; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
         else {
           const b = s.btns[s.idx];
           if (b.act === 'riichi') { s.rm = !s.rm; s.row = 0; const okI = tiles.findIndex((h) => allowed(s, h)); if (s.rm) { const d = tiles.indexOf(s.p.drawn); s.idx = d >= 0 && allowed(s, tiles[d]) ? d : Math.max(0, okI); } else s.idx = tiles.length - 1; }
@@ -708,8 +709,8 @@
     render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
     sfx(name) { NSND.sfx(name); },
     speak(g, p, t) { S.bub[p.seat] = { name: p.name, text: t, until: __now() + 2300 }; dirty(); setTimeout(dirty, 2400); },
-    banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 750).then(() => { S.banner = null; dirty(); }); },
-    handStart(g) { S.game = g; NSND.game(g); NSND.sfx('slam'); if (S.skipKyokuVoice) S.skipKyokuVoice = false; else NSND.readKyoku(g); S.banner = { text: g.kyokuLabel(), t0: __now() }; S.deal = g.fast ? null : { t0: __now() + 300, dur: 1500, step: 0, perm: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].sort(() => Math.random() - 0.5) }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
+    banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
+    handStart(g) { S.curIdx = null; if (teacherOn() && !S.tmsgShown) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); } S.game = g; NSND.game(g); NSND.sfx('slam'); if (S.skipKyokuVoice) S.skipKyokuVoice = false; else NSND.readKyoku(g); S.banner = { text: g.kyokuLabel(), t0: __now() }; S.deal = g.fast ? null : { t0: __now() + 300, dur: 1500, step: 0, perm: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].sort(() => Math.random() - 0.5) }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
     padHand() {},
     dice(g, first) { if (g.fast) return Promise.resolve(null); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done }; dirty(); }); },
     askSelf(g, p, opts, st) {
@@ -756,7 +757,7 @@
   }
   function stopGame() { // ゲームを途中でやめて、タイトルへ
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
-    g.stopped = true; S.side = S.coach = null;
+    g.stopped = true; S.tmsgShown = 0; S.side = S.coach = null;
     const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
     S.self = S.react = S.result = S.end = S.saveP = null;
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
