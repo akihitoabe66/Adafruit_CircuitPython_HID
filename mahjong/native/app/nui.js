@@ -206,13 +206,13 @@
     if (g.fast || ld.by == null) return;
     const p = g.players[ld.by], i = p.discards.indexOf(ld.d); if (i < 0) return;
     const q = riverPos(ld.by, i);
-    const off = { 0: [0, -34], 2: [0, 34], 3: [34, 0], 1: [-34, 0] }[ld.by]; // 手元の側から、すっと置かれる(置かれる形のまま)
-    S.fly = { d: ld.d, t: ld.tile.t, red: ld.tile.red, off, to: [q.x, q.y], rot: q.rot, t0: __now(), dur: 130 }; S.pick = null;
+    const from = ld.by === 0 && S.pick ? S.pick : ({ 2: [330, 20], 3: [10, 150], 1: [690, 150] }[ld.by] || [360, 300]);
+    S.fly = { d: ld.d, t: ld.tile.t, red: ld.tile.red, from, to: [q.x, q.y], rot: q.rot, bw: q.bw, bh: q.bh, t0: __now(), dur: 190 }; S.pick = null;
   }
   function drawFly() {
-    const f = S.fly; if (!f) return; const k = (__now() - f.t0) / f.dur; if (k >= 1) { S.fly = null; dirty(); return; }
-    const step = k < 0.34 ? 0.34 : k < 0.67 ? 0.67 : 1; // 3コマだけの動き
-    const r = 1 - step; tileR(f.t, Math.round(f.to[0] + f.off[0] * r * r * 1.0), Math.round(f.to[1] + f.off[1] * r * r * 1.0), RW, RH, f.red, false, f.rot);
+    const f = S.fly; if (!f) return; const k = Math.min(1, (__now() - f.t0) / f.dur), e = 1 - (1 - k) * (1 - k);
+    const x = f.from[0] + (f.to[0] - f.from[0]) * e, y = f.from[1] + (f.to[1] - f.from[1]) * e;
+    const w = HW + (RW - HW) * e, h = HH + (RH - HH) * e; tile(f.t, Math.round(x), Math.round(y), Math.round(w), Math.round(h), f.red);
   }
   /* 配牌: 4牌ずつ配られ、最後に「チャッ」と並び替わる */
   const DEAL_AT = [0.04, 0.24, 0.44, 0.64];
@@ -230,6 +230,7 @@
     fill(140, 8, 440, 300, [10, 66, 40]); // 卓の中ほど
     if (g.blank) return;
     const P = g.players;
+    if (S.fly && __now() >= S.fly.t0 + S.fly.dur) S.fly = null; // 着いたら、その同じコマから、河の絵に入れる(ちらつき防止)
     const DS = dealState();
     // 河(変わったときだけ描き直し、あとは1枚の絵を貼る)
     const rkey = P.map((p) => p.discards.length + ':' + p.discards.map((d) => (d.called ? 1 : 0)).join('') + ':' + p.discards.indexOf(g.lastDiscard && g.lastDiscard.d)).join('|') + (S.fly ? 'f' : '');
@@ -256,14 +257,20 @@
     drawHand(g);
     // 吹き出し
     const now = __now();
-    const BUB = { 0: [360, 340], 1: [560, 300], 2: [360, 60], 3: [160, 300] };
+    const BUB = { 0: [250, 282], 1: [520, 172], 2: [440, 40], 3: [74, 172] };
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; }
-      const w = Math.min(380, gfx.measure(b.text, 14) + 20); const pos = BUB[k] || [360, 200], bx = pos[0] - w / 2, by = pos[1];
-      fill(bx, by, w, 28, WHITE); frame(bx, by, w, 28, [90, 90, 90], 1); text(b.text.slice(0, 26), pos[0], by + 5, 14, BLACK, 1); }
+      const pos = BUB[k] || [300, 200], lines = wrapText(b.text, 15, 164).slice(0, 4), h = 30 + lines.length * 20;
+      rrect(pos[0] + 2, pos[1] + 3, 188, h, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], 188, h, 10, [240, 243, 238]);
+      text(b.name, pos[0] + 12, pos[1] + 6, 12, [90, 100, 96]); lines.forEach((l, i) => text(l, pos[0] + 12, pos[1] + 24 + i * 20, 15, [30, 34, 32])); }
     drawFly(); drawTeacher(g);
     if (__auto && globalThis.__shotDir && !S._stbl && g.players[2].discards.length >= 4 && g.players[3].discards.length >= 4) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
     // 演出: 札の文字が、少し大きいところから縮んで止まる
-    if (S.banner) { const k = Math.min(1, (__now() - (S.banner.t0 || 0)) / 180), sz = k < 0.34 ? 78 : k < 0.67 ? 66 : 56; fill(0, 200, W, 80, [0, 0, 0], 170); text(S.banner.text, 360, 240 - Math.round(sz * 0.55), sz, YEL, 1); }
+    if (S.banner && S.banner.call && S.banner.p) { // ポン・チー・ロンなど: 顔と、色のついた大きな文字(Edge版と同じ)
+      const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = k < 0.5 ? 100 : 84, col = bn.text === 'リーチ' ? [255, 91, 138] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [255, 123, 90] : [196, 139, 255];
+      face(bn.p, 215, 96, 108, 108); frame(214, 95, 110, 110, [240, 210, 120], 2);
+      [[-4, 0], [4, 0], [0, -4], [0, 4], [3, 5]].forEach((d) => text(bn.text, 340 + d[0], 124 - Math.round((sz - 84) / 2) + d[1], sz, d[0] === 3 ? [0, 0, 0] : [255, 255, 255]));
+      text(bn.text, 340, 124 - Math.round((sz - 84) / 2), sz, col);
+    } else if (S.banner) { const k = Math.min(1, (__now() - (S.banner.t0 || 0)) / 180), sz = k < 0.34 ? 78 : k < 0.67 ? 66 : 56; fill(0, 200, W, 80, [0, 0, 0], 170); text(S.banner.text, 360, 240 - Math.round(sz * 0.55), sz, YEL, 1); }
   }
   function myTiles(p) { const hs = p.hand.filter((h) => h !== p.drawn); if (p.drawn) hs.push(p.drawn); return hs; }
   function allowed(s, h) { const p = s.p; if (p.riichi) return h === p.drawn; if (s.opts.forbid.includes(h.t)) return false; if (s.rm) return s.opts.riichi.includes(h.t); return true; }
@@ -320,12 +327,12 @@
     const ot = (s, x, y, sz, c) => { [[-2, 0], [2, 0], [0, -2], [0, 2]].forEach((d) => text(s, x + d[0], y + d[1], sz, [10, 14, 24], 0)); text(s, x, y, sz, c, 0); };
     ot('メニューを', 70, 196, 30, WHITE); ot('選択', 70, 232, 34, [255, 225, 74]); { const w1 = gfx.measure('選択', 34); ot('して', 70 + w1, 236, 30, WHITE); } ot('ください。', 70, 276, 30, WHITE);
     const items = homeItems();
-    items.forEach((it, i) => { const sel = !it.off && !S.homeBot && S.menuIdx === i; if (sel) btnR(372, 62 + i * 78, 432, 66, 20, true, false, it.label, 30, true); else btnR(385, 66 + i * 78, 407, 58, 20, false, it.off, it.label, 28, false); });
+    items.forEach((it, i) => { const sel = !it.off && !S.homeBot && S.menuIdx === i; if (sel) btnR(372, 62 + i * 78, 432, 66, 12, true, false, it.label, 32, true); else btnR(385, 66 + i * 78, 407, 58, 12, false, it.off, it.label, 30, false); });
     const bw = [138, 160, 150, 210];
     let bx = 23; HOME_BOTTOM.forEach((b, i) => {
       const lab = b.k === 'rank' ? '成績・' + MJ.Rank.label() : b.k === 'teacher' ? teacherLabel() : b.label, sel = S.homeBot && S.homeBotIdx === i;
       if (sel) { rrect(bx - 3, 372, bw[i] + 6, 46, 16, pressing() ? [255, 246, 170] : [255, 255, 255]); }
-      rrect(bx, 375, bw[i], 40, 14, [96, 66, 30]); rrect(bx + 2, 377, bw[i] - 4, 36, 12, sel ? [150, 105, 40] : [64, 42, 18]);
+      rrect(bx, 375, bw[i], 40, 10, [96, 66, 30]); rrect(bx + 2, 377, bw[i] - 4, 36, 8, sel ? [150, 105, 40] : [64, 42, 18]);
       text(lab, bx + bw[i] / 2, 384, 18, sel ? [255, 245, 200] : [245, 224, 160], 1); bx += bw[i] + 8;
     });
   }
@@ -379,13 +386,8 @@
     if (t >= 3500) { S.intro = null; it.done(); }
   }
   const PIP = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
-  function drawDie(x, y, v, s) { // 立体に見えるサイコロ(正面・上・右の3面)。s=手前ほど大きい
-    s = s || 72; const d = Math.round(s * 0.2);
-    fill(x + 4, y + s - 1, s + d, Math.round(s * 0.14), [0, 0, 0], 70); // 影
-    for (let r = 0; r < d; r++) fill(x + d - r, y - r - 1, s, 1, [255, 255, 250]); // 上の面(斜めに)
-    for (let c = 0; c < d; c++) fill(x + s + c, y - c - 1, 1, s, [190, 188, 178]); // 右の面(斜めに)
-    fill(x + d, y - d - 1, s, 1, [130, 128, 120]); fill(x + s + d - 1, y - d, 1, s, [110, 108, 100]);
-    fill(x, y, s, s, [250, 248, 240]); frame(x, y, s, s, [120, 120, 110], 2); // 正面
+  function drawDie(x, y, v, s) { // 平らなサイコロ
+    s = s || 72; fill(x + 3, y + 5, s, s, [0, 0, 0], 80); fill(x, y, s, s, [250, 248, 240]); frame(x, y, s, s, [120, 120, 110], 2);
     const u = s / 3.2, pr = Math.max(3, Math.round(s / 13));
     (PIP[v] || []).forEach((i) => { const cx = x + Math.round(s / 2 + ((i % 3) - 1) * u * 0.9), cy = y + Math.round(s / 2 + (Math.floor(i / 3) - 1) * u * 0.9); fill(cx - pr, cy - pr, pr * 2, pr * 2, v === 1 ? [220, 40, 40] : [30, 30, 30]); });
   }
@@ -408,8 +410,8 @@
           const t0 = seg ? s[seg - 1] : 0, u = (k - t0) / (s[seg] - t0), h = a[seg] * 4 * u * (1 - u) * (seg === 0 ? 1.15 : 1);
           if (seg !== d['_lastSeg' + i]) { if (seg > 0) NSND.sfx('discard', 0.35); d['_lastSeg' + i] = seg; }
           const e = 1 - Math.pow(1 - k, 1.7);
-          sz[i] = Math.round(72 + 30 * (1 - e)); // 手前は大きく、奥は小さく
-          pos[i] = [Math.round(T[i][0] + (800 - T[i][0]) * (1 - e) - (i ? 0 : 20) * (1 - e)), Math.round(T[i][1] + (i ? 170 : 200) * (1 - e) - h * (sz[i] / 72))];
+          sz[i] = 72;
+          pos[i] = [Math.round(T[i][0] + (800 - T[i][0]) * (1 - e) - (i ? 0 : 20) * (1 - e)), Math.round(T[i][1] + (i ? 60 : 90) * (1 - e) - h)];
         });
       }
     }
@@ -659,8 +661,8 @@
   const ui = {
     render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
     sfx(name) { NSND.sfx(name); },
-    speak(g, p, t) { S.bub[p.seat] = { text: p.name + '「' + t + '」', until: __now() + 1900 }; dirty(); setTimeout(dirty, 2000); },
-    banner(g, p, t) { S.banner = { text: t, t0: __now() }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 750).then(() => { S.banner = null; dirty(); }); },
+    speak(g, p, t) { S.bub[p.seat] = { name: p.name, text: t, until: __now() + 2300 }; dirty(); setTimeout(dirty, 2400); },
+    banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 750).then(() => { S.banner = null; dirty(); }); },
     handStart(g) { S.game = g; NSND.game(g); NSND.sfx('slam'); if (S.skipKyokuVoice) S.skipKyokuVoice = false; else NSND.readKyoku(g); S.banner = { text: g.kyokuLabel(), t0: __now() }; S.deal = g.fast ? null : { t0: __now() + 300, dur: 1500, step: 0, perm: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].sort(() => Math.random() - 0.5) }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
     padHand() {},
     dice(g, first) { if (g.fast) return Promise.resolve(null); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done }; dirty(); }); },
