@@ -13,9 +13,13 @@
     home() { A.music(HOME); },
     game(g) {
       // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」から選ぶ
+      const isGameTrack = GAME.indexOf(cur) >= 0 || LATE.indexOf(cur) >= 0 || FINAL.indexOf(cur) >= 0;
+      const finalHand = !!g && g.kyoku % 4 === 3;
+      if (isGameTrack && !(finalHand && FINAL.indexOf(cur) < 0 && !A._finalDone)) return; // いま対局の曲が流れているなら、局ごとに曲を替えない(曲の読み込みで、音が途切れるため)
+      if (!finalHand) A._finalDone = false;
+      if (finalHand) A._finalDone = true;
       const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []).filter((x) => x !== last);
       const fin = FINAL.filter((x) => x !== last);
-      const finalHand = !!g && g.kyoku % 4 === 3;
       const pool = finalHand && Math.random() < 0.6 && fin.length ? fin : cand;
       last = pool[Math.floor(Math.random() * pool.length)]; cur = ''; A.music(last);
     },
