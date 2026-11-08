@@ -520,7 +520,7 @@
     });
   }
   function drawEnd(f) {
-    gfx.clear(14, 84, 52); text('対局しゅうりょう', 360, 20, 32, YEL, 1);
+    gfx.clear(14, 84, 52); text('対局終了', 360, 20, 32, YEL, 1);
     f.results.forEach((o, i) => {
       const y = 90 + i * 66; fill(120, y, 480, 58, o.p.isHuman ? [255, 240, 150] : [255, 255, 255], 235);
       text(o.rank + '位', 130, y + 14, 28, BLACK); face(o.p, 210, y + 4, 46, 50); text(o.p.name, 270, y + 18, 22, BLACK); text(o.p.score, 590, y + 16, 26, BLACK, 2);
@@ -557,7 +557,7 @@
   window.__key = function (k) {
     S.dirty = true; if (S.locked) return;
     NSND.sfx(k === 'ok' ? 'ok' : k === 'back' ? 'click' : 'select', 0.5);
-    if (S.rankScr) { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = 1 - (r.idx || 0); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 1)) { S.rankScr = null; r.done(); } else if (k === 'ok') { S.rankScr = null; r.done(); S.mode = 'stats'; S.statsPg = 0; } return; }
+    if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = 1 - (r.idx || 0); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 1)) { S.rankScr = null; r.done(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; } return; }
     if (k === 'menu' && !S.menuP) { S.menuP = { idx: 0 }; return; } // スタート+セレクト長押し
     if (S.menuP) {
       const items = menuItems();
@@ -583,7 +583,7 @@
       return;
     }
     if (S.mode === 'stats') {
-      if (k === 'back') S.mode = 'menu'; else if (k === 'left' || k === 'right') { const o = Object.keys(MJ.Rank.get().opp).length, pages = Math.max(1, Math.ceil(o / 3)); S.statsPg = wrap(S.statsPg + (k === 'right' ? 1 : -1), pages); }
+      if (k === 'back' || k === 'ok') S.mode = S.statsPrev || 'menu'; else if (k === 'left' || k === 'right') { const o = Object.keys(MJ.Rank.get().opp).length, pages = Math.max(1, Math.ceil(o / 3)); S.statsPg = wrap(S.statsPg + (k === 'right' ? 1 : -1), pages); }
       return;
     }
     if (S.teachQ) { // 麻雀先生をつけますか?  つけない / つける / もどる
