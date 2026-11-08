@@ -96,12 +96,18 @@
     if (p.riichi) parts.push({ s: 'リーチ中', c: [255, 120, 100], sz: 15 });
     return parts;
   }
+  const WIND_BG = [[214, 64, 52], [36, 150, 92], [52, 110, 210], [138, 92, 206]]; // 東・南・西・北の色(Edge版と同じく、家ごとに色を分ける)
   function drawBar(g, p, x, y, w, h, rot) {
     panel(x, y, w, h, 9, BAR, [225, 225, 215], 2, 240);
-    const parts = barPieces(g, p);
-    if (!rot) { let cx = x + 10; parts.forEach((q) => { text(q.s, cx, y + (h - q.sz) / 2 - 2, q.sz, q.c); cx += gfx.measure(q.s, q.sz) + 12; }); return; }
-    let cy = y + 10; const cxm = x + w / 2;
-    parts.forEach((q) => { const tw = gfx.measure(q.s, q.sz); if (rot === 90) { gfx.textRot(q.s, Math.round(cxm), Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); cy += tw + 12; } else { /* 270: 下から上へ */ gfx.textRot(q.s, Math.round(cxm), Math.round(y + h - 10 - (cy - y - 10) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); cy += tw + 12; } });
+    const sw = g.seatWindOf(p), parts = barPieces(g, p).slice(1), CH = 24, bg = WIND_BG[sw];
+    if (!rot) {
+      const cy0 = y + (h - CH) / 2; rrect(x + 8, cy0, CH, CH, 5, bg); text(WIND[sw], x + 8 + CH / 2, cy0 + 2, 18, WHITE, 1);
+      let cx = x + 8 + CH + 10; parts.forEach((q) => { text(q.s, cx, y + (h - q.sz) / 2 - 2, q.sz, q.c); cx += gfx.measure(q.s, q.sz) + 12; }); return;
+    }
+    const cxm = x + w / 2, cc = rot === 90 ? y + 8 + CH / 2 : y + h - 8 - CH / 2;
+    rrect(Math.round(cxm - CH / 2), Math.round(cc - CH / 2), CH, CH, 5, bg); gfx.textRot(WIND[sw], Math.round(cxm), Math.round(cc), 18, 255, 255, 255, rot);
+    let cy = y + 8 + CH + 10;
+    parts.forEach((q) => { const tw = gfx.measure(q.s, q.sz); if (rot === 90) { gfx.textRot(q.s, Math.round(cxm), Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); cy += tw + 12; } else { gfx.textRot(q.s, Math.round(cxm), Math.round(y + h - (cy - y) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); cy += tw + 12; } });
   }
   /* 副露: 席ごとの向きで並べ、鳴いた牌は90度回して、鳴かれた相手の側に置く */
   function meldWH(p, w, h) { let L = 0; for (const m of p.melds) { const n = m.tiles.length, ci = calledIdx(p, m); for (let i = 0; i < n; i++) L += (i === ci ? h : w) + 1; L += 6; } return L; }
