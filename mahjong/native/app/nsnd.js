@@ -4,12 +4,18 @@
   const GAME = ['game1', 'game2', 'game3', 'game4', 'game5', 'game6', 'game7', 'game10', 'game11'].map((n) => 'audio/' + n + '.mp3');
   const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3'], HOME = 'audio/home.mp3';
   const SFX = ['click', 'select', 'draw', 'deal4', 'deal1', 'sort1', 'sort2', 'deal', 'discard', 'call', 'kan', 'riichi', 'ron', 'tsumo', 'win', 'lose', 'drawgame', 'slam', 'start', 'end', 'ok', 'ng', 'error'];
-  const V = { bgm: 0.22, sfx: 0.7, voice: 0.85, read: 0.6 };
+  const D = { bgm: 0.22, sfx: 0.7, voice: 0.85, read: 0.6 }; // 初期値(音量の目盛り5のとき)
+  const V = { bgm: D.bgm, sfx: D.sfx, voice: D.voice, read: D.read };
+  const lvlOf = (k) => { let v = 5; try { const s = localStorage.getItem('mj_vol_' + k); if (s !== null) v = Math.max(0, Math.min(10, parseInt(s, 10))); } catch (e) { /* ignore */ } return isNaN(v) ? 5 : v; };
+  const applyLvl = (k) => { const l = lvlOf(k); V[k] = Math.min(1, D[k] * l / 5); if (k === 'voice') V.read = Math.min(1, D.read * l / 5); };
+  ['bgm', 'sfx', 'voice'].forEach(applyLvl);
   let yk = null, token = 0, last = null, cur = '', duckT = 0;
   try { const t = __readtext('audio/yk/manifest.json'); yk = t ? JSON.parse(t) : {}; } catch (e) { yk = {}; }
   const A = (window.NSND = {
     on: true,
     music(p) { if (!A.on) { snd.music(''); cur = ''; return; } if (cur === p) return; cur = p; snd.musicVol(V.bgm); snd.music(p, true); },
+    getLevel(k) { return lvlOf(k); },
+    setLevel(k, l) { l = Math.max(0, Math.min(10, l)); try { localStorage.setItem('mj_vol_' + k, String(l)); } catch (e) { /* ignore */ } applyLvl(k); if (k === 'bgm') snd.musicVol(V.bgm); },
     home() { A.music(HOME); },
     game(g) {
       // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」から選ぶ
