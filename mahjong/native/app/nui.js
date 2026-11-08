@@ -63,8 +63,14 @@
   }
   function face(p, x, y, w, h) {
     const ch = p.char; const src = p.isHuman ? ch.face : (MJ.faceSrc ? MJ.faceSrc(ch) : ch.face);
+    if (w >= 48) { fill(x, y, w, h, [90, 110, 100]); gfx.imageTop(src, x, y, w, h); return; } // 大きな顔は、窓の解像度でくっきり描く(縦横の比は、切り取って合わせる)
     if (!gfx.image(src, x, y, w, h)) fill(x, y, w, h, [90, 110, 100]);
   }
+  function star(cx, cy, r, c) { // 星(横線で塗る)
+    const P = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.4 : r; P.push([cx + rr * Math.cos(a), cy + rr * Math.sin(a)]); }
+    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r * 0.82); y++) { const xs = []; for (let i = 0; i < 10; i++) { const a = P[i], b = P[(i + 1) % 10]; if ((a[1] <= y + 0.5) !== (b[1] <= y + 0.5)) xs.push(a[0] + (y + 0.5 - a[1]) / (b[1] - a[1]) * (b[0] - a[0])); } xs.sort((m, n) => m - n); for (let k = 0; k + 1 < xs.length; k += 2) fill(Math.round(xs[k]), y, Math.max(1, Math.round(xs[k + 1]) - Math.round(xs[k])), 1, c); }
+  }
+  function stars(cx, y, lv) { for (let i = 0; i < 5; i++) { const x = cx + (i - 2) * 22; star(x, y, 10, [240, 190, 40]); if (i >= lv) star(x, y, 7.2, [14, 20, 32]); } }
   const rel = (s) => s; // 自分は seat 0
   const posOf = { 0: 'bottom', 1: 'right', 2: 'top', 3: 'left' };
 
@@ -157,7 +163,7 @@
   }
   function drawSide(g) {
     const f = S.side ? S.side.idx : -1;
-    sbtn(726, 6, 100, 32, [235, 120, 30], [160, 70, 10], ['☰ MENU'], f === 0, 16);
+    sbtn(726, 6, 100, 32, [235, 120, 30], [160, 70, 10], ['MENU'], f === 0, 16); [0, 1, 2].forEach((i) => fill(738, 17 + i * 5, 14, 3, WHITE));
     { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 46, 22, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 72, 12, GREY, 1); }
     if (teacherOn()) {
       const w = waitInfoOf(g);
@@ -252,7 +258,7 @@
     for (let i = 0; i < nHand(P[3]); i++) back(3, 66 + i * 17, 24, 16, 'l');
     for (let i = 0; i < nHand(P[1]); i++) back(692, 66 + i * 17, 24, 16, 'r');
     // 副露
-    drawMelds(P[2], 520, 34, 16, 22); drawMelds(P[3], 3, 462 - meldWH(P[3], 16, 22), 16, 22); drawMelds(P[1], 694, 462 - meldWH(P[1], 16, 22), 16, 22);
+    drawMelds(P[2], 520, 34, 16, 22); drawMelds(P[3], 3, 312 - meldWH(P[3], 16, 22), 16, 22); drawMelds(P[1], 694, 312 - meldWH(P[1], 16, 22), 16, 22);
     // 名札(横長の板)
     drawBar(g, P[2], 190, 3, 322, 28, 0); drawBar(g, P[3], 35, 21, 27, 280, 90); drawBar(g, P[1], 643, 21, 27, 280, 270); drawBar(g, P[0], 501, 317, 221, 34, 0);
     // 中央の情報
@@ -277,7 +283,7 @@
     if (S.banner && S.banner.call && S.banner.p) { // ポン・チー・ロンなど: 顔と、色のついた大きな文字(Edge版と同じ)
       const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = k < 0.5 ? 100 : 84, col = bn.text === 'リーチ' ? [255, 91, 138] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [255, 123, 90] : [196, 139, 255];
       face(bn.p, 215, 96, 108, 108); frame(214, 95, 110, 110, [240, 210, 120], 2);
-      [[-4, 0], [4, 0], [0, -4], [0, 4], [3, 5]].forEach((d) => text(bn.text, 340 + d[0], 124 - Math.round((sz - 84) / 2) + d[1], sz, d[0] === 3 ? [0, 0, 0] : [255, 255, 255]));
+      { const by = 124 - Math.round((sz - 84) / 2); text(bn.text, 345, by + 7, sz, [0, 0, 0], 0); [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, 340 + d[0], by + d[1], sz, [255, 255, 255])); }
       text(bn.text, 340, 124 - Math.round((sz - 84) / 2), sz, col);
     } else if (S.banner) { const k = Math.min(1, (__now() - (S.banner.t0 || 0)) / 180), sz = k < 0.34 ? 78 : k < 0.67 ? 66 : 56; fill(0, 200, W, 80, [0, 0, 0], 170); text(S.banner.text, 360, 240 - Math.round(sz * 0.55), sz, YEL, 1); }
   }
@@ -290,7 +296,7 @@
     order.forEach((h, i) => {
       if (i >= shown) return;
       const x = handX(i, i === gapAt); let y = HY;
-      const sel = s ? (s.row === 0 && s.idx === i) : (!S.react && S.mode === 'game' && !S.deal && Math.min(S.curIdx || 0, hs.length - 1) === i);
+      const sel = s ? (s.row === 0 && s.idx === i) : (!S.react && !S.side && S.mode === 'game' && !S.deal && Math.min(S.curIdx || 0, hs.length - 1) === i);
       const dim = s ? !allowed(s, h) : false;
       if (sel) y -= 8;
       tile(h.t, x, y, HW, HH, h.red, dim);
@@ -326,7 +332,7 @@
     if (arrow && sel) text('▶', x + 24, y + (h - (sz - 6)) / 2, sz - 6, BLACK);
     text(label, x + (arrow ? 80 : 66), y + (h - sz) / 2, sz, off ? [150, 156, 150] : BLACK);
   }
-  const HOME_BOTTOM = [{ k: 'exit', label: 'ゲーム終了' }, { k: 'rank', label: '成績・' }, { k: 'stats', label: '対戦成績' }, { k: 'teacher', label: '' }];
+  const HOME_BOTTOM = [{ k: 'exit', label: 'ゲーム終了' }, { k: 'rank', label: '成績・' }];
   function brownBtn(x, y, w, h, label, sel, sz) { // Edge版と同じ、茶色の板に金の縁のボタン
     if (sel) rrect(x - 4, y - 4, w + 8, h + 8, 14, pressing() ? [255, 246, 170] : [255, 255, 255]);
     rrect(x, y, w, h, 11, [201, 154, 61]); rrect(x + 2, y + 2, w - 4, h - 4, 9, sel ? [120, 84, 36] : [74, 52, 24]);
@@ -341,10 +347,10 @@
     ot('メニューを', 67, 178, 38, WHITE); ot('選択', 67, 226, 42, [255, 225, 74]); { const w1 = gfx.measure('選択', 42); ot('して', 67 + w1 + 2, 229, 38, WHITE); } ot('ください。', 67, 278, 38, WHITE);
     const items = homeItems(); const IY = [58, 145, 227, 309];
     items.forEach((it, i) => { const sel = !it.off && !S.homeBot && S.menuIdx === i; if (sel) btnR(370, IY[i] - (i ? 4 : 0), 433, 67, 16, true, false, it.label, 34, true); else btnR(383, IY[i], 408, 58, 16, false, it.off, it.label, 32, false); });
-    const BW = [[134, 170], [138, 200]];
+    const BW = [[150, 230]];
     HOME_BOTTOM.forEach((b, i) => {
       const row = i >> 1, col = i & 1, lab = b.k === 'rank' ? '成績・' + MJ.Rank.label() : b.k === 'teacher' ? teacherLabel() : b.label, sel = S.homeBot && S.homeBotIdx === i;
-      brownBtn(19 + (col ? BW[row][0] + 8 : 0), 346 + row * 52, BW[row][col], 44, lab, sel, 19);
+      brownBtn(19 + (col ? BW[row][0] + 12 : 0), 362, BW[row][col], 48, lab, sel, 21);
     });
   }
   const swapOn = () => { try { const v = localStorage.getItem('mj_swapab'); return v === null ? true : v === '1'; } catch (e) { return true; } };
@@ -356,16 +362,16 @@
   ];
   function drawSettings() {
     gfx.clear(14, 84, 52); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
-    text('設定', SW / 2, 14, 30, YEL, 1);
+    text('設定', SW / 2, 8, 30, YEL, 1);
     SETS.forEach((s, i) => {
-      const y = 56 + i * 50, sel = S.setIdx === i; fill(110, y, 612, 44, sel ? YEL : WHITE); frame(110, y, 612, 46, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
-      text(s.label, 130, y + 10, 22, BLACK);
-      if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 12, 24, 22, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 10, 20, BLACK, 2); }
-      else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 10, 22, BLACK, 1);
-      else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 10, 22, BLACK, 1);
-      else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 10, 22, BLACK, 1);
-      else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 10, 22, BLACK, 1);
-      else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 10, 22, BLACK, 1);
+      const y = 48 + i * 46, sel = S.setIdx === i; fill(110, y, 612, 40, sel ? YEL : WHITE); frame(110, y, 612, 40, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
+      text(s.label, 130, y + 8, 22, BLACK);
+      if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 9, 24, 22, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 8, 20, BLACK, 2); }
+      else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 8, 22, BLACK, 1);
+      else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 8, 22, BLACK, 1);
+      else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 8, 22, BLACK, 1);
+      else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 8, 22, BLACK, 1);
+      else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 8, 22, BLACK, 1);
     });
   }
   /* ---------- 対局のはじめの演出: 顔の登場 → 東一局 → 勝負! → サイコロ ---------- */
@@ -376,10 +382,10 @@
     if (wind) text(wind, x - 14, y + 18, 26, wind === '東' ? RED : YEL, 1);
   }
   const shotOnce = (nm) => { if (__auto && globalThis.__shotDir && !S['_s' + nm]) { S['_s' + nm] = 1; gfx.view(0, 0); gfx.shot(__shotDir + '/' + nm + '.bmp'); gfx.view(S.vx, S.vy); } };
-  function plate(cx, y, name, stars) { // 名前の板(角の丸い、黒地に金の縁)
-    const w = Math.max(100, gfx.measure(name, 21) + 34), x = Math.round(cx - w / 2), h = stars ? 56 : 38;
+  function plate(cx, y, name, lv) { // 名前の板(角の丸い、黒地に金の縁)
+    const w = Math.max(lv ? 128 : 100, gfx.measure(name, 21) + 34), x = Math.round(cx - w / 2), h = lv ? 56 : 38;
     rrect(x - 2, y - 2, w + 4, h + 4, 14, [240, 200, 60]); rrect(x, y, w, h, 12, [14, 20, 32]);
-    text(name, cx, y + 6, 21, WHITE, 1); if (stars) text(stars, cx, y + 32, 16, [255, 210, 60], 1);
+    text(name, cx, y + 6, 21, WHITE, 1); if (lv) stars(cx, y + 40, Math.min(5, lv));
   }
   function stage() { // 緑のしずかな背景(中央が少し明るい)
     gfx.clear(16, 66, 50);
@@ -387,15 +393,15 @@
   }
   function drawIntro() {
     const it = S.intro, g = S.game, t = __now() - it.t0; stage();
-    const P = g.players, st = (p) => (MJ.starStr && p.char && p.char.level ? MJ.starStr(p.char.level) : '');
-    if (t > 0) { face(P[2], 360, 10, 112, 112); plate(416, 128, P[2].name, st(P[2])); }
-    if (t > 350) { face(P[3], 70, 150, 112, 112); plate(126, 268, P[3].name, st(P[3])); }
-    if (t > 700) { face(P[1], 650, 150, 112, 112); plate(706, 268, P[1].name, st(P[1])); }
-    if (t > 1000) { try { gfx.image('img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp', 60, 336, 92, 92, 255); } catch (e) { /* ignore */ } plate(204, 366, 'あなた', ''); }
+    const P = g.players, st = (p) => (p.char && p.char.level ? p.char.level : 0), wf = (x, y, z) => { rrect(x - 9, y - 9, z + 18, z + 18, 4, [150, 100, 46]); rrect(x - 6, y - 6, z + 12, z + 12, 3, [205, 150, 80]); rrect(x - 3, y - 3, z + 6, z + 6, 2, [70, 110, 85]); };
+    if (t > 0) { wf(360, 18, 112); face(P[2], 360, 18, 112, 112); plate(416, 140, P[2].name, st(P[2])); }
+    if (t > 350) { wf(70, 150, 112); face(P[3], 70, 150, 112, 112); plate(126, 268, P[3].name, st(P[3])); }
+    if (t > 700) { wf(650, 150, 112); face(P[1], 650, 150, 112, 112); plate(706, 268, P[1].name, st(P[1])); }
+    if (t > 1000) { try { gfx.imageTop('img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp', 60, 336, 92, 92); } catch (e) { /* ignore */ } plate(204, 366, 'あなた', 0); }
     if (t > 1200 && !it.v1) { it.v1 = 1; S.skipKyokuVoice = true; try { NSND.readKyoku(g); } catch (e) { /* ignore */ } }
     if (t >= 2400 && !it.v2) { it.v2 = 1; try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }
-    if (t > 1200 && t < 2400) { const k = Math.min(1, (t - 1200) / 160), sz = k < 0.5 ? 96 : 78; fill(0, 190, SW, 90, [0, 0, 0], 170); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz / 2, sz, YEL, 1); }
-    if (t >= 2400 && t < 3500) { const k = Math.min(1, (t - 2400) / 160), sz = k < 0.5 ? 110 : 90; fill(0, 180, SW, 110, [0, 0, 0], 170); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((d) => text('勝負!', SW / 2 + d[0], 235 - sz / 2 + d[1], sz, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz / 2, sz, [225, 40, 30], 1); }
+    if (t > 1200 && t < 2400) { const k = Math.min(1, (t - 1200) / 160), sz = k < 0.5 ? 96 : 78; fill(192, 190, 448, 90, [0, 0, 0], 170); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz / 2, sz, YEL, 1); }
+    if (t >= 2400 && t < 3500) { const k = Math.min(1, (t - 2400) / 160), sz = k < 0.5 ? 110 : 90; fill(192, 180, 448, 110, [0, 0, 0], 170); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((d) => text('勝負!', SW / 2 + d[0], 235 - sz / 2 + d[1], sz, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz / 2, sz, [225, 40, 30], 1); }
     if (t > 1000) shotOnce('intro1'); if (t > 1900) shotOnce('intro2'); if (t > 2900) shotOnce('intro3');
     if (t >= 3500) { S.intro = null; it.done(); }
   }
@@ -408,7 +414,7 @@
   const DPOS = { 2: [SW / 2 - 44, 8], 3: [66, 150], 1: [SW - 154, 150], 0: [SW / 2 - 44, 352] };
   function diceSeat(p, s, hi, wind) { // サイコロの画面の、4人の顔(大きく)と名前
     const x = DPOS[s][0], y = DPOS[s][1], fs = 88; face(p, x, y, fs, fs); frame(x - 1, y - 1, fs + 2, fs + 2, hi ? [255, 230, 80] : [240, 210, 120], hi ? 5 : 2);
-    plate(x + fs / 2, y + fs + 6, p.name, '');
+    plate(x + fs / 2, y + fs + 6, p.name, 0);
     if (wind) text(wind, x - 28, y + 28, 38, wind === '東' ? RED : YEL, 1);
   }
   function drawDice() {
@@ -444,7 +450,6 @@
     else if (d.rolling) text('…', SW / 2, 296, 22, WHITE, 1);
     else if (!done) text('合計 ' + total + ' …  あなたから 左回りに 数えます', SW / 2, 298, 19, WHITE, 1);
     else text(P[d.target].name + ' が 東家(親)です', SW / 2, 296, 22, YEL, 1);
-    if (counting) text(String(step), SW / 2, 232, 54, YEL, 1);
     if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
     if (d.settled) dirty();
   }
@@ -483,8 +488,8 @@
     const g = S.game; stage(); rrect(40, 12, 752, 444, 18, [240, 200, 60]); rrect(43, 15, 746, 438, 16, [10, 38, 30]);
     if (r.type === 'win') {
       const w = r.wins[0], res = w.res, v = w.view;
-      face(w.winner, 54, 16, 58, 58); frame(53, 15, 60, 60, [240, 210, 120], 2);
-      text(w.winner.name, 124, 26, 30, WHITE); { const nw = gfx.measure(w.winner.name, 30); rrect(124 + nw + 14, 28, 84, 34, 10, w.tsumo ? [60, 130, 200] : [210, 60, 50]); text(w.tsumo ? 'ツモ' : 'ロン', 124 + nw + 56, 33, 22, WHITE, 1); }
+      face(w.winner, 58, 24, 48, 48); frame(57, 23, 50, 50, [240, 210, 120], 2);
+      text(w.winner.name, 120, 28, 30, WHITE); { const nw = gfx.measure(w.winner.name, 30); rrect(120 + nw + 14, 30, 84, 34, 10, w.tsumo ? [60, 130, 200] : [210, 60, 50]); text(w.tsumo ? 'ツモ' : 'ロン', 120 + nw + 56, 35, 22, WHITE, 1); }
       if (r.wins.length > 1) text('ほか ' + r.wins.slice(1).map((x) => x.winner.name).join('・') + ' もロン', 760, 36, 15, GREY, 2);
       if (res.limit) text(res.limit, 760, 62, 30, [255, 120, 90], 2);
       // 手牌(大きく、中央ぞろえ)
@@ -631,8 +636,7 @@
       if (S.menuIdx >= items.length) S.menuIdx = 0;
       if (S.homeBot) { // 下の段: ゲーム終了 / 成績 / 対戦成績 / 麻雀先生
         if (k === 'left' || k === 'right') S.homeBotIdx ^= 1;
-        else if (k === 'down') { if (S.homeBotIdx < 2) S.homeBotIdx += 2; }
-        else if (k === 'up') { if (S.homeBotIdx >= 2) S.homeBotIdx -= 2; else { S.homeBot = false; S.menuIdx = firstOn(items, items.length - 1, -1); } }
+                else if (k === 'up') { S.homeBot = false; S.menuIdx = firstOn(items, items.length - 1, -1); }
         else if (k === 'back') S.mode = 'title';
         else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; later(() => { if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else toggleTeacher(); }); }
         return;
