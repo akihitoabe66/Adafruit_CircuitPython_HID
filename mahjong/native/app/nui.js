@@ -2,7 +2,7 @@
    画面は 720x428。キー: left/right/up/down/ok/back */
 (function () {
   const MJ = window.MJ; const W = 720, H = 428;
-  const S = { mode: 'menu', game: null, dirty: true, bub: {}, banner: null, keep: 0, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  const S = { mode: 'menu', game: null, dirty: true, bub: {}, banner: null, keep: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const dirty = () => { S.dirty = true; };
   const WIND = ['東', '南', '西', '北'];
@@ -26,8 +26,11 @@
     return ok;
   }
   const kyokuText = (sn) => ['東', '南', '西', '北'][Math.min(3, Math.floor(sn.kyoku / 4))] + ['一', '二', '三', '四'][sn.kyoku % 4] + '局' + (sn.honba ? ' ' + sn.honba + '本場' : '');
+  const teacherOn = () => { try { return localStorage.getItem('mj_teacher') === '1'; } catch (e) { return false; } };
+  const teacherLabel = () => '麻雀先生: ' + (teacherOn() ? 'あり' : 'なし');
+  const toggleTeacher = () => { try { localStorage.setItem('mj_teacher', teacherOn() ? '0' : '1'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; };
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
-  const titleItems = () => (slotRead().length ? ['つづきから', '東風戦をはじめる', speedLabel(), 'おわる'] : ['東風戦をはじめる', speedLabel(), 'おわる']);
+  const titleItems = () => (slotRead().length ? ['つづきから', '東風戦をはじめる', teacherLabel(), speedLabel(), 'おわる'] : ['東風戦をはじめる', teacherLabel(), speedLabel(), 'おわる']);
   const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right']; // 隠しコマンド(タイトル): 5件のセーブから選べる
 
   /* ---------- 描く道具 ---------- */
@@ -84,6 +87,39 @@
       if (g.lastDiscard && g.lastDiscard.d === d) frame(cx - 1, cy - 1, tw + 2, th + 2, YEL, 2);
     });
   }
+  /* ---------- 麻雀先生(バランス型) ---------- */
+  function teacherAdvice(g, p, opts) {
+    const A = MJ.AI; const an = A.analyze(g, p, { know: 2, deep: true, deepN: 6, budget: 60 });
+    if (!an.evals.length) return null;
+    const stc = an.opps.length ? A.stance(g, p, an, 'balance') : null;
+    const pick = stc && stc.pick ? stc.pick : A.byEff(an.evals)[0];
+    const rch = opts.riichi.includes(pick.t) && pick.sh === 0 && (stc ? (stc.kind === 'push' && A.wantRiichi(g, p, pick, an)) : A.wantRiichi(g, p, pick, an));
+    return { tile: pick.tile, t: pick.t, sh: pick.sh, n: pick.ukeire ? pick.ukeire.n : 0, label: stc ? stc.label : '', why: stc ? stc.why : '', riichi: rch, minSh: an.minSh };
+  }
+  function waitInfoOf(g) { // いまの手牌がテンパイなら、あたり牌と、見えていない残りの枚数
+    const p = g.players[0]; const hand = p.hand.filter((h) => h !== p.drawn);
+    if (hand.length % 3 !== 1) return null;
+    const key = hand.map((h) => h.id).join(',') + '|' + p.melds.length + '|' + g.players.map((q) => q.discards.length).join(',');
+    if (key === S.waitKey) return S.waitInfo; S.waitKey = key; S.waitInfo = null;
+    const c = MJ.toCounts(hand); if (MJ.shanten(c, p.melds.length) !== 0) return null;
+    const ws = MJ.waits(c.slice(), p.melds.length); if (!ws.length) return null;
+    const seen = Array(34).fill(0); hand.forEach((h) => seen[h.t]++); if (p.drawn) seen[p.drawn.t]++;
+    g.players.forEach((q) => { q.discards.forEach((d) => { if (!d.called) seen[d.tile.t]++; }); q.melds.forEach((m) => m.tiles.forEach((h) => seen[h.t]++)); });
+    g.doraInd.forEach((d) => seen[d.t]++);
+    S.waitInfo = ws.slice(0, 5).map((t) => ({ t, left: Math.max(0, 4 - seen[t]) })); return S.waitInfo;
+  }
+  function drawTeacher(g) {
+    if (!teacherOn()) return;
+    const w = waitInfoOf(g);
+    if (w) { const bw = 12 + w.length * 34; fill(704 - bw, 214, bw, 74, [6, 44, 26], 235); frame(704 - bw, 214, bw, 74, [255, 220, 40], 2); text('あたり牌', 704 - bw / 2, 217, 13, YEL, 1);
+      w.forEach((x, i) => { const tx = 704 - bw + 6 + i * 34; tile(x.t, tx, 234, 28, 38); text('あと' + x.left, tx + 14, 273, 11, WHITE, 1); }); }
+    const h = S.hint, s = S.self; if (!h || !s || s.row !== 0) return;
+    fill(8, 252, 292, 56, [6, 44, 26], 240); frame(8, 252, 292, 56, [255, 220, 40], 2);
+    text('★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), 14, 255, 15, YEL);
+    text((h.sh === 0 ? 'テンパイ' : 'テンパイまであと' + h.sh + '歩') + ' 受け入れ' + h.n + '枚', 14, 275, 12, WHITE);
+    if (h.label) text(h.label + ' ' + String(h.why || '').slice(0, 14), 14, 291, 12, [255, 200, 150]);
+  }
+
   /* ---------- 軽い動き(牌が河へ飛ぶ・配牌・札の拡大) ---------- */
   const RIVER = { 2: [306, 30], 0: [306, 212], 3: [160, 134], 1: [452, 134] };
   const HANDSRC = { 2: [330, 6], 3: [132, 150], 1: [572, 150] };
@@ -129,7 +165,7 @@
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; }
       const w = Math.min(380, gfx.measure(b.text, 14) + 20); const bx = 360 - w / 2, by = 244 + (k * 1 === 2 ? -150 : k * 1 === 1 || k * 1 === 3 ? -70 : 0);
       fill(bx, by, w, 28, WHITE); frame(bx, by, w, 28, [90, 90, 90], 1); text(b.text.slice(0, 26), 360, by + 5, 14, BLACK, 1); }
-    drawFly();
+    drawFly(); drawTeacher(g);
     // 演出: 札の文字が、少し大きいところから縮んで止まる
     if (S.banner) { const k = Math.min(1, (__now() - (S.banner.t0 || 0)) / 180), sz = Math.round(56 * (1 + 0.45 * (1 - k))); fill(0, 160, W, 80, [0, 0, 0], 170); text(S.banner.text, 360, 200 - Math.round(sz * 0.55), sz, YEL, 1); }
   }
@@ -145,6 +181,7 @@
       const dim = s ? !allowed(s, h) : false;
       if (sel) y -= 10;
       tile(h.t, x, y, 36, 50, h.red, dim);
+      if (teacherOn() && S.hint && S.hint.tile === h && s && s.row === 0) text('★', x + 18, y - 17, 15, YEL, 1);
       if (sel) frame(x - 1, y - 1, 38, 52, YEL, 3);
     });
     drawMelds(p, 4, 404, 16, 22, 'row');
@@ -238,7 +275,7 @@
       const items = menuItems();
       if (k === 'up' || k === 'down') S.menuP.idx = wrap(S.menuP.idx + (k === 'up' ? -1 : 1), items.length);
       else if (k === 'back') S.menuP = null;
-      else if (k === 'ok') { const it = items[S.menuP.idx]; if (it.indexOf('CPUの速さ') === 0) { MJ.cycleCpuSpeed(); return; } S.menuP = null; if (it === 'おわる(電源を切れます)') __quit(); else if (it === 'タイトルにもどる') stopGame(); }
+      else if (k === 'ok') { const it = items[S.menuP.idx]; if (it.indexOf('CPUの速さ') === 0) { MJ.cycleCpuSpeed(); return; } if (it.indexOf('麻雀先生') === 0) { toggleTeacher(); return; } S.menuP = null; if (it === 'おわる(電源を切れます)') __quit(); else if (it === 'タイトルにもどる') stopGame(); }
       return;
     }
     if (S.saveP) {
@@ -257,7 +294,7 @@
       S.hid.push(k); if (S.hid.length > HIDDEN.length) S.hid.shift();
       if (S.hid.join() === HIDDEN.join()) { S.hid = []; S.slots = slotRead(); S.slotIdx = 0; S.mode = 'slots'; return; }
       if (k === 'up' || k === 'down') S.menuIdx = wrap(S.menuIdx + (k === 'up' ? -1 : 1), items.length);
-      else if (k === 'ok') { const it = items[S.menuIdx]; if (it.indexOf('CPUの速さ') === 0) MJ.cycleCpuSpeed(); else if (it === 'おわる') __quit(); else if (it === 'つづきから') { const l = slotRead(); startGame(l.length ? l[0].v.snap : null); } else startGame(); }
+      else if (k === 'ok') { const it = items[S.menuIdx]; if (it.indexOf('CPUの速さ') === 0) MJ.cycleCpuSpeed(); else if (it.indexOf('麻雀先生') === 0) toggleTeacher(); else if (it === 'おわる') __quit(); else if (it === 'つづきから') { const l = slotRead(); startGame(l.length ? l[0].v.snap : null); } else startGame(); }
       return;
     }
     if (S.result) { if (k === 'ok') { const r = S.result; S.result = null; r.done(); } return; }
@@ -299,6 +336,7 @@
         if (opts.riichi.length && !p.riichi) btns.push({ label: 'リーチ', act: 'riichi' });
         opts.ankan.forEach((t) => btns.push({ label: 'カン ' + MJ.tileName(t), act: 'ankan', t }));
         opts.kakan.forEach((t) => btns.push({ label: '加カン ' + MJ.tileName(t), act: 'kakan', t }));
+        S.hint = null; if (teacherOn() && !p.riichi && !g.fast) { try { S.hint = teacherAdvice(g, p, opts); } catch (e) { print('teacher err ' + e); } }
         S.self = { p, opts, res, tiles, btns, rm: false, row: opts.tsumo ? 1 : 0, idx: opts.tsumo ? 0 : tiles.length - 1 };
         dirty();
       });
@@ -348,7 +386,7 @@
     S.game = null; S.mode = 'menu'; S.menuIdx = 0; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
   }
-  const menuItems = () => ['つづける', speedLabel(), 'タイトルにもどる', 'おわる(電源を切れます)'];
+  const menuItems = () => ['つづける', teacherLabel(), speedLabel(), 'タイトルにもどる', 'おわる(電源を切れます)'];
 
   /* ---------- メインループから ---------- */
   let nextAuto = 0, lastSave = 0;
