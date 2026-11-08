@@ -2,7 +2,7 @@
    画面は 720x428。キー: left/right/up/down/ok/back */
 (function () {
   const MJ = window.MJ; const W = 720, H = 428;
-  const S = { mode: 'menu', game: null, dirty: true, bub: {}, banner: null, keep: 0, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  const S = { mode: 'menu', game: null, dirty: true, bub: {}, banner: null, keep: 0, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const dirty = () => { S.dirty = true; };
   const WIND = ['東', '南', '西', '北'];
@@ -77,12 +77,29 @@
   function drawRiver(g, p, x, y) {
     const tw = 18, th = 24;
     p.discards.forEach((d, i) => {
+      if (S.fly && S.fly.d === d && __now() < S.fly.t0 + S.fly.dur) return; // 飛んでいる間は、河には描かない
       const cx = x + (i % 6) * (tw + 1), cy = y + Math.floor(i / 6) * (th + 1);
       tile(d.tile.t, cx, cy, tw, th, d.tile.red, d.called);
       if (d.riichi) frame(cx, cy, tw, th, RED, 2);
       if (g.lastDiscard && g.lastDiscard.d === d) frame(cx - 1, cy - 1, tw + 2, th + 2, YEL, 2);
     });
   }
+  /* ---------- 軽い動き(牌が河へ飛ぶ・配牌・札の拡大) ---------- */
+  const RIVER = { 2: [306, 30], 0: [306, 212], 3: [160, 134], 1: [452, 134] };
+  const HANDSRC = { 2: [330, 6], 3: [132, 150], 1: [572, 150] };
+  function startFly(g, ld) {
+    if (g.fast || ld.by == null) return;
+    const p = g.players[ld.by], i = p.discards.indexOf(ld.d); if (i < 0) return;
+    const to = [RIVER[ld.by][0] + (i % 6) * 19, RIVER[ld.by][1] + Math.floor(i / 6) * 25];
+    const from = ld.by === 0 && S.pick ? S.pick : (HANDSRC[ld.by] || [360, 300]);
+    S.fly = { d: ld.d, t: ld.tile.t, red: ld.tile.red, from, to, t0: __now(), dur: ld.by === 0 ? 220 : 160 }; S.pick = null;
+  }
+  function drawFly() {
+    const f = S.fly; if (!f) return; const k = (__now() - f.t0) / f.dur; if (k >= 1) { S.fly = null; dirty(); return; }
+    const e = 1 - Math.pow(1 - k, 3), x = f.from[0] + (f.to[0] - f.from[0]) * e, y = f.from[1] + (f.to[1] - f.from[1]) * e - 26 * Math.sin(Math.PI * e);
+    const w = 36 + (18 - 36) * e, h = 50 + (24 - 50) * e; tile(f.t, Math.round(x), Math.round(y), Math.round(w), Math.round(h), f.red);
+  }
+  const dealF = () => { const d = S.deal; if (!d) return 1; const k = (__now() - d.t0) / d.dur; if (k >= 1) { S.deal = null; return 1; } return Math.max(0, k); };
   function drawTable(g) {
     gfx.clear(14, 84, 52);
     fill(150, 24, 420, 290, [10, 66, 40]);
@@ -91,7 +108,7 @@
     // 河
     drawRiver(g, P[2], 306, 30); drawRiver(g, P[0], 306, 212); drawRiver(g, P[3], 160, 134); drawRiver(g, P[1], 452, 134);
     // 伏せた手牌
-    const nHand = (p) => p.hand.length;
+    const DF = dealF(); const nHand = (p) => Math.ceil(p.hand.length * DF);
     for (let i = 0; i < nHand(P[2]); i++) back(258 + i * 15, 4, 13, 19);
     for (let i = 0; i < nHand(P[3]); i++) back(130, 100 + i * 12, 20, 10);
     for (let i = 0; i < nHand(P[1]); i++) back(570, 100 + i * 12, 20, 10);
@@ -112,15 +129,17 @@
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; }
       const w = Math.min(380, gfx.measure(b.text, 14) + 20); const bx = 360 - w / 2, by = 244 + (k * 1 === 2 ? -150 : k * 1 === 1 || k * 1 === 3 ? -70 : 0);
       fill(bx, by, w, 28, WHITE); frame(bx, by, w, 28, [90, 90, 90], 1); text(b.text.slice(0, 26), 360, by + 5, 14, BLACK, 1); }
-    // 演出
-    if (S.banner) { fill(0, 160, W, 80, [0, 0, 0], 170); text(S.banner.text, 360, 168, 56, YEL, 1); }
+    drawFly();
+    // 演出: 札の文字が、少し大きいところから縮んで止まる
+    if (S.banner) { const k = Math.min(1, (__now() - (S.banner.t0 || 0)) / 180), sz = Math.round(56 * (1 + 0.45 * (1 - k))); fill(0, 160, W, 80, [0, 0, 0], 170); text(S.banner.text, 360, 200 - Math.round(sz * 0.55), sz, YEL, 1); }
   }
   function myTiles(p) { const hs = p.hand.filter((h) => h !== p.drawn); if (p.drawn) hs.push(p.drawn); return hs; }
   function allowed(s, h) { const p = s.p; if (p.riichi) return h === p.drawn; if (s.opts.forbid.includes(h.t)) return false; if (s.rm) return s.opts.riichi.includes(h.t); return true; }
   function drawHand(g) {
     const p = g.players[0]; const s = S.self; const hs = myTiles(p);
-    const gapAt = p.drawn ? hs.length - 1 : -1;
+    const gapAt = p.drawn ? hs.length - 1 : -1; const DF = dealF(), shown = Math.ceil(hs.length * DF);
     hs.forEach((h, i) => {
+      if (i >= shown) return;
       const x = 8 + i * 38 + (i === gapAt ? 10 : 0); let y = 346;
       const sel = s && s.row === 0 && s.idx === i;
       const dim = s ? !allowed(s, h) : false;
@@ -252,7 +271,7 @@
       else if (k === 'down' && s.row === 1) { s.row = 0; s.idx = tiles.length - 1; }
       else if (k === 'back' && s.rm) { s.rm = false; }
       else if (k === 'ok') {
-        if (s.row === 0) { const h = tiles[s.idx]; if (allowed(s, h)) { S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
+        if (s.row === 0) { const h = tiles[s.idx]; if (allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.pick = [8 + s.idx * 38 + (s.idx === gp ? 10 : 0), 336]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
         else {
           const b = s.btns[s.idx];
           if (b.act === 'riichi') { s.rm = !s.rm; s.row = 0; const okI = tiles.findIndex((h) => allowed(s, h)); if (s.rm) { const d = tiles.indexOf(s.p.drawn); s.idx = d >= 0 && allowed(s, tiles[d]) ? d : Math.max(0, okI); } else s.idx = tiles.length - 1; }
@@ -267,11 +286,11 @@
 
   /* ---------- ゲームの頭脳から呼ばれる「ui」 ---------- */
   const ui = {
-    render(g) { S.game = g; dirty(); },
+    render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
     sfx(name) { NSND.sfx(name); },
     speak(g, p, t) { S.bub[p.seat] = { text: p.name + '「' + t + '」', until: __now() + 1900 }; dirty(); setTimeout(dirty, 2000); },
-    banner(g, p, t) { S.banner = { text: t }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 750).then(() => { S.banner = null; dirty(); }); },
-    handStart(g) { S.game = g; NSND.game(g); NSND.sfx('slam'); NSND.readKyoku(g); S.banner = { text: g.kyokuLabel() }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
+    banner(g, p, t) { S.banner = { text: t, t0: __now() }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 750).then(() => { S.banner = null; dirty(); }); },
+    handStart(g) { S.game = g; NSND.game(g); NSND.sfx('slam'); NSND.readKyoku(g); S.banner = { text: g.kyokuLabel(), t0: __now() }; S.deal = g.fast ? null : { t0: __now() + 300, dur: 700 }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
     padHand() {},
     askSelf(g, p, opts) {
       return new Promise((res) => {
@@ -338,6 +357,7 @@
     if (__auto && now > nextAuto) { nextAuto = now + 90; window.__key('ok'); }
     if (__lsDirty && now - lastSave > 1500) { lastSave = now; __lsDirty = false; try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ } }
     /* 画面の入れかえ(ダブル/トリプルバッファ)で、古い絵が交互に出て点滅しないよう、変化のあとは3回続けて描く */
+    if (S.fly || S.deal || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
     if (!S.dirty) return false;
     S.dirty = false; return true;
   };
