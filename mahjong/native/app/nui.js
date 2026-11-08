@@ -733,6 +733,8 @@
       return;
     }
     const s = S.self, r = S.react;
+    if (r && __now() - r.t0 < 600) return; // 確認が出た直後は、キーを受け付けない(連打で押してしまうのを防ぐ。Edge版と同じ)
+    if (r && k === 'back' && !r.pick) return; // 確認の間は、戻るは何もしない(誤操作防止)
     if (S.mode === 'game' && !s && !r && S.game && (k === 'left' || k === 'right' || k === 'up' || k === 'down')) { // 相手の番でも、牌をなぞれる
       const n = myTiles(S.game.players[0]).length; if (!n) return; if (S.curIdx == null) { S.curIdx = (k === 'right' || k === 'down') ? 0 : n - 1; dirty(); return; } const c = Math.min(S.curIdx, n - 1);
       if (k === 'left') { if (c === 0) S.side = { idx: 2 }; else S.curIdx = c - 1; }
@@ -741,7 +743,7 @@
       dirty(); return;
     }
     if (k === 'left' && S.mode === 'game' && s && s.row === 0 && s.idx === 0) { S.side = { idx: 2 }; return; } // いちばん左から、さらに左へ: 麻雀先生のボタン
-    if (k === 'right' && S.mode === 'game' && ((!s && !r) || (s && s.row === 0 && s.idx === s.tiles.length - 1) || (s && s.row === 1 && s.idx === s.btns.length - 1) || (r && !r.pick && r.idx === r.btns.length - 1))) { S.side = { idx: 1 }; return; } // いちばん右から、さらに右へ: 操作の列へ
+    if (k === 'right' && S.mode === 'game' && ((!s && !r) || (s && s.row === 0 && s.idx === s.tiles.length - 1) || (s && s.row === 1 && s.idx === s.btns.length - 1) )) { S.side = { idx: 1 }; return; } // いちばん右から、さらに右へ: 操作の列へ
     if (s) {
       const tiles = s.tiles;
       if (k === 'left' || k === 'right') {
@@ -763,7 +765,8 @@
         else if (k === 'back' || k === 'up') r.pick = null;
         else if (k === 'ok') { const c = r.chis[r.pick.idx]; S.react = null; r.res({ act: 'chi', use: c.use }); }
       }
-      else if (k === 'left' || k === 'right') r.idx = wrap(r.idx + (k === 'left' ? -1 : 1), r.btns.length);
+      else if (k === 'left' || k === 'right') r.idx = Math.max(0, Math.min(r.btns.length - 1, r.idx + (k === 'left' ? -1 : 1))); // はしで止まる(右の列へは行かない。Edge版と同じ)
+      else if (k === 'down') { if (r.btns[r.idx].pick) r.pick = { idx: 0 }; } // ▼ で、チーの牌えらびへ
       else if (k === 'ok') { const b = r.btns[r.idx]; if (b.pick) r.pick = { idx: 0 }; else { S.react = null; r.res(b.d); } }
     }
   };
@@ -801,7 +804,7 @@
         else if (o.chi.length > 1) btns.push({ label: 'チー', sub: '▼ 牌をえらぶ', pick: true, d: { act: 'chi' } });
         btns.push({ label: '見送る', pass: true, d: { act: 'pass' } });
         S.side = null;
-        S.react = { res, btns, chis: o.chi, pick: null, idx: o.ron ? 0 : btns.length - 1, note: o.ronBlock ? 'フリテンです(ロンできません)' : '' };
+        S.react = { t0: __now(), res, btns, chis: o.chi, pick: null, idx: o.ron ? 0 : btns.length - 1, note: o.ronBlock ? 'フリテンです(ロンできません)' : '' };
         dirty();
       });
     },
