@@ -412,7 +412,7 @@
     const u = s / 3.2, pr = Math.max(3, Math.round(s / 13));
     (PIP[v] || []).forEach((i) => { const cx = x + Math.round(s / 2 + ((i % 3) - 1) * u * 0.9), cy = y + Math.round(s / 2 + (Math.floor(i / 3) - 1) * u * 0.9); fill(cx - pr, cy - pr, pr * 2, pr * 2, v === 1 ? [220, 40, 40] : [30, 30, 30]); });
   }
-  const DPOS = { 2: [SW / 2 - 44, 8], 3: [66, 150], 1: [SW - 154, 150], 0: [SW / 2 - 44, 352] };
+  const DPOS = { 2: [SW / 2 - 44, 8], 3: [66, 150], 1: [SW - 154, 150], 0: [SW / 2 - 44, 330] };
   function diceSeat(p, s, hi, wind) { // サイコロの画面の、4人の顔(大きく)と名前
     const x = DPOS[s][0], y = DPOS[s][1], fs = 88; if (hi) { rrect(x - 12, y - 12, fs + 24, fs + 24, 14, [255, 120, 40]); rrect(x - 8, y - 8, fs + 16, fs + 16, 10, [255, 230, 80]); } face(p, x, y, fs, fs); frame(x - 1, y - 1, fs + 2, fs + 2, hi ? [255, 255, 255] : [240, 210, 120], hi ? 3 : 2);
     plate(x + fs / 2, y + fs + 6, p.name, 0);
@@ -484,7 +484,7 @@
     if (rk) at(702, 625, 28, (rk.delta > 0 ? '+' : '') + rk.delta + '点' + (rk.msg ? '  ' + rk.msg : ''), CR);
     if (__auto && globalThis.__shotDir && !S._rkShot) { S._rkShot = 1; gfx.shot(__shotDir + '/rank.bmp'); }
   }
-  function overlay(a) { fill(-S.vx, -S.vy, SW, SH, [0, 0, 0], a == null ? 200 : a); }
+  function overlay(a) { gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], a == null ? 200 : a); gfx.view(S.vx, S.vy); }
   function drawResult(r) {
     const g = S.game; stage(); rrect(40, 12, 752, 444, 18, [240, 200, 60]); rrect(43, 15, 746, 438, 16, [10, 38, 30]);
     if (r.type === 'win') {
@@ -636,14 +636,15 @@
       if (S.hid.join() === HIDDEN.join()) { S.hid = []; S.slots = slotRead(); S.slotIdx = 0; S.mode = 'slots'; return; }
       if (S.menuIdx >= items.length) S.menuIdx = 0;
       if (S.homeBot) { // 下の段: ゲーム終了 / 成績 / 対戦成績 / 麻雀先生
-        if (k === 'left' || k === 'right') S.homeBotIdx ^= 1;
-                else if (k === 'up') { S.homeBot = false; S.menuIdx = firstOn(items, items.length - 1, -1); }
+        if (k === 'left') S.homeBotIdx = 0; else if (k === 'right') { if (S.homeBotIdx === 0) S.homeBotIdx = 1; else S.homeBot = false; } // 右: もとの項目へ(menuIdx は覚えている)
+        else if (k === 'up' || k === 'down') { /* 何もしない */ }
         else if (k === 'back') S.mode = 'title';
         else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; later(() => { if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else toggleTeacher(); }); }
         return;
       }
       if (k === 'up') { const j = firstOn(items, S.menuIdx - 1, -1); if (j < S.menuIdx) S.menuIdx = j; }
-      else if (k === 'down') { const j = firstOn(items, S.menuIdx + 1, 1); if (j > S.menuIdx) S.menuIdx = j; else { S.homeBot = true; S.homeBotIdx = 0; } }
+      else if (k === 'down') { const j = firstOn(items, S.menuIdx + 1, 1); if (j > S.menuIdx) S.menuIdx = j; }
+      else if (k === 'left') { S.homeBot = true; S.homeBotIdx = 1; }
       else if (k === 'back') S.mode = 'title';
       else if (k === 'ok') {
         const it = items[S.menuIdx]; if (!it || it.off) return;
@@ -691,7 +692,7 @@
       else if (k === 'down') { if (s.row === 1) { s.row = 0; s.idx = 0; } else s.idx = 0; } // 下: 1枚目の牌へ
       else if (k === 'back' && s.rm) { s.rm = false; }
       else if (k === 'ok') {
-        if (s.row === 0) { const h = tiles[s.idx]; if (allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.curIdx = null; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
+        if (s.row === 0) { const h = tiles[s.idx]; if (allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.curIdx = s.idx; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
         else {
           const b = s.btns[s.idx];
           if (b.act === 'riichi') { s.rm = !s.rm; s.row = 0; const okI = tiles.findIndex((h) => allowed(s, h)); if (s.rm) { const d = tiles.indexOf(s.p.drawn); s.idx = d >= 0 && allowed(s, tiles[d]) ? d : Math.max(0, okI); } else s.idx = tiles.length - 1; }
@@ -722,7 +723,7 @@
         opts.kakan.forEach((t) => btns.push({ label: '加カン ' + MJ.tileName(t), act: 'kakan', t }));
         S.side = null; S.coach = null;
         S.hint = null; if (teacherOn() && !p.riichi && !g.fast) { try { S.hint = teacherAdvice(g, p, opts); } catch (e) { print('teacher err ' + e); } }
-        S.self = { p, opts, st: st || {}, res, tiles, btns, rm: false, row: opts.tsumo ? 1 : 0, idx: opts.tsumo ? 0 : tiles.length - 1 };
+        S.self = { p, opts, st: st || {}, res, tiles, btns, rm: false, row: opts.tsumo ? 1 : 0, idx: opts.tsumo ? 0 : (S.curIdx != null && !p.riichi ? Math.min(S.curIdx, tiles.length - 1) : tiles.length - 1) };
         dirty();
       });
     },
