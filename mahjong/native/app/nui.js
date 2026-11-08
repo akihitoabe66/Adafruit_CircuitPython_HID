@@ -374,7 +374,9 @@
     gfx.image('img/logo.webp', 52, 22, 244, 139, 255);
     rrect(21, 165, 292, 170, 16, [10, 18, 32], 150); // 左の説明: 半透明の黒い囲い(Edge版と同じ)
     const ot = (s, x, y, sz, c) => { [[-1, 1], [1, 1], [0, 2]].forEach((d) => text(s, x + d[0], y + d[1], sz, [0, 0, 0], 0)); text(s, x, y, sz, c, 0); };
-    ot('メニューを', 67, 178, 38, WHITE); ot('選択', 67, 226, 42, [255, 225, 74]); { const w1 = gfx.measure('選択', 42); ot('して', 67 + w1 + 2, 229, 38, WHITE); } ot('ください。', 67, 278, 38, WHITE);
+    const HELP = { play: ['麻雀をはじめる', '3人の相手と、麻雀を', 'うちます。つづきから', '始めることもできます。'], quiz: ['麻雀クイズ', '問題に答えて、腕を', 'みがきます。', '(じゅんびちゅう)'], study: ['点数計算の勉強', '上がったときの点数の', '数え方を学びます。', '(じゅんびちゅう)'], settings: ['設定', '音の大きさや、CPUの', '速さ、ボタンの入れ替', 'えを変えます。'], exit: ['ゲーム終了', '遊ぶのをやめます。', '電源を切る前の画面へ', ''], rank: ['成績', 'いまの段位と、これま', 'での成績を見ます。', '対戦成績もここから。'] };
+    { const its = homeItems(), key = S.homeBot ? HOME_BOTTOM[S.homeBotIdx].k : (its[S.menuIdx] || its[0]).act, hp = HELP[key] || HELP.play;
+      ot(hp[0], 38, 177, hp[0].length > 6 ? 32 : 38, [255, 225, 74]); hp.slice(1).forEach((l, i) => ot(l, 38, 232 + i * 32, 23, WHITE)); }
     const items = homeItems(); const IY = [58, 145, 227, 309];
     items.forEach((it, i) => { const sel = !it.off && !S.homeBot && S.menuIdx === i; if (sel) btnR(370, IY[i] - (i ? 4 : 0), 433, 67, 16, true, false, it.label, 34, true); else btnR(383, IY[i], 408, 58, 16, false, it.off, it.label, 32, false); });
     const BW = [[150, 230]];
