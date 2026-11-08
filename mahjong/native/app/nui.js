@@ -2,7 +2,7 @@
    画面は 720x428。キー: left/right/up/down/ok/back */
 (function () {
   const MJ = window.MJ; const W = 720, H = 428, SW = 832, SH = 468; // W,H=卓の大きさ / SW,SH=画面全体(右に操作の列)
-  const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const dirty = () => { S.dirty = true; };
   const WIND = ['東', '南', '西', '北'];
@@ -35,7 +35,7 @@
   const homeItems = () => {
     const out = [];
     if (slotRead().length) out.push({ label: 'つづきから', act: 'continue' });
-    out.push({ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz', off: true }, { label: '点数計算の勉強', act: 'study', off: true }, { label: '設定', act: 'settings' }, { label: 'あなたの段位', act: 'rank' }, { label: teacherLabel(), act: 'teacher' });
+    out.push({ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz', off: true }, { label: '点数計算の勉強', act: 'study', off: true }, { label: '設定', act: 'settings' }, { label: 'あなたの段位', act: 'rank' }, { label: '対戦成績', act: 'stats' }, { label: teacherLabel(), act: 'teacher' });
     return out;
   };
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
@@ -196,6 +196,7 @@
   }
   const dealF = () => { const d = S.deal; if (!d) return 1; const k = (__now() - d.t0) / d.dur; if (k >= 1) { S.deal = null; return 1; } return Math.max(0, k); };
   function drawTable(g) {
+    if (!g.doraInd || !g.players[0].hand) return; // 始まる前は、まだ描くものがない
     gfx.clear(14, 84, 52);
     fill(150, 24, 420, 290, [10, 66, 40]);
     if (g.blank) return;
@@ -208,7 +209,7 @@
     for (let i = 0; i < nHand(P[3]); i++) back(130, 100 + i * 12, 20, 10);
     for (let i = 0; i < nHand(P[1]); i++) back(570, 100 + i * 12, 20, 10);
     // 名札・副露
-    drawPlate(g, P[2], 470, 2, true); drawMelds(P[2], 470, 38, 14, 19, 'row');
+    drawPlate(g, P[2], 470, 2, false); drawMelds(P[2], 470, 56, 14, 19, 'row');
     drawPlate(g, P[3], 4, 100, false); drawMelds(P[3], 4, 168, 14, 19, 'row');
     drawPlate(g, P[1], 604, 100, false); drawMelds(P[1], 604, 168, 14, 19, 'row');
     drawPlate(g, P[0], 566, 318, false);
@@ -303,6 +304,61 @@
     });
     text('↑↓ えらぶ   ←→ かえる   もどる で ホームへ', SW / 2, SH - 24, 14, WHITE, 1);
   }
+  /* ---------- 対局のはじめの演出: 顔の登場 → 東一局 → 勝負! → サイコロ ---------- */
+  const SEATPOS = { 0: [SW / 2 - 28, 318], 1: [SW - 200, 150], 2: [SW / 2 - 28, 26], 3: [96, 150] };
+  function seatBox(p, s, x, y, big, wind) {
+    const fs = big ? 64 : 56; face(p, x, y, fs, fs); frame(x - 1, y - 1, fs + 2, fs + 2, [240, 210, 120], 2);
+    text(p.name, x + fs / 2, y + fs + 4, 17, WHITE, 1);
+    if (wind) text(wind, x - 14, y + 18, 26, wind === '東' ? RED : YEL, 1);
+  }
+  const shotOnce = (nm) => { if (__auto && globalThis.__shotDir && !S['_s' + nm]) { S['_s' + nm] = 1; gfx.view(0, 0); gfx.shot(__shotDir + '/' + nm + '.bmp'); gfx.view(56, 20); } };
+  function drawIntro() {
+    const it = S.intro, g = S.game, t = __now() - it.t0; gfx.clear(14, 84, 52); fill(120, 70, 592, 330, [10, 66, 40]); frame(120, 70, 592, 330, [90, 140, 110], 2);
+    const P = g.players;
+    if (t > 0) seatBox(P[2], 2, SEATPOS[2][0], SEATPOS[2][1], true);
+    if (t > 350) seatBox(P[3], 3, SEATPOS[3][0], SEATPOS[3][1], true);
+    if (t > 700) seatBox(P[1], 1, SEATPOS[1][0], SEATPOS[1][1], true);
+    if (t > 1000) seatBox(P[0], 0, SEATPOS[0][0], SEATPOS[0][1] - 20, true);
+    if (t > 1200 && t < 2400) { const k = Math.min(1, (t - 1200) / 160), sz = k < 0.5 ? 96 : 78; fill(0, 190, SW, 90, [0, 0, 0], 170); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz / 2, sz, YEL, 1); }
+    if (t >= 2400 && t < 3500) { const k = Math.min(1, (t - 2400) / 160), sz = k < 0.5 ? 110 : 90; fill(0, 180, SW, 110, [0, 0, 0], 170); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((d) => text('勝負!', SW / 2 + d[0], 235 - sz / 2 + d[1], sz, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz / 2, sz, [225, 40, 30], 1); }
+    if (t > 1000) shotOnce('intro1'); if (t > 1900) shotOnce('intro2'); if (t > 2900) shotOnce('intro3');
+    if (t >= 3500) { S.intro = null; it.done(); }
+  }
+  const PIP = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  function drawDie(x, y, v, red) {
+    fill(x + 3, y + 4, 72, 72, [0, 0, 0], 90); fill(x, y, 72, 72, [250, 248, 240]); frame(x, y, 72, 72, [120, 120, 110], 2);
+    (PIP[v] || []).forEach((i) => { const cx = x + 14 + (i % 3) * 22, cy = y + 14 + Math.floor(i / 3) * 22; fill(cx - 5, cy - 5, 12, 12, v === 1 ? [220, 40, 40] : [30, 30, 30]); });
+  }
+  function drawDice() {
+    const d = S.dice, g = S.game, now = __now(); gfx.clear(14, 84, 52); fill(120, 70, 592, 330, [10, 66, 40]); frame(120, 70, 592, 330, [90, 140, 110], 2);
+    const P = g.players, dealer = d.settled ? d.target : -1;
+    [2, 3, 1, 0].forEach((s) => seatBox(P[s], s, SEATPOS[s][0], SEATPOS[s][1], false, dealer >= 0 ? ['東', '南', '西', '北'][(s - dealer + 4) % 4] : ''));
+    let va = d.a, vb = d.b, by = 0;
+    if (d.rolling) { const k = (now - d.t0) / 1100; if (k >= 1) { d.rolling = false; d.settled = true; d.t1 = now; NSND.sfx('slam'); } else { const f = Math.floor((now - d.t0) / 80); va = 1 + (f * 5 + 3) % 6; vb = 1 + (f * 3 + 1) % 6; by = Math.round(Math.abs(Math.sin(k * 9)) * 34 * (1 - k)); } }
+    if (d.started) { drawDie(318, 190 - by, va); drawDie(410, 180 - by * 0.8, vb); } else { drawDie(318, 190, 1); drawDie(410, 180, 6); }
+    fill(150, 276, 532, 34, [0, 0, 0], 180);
+    if (!d.started) text('決定ボタンで サイコロを振ります', SW / 2, 281, 20, YEL, 1);
+    else if (d.rolling) text('…', SW / 2, 281, 20, WHITE, 1);
+    else text('合計 ' + (d.a + d.b) + ' → ' + P[d.target].name + ' が 東家(親)です。決定ボタンで すすむ', SW / 2, 284, 17, YEL, 1);
+    if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
+    if (d.settled) dirty();
+  }
+  /* ---------- 対戦成績の画面 ---------- */
+  function drawStats() {
+    const R = MJ.Rank, f = R.info(), s = f.s, pg = S.statsPg;
+    gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
+    text('対戦成績', SW / 2, 12, 30, YEL, 1);
+    const total = s.games || 0, avg = total ? ((s.ranks[0] + s.ranks[1] * 2 + s.ranks[2] * 3 + s.ranks[3] * 4) / total).toFixed(1) : '-';
+    gfx.image('img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp', 40, 70, 150, 150, 255); text(f.name, 115, 230, 26, YEL, 1); text('平均順位 ' + avg + '位', 115, 266, 17, WHITE, 1);
+    s.ranks.forEach((c, i) => { const y = 70 + i * 40; text((i + 1) + '位', 230, y + 6, 20, WHITE); text(c + '回', 330, y + 6, 20, YEL, 2); fill(345, y + 4, 200, 24, [60, 70, 66]); fill(345, y + 4, total ? Math.round(200 * c / total) : 0, 24, [230, 190, 70]); });
+    text('対局数 ' + total + '    1位の割合 ' + (total ? Math.round(s.ranks[0] / total * 100) : 0) + '%', 230, 236, 18, WHITE);
+    const opps = Object.keys(s.opp).map((id) => ({ c: MJ.CHARS.find((x) => x.id === +id), o: s.opp[id] })).filter((x) => x.c).sort((a, b) => b.o.n - a.o.n);
+    const pages = Math.max(1, Math.ceil(opps.length / 3)), cur = opps.slice(pg * 3, pg * 3 + 3);
+    if (!cur.length) text('まだ、対戦の記録がありません。', 600, 120, 18, WHITE, 1);
+    cur.forEach((x, i) => { const y = 70 + i * 92; fill(560, y, 252, 84, [235, 235, 225], 235); gfx.image(x.c.face, 566, y + 6, 72, 72, 255); text(x.c.short || x.c.name, 646, y + 8, 18, BLACK); text('対戦 ' + x.o.n + '回', 646, y + 34, 15, [70, 70, 70]); text('勝ち ' + x.o.w + '  勝率 ' + Math.round(x.o.w / x.o.n * 100) + '%', 646, y + 56, 15, [20, 90, 50]); });
+    text('◀ ' + (pg + 1) + ' / ' + pages + ' ▶', 686, 352, 16, WHITE, 1);
+    text('←→ ページ   もどる で ホームへ', SW / 2, SH - 24, 14, WHITE, 1);
+  }
   /* ---------- 段位の画面(背景の絵の座標は、絵のピクセル 1404x768) ---------- */
   function drawRankScreen() {
     const R = MJ.Rank, f = R.info(), K = SW / 1404, rk = S.rankScr.rk;
@@ -394,6 +450,17 @@
       else if (k === 'ok') { const p = S.saveP; S.saveP = null; if (p.idx === 0) { const ok = slotWrite(p.snap); S.toast = { text: ok ? 'セーブしました' : 'セーブできませんでした', until: __now() + 1400 }; setTimeout(dirty, 1500); } p.res(); }
       return;
     }
+    if (S.intro) { if (k === 'ok' && !__auto) S.intro.t0 -= 3600; return; }
+    if (S.dice) {
+      const d = S.dice;
+      if (!d.started) { if (k === 'ok') { d.started = true; d.rolling = true; d.t0 = __now(); NSND.sfx('deal4'); } }
+      else if (d.settled && k === 'ok') { const r = S.dice; S.dice = null; r.done(d.target); }
+      return;
+    }
+    if (S.mode === 'stats') {
+      if (k === 'back') S.mode = 'menu'; else if (k === 'left' || k === 'right') { const o = Object.keys(MJ.Rank.get().opp).length, pages = Math.max(1, Math.ceil(o / 3)); S.statsPg = wrap(S.statsPg + (k === 'right' ? 1 : -1), pages); }
+      return;
+    }
     if (S.confirmQ) {
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') S.confirmQ.idx = 1 - S.confirmQ.idx;
       else if (k === 'back') S.confirmQ = null; else if (k === 'ok') { const i = S.confirmQ.idx; S.confirmQ = null; if (i === 1) __quit(); }
@@ -437,6 +504,7 @@
         const it = items[S.menuIdx]; if (!it || it.off) return;
         if (it.act === 'play') startGame(); else if (it.act === 'continue') { const l = slotRead(); startGame(l.length ? l[0].v.snap : null); }
         else if (it.act === 'settings') { S.mode = 'settings'; S.setIdx = 0; } else if (it.act === 'teacher') toggleTeacher();
+        else if (it.act === 'stats') { S.mode = 'stats'; S.statsPg = 0; }
         else if (it.act === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } };
       }
       return;
@@ -492,6 +560,7 @@
     banner(g, p, t) { S.banner = { text: t, t0: __now() }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 750).then(() => { S.banner = null; dirty(); }); },
     handStart(g) { S.game = g; NSND.game(g); NSND.sfx('slam'); NSND.readKyoku(g); S.banner = { text: g.kyokuLabel(), t0: __now() }; S.deal = g.fast ? null : { t0: __now() + 300, dur: 700 }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
     padHand() {},
+    dice(g, first) { if (g.fast) return Promise.resolve(null); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: 0, t1: 0, done }; dirty(); }); },
     askSelf(g, p, opts, st) {
       return new Promise((res) => {
         const tiles = myTiles(p); const btns = [];
@@ -549,6 +618,7 @@
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; }
     g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
     S.game = g;
+    if (!g.resumed && !g.fast) { await new Promise((done) => { S.intro = { t0: __now(), done }; NSND.sfx('slam'); setTimeout(() => NSND.sfx('slam'), 1250); dirty(); }); }
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
     S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
@@ -563,11 +633,12 @@
     if (__auto && now > nextAuto && !S.coach && !S.side) { nextAuto = now + 90; window.__key('ok'); }
     if (__lsDirty && now - lastSave > 1500) { lastSave = now; __lsDirty = false; try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ } }
     /* 画面の入れかえ(ダブル/トリプルバッファ)で、古い絵が交互に出て点滅しないよう、変化のあとは3回続けて描く */
-    if (S.fly || S.deal || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
+    if (S.intro || S.dice || S.fly || S.deal || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
     if (!S.dirty) return false;
     S.dirty = false; return true;
   };
   window.__draw = function () {
+    if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end;
     if (full) { S.vx = 0; S.vy = 0; } else { S.vx = inGame ? 0 : 56; S.vy = 20; }
@@ -579,6 +650,8 @@
     if (S.end) { drawEnd(S.end); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/end.bmp'); }
     if (S.coach && __auto && globalThis.__shotDir && coachShots < 6 && S.coach.cards && S.coach.cards.length) { gfx.view(0, 0); gfx.shot(__shotDir + '/coach' + (++coachShots) + '.bmp'); }
     if (S.rankScr) { drawRankScreen(); gfx.view(0, 0); return true; }
+    if (S.intro && S.game) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawIntro(); gfx.view(0, 0); return true; }
+    if (S.dice && S.game) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDice(); gfx.view(0, 0); return true; }
     S.vx = 56; S.vy = 20; gfx.view(56, 20); // 以降の板(メニューなど)は、画面の中央に
     if (S.saveP) drawDialog('この局が おわりました', ['セーブして次の局へ', 'セーブしないで次の局へ'], S.saveP.idx, S.saveP.snap ? kyokuText(S.saveP.snap) + ' の つづきから' : '');
     if (S.toast && S.toast.until > __now()) { fill(200, 190, 320, 44, [0, 0, 0], 200); text(S.toast.text, 360, 198, 24, YEL, 1); }
