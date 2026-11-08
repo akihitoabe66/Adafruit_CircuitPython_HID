@@ -225,6 +225,7 @@
 
     async decideSelf(p, opts, st) {
       if (p.isHuman) return this.ui.askSelf(this, p, opts, st);
+      if (this.ui) await sleep(0); // 重い計算の前に、一度画面と入力を回す(カーソルが引っかからないように)
       const act = p.coachType ? MJ.AI.coachSelf(this, p, opts, p.coachType, { saki: !!p.coachSaki }) : MJ.AI.chooseSelf(this, p, opts);
       if (this.cfg.cpuDelay != null) { await this.wait(this.cfg.cpuDelay); return act; }
       // 考える時間にゆらぎを持たせる: 引いた牌をそのまま切るときは短め、手を入れかえるときは長め。ときどき、じっくり考える
@@ -482,7 +483,7 @@
         let d;
         if (q.isHuman && (actionable || o.ronBlock)) d = await this.ui.askReact(this, q, o);
         else if (q.isHuman) d = { act: 'pass' };
-        else d = MJ.AI.chooseReact(this, q, o);
+        else { if (this.ui) await sleep(0); d = MJ.AI.chooseReact(this, q, o); }
         if (this.stopped) return { type: 'none' };
         if (o.ron && d.act !== 'ron') { q.tempFuriten = true; if (q.riichi) q.riichiFuriten = true; }
         decs.push({ q, d, o });
