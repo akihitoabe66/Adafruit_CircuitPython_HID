@@ -155,7 +155,7 @@
     S.waitInfo = ws.slice(0, 5).map((t) => ({ t, left: Math.max(0, 4 - seen[t]) })); return S.waitInfo;
   }
   /* ---------- 右の操作の列(Edge版と同じ並び): MENU / 局 / あたり牌 / 解説 / 麻雀先生 ---------- */
-  const SIDE = ['MENU', '解説', '麻雀先生'];
+  const SIDE_ORDER = [0, 3, 1, 2]; // 上から: MENU(と音) / 解説 / 麻雀先生
   function sbtn(x, y, w, h, c1, c2, lines, focus, sz) {
     fill(x, y, w, h, c2); fill(x, y, w, h - 3, c1);
     lines.forEach((l, i) => text(l, x + w / 2, y + (h - lines.length * (sz + 3)) / 2 + i * (sz + 3), sz, WHITE, 1));
@@ -163,7 +163,8 @@
   }
   function drawSide(g) {
     const f = S.side ? S.side.idx : -1;
-    sbtn(726, 6, 100, 32, [235, 120, 30], [160, 70, 10], ['MENU'], f === 0, 16); [0, 1, 2].forEach((i) => fill(738, 17 + i * 5, 14, 3, WHITE));
+    sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 762, 14, 13, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
+    sbtn(796, 6, 30, 32, [50, 90, 160], [25, 50, 100], [''], f === 3, 13); fill(803, 17, 4, 10, WHITE); fill(807, 14, 3, 16, WHITE); fill(810, 11, 3, 22, WHITE); fill(816, 17, 2, 10, WHITE);
     { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 46, 22, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 72, 12, GREY, 1); }
     if (teacherOn()) {
       const w = waitInfoOf(g);
@@ -538,6 +539,26 @@
     labs.forEach((l, i) => { const sel = S.teachQ.idx === i; if (sel) { rrect(bx - 3, y + 128, bws[i] + 6, 50, 14, [30, 30, 30]); rrect(bx - 1, y + 130, bws[i] + 2, 46, 12, [255, 255, 255]); } rrect(bx + 1, y + 132, bws[i] - 2, 42, 10, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : [245, 247, 244]); text(l, bx + bws[i] / 2, y + 143, 17, BLACK, 1); bx += bws[i] + 12; });
     shotOnce('teach');
   }
+  function tri(cx, cy, r, dir) { for (let i = -r; i <= r; i++) { const w = Math.round(r * 1.6 * (1 - Math.abs(i) / r)) + 1; fill(dir < 0 ? cx + r * 0.8 - w : cx - r * 0.8, cy + i, w, 1, [20, 20, 20]); } }
+  function drawSound() {
+    overlay(190); const x0 = 60, w = 600, h = 352, y0 = Math.round((H - h) / 2);
+    rrect(x0 - 3, y0 - 3, w + 6, h + 6, 20, [240, 210, 100]); rrect(x0, y0, w, h, 18, [36, 74, 58]);
+    text('音のせってい', 360, y0 + 12, 26, WHITE, 1); fill(236, y0 + 20, 5, 10, WHITE); fill(241, y0 + 17, 4, 16, WHITE); fill(245, y0 + 14, 4, 22, WHITE);
+    const sp = S.soundP, names = ['BGM', '効果音', '読み上げ'], K = ['bgm', 'sfx', 'voice'];
+    for (let i = 0; i < 4; i++) {
+      const ry = y0 + 58 + i * 52, sel = sp.idx === i; if (sel) rrect(x0 + 8, ry - 4, w - 16, 52, 12, [70, 120, 92]);
+      text(names[i] || 'CPU', x0 + 24, ry + 8, i === 2 ? 20 : 24, WHITE);
+      if (i < 3) {
+        const lv = NSND.getLevel(K[i]);
+        rrect(x0 + 130, ry, 52, 44, 10, [232, 238, 228]); tri(x0 + 156, ry + 22, 11, -1);
+        rrect(x0 + 192, ry + 10, 270, 24, 12, [24, 46, 36]); if (lv) rrect(x0 + 192, ry + 10, Math.max(24, Math.round(270 * lv / 10)), 24, 12, [240, 200, 80]);
+        rrect(x0 + 472, ry, 52, 44, 10, [232, 238, 228]); tri(x0 + 498, ry + 22, 11, 1);
+        text(String(lv), x0 + 560, ry + 4, 30, YEL, 1);
+      } else { rrect(x0 + 130, ry, 394, 44, 10, [232, 238, 228]); text('速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()], x0 + 327, ry + 8, 24, BLACK, 1); }
+    }
+    text('0にすると、その音が消えます。対局は、とじるまで止まります。', 360, y0 + 58 + 4 * 52 + 2, 15, [190, 205, 195], 1);
+    const cy = y0 + h - 56; if (sp.idx === 4) rrect(300, cy - 4, 120, 52, 16, [255, 255, 255]); rrect(304, cy, 112, 44, 14, [248, 208, 80]); text('とじる', 360, cy + 9, 22, BLACK, 1);
+  }
   function drawDialog(title, items, idx, note) {
     overlay(190); const h = 70 + items.length * 50; const y0 = Math.round((H - h) / 2);
     fill(150, y0, 420, h, [20, 60, 42]); frame(150, y0, 420, h, [240, 210, 120], 3);
@@ -564,6 +585,14 @@
       if (k === 'up' || k === 'down') S.menuP.idx = wrap(S.menuP.idx + (k === 'up' ? -1 : 1), items.length);
       else if (k === 'back') S.menuP = null;
       else if (k === 'ok') { const it = items[S.menuP.idx]; if (it.indexOf('CPUの速さ') === 0) { MJ.cycleCpuSpeed(); return; } if (it.indexOf('麻雀先生') === 0) { toggleTeacher(); return; } S.menuP = null; if (it === 'おわる(電源を切れます)') __quit(); else if (it === 'タイトルにもどる') stopGame(); }
+      return;
+    }
+    if (S.soundP) { // 音のせってい
+      const sp = S.soundP, K = ['bgm', 'sfx', 'voice'];
+      if (k === 'up' || k === 'down') sp.idx = wrap(sp.idx + (k === 'up' ? -1 : 1), 5);
+      else if (k === 'left' || k === 'right') { const d = k === 'left' ? -1 : 1; if (sp.idx < 3) { NSND.setLevel(K[sp.idx], NSND.getLevel(K[sp.idx]) + d); if (sp.idx === 1) NSND.sfx('discard'); } else if (sp.idx === 3) MJ.cycleCpuSpeed(); }
+      else if (k === 'back' || (k === 'ok' && sp.idx === 4)) { S.soundP = null; MJ.paused = false; }
+      else if (k === 'ok' && sp.idx === 3) MJ.cycleCpuSpeed();
       return;
     }
     if (S.saveP) {
@@ -663,12 +692,13 @@
       return;
     }
     if (S.side) { // 右の操作の列
-      if (k === 'up' || k === 'down') S.side.idx = wrap(S.side.idx + (k === 'up' ? -1 : 1), SIDE.length);
+      if (k === 'up' || k === 'down') S.side.idx = SIDE_ORDER[wrap(SIDE_ORDER.indexOf(S.side.idx) + (k === 'up' ? -1 : 1), SIDE_ORDER.length)];
       else if (k === 'left' || k === 'back') { S.side = null; if (S.self && k === 'left' && S.self.row === 0) S.self.idx = S.self.tiles.length - 1; else if (!S.self && k === 'left' && S.game) S.curIdx = Math.max(0, myTiles(S.game.players[0]).length - 1); } // 左: いちばん右の牌へ
       else if (k === 'right') { S.side = null; S.curIdx = 0; if (S.self) { S.self.row = 0; S.self.idx = 0; } } // 右: いちばん左の牌へもどる
       else if (k === 'ok') {
         const i = S.side.idx;
         if (i === 0) S.menuP = { idx: 0 };
+        else if (i === 3) { S.soundP = { idx: 0 }; MJ.paused = true; }
         else if (i === 1) S.coach = { tab: 0, scroll: 0, cards: teacherOn() ? buildCoach() : [] };
         else { toggleTeacher(); if (teacherOn() && S.self && !S.self.p.riichi && !S.game.fast) { try { S.hint = teacherAdvice(S.game, S.self.p, S.self.opts); } catch (e) { /* ignore */ } } else S.hint = null; }
       }
@@ -810,6 +840,7 @@
     if (S.saveP) drawDialog('この局が おわりました', ['セーブして次の局へ', 'セーブしないで次の局へ'], S.saveP.idx, S.saveP.snap ? kyokuText(S.saveP.snap) + ' の つづきから' : '');
     if (S.toast && S.toast.until > __now()) { rrect(110, 180, 500, 54, 12, [0, 0, 0], 215); text(S.toast.text, 360, 193, 24, YEL, 1); }
     if (S.menuP) drawDialog('メニュー', menuItems(), S.menuP.idx, '');
+    if (S.soundP) drawSound();
     if (S.teachQ) drawTeachQ();
     if (S.playQ) drawDialog('麻雀をはじめます', ['つづきから(' + kyokuText(S.playQ.snap) + ')', 'はじめから'], S.playQ.idx, '');
     if (S.confirmQ) drawDialog('ゲームを おわりますか?', ['もどる', 'おわる(電源を切れます)'], S.confirmQ.idx, '');
