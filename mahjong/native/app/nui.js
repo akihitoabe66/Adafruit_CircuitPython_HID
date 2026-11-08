@@ -311,20 +311,22 @@
       text(lab, bx + bw[i] / 2, 384, 18, sel ? [255, 245, 200] : [245, 224, 160], 1); bx += bw[i] + 8;
     });
   }
+  const perfOn = () => { try { return localStorage.getItem('mj_perf') === '1' || !!globalThis.__perfEnv; } catch (e) { return false; } };
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'back', label: 'もどる' },
+    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'perf', label: '速度の表示(開発用)' }, { k: 'back', label: 'もどる' },
   ];
   function drawSettings() {
     gfx.clear(14, 84, 52); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
     text('設定', SW / 2, 14, 30, YEL, 1);
     SETS.forEach((s, i) => {
-      const y = 62 + i * 54, sel = S.setIdx === i; fill(110, y, 612, 46, sel ? YEL : WHITE); frame(110, y, 612, 46, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
+      const y = 56 + i * 50, sel = S.setIdx === i; fill(110, y, 612, 44, sel ? YEL : WHITE); frame(110, y, 612, 46, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
       text(s.label, 130, y + 10, 22, BLACK);
       if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 12, 24, 22, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 10, 20, BLACK, 2); }
       else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 10, 22, BLACK, 1);
       else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 10, 22, BLACK, 1);
       else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 10, 22, BLACK, 1);
+      else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 10, 22, BLACK, 1);
     });
   }
   /* ---------- 対局のはじめの演出: 顔の登場 → 東一局 → 勝負! → サイコロ ---------- */
@@ -528,6 +530,7 @@
         else if (it.k === 'bgmon') { NSND.toggle(); if (NSND.on) NSND.home(); }
         else if (it.k === 'speed') MJ.cycleCpuSpeed();
         else if (it.k === 'teacher') toggleTeacher();
+        else if (it.k === 'perf') { try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } }
         else if (it.k === 'back' && k === 'ok') S.mode = 'menu';
       }
       return;
@@ -682,7 +685,8 @@
     if (!S.dirty) return false;
     S.dirty = false; return true;
   };
-  window.__draw = function () {
+  const perf = { t0: 0, n: 0, ms: 0, shown: '' };
+  const drawBody = function () {
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end;
@@ -705,6 +709,12 @@
     if (S.confirmQ) drawDialog('ゲームを おわりますか?', ['もどる', 'おわる(電源を切れます)'], S.confirmQ.idx, '');
     gfx.view(0, 0);
     return true;
+  };
+  window.__draw = function () {
+    const t0 = __now(); const r = drawBody(); const dt = __now() - t0; perf.n++; perf.ms += dt;
+    if (t0 - perf.t0 >= 1000) { perf.shown = '描 ' + perf.n + '回/秒  ' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; }
+    if (perfOn()) { gfx.view(0, 0); fill(0, 0, 150, 18, [0, 0, 0], 170); text(perf.shown, 4, 2, 13, [120, 255, 160]); }
+    return r;
   };
   NSND.home();
   print('ネイティブ版 準備できました');
