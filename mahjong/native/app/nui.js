@@ -480,7 +480,7 @@
     const u = s / 3.2, pr = Math.max(3, Math.round(s / 13));
     (PIP[v] || []).forEach((i) => { const cx = x + Math.round(s / 2 + ((i % 3) - 1) * u * 0.9), cy = y + Math.round(s / 2 + (Math.floor(i / 3) - 1) * u * 0.9); fill(cx - pr, cy - pr, pr * 2, pr * 2, v === 1 ? [220, 40, 40] : [30, 30, 30]); });
   }
-  const DPOS = { 2: [SW / 2 - 40, 34], 3: [70, 150], 1: [SW - 150, 150], 0: [SW / 2 - 40, 324] };
+  const DPOS = { 2: [SW / 2 - 40, 28], 3: [70, 150], 1: [SW - 150, 150], 0: [SW / 2 - 40, 300] };
   function dealerPlate(cx, y, name, rv) { // 親の名札: 金色の板に、左端に赤い「親」の札(脈打つ光つき)
     const TW = 40, w = Math.max(150, gfx.measure(name, 21) + 34 + TW), x = Math.round(cx - w / 2), h = 38, pu = 0.5 + 0.5 * Math.sin(rv / 140);
     rrect(x - 8, y - 8, w + 16, h + 16, 8, [255, 190, 30], Math.round(60 + 100 * pu));
@@ -494,7 +494,7 @@
     if (dealer) { const pu = 0.5 + 0.5 * Math.sin(rv / 140); rrect(x - 16, y - 16, fs + 32, fs + 32, 12, [255, 190, 30], Math.round(70 + 110 * pu)); rrect(x - 10, y - 10, fs + 20, fs + 20, 9, [255, 230, 90], Math.round(150 + 105 * pu)); rrect(x - 4, y - 4, fs + 8, fs + 8, 6, [255, 255, 255]); }
     else if (hi) { rrect(x - 8, y - 8, fs + 16, fs + 16, 8, [255, 120, 40]); rrect(x - 5, y - 5, fs + 10, fs + 10, 6, [255, 230, 80]); }
     face(p, x, y, fs, fs); if (!dealer) frame(x - 1, y - 1, fs + 2, fs + 2, hi ? [255, 255, 255] : [240, 210, 120], hi ? 3 : 2);
-    if (dealer) dealerPlate(DPOS[s][0] + 40, DPOS[s][1] + 96, p.name, rv); else plate(DPOS[s][0] + 40, DPOS[s][1] + 96, p.name, 0);
+    if (dealer) dealerPlate(DPOS[s][0] + 40, DPOS[s][1] + 96, p.name, rv); else plate(DPOS[s][0] + 40, DPOS[s][1] + 96, p.name, p.char && p.char.level ? p.char.level : 0);
     if (wind) { const wi = ['東', '南', '西', '北'].indexOf(wind); rrect(x - 46, y + 6, 38, 38, 6, [255, 255, 255]); rrect(x - 44, y + 8, 34, 34, 5, WIND_BG[wi]); text(wind, x - 27, y + 11, 28, WHITE, 1); }
   }
   function drawDice() {
@@ -526,11 +526,11 @@
       }
     }
     pos.forEach((p, i) => drawDie(p[0], p[1], i ? vb : va, sz[i]));
-    rrect(190, 276, 452, 38, 6, [0, 0, 0], 190);
-    if (!d.started) text('サイコロを振ります', SW / 2, 282, 22, YEL, 1);
-    else if (d.rolling) text('…', SW / 2, 282, 22, WHITE, 1);
-    else if (!done) text('合計 ' + total + ' …  あなたから 左回りに 数えます', SW / 2, 284, 19, WHITE, 1);
-    else text(P[d.target].name + ' が 東家(親)です', SW / 2, 280, 26, YEL, 1);
+    rrect(190, 262, 452, 34, 6, [0, 0, 0], 190);
+    if (!d.started) text('サイコロを振ります', SW / 2, 267, 22, YEL, 1);
+    else if (d.rolling) text('…', SW / 2, 267, 22, WHITE, 1);
+    else if (!done) text('合計 ' + total + ' …  あなたから 左回りに 数えます', SW / 2, 270, 19, WHITE, 1);
+    else text(P[d.target].name + ' が 東家(親)です', SW / 2, 265, 25, YEL, 1);
     if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
     if (d.settled) dirty();
   }
@@ -680,7 +680,7 @@
       const items = menuItems();
       if (k === 'up' || k === 'down') S.menuP.idx = wrap(S.menuP.idx + (k === 'up' ? -1 : 1), items.length);
       else if (k === 'back') S.menuP = null;
-      else if (k === 'ok') { const it = items[S.menuP.idx]; if (it.indexOf('CPUの速さ') === 0) { MJ.cycleCpuSpeed(); return; } if (it.indexOf('麻雀先生') === 0) { toggleTeacher(); return; } S.menuP = null; if (it === 'おわる(電源を切れます)') __quit(); else if (it === 'タイトルにもどる') stopGame(); }
+      else if (k === 'ok') { const it = items[S.menuP.idx]; S.menuP = null; if (it === 'タイトルにもどる') stopGame(); }
       return;
     }
     if (S.soundP) { // 音のせってい
@@ -788,7 +788,7 @@
       return;
     }
     if (S.side) { // 右の操作の列
-      if (k === 'up' || k === 'down') S.side.idx = SIDE_ORDER[wrap(SIDE_ORDER.indexOf(S.side.idx) + (k === 'up' ? -1 : 1), SIDE_ORDER.length)];
+      if (k === 'up' || k === 'down') S.side.idx = (k === 'up' ? { 0: 2, 3: 2, 1: 0, 2: 1 } : { 0: 1, 3: 1, 1: 2, 2: 0 })[S.side.idx]; // 上: 解説→MENU / MENU・音→麻雀先生 / 麻雀先生→解説。下: MENU・音→解説 / 解説→麻雀先生 / 麻雀先生→MENU
       else if (k === 'left' && S.side.idx === 3) S.side.idx = 0; // スピーカーから左: MENUへ
       else if (k === 'right' && S.side.idx === 0) S.side.idx = 3; // MENUから右: スピーカーへ
       else if (k === 'left' || k === 'back') { S.side = null; if (S.self && k === 'left' && S.self.row === 0) S.self.idx = S.self.tiles.length - 1; else if (!S.self && k === 'left' && S.game) S.curIdx = Math.max(0, myTiles(S.game.players[0]).length - 1); } // 左: いちばん右の牌へ
@@ -923,7 +923,7 @@
     S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; S.homeBot = false; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
   }
-  const menuItems = () => ['つづける', teacherLabel(), speedLabel(), 'タイトルにもどる', 'おわる(電源を切れます)'];
+  const menuItems = () => ['つづける', 'タイトルにもどる'];
 
   /* ---------- メインループから ---------- */
   let nextAuto = 0, lastSave = 0, nextSide = 0, coachShots = 0;
