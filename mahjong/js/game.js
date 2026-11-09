@@ -489,6 +489,7 @@
         decs.push({ q, d, o });
       }
       const rons = decs.filter((x) => x.d.act === 'ron');
+      if (rons.length >= 3 && MJ.RULES.sanchahou) return { type: 'ron', result: await this.abortDraw('三家和') }; // 3人が同時にロン: 流局(親は連荘)
       if (rons.length) { const rq = rons.map((x) => x.q); return { type: 'ron', result: await this.winRon(p, tile, MJ.RULES.doubleRon ? rq : [rq[0]]) }; }
 
       // リーチ成立
@@ -619,6 +620,12 @@
     }
 
     /* ---------- 流局 ---------- */
+    async abortDraw(reason) { // 途中流局(三家和など): 点数の移動なし・親は連荘
+      const before = this.players.map((p) => p.score);
+      const result = { type: 'draw', abort: reason, delta: [0, 0, 0, 0], before, after: before.slice(), tenpai: [false, false, false, false], dealerTenpai: true, hands: this.players.map((p) => this.handView(p, null, false)) };
+      if (this.ui) await this.ui.showResult(this, result);
+      return result;
+    }
     async exhaustive() {
       const tenpai = this.players.map((p) => MJ.shanten(MJ.toCounts(p.hand), p.melds.length) === 0);
       const n = tenpai.filter(Boolean).length;

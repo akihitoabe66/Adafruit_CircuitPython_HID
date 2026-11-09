@@ -34,6 +34,8 @@
   const teacherLabel = () => '麻雀先生: ' + (teacherOn() ? 'あり' : 'なし');
   const toggleTeacher = () => { try { localStorage.setItem('mj_teacher', teacherOn() ? '0' : '1'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; };
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
+  const COMMON_RULES = { length: 'east', kuitan: true, aka: 3, ippatsu: true, ura: true, tobi: true, doubleRon: true, sanchahou: true, kuikae: false, kazoe: true, flower: false, start: 25000 };
+  try { if (localStorage.getItem('mj_rules') === null) { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); } } catch (e) { /* ignore */ }
   const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz', off: true }, { label: '点数計算の勉強', act: 'study', off: true }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
   const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right']; // 隠しコマンド(タイトル): 5件のセーブから選べる
@@ -279,12 +281,14 @@
     // 河(変わったときだけ描き直し、あとは1枚の絵を貼る)
     const rkey = P.map((p) => p.discards.length + ':' + p.discards.map((d) => (d.called ? 1 : 0)).join('') + ':' + p.discards.indexOf(g.lastDiscard && g.lastDiscard.d)).join('|') + (S.fly ? 'f' : '');
     cached(0, rkey, () => P.forEach((p) => drawRiver(g, p)));
-    const okey = [g.turn, g.live.length, g.kyotaku, g.kyokuLabel(), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
+    const okey = [g.turn, P.map((p) => (p.flowers || []).length).join(''), g.live.length, g.kyotaku, g.kyokuLabel(), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
     cached(1, okey, () => {
     // 副露
     drawMelds(P[2], 520, 34, 16, 22); drawMelds(P[3], 3, 312 - meldWH(P[3], 16, 22), 16, 22); drawMelds(P[1], 694, 312 - meldWH(P[1], 16, 22), 16, 22);
     // 名札(横長の板)
     drawBar(g, P[2], 190, 3, 322, 28, 0); drawBar(g, P[3], 35, 21, 27, 280, 90); drawBar(g, P[1], 643, 21, 27, 280, 270); drawBar(g, P[0], 501, 317, 221, 34, 0);
+    // 季節牌(花牌)をもっている人は、名札のそばに小さく並べる
+    P.forEach((p) => { const fl = p.flowers || []; fl.forEach((f, i) => { const [fx, fy] = p.seat === 0 ? [497 - (i + 1) * 20, 324] : p.seat === 2 ? [518 + i * 20, 5] : p.seat === 3 ? [36 + i * 20, 304] : [640 + i * 20, 304]; tile(f.t, fx, fy, 16, 22, false); }); });
     // 中央の情報
     panel(218, 163, 281, 101, 14, [6, 44, 26], [90, 140, 110], 2);
     const lb = g.kyokuLabel().split(' '); text(lb[0], 234, 172, 24, WHITE); text('供託 ' + g.kyotaku + (lb[1] ? '  ' + lb[1] : ''), 234, 204, 12, GREY);
@@ -438,20 +442,53 @@
   const perfOn = () => { try { return localStorage.getItem('mj_perf') === '1' || !!globalThis.__perfEnv; } catch (e) { return false; } };
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'perf', label: '速度の表示(開発用)' }, { k: 'back', label: 'もどる' },
+    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'rules', label: '麻雀のルール' }, { k: 'perf', label: '速度の表示(開発用)' }, { k: 'back', label: 'もどる' },
   ];
+  /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
+  const RULE_ROWS = [
+    { k: 'length', label: '対局の長さ', vals: [['east', '東風戦(東1〜4局)'], ['south', '東南戦(東1〜南4局)'], ['single', '一局だけ']], note: '一局だけは、練習向きです。' },
+    { k: 'kuitan', label: '喰いタン', vals: [[true, 'あり'], [false, 'なし']], note: 'ありだと、鳴いた手でも、2〜8だけの手(タンヤオ)で上がれます。' },
+    { k: 'aka', label: '赤ドラ', vals: [[3, 'あり(赤5を3枚)'], [0, 'なし']], note: '赤い5は、持っているだけで1飜(点が増えます)。' },
+    { k: 'ippatsu', label: '一発', vals: [[true, 'あり'], [false, 'なし']], note: 'リーチして1巡以内に上がると、1飜ふえます。' },
+    { k: 'ura', label: '裏ドラ', vals: [[true, 'あり'], [false, 'なし']], note: 'リーチして上がると、裏のドラ表示牌をめくります。' },
+    { k: 'tobi', label: '飛び(0点より下)', vals: [[true, '終了する'], [false, '続ける']], note: '持ち点が0点より下になったら、ゲームを終わりにするか。' },
+    { k: 'doubleRon', label: 'ダブロン', vals: [[true, 'あり'], [false, 'なし(頭ハネ)']], note: '同じ牌で2人が上がれるとき、2人とも上がりにするか。' },
+    { k: 'sanchahou', label: '三家和(3人ロン)', vals: [[true, '流局にする'], [false, '3人とも上がる']], note: '3人が同時にロンしたとき、その局を流局にするか。' },
+    { k: 'kuikae', label: '喰い替え', vals: [[false, '禁止'], [true, '許可']], note: '鳴いた直後に、同じ(近い)牌を切ること。ふつうは禁止です。' },
+    { k: 'kazoe', label: '数え役満', vals: [[true, 'あり'], [false, 'なし(三倍満まで)']], note: '13飜以上を、役満として数えるか。' },
+    { k: 'flower', label: '季節牌(花牌)', vals: [[false, 'なし'], [true, 'あり']], note: '春夏秋冬の4枚を山に入れます。持つと1飜。' },
+    { k: 'start', label: '持ち点', vals: [[25000, '25,000点'], [30000, '30,000点'], [35000, '35,000点']], note: 'はじめの持ち点です。' },
+  ];
+  function drawRules() {
+    gfx.clear(14, 84, 52); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
+    text('麻雀のルール', SW / 2, 6, 28, YEL, 1);
+    const n = RULE_ROWS.length + 2, i0 = S.ruleIdx || 0, VIS = 9, top = Math.max(0, Math.min(n - VIS, i0 - 4));
+    for (let v = 0; v < VIS; v++) {
+      const i = top + v, y = 44 + v * 38, sel = i === i0; if (i >= n) break;
+      panel(70, y, 692, 35, 8, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2);
+      if (i < RULE_ROWS.length) {
+        const r = RULE_ROWS[i], cur = r.vals.find((q) => String(q[0]) === String(MJ.RULES[r.k])) || r.vals[0], common = String(COMMON_RULES[r.k]) === String(cur[0]);
+        text(r.label, 90, y + 6, 20, BLACK); text('◀', 440, y + 7, 18, [90, 90, 80], 1); text(cur[1], 580, y + 6, 20, BLACK, 1); text('▶', 724, y + 7, 18, [90, 90, 80], 1);
+        if (common) { rrect(300, y + 7, 52, 22, 4, [60, 140, 90]); text('一般的', 326, y + 9, 14, WHITE, 1); }
+      } else text(i === RULE_ROWS.length ? '一般的な設定に もどす' : 'もどる', SW / 2, y + 6, 20, BLACK, 1);
+    }
+    const cur = i0 < RULE_ROWS.length ? RULE_ROWS[i0].note : (i0 === RULE_ROWS.length ? 'すべてのルールを、一般的な設定にもどします。' : '');
+    panel(70, 392, 692, 40, 8, [6, 44, 26], [90, 140, 110], 2, 235); text(cur, SW / 2, 402, 18, WHITE, 1);
+    text('変えたルールは、次の対局から使われます', SW / 2, 440, 15, [205, 224, 212], 1);
+  }
   function drawSettings() {
     gfx.clear(14, 84, 52); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
     text('設定', SW / 2, 8, 30, YEL, 1);
     SETS.forEach((s, i) => {
-      const y = 48 + i * 46, sel = S.setIdx === i; panel(110, y, 612, 40, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
-      text(s.label, 130, y + 8, 22, BLACK);
+      const y = 44 + i * 42, sel = S.setIdx === i; panel(110, y, 612, 38, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
+      text(s.label, 130, y + 7, 21, BLACK);
       if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 9, 24, 22, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 8, 20, BLACK, 2); }
       else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 8, 22, BLACK, 1);
       else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 8, 22, BLACK, 1);
       else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 8, 22, BLACK, 1);
       else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 8, 22, BLACK, 1);
       else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 8, 22, BLACK, 1);
+      else if (s.k === 'rules') text(MJ.rulesSummary ? '▶' : '▶', 600, y + 7, 22, BLACK, 1);
     });
   }
   /* ---------- 対局のはじめの演出: 顔の登場 → 東一局 → 勝負! → サイコロ ---------- */
@@ -612,7 +649,8 @@
       scoreCards(r, 396);
     } else {
       text('流局', SW / 2, 30, 42, YEL, 1);
-      r.tenpai.forEach((t, i) => { const p = g.players[i]; rrect(150 + (i % 2) * 280, 110 + Math.floor(i / 2) * 70, 250, 56, 12, [30, 70, 56]); text(p.name, 168 + (i % 2) * 280, 118 + Math.floor(i / 2) * 70, 22, WHITE); text(t ? 'テンパイ' : 'ノーテン', 380 + (i % 2) * 280, 120 + Math.floor(i / 2) * 70, 20, t ? YEL : GREY, 2); });
+      if (r.abort) { text(r.abort + '(3人が同時にロン)', SW / 2, 110, 28, WHITE, 1); text('点数の動きは ありません。親は そのまま続けます。', SW / 2, 160, 20, GREY, 1); }
+      else r.tenpai.forEach((t, i) => { const p = g.players[i]; rrect(150 + (i % 2) * 280, 110 + Math.floor(i / 2) * 70, 250, 56, 12, [30, 70, 56]); text(p.name, 168 + (i % 2) * 280, 118 + Math.floor(i / 2) * 70, 22, WHITE); text(t ? 'テンパイ' : 'ノーテン', 380 + (i % 2) * 280, 120 + Math.floor(i / 2) * 70, 20, t ? YEL : GREY, 2); });
       scoreCards(r, 330);
     }
   }
@@ -764,6 +802,18 @@
       else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 320); else if (S.titleIdx === 1) { S.pressT = __now(); S.pressMs = 320; NSND.toggle(); if (NSND.on) NSND.home(); dirty(); } else later(() => { S.confirmQ = { idx: 0 }; }, 320); }
       return;
     }
+    if (S.mode === 'rules') { // 麻雀のルール
+      const n = RULE_ROWS.length + 2, i = S.ruleIdx || 0;
+      if (k === 'up' || k === 'down') S.ruleIdx = wrap(i + (k === 'up' ? -1 : 1), n);
+      else if (k === 'back') S.mode = 'settings';
+      else if (i < RULE_ROWS.length && (k === 'left' || k === 'right' || k === 'ok')) {
+        const row = RULE_ROWS[i], cur = row.vals.findIndex((v) => String(v[0]) === String(MJ.RULES[row.k])), nx = row.vals[wrap(cur + (k === 'left' ? -1 : 1), row.vals.length)];
+        MJ.RULES[row.k] = nx[0]; MJ.saveRules(); NSND.sfx('select', 0.5);
+      }
+      else if (k === 'ok' && i === RULE_ROWS.length) { Object.assign(MJ.RULES, MJ.RULE_DEFAULTS, COMMON_RULES); MJ.saveRules(); }
+      else if (k === 'ok') S.mode = 'settings';
+      return;
+    }
     if (S.mode === 'settings') {
       const it = SETS[S.setIdx];
       if (k === 'up' || k === 'down') S.setIdx = wrap(S.setIdx + (k === 'up' ? -1 : 1), SETS.length);
@@ -776,6 +826,7 @@
         else if (it.k === 'teacher') toggleTeacher();
         else if (it.k === 'swap') { try { localStorage.setItem('mj_swapab', swapOn() ? '0' : '1'); } catch (e) { /* ignore */ } __swapab(swapOn() ? 1 : 0); }
         else if (it.k === 'perf') { try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } }
+        else if (it.k === 'rules' && k !== 'left') { S.mode = 'rules'; S.ruleIdx = 0; }
         else if (it.k === 'back' && k === 'ok') S.mode = 'menu';
       }
       return;
@@ -952,7 +1003,7 @@
   async function startGame(sn) {
     S.mode = 'game'; dirty();
     const chars = sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
-    const g = new MJ.Game({ chars: chars.length === 3 ? chars : pickChars(), mode: 'free', length: sn && sn.length || 'east', ui, cpuDelay: __auto ? 40 : undefined });
+    const g = new MJ.Game({ chars: chars.length === 3 ? chars : pickChars(), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined });
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; }
     g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
     S.game = g;
@@ -977,11 +1028,11 @@
   const perf = { t0: 0, n: 0, ms: 0, shown: '' };
   const drawBody = function () {
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
-    const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings';
+    const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
     if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
     gfx.view(S.vx, S.vy);
-    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'slots') { gfx.clear(14, 84, 52); drawSlots(); }
+    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(14, 84, 52); drawSlots(); }
     else if (S.game) { gfx.clear(14, 84, 52); drawTable(S.game); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
     if (S.rankP) drawRankP();
     if (S.result) { drawResult(S.result); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
