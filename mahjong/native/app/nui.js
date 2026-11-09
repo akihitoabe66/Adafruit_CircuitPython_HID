@@ -466,13 +466,13 @@
     if (t > 0) { wf(360, 18, 112); face(P[2], 360, 18, 112, 112); plate(416, 140, P[2].name, st(P[2])); }
     if (t > 0) { wf(70, 150, 112); face(P[3], 70, 150, 112, 112); plate(126, 268, P[3].name, st(P[3])); }
     if (t > 0) { wf(650, 150, 112); face(P[1], 650, 150, 112, 112); plate(706, 268, P[1].name, st(P[1])); }
-    if (t > 1000) { try { gfx.imageTop('img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp', 60, 336, 92, 92); } catch (e) { /* ignore */ } plate(204, 366, 'あなた', 0); }
-    if (t > 1200 && !it.v1) { it.v1 = 1; S.skipKyokuVoice = true; try { NSND.readKyoku(g); } catch (e) { /* ignore */ } }
-    if (t >= 2400 && !it.v2) { it.v2 = 1; try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }
-    if (t > 1200 && t < 2400) { const k = Math.min(1, (t - 1200) / 160), sz = k < 0.5 ? 96 : 78; fill(192, 190, 448, 90, [0, 0, 0], 170); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz / 2, sz, YEL, 1); }
-    if (t >= 2400 && t < 3500) { const k = Math.min(1, (t - 2400) / 160), sz = k < 0.5 ? 110 : 90; fill(192, 180, 448, 110, [0, 0, 0], 170); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((d) => text('勝負!', SW / 2 + d[0], 235 - sz / 2 + d[1], sz, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz / 2, sz, [225, 40, 30], 1); }
-    if (t > 1000) shotOnce('intro1'); if (t > 1900) shotOnce('intro2'); if (t > 2900) shotOnce('intro3');
-    if (t >= 3500) { S.intro = null; it.done(); }
+    if (t > 0) { try { gfx.imageTop('img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp', 60, 336, 92, 92); } catch (e) { /* ignore */ } plate(204, 366, 'あなた', 0); }
+    if (t > 400 && !it.v1) { it.v1 = 1; S.skipKyokuVoice = true; try { NSND.readKyoku(g); } catch (e) { /* ignore */ } }
+    if (t >= 1700 && !it.v2) { it.v2 = 1; try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }
+    if (t > 400 && t < 1700) { const k = Math.min(1, (t - 400) / 160), sz = k < 0.5 ? 96 : 78; fill(192, 190, 448, 90, [0, 0, 0], 170); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz / 2, sz, YEL, 1); }
+    if (t >= 1700 && t < 2900) { const k = Math.min(1, (t - 1700) / 160), sz = k < 0.5 ? 110 : 90; fill(192, 180, 448, 110, [0, 0, 0], 170); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((d) => text('勝負!', SW / 2 + d[0], 235 - sz / 2 + d[1], sz, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz / 2, sz, [225, 40, 30], 1); }
+    if (t > 300) shotOnce('intro1'); if (t > 1000) shotOnce('intro2'); if (t > 2200) shotOnce('intro3');
+    if (t >= 2900) { S.intro = null; it.done(); }
   }
   const PIP = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
   function drawDie(x, y, v, s) { // 平らなサイコロ
@@ -701,7 +701,7 @@
       }
       return;
     }
-    if (S.intro) { if (k === 'ok' && !__auto) S.intro.t0 -= 3600; return; }
+    if (S.intro) { if (k === 'ok' && !__auto) S.intro.t0 -= 3000; return; }
     if (S.dice) {
       const d = S.dice;
       if (k === 'ok' && d.settled) { const r = S.dice; S.dice = null; r.done(d.target); } // (自動で進む。決定ボタンで、早く進めることもできる)
@@ -851,15 +851,16 @@
       S.curIdx = null; if (teacherOn() && !S.tmsgShown) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
       S.game = g; NSND.game(g); NSND.sfx('slam');
       let vlen = 0; if (S.skipKyokuVoice) S.skipKyokuVoice = false; else { try { vlen = NSND.readKyoku(g) || 0; } catch (e) { /* ignore */ } }
-      S.banner = { text: g.kyokuLabel(), t0: __now() };
+      const sb = S.skipBanner; S.skipBanner = false;
+      if (!sb) S.banner = { text: g.kyokuLabel(), t0: __now() };
       if (g.fast) { S.deal = null; dirty(); return sleep(300).then(() => { S.banner = null; dirty(); }); }
-      const bms = vlen ? Math.max(2200, Math.round(vlen * 1000) + 700) : 900; // 読み上げが終わって、少し画面を見せてから、配牌
+      const bms = sb ? 300 : vlen ? Math.max(2200, Math.round(vlen * 1000) + 700) : 900; // 読み上げが終わって、少し画面を見せてから、配牌
       S.deal = { t0: __now() + bms, step: 0, perm: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].sort(() => Math.random() - 0.5) };
       setTimeout(() => { S.banner = null; dirty(); }, bms); dirty();
       return sleep(bms + DEAL_END + 80);
     },
     padHand() {},
-    dice(g, first) { if (g.fast) return Promise.resolve(null); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done }; dirty(); }); },
+    dice(g, first) { if (g.fast) return Promise.resolve(null); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done: (tg) => startIntro(g).then(() => done(tg)) }; dirty(); }); },
     askSelf(g, p, opts, st) {
       return new Promise((res) => {
         const tiles = myTiles(p); const btns = [];
@@ -911,6 +912,8 @@
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
     dirty();
   }
+  /* 親が決まったあと: 「東一局!」「勝負!」(顔・文字・声)。そのあと、すぐ配牌へ */
+  const startIntro = (g) => new Promise((res) => { if (g.resumed || g.fast) { res(); return; } S.intro = { t0: __now(), done: () => { S.skipBanner = true; res(); } }; NSND.sfx('slam'); setTimeout(() => NSND.sfx('slam'), 1700); dirty(); });
   async function startGame(sn) {
     S.mode = 'game'; dirty();
     const chars = sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
@@ -918,7 +921,6 @@
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; }
     g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
     S.game = g;
-    if (!g.resumed && !g.fast) { await new Promise((done) => { S.intro = { t0: __now(), done }; NSND.sfx('slam'); setTimeout(() => NSND.sfx('slam'), 1250); dirty(); }); }
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
     S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; S.homeBot = false; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
