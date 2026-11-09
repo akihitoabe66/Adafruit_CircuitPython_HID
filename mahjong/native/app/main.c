@@ -80,13 +80,21 @@ static JSValue j_image(JSContext *c, JSValueConst t, int n, JSValueConst *a){
 static JSValue j_imagesil(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getsil(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE;
   SDL_Rect d = { ai(c,a[1]), ai(c,a[2]), ai(c,a[3]), ai(c,a[4]) }; SDL_SetTextureAlphaMod(tx, n > 5 ? ai(c,a[5]) : 255); SDL_RenderCopy(ren, tx, NULL, &d); return JS_TRUE; }
-typedef struct { SDL_Texture *tx; SDL_Rect d, sr; } TopImg; static TopImg topq[24]; static int ntop = 0; /* 画面に出す直前に、窓の本当の解像度で描く絵(顔など。くっきり見せるため) */
+typedef struct { int kind; SDL_Texture *tx; SDL_Rect d, sr; Uint8 r, g, b, a; } TopImg; static TopImg topq[160]; static int ntop = 0; /* kind: 0=絵 1=四角 2=文字(順番どおりに、最後に描く) */ /* 画面に出す直前に、窓の本当の解像度で描く絵(顔など。くっきり見せるため) */
 static JSValue j_imagetop(JSContext *c, JSValueConst t, int n, JSValueConst *a){
-  const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getimg(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE; if (ntop >= 24) return JS_TRUE;
-  TopImg *q = &topq[ntop++]; q->tx = tx; q->d.x = ai(c,a[1]) + curview.x; q->d.y = ai(c,a[2]) + curview.y; q->d.w = ai(c,a[3]); q->d.h = ai(c,a[4]);
+  const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getimg(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE; if (ntop >= 160) return JS_TRUE;
+  TopImg *q = &topq[ntop++]; q->kind = 0; q->tx = tx; q->d.x = ai(c,a[1]) + curview.x; q->d.y = ai(c,a[2]) + curview.y; q->d.w = ai(c,a[3]); q->d.h = ai(c,a[4]);
   q->sr.x = 0; q->sr.y = 0; q->sr.w = w; q->sr.h = h; /* 縦横の比が合わないときは、ゆがめず、上をそろえて切り取る */
   if (q->d.w * h > q->d.h * w) q->sr.h = h * 0 + (int)((double)w * q->d.h / q->d.w); else if (q->d.w * h < q->d.h * w) { q->sr.w = (int)((double)h * q->d.w / q->d.h); q->sr.x = (w - q->sr.w) / 2; }
   SDL_Rect z = { 0, 0, 0, 0 }; (void)z; return JS_TRUE; }
+static JSValue j_filltop(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 絵(顔)より上に重ねる四角 */
+  if (ntop >= 160) return JS_UNDEFINED; TopImg *q = &topq[ntop++]; q->kind = 1; q->tx = NULL; q->d.x = ai(c,a[0]) + curview.x; q->d.y = ai(c,a[1]) + curview.y; q->d.w = ai(c,a[2]); q->d.h = ai(c,a[3]); q->r = ai(c,a[4]); q->g = ai(c,a[5]); q->b = ai(c,a[6]); q->a = n > 7 ? ai(c,a[7]) : 255; return JS_UNDEFINED; }
+static JSValue j_texttop(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 絵(顔)より上に重ねる文字 */
+  const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0, al = n > 7 ? ai(c,a[7]) : 0; SDL_Texture *tx = (s && *s) ? gettext(s, ai(c,a[3]), ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), &w, &h) : NULL; JS_FreeCString(c, s);
+  if (!tx || ntop >= 160) return JS_NewInt32(c, 0);
+  int x = ai(c,a[1]); if (al == 1) x -= w / 2; else if (al == 2) x -= w;
+  TTF_Font *ft = getfont(ai(c,a[3])); int dyn = ft ? (int)(ai(c,a[3]) * 0.86) - TTF_FontAscent(ft) : 0;
+  TopImg *q = &topq[ntop++]; q->kind = 2; q->tx = tx; q->d.x = x + curview.x; q->d.y = ai(c,a[2]) + dyn + curview.y; q->d.w = w; q->d.h = h; q->sr.x = 0; q->sr.y = 0; q->sr.w = w; q->sr.h = h; return JS_NewInt32(c, w); }
 static JSValue j_text(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0; int al = n > 7 ? ai(c,a[7]) : 0;
   SDL_Texture *tx = (s && *s) ? gettext(s, ai(c,a[3]), ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), &w, &h) : NULL; JS_FreeCString(c, s);
@@ -260,7 +268,7 @@ int main(int argc, char **argv){
   rt = JS_NewRuntime(); JS_SetMemoryLimit(rt, 192 * 1024 * 1024); JS_SetMaxStackSize(rt, 2 * 1024 * 1024); JS_SetHostPromiseRejectionTracker(rt, rejected, NULL);
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
-  reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
+  reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "fillTop", j_filltop, 8); reg(gfx, "textTop", j_texttop, 8); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
   reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "shot", j_shot, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);
@@ -289,7 +297,7 @@ int main(int argc, char **argv){
       if (shots && frames % 10 == 0 && shotn < 40) { char p[1600]; snprintf(p, sizeof p, "%s/s%02d.bmp", shots, shotn++); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, W, H, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, p); SDL_FreeSurface(su); }
       SDL_SetRenderTarget(ren, NULL); keep = 3; perf_draw += nowms() - t0; perf_n++;
     }
-    if (keep > 0) { double t0 = nowms(); SDL_RenderClear(ren); SDL_RenderCopy(ren, tgt, NULL, NULL); for (int i = 0; i < ntop; i++) { SDL_SetTextureAlphaMod(topq[i].tx, 255); SDL_RenderCopy(ren, topq[i].tx, &topq[i].sr, &topq[i].d); } SDL_RenderPresent(ren); keep--; perf_pres += nowms() - t0; perf_p++; }
+    if (keep > 0) { double t0 = nowms(); SDL_RenderClear(ren); SDL_RenderCopy(ren, tgt, NULL, NULL); for (int i = 0; i < ntop; i++) { if (topq[i].kind == 1) { SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); SDL_SetRenderDrawColor(ren, topq[i].r, topq[i].g, topq[i].b, topq[i].a); SDL_RenderFillRect(ren, &topq[i].d); } else { SDL_SetTextureAlphaMod(topq[i].tx, 255); SDL_RenderCopy(ren, topq[i].tx, &topq[i].sr, &topq[i].d); } } SDL_RenderPresent(ren); keep--; perf_pres += nowms() - t0; perf_p++; }
     frames++; if (maxframes && frames >= maxframes) break;
     if (perf && nowms() - perf_t0 > 3000) { printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); { long rss = 0; FILE *sf = fopen("/proc/self/statm", "r"); if (sf) { long a; if (fscanf(sf, "%ld %ld", &a, &rss) < 2) rss = 0; fclose(sf); } JSMemoryUsage mu; JS_ComputeMemoryUsage(rt, &mu); printf("perf2: 思考・進行 合計%.0fms 最大%.0fms / JS %ldMB / 全体 %ldMB / 絵%d 文字%d\n", perf_logic, perf_logicmax, (long)(mu.malloc_size / 1048576), rss * 4 / 1024, nimg, ntxt); } fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = perf_logic = perf_logicmax = 0; perf_n = perf_p = 0; }
   }

@@ -110,6 +110,8 @@
     image(p, x, y, w, h, a) { const im = imgs[p]; if (!im) return false; ctx.globalAlpha = a == null ? 1 : a / 255; ctx.drawImage(im, x, y, w, h); ctx.globalAlpha = 1; return true; },
     imageRot(p, x, y, w, h, a, ang) { const im = imgs[p]; if (!im) return false; const sw = ang === 90 || ang === 270; const bw = sw ? h : w, bh = sw ? w : h; ctx.save(); ctx.globalAlpha = a == null ? 1 : a / 255; ctx.translate(x + bw / 2, y + bh / 2); ctx.rotate(ang * Math.PI / 180); ctx.drawImage(im, -w / 2, -h / 2, w, h); ctx.restore(); return true; },
     imageSil(p, x, y, w, h, a) { const im = imgs[p]; if (!im) return false; let sc = sil[p]; if (!sc) { sc = document.createElement('canvas'); sc.width = im.naturalWidth; sc.height = im.naturalHeight; const c = sc.getContext('2d'); c.drawImage(im, 0, 0); c.globalCompositeOperation = 'source-in'; c.fillStyle = 'rgb(255,222,70)'; c.fillRect(0, 0, sc.width, sc.height); sil[p] = sc; } ctx.globalAlpha = a == null ? 1 : a / 255; ctx.drawImage(sc, x, y, w, h); ctx.globalAlpha = 1; return true; },
+    fillTop(x, y, w, h, r, g, b, a) { tops.push({ k: 'rect', x: x + vx, y: y + vy, w, h, c: rgba(r, g, b, a === undefined ? 255 : a) }); },
+    textTop(s, x, y, sz, r, g, b, al) { if (s === '' || s == null) return 0; s = String(s); setFont(sz); const w = Math.round(ctx.measureText(s).width); if (al === 1) x -= Math.round(w / 2); else if (al === 2) x -= w; tops.push({ k: 'text', s, x: x + vx, y: y + vy, sz, c: rgba(r, g, b, 255) }); return w; },
     imageTop(p, x, y, w, h) { const im = imgs[p]; if (!im) return false; const iw = im.naturalWidth, ih = im.naturalHeight; let sx = 0, sy = 0, sw = iw, sh = ih; if (w * ih > h * iw) sh = iw * h / w; else if (w * ih < h * iw) { sw = ih * w / h; sx = (iw - sw) / 2; } tops.push({ im, sx, sy, sw, sh, x: x + vx, y: y + vy, w, h }); return true; },
     text(s, x, y, sz, r, g, b, al) { if (s === '' || s == null) return 0; s = String(s); setFont(sz); const w = Math.round(ctx.measureText(s).width); if (al === 1) x -= Math.round(w / 2); else if (al === 2) x -= w; ctx.fillStyle = rgba(r, g, b, 255); ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y + sz * 0.86); return w; },
     textRot(s, cx, cy, sz, r, g, b, ang) { if (s === '' || s == null) return 0; s = String(s); setFont(sz); const w = Math.round(ctx.measureText(s).width); ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang * Math.PI / 180); ctx.fillStyle = rgba(r, g, b, 255); ctx.textBaseline = 'alphabetic'; ctx.fillText(s, -w / 2, sz * 0.37); ctx.restore(); return w; },
@@ -170,7 +172,11 @@
     const sx = vcv.width / W, sy = vcv.height / H;
     vctx.imageSmoothingEnabled = true; vctx.imageSmoothingQuality = 'high';
     vctx.drawImage(tgt, 0, 0, vcv.width, vcv.height);
-    for (const t of tops) vctx.drawImage(t.im, t.sx, t.sy, t.sw, t.sh, t.x * sx, t.y * sy, t.w * sx, t.h * sy);
+    for (const t of tops) {
+      if (t.k === 'rect') { vctx.fillStyle = t.c; vctx.fillRect(t.x * sx, t.y * sy, t.w * sx, t.h * sy); }
+      else if (t.k === 'text') { vctx.font = '500 ' + (t.sz * sx) + 'px ' + FONT; vctx.fillStyle = t.c; vctx.textBaseline = 'alphabetic'; vctx.fillText(t.s, t.x * sx, (t.y + t.sz * 0.86) * sy); }
+      else vctx.drawImage(t.im, t.sx, t.sy, t.sw, t.sh, t.x * sx, t.y * sy, t.w * sx, t.h * sy);
+    }
   }
   const spin = (ms) => { if (ms < 0.5) return; const e = performance.now() + Math.min(ms, 1500); while (performance.now() < e) { /* 遅いCPUを真似て、待つ */ } };
   const flush = () => new Promise((r) => queueMicrotask(() => queueMicrotask(r)));
