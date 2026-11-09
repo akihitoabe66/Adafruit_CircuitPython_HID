@@ -678,7 +678,9 @@
     if (r.type === 'win') {
       const w = r.wins[0], res = w.res, v = w.view;
       face(w.winner, 58, 24, 48, 48); frame(57, 23, 50, 50, [240, 210, 120], 2);
-      text(w.winner.name, 120, 28, 30, WHITE); { const nw = gfx.measure(w.winner.name, 30); rrect(120 + nw + 14, 30, 84, 34, 10, w.tsumo ? [60, 130, 200] : [210, 60, 50]); text(w.tsumo ? 'ツモ' : 'ロン', 120 + nw + 56, 35, 22, WHITE, 1); }
+      text(w.winner.name, 120, 28, 30, WHITE); { const nw = gfx.measure(w.winner.name, 30); rrect(120 + nw + 14, 30, 84, 34, 10, w.tsumo ? [60, 130, 200] : [210, 60, 50]); text(w.tsumo ? 'ツモ' : 'ロン', 120 + nw + 56, 35, 22, WHITE, 1);
+        const sw = g ? g.seatWindOf(w.winner) : 0, lab = WIND[sw] + '家' + (sw === 0 ? '(親)' : ''), lx = 120 + nw + 112, lw = gfx.measure(lab, 22) + 24;
+        rrect(lx, 30, lw, 34, 10, [255, 255, 255]); rrect(lx + 2, 32, lw - 4, 30, 8, WIND_BG[sw]); text(lab, lx + lw / 2, 35, 22, WHITE, 1); }
       if (r.total > 1) text((r.idx + 1) + ' / ' + r.total + ' 人目の上がり', 760, 36, 16, GREY, 2);
       if (res.limit) text(res.limit, 760, 62, 30, [255, 120, 90], 2);
       // 手牌(大きく、中央ぞろえ)
@@ -748,7 +750,7 @@
     const cy = y0 + h - 56; if (sp.idx === 4) rrect(300, cy - 4, 120, 52, 7, [255, 255, 255]); rrect(304, cy, 112, 44, 6, [248, 208, 80]); text('とじる', 360, cy + 9, 22, BLACK, 1);
   }
   function drawSaveQ() { // 局のあとの保存: 左右の大きな2つ(左: ここまでを保存する / 右: 保存しない)。押すと、そのまま次へ進む
-    fill(0, 0, SW, SH, [0, 0, 0], 215); const q = S.saveP, g = S.game, ink = [26, 26, 20];
+    const q = S.saveP, g = S.game, ink = [26, 26, 20];
     text('この局は 終わりました', 360, 52, 42, [0, 0, 0], 1); text('この局は 終わりました', 360, 49, 42, YEL, 1);
     text(g ? g.kyokuLabel() : '', 360, 112, 26, WHITE, 1);
     const B = [{ x: 36, l: 'ここまでを保存する', s: '続きから遊べます' }, { x: 384, l: '保存しない', s: 'そのまま次へ' }], y = 168, w = 300, h = 160;
@@ -1100,9 +1102,13 @@
     if (S.intro && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawIntro(); return true; }
     if (S.dice && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawDice(); return true; }
     S.vx = 56; S.vy = 20; gfx.view(56, 20); // 以降の板(メニューなど)は、画面の中央に
-    gfx.view(0, 0); // 雀卓の中心(右の列は含めない)に合わせる
-    if (S.saveP) drawSaveQ();
-    if (S.toast && S.toast.until > __now()) { rrect(110, 187, 500, 54, 8, [0, 0, 0], 225); text(S.toast.text, 360, 200, 24, YEL, 1); }
+    const toastOn = S.toast && S.toast.until > __now();
+    if (S.saveP || toastOn) { // 保存の質問・セーブ中は、画面全体を黒で覆って卓を見せず、画面の中心に出す
+      gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], 245);
+      gfx.view(56, 20);
+      if (S.saveP) drawSaveQ();
+      if (toastOn) { rrect(110, 187, 500, 54, 8, [0, 0, 0], 225); text(S.toast.text, 360, 200, 24, YEL, 1); }
+    }
     gfx.view(S.vx, S.vy);
     if (S.menuP) drawDialog('メニュー', menuItems(), S.menuP.idx, '');
     if (S.soundP) drawSound();
