@@ -33,7 +33,6 @@
     toggle() { A.on = !A.on; if (!A.on) { snd.music(''); cur = ''; } return A.on; },
     sfx(name, v) { if (SFX.indexOf(name) >= 0) snd.play('audio/sfx/' + name + '.wav', (v == null ? V.sfx : v)); },
     call(p, text) {
-      if ((text === 'ツモ' || text === 'ロン') && !(p && p.isHuman)) return; // 上がりの声は、結果の読み上げ(「○○ツモ!」)で言う
       const K = { 'リーチ': 'riichi', 'ポン': 'pon', 'チー': 'chi', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[text]; if (!K) return;
       const id = p && p.char && p.char.voice != null ? p.char.voice : 0; snd.play('audio/voice/' + id + '_' + K + '.mp3', V.voice);
     },
@@ -59,7 +58,6 @@
       const num = (n) => { const k = [], man = Math.floor(n / 10000), th = Math.floor((n % 10000) / 1000), hu = Math.floor((n % 1000) / 100); if (man) k.push('m:' + man); if (th) k.push('k:' + th); if (hu) k.push('h:' + hu); return k; };
       res.wins.forEach((w) => {
         const r = w.res;
-        if (!w.winner.isHuman) keys.push('p:' + (w.winner.char ? w.winner.char.id : 0), w.tsumo ? 'y:ツモ' : 'y:ロン', null);
         r.yaku.forEach((y) => {
           if (y.n === 'ドラ' || y.n === '赤ドラ' || y.n === '裏ドラ') keys.push('y:' + (y.n === 'ドラ' ? 'ドラ' : y.n === '赤ドラ' ? 'アカドラ' : 'ウラドラ'), 'n:' + Math.min(13, y.h));
           else {
