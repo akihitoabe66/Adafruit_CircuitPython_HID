@@ -34,8 +34,8 @@
   const teacherLabel = () => '麻雀先生: ' + (teacherOn() ? 'あり' : 'なし');
   const toggleTeacher = () => { try { localStorage.setItem('mj_teacher', teacherOn() ? '0' : '1'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; };
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
-  const COMMON_RULES = { length: 'east', kuitan: true, aka: 3, ippatsu: true, ura: true, tobi: true, doubleRon: true, sanchahou: true, kuikae: false, kazoe: true, flower: false, start: 25000 };
-  try { if (localStorage.getItem('mj_rules') === null) { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); } } catch (e) { /* ignore */ }
+  const COMMON_RULES = { length: 'east', kuitan: true, aka: 0, ippatsu: false, ura: false, tobi: false, doubleRon: false, sanchahou: true, kuikae: false, kazoe: true, flower: false, start: 25000 }; // 老人クラブの4人麻雀向け: 赤ドラなし・一発/裏ドラなし・飛びなし・頭ハネ
+  try { if (localStorage.getItem('mj_rules_ver') !== '2') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '2'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
   const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz', off: true }, { label: '点数計算の勉強', act: 'study', off: true }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
   const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right']; // 隠しコマンド(タイトル): 5件のセーブから選べる
@@ -469,10 +469,10 @@
       if (i < RULE_ROWS.length) {
         const r = RULE_ROWS[i], cur = r.vals.find((q) => String(q[0]) === String(MJ.RULES[r.k])) || r.vals[0], common = String(COMMON_RULES[r.k]) === String(cur[0]);
         text(r.label, 90, y + 6, 20, BLACK); text('◀', 440, y + 7, 18, [90, 90, 80], 1); text(cur[1], 580, y + 6, 20, BLACK, 1); text('▶', 724, y + 7, 18, [90, 90, 80], 1);
-        if (common) { rrect(300, y + 7, 52, 22, 4, [60, 140, 90]); text('一般的', 326, y + 9, 14, WHITE, 1); }
-      } else text(i === RULE_ROWS.length ? '一般的な設定に もどす' : 'もどる', SW / 2, y + 6, 20, BLACK, 1);
+        if (common) { rrect(290, y + 7, 72, 22, 4, [60, 140, 90]); text('おすすめ', 326, y + 9, 14, WHITE, 1); }
+      } else text(i === RULE_ROWS.length ? 'おすすめの設定に もどす' : 'もどる', SW / 2, y + 6, 20, BLACK, 1);
     }
-    const cur = i0 < RULE_ROWS.length ? RULE_ROWS[i0].note : (i0 === RULE_ROWS.length ? 'すべてのルールを、一般的な設定にもどします。' : '');
+    const cur = i0 < RULE_ROWS.length ? RULE_ROWS[i0].note : (i0 === RULE_ROWS.length ? 'すべてのルールを、おすすめの設定にもどします。(赤ドラなし・一発裏ドラなし・飛びなし)' : '');
     panel(70, 392, 692, 40, 8, [6, 44, 26], [90, 140, 110], 2, 235); text(cur, SW / 2, 402, 18, WHITE, 1);
     text('変えたルールは、次の対局から使われます', SW / 2, 440, 15, [205, 224, 212], 1);
   }

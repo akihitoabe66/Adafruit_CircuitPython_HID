@@ -489,7 +489,7 @@
         decs.push({ q, d, o });
       }
       const rons = decs.filter((x) => x.d.act === 'ron');
-      if (rons.length >= 3 && MJ.RULES.sanchahou) return { type: 'ron', result: await this.abortDraw('三家和') }; // 3人が同時にロン: 流局(親は連荘)
+      if (rons.length >= 3 && MJ.RULES.doubleRon && MJ.RULES.sanchahou) return { type: 'ron', result: await this.abortDraw('三家和') }; // 3人が同時にロン: 流局(親は連荘)
       if (rons.length) { const rq = rons.map((x) => x.q); return { type: 'ron', result: await this.winRon(p, tile, MJ.RULES.doubleRon ? rq : [rq[0]]) }; }
 
       // リーチ成立
