@@ -104,6 +104,7 @@ static JSValue j_textrot(JSContext *c, JSValueConst t, int n, JSValueConst *a){ 
   TTF_Font *ft2 = getfont(ai(c,a[3])); int sz2 = ai(c,a[3]), off2 = ft2 ? (TTF_FontAscent(ft2) - (int)(sz2 * 0.38)) - h / 2 : 0; /* 字面の中心を、中心に合わせる */
   SDL_Rect d = { ai(c,a[1]) - w / 2, ai(c,a[2]) - h / 2, w, h }; SDL_SetTextureAlphaMod(tx, 255); SDL_RenderCopyEx(ren, tx, NULL, &d, (double)ai(c,a[7]), NULL, SDL_FLIP_NONE); return JS_NewInt32(c, w); }
 static JSValue j_measure(JSContext *c, JSValueConst t, int n, JSValueConst *a){ const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0; TTF_Font *f = getfont(ai(c,a[1])); if (f && s) TTF_SizeUTF8(f, s, &w, &h); JS_FreeCString(c, s); return JS_NewInt32(c, w); }
+static JSValue j_clip(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (n < 4) { SDL_RenderSetClipRect(ren, NULL); return JS_UNDEFINED; } SDL_Rect r = { ai(c,a[0]), ai(c,a[1]), ai(c,a[2]), ai(c,a[3]) }; SDL_RenderSetClipRect(ren, &r); return JS_UNDEFINED; }
 static JSValue j_view(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_Rect r = { ai(c,a[0]), ai(c,a[1]), W - ai(c,a[0]), H - ai(c,a[1]) }; curview = r; SDL_RenderSetViewport(ren, &r); return JS_UNDEFINED; }
 /* 描いた絵を、1枚の絵(層)にためておき、あとは貼るだけにする(動かない部分の描き直しを省く) */
 static JSValue j_layerbegin(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int i = ai(c,a[0]); if (i < 0 || i >= 6) return JS_UNDEFINED; if (!lay[i]) { lay[i] = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, W, H); SDL_SetTextureBlendMode(lay[i], SDL_BLENDMODE_BLEND); } SDL_SetRenderTarget(ren, lay[i]); SDL_RenderSetViewport(ren, NULL); SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE); SDL_SetRenderDrawColor(ren, 0, 0, 0, 0); SDL_RenderClear(ren); SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); return JS_UNDEFINED; }
@@ -260,7 +261,7 @@ int main(int argc, char **argv){
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
   reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
-  reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "shot", j_shot, 1);
+  reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "shot", j_shot, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1);

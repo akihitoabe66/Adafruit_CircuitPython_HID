@@ -117,6 +117,7 @@
     clear(r, g, b) { ctx.restore(); ctx.save(); ctx.fillStyle = rgba(r, g, b, 255); ctx.fillRect(0, 0, W, H); applyView(); },
     present() {}, shot() {},
     view(x, y) { vx = x; vy = y; applyView(); },
+    clip(x, y, w, h) { ctx.restore(); ctx.save(); ctx.beginPath(); if (arguments.length < 4) ctx.rect(vx, vy, W - vx, H - vy); else ctx.rect(x + vx, y + vy, w, h); ctx.clip(); ctx.translate(vx, vy); },
     layerBegin(i) { if (i < 0 || i >= 6) return; if (!lay[i]) lay[i] = mk(); const c = lay[i].getContext('2d'); ctx.restore(); ctx = c; ctx.clearRect(0, 0, W, H); ctx.save(); },
     layerEnd() { ctx.restore(); ctx = tctx; ctx.save(); applyView(); },
     layer(i) { if (i < 0 || i >= 6 || !lay[i]) return; ctx.drawImage(lay[i], 0, 0); },

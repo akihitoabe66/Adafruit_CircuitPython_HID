@@ -4,7 +4,8 @@
   const MJ = window.MJ; const W = 720, H = 428, SW = 832, SH = 468; // W,H=卓の大きさ / SW,SH=画面全体(右に操作の列)
   const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, pressT: -9999, locked: false, lay: [], teachQ: null, homeBot: false, homeBotIdx: 0, playQ: null, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const dirty = () => { S.dirty = true; };
+  const dirty = () => { S.dirty = true; S.full = true; }; // full: 画面ぜんたいを描きなおす(カーソルだけのときは、手牌のところだけ描く)
+  const openMenu = () => { S.menuP = { idx: 0 }; MJ.paused = true; dirty(); }; // ゲーム中のメニュー(対局を止める)
   const WIND = ['東', '南', '西', '北'];
   try { MJ.loadRules && MJ.loadRules(); } catch (e) { /* ignore */ }
   MJ.MEMO_CAP = 30000; // 計算の記憶表の上限(メモリを食いすぎないように)
@@ -752,12 +753,12 @@
     S.dirty = true; if (S.locked) return;
     NSND.sfx(k === 'ok' ? 'ok' : k === 'back' ? 'click' : 'select', 0.5);
     if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = 1 - (r.idx || 0); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 1)) { S.rankScr = null; r.done(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; } return; }
-    if (k === 'menu' && !S.menuP) { S.menuP = { idx: 0 }; return; } // スタート+セレクト長押し
+    if (k === 'menu' && !S.menuP) { openMenu(); return; } // スタート+セレクト長押し
     if (S.menuP) {
       const items = menuItems();
       if (k === 'up' || k === 'down') S.menuP.idx = wrap(S.menuP.idx + (k === 'up' ? -1 : 1), items.length);
-      else if (k === 'back') S.menuP = null;
-      else if (k === 'ok') { const it = items[S.menuP.idx]; S.menuP = null; if (it === 'タイトルにもどる') stopGame(); }
+      else if (k === 'back') { S.menuP = null; MJ.paused = false; }
+      else if (k === 'ok') { const it = items[S.menuP.idx]; S.menuP = null; MJ.paused = false; if (it === 'タイトルにもどる') stopGame(); }
       return;
     }
     if (S.soundP) { // 音のせってい
@@ -886,7 +887,7 @@
       else if (k === 'right') { S.side = null; S.curIdx = 0; if (S.self) { S.self.row = 0; S.self.idx = 0; } } // 右: いちばん左の牌へもどる
       else if (k === 'ok') {
         const i = S.side.idx;
-        if (i === 0) S.menuP = { idx: 0 };
+        if (i === 0) openMenu();
         else if (i === 3) { S.soundP = { idx: 0 }; MJ.paused = true; }
         else if (i === 1) S.coach = { tab: 0, scroll: 0, cards: teacherOn() ? buildCoach() : [] };
         else { toggleTeacher(); if (teacherOn() && S.self && !S.self.p.riichi && !S.game.fast) { try { S.hint = teacherAdvice(S.game, S.self.p, S.self.opts); } catch (e) { /* ignore */ } } else S.hint = null; }
@@ -896,26 +897,28 @@
     const s = S.self, r = S.react;
     if (r && __now() - r.t0 < 600) return; // 確認が出た直後は、キーを受け付けない(連打で押してしまうのを防ぐ。Edge版と同じ)
     if (r && k === 'back' && !r.pick) return; // 確認の間は、戻るは何もしない(誤操作防止)
+    if (S.mode === 'game' && !s && !r && S.game && k === 'back') { openMenu(); return; } // 戻るボタン: メニュー(対局を止める)
     if (S.mode === 'game' && !s && !r && S.game && (k === 'left' || k === 'right' || k === 'up' || k === 'down')) { // 相手の番でも、牌をなぞれる
-      const n = myTiles(S.game.players[0]).length; if (!n) return; if (S.curIdx == null) { S.curIdx = (k === 'right' || k === 'up') ? 0 : n - 1; dirty(); return; } const slot = S.curIdx >= n && n % 3 === 1, c = Math.min(S.curIdx, n - 1); // slot: 14枚目の場所にカーソルがある
+      const n = myTiles(S.game.players[0]).length; if (!n) return; if (S.curIdx == null) { S.curIdx = (k === 'right' || k === 'up') ? 0 : n - 1; S.dirty = true; S.partialKey = true; return; } const slot = S.curIdx >= n && n % 3 === 1, c = Math.min(S.curIdx, n - 1); // slot: 14枚目の場所にカーソルがある
       if (k === 'left') { if (slot) S.curIdx = n - 1; else if (c === 0) S.side = { idx: 2 }; else S.curIdx = c - 1; }
       else if (k === 'right') { if (slot || c >= n - 1) S.side = { idx: 1 }; else S.curIdx = c + 1; }
       else S.curIdx = k === 'up' ? 0 : n - 1;
-      dirty(); return;
+      S.dirty = true; S.partialKey = !S.side; return;
     }
     if (k === 'left' && S.mode === 'game' && s && s.row === 0 && s.idx === 0) { S.side = { idx: 2 }; return; } // いちばん左から、さらに左へ: 麻雀先生のボタン
     if (k === 'right' && S.mode === 'game' && ((!s && !r) || (s && s.row === 0 && s.idx === s.tiles.length - 1) || (s && s.row === 1 && s.idx === s.btns.length - 1) )) { S.side = { idx: 1 }; return; } // いちばん右から、さらに右へ: 操作の列へ
     if (s) {
       const tiles = s.tiles;
       if (k === 'left' || k === 'right') {
-        const n = s.row === 0 ? tiles.length : s.btns.length; if (!n) return; s.idx = wrap(s.idx + (k === 'left' ? -1 : 1), n);
+        const n = s.row === 0 ? tiles.length : s.btns.length; if (!n) return; s.idx = wrap(s.idx + (k === 'left' ? -1 : 1), n); if (s.row === 0) S.partialKey = true;
       } else if (k === 'up') { // ボタンがあるとき: どの牌からでも、上でボタン(リーチなど)へ。ないとき: 1枚目の牌へ
         if (s.row === 0 && s.btns.length) { s.back = s.idx; s.row = 1; const ri = s.btns.findIndex((b) => b.act === 'riichi'); s.idx = ri >= 0 ? ri : 0; }
-        else if (s.row === 0) s.idx = 0;
+        else if (s.row === 0) { s.idx = 0; S.partialKey = true; }
       }
-      else if (k === 'down') { if (s.row === 1) { s.row = 0; s.idx = Math.min(s.back != null ? s.back : tiles.length - 1, tiles.length - 1); } else s.idx = tiles.length - 1; } // 下: ボタンからは、もといた牌へ。牌の上では、いちばん右の牌(14枚目。まだ引いていなければ13枚目)へ
+      else if (k === 'down') { if (s.row === 1) { s.row = 0; s.idx = Math.min(s.back != null ? s.back : tiles.length - 1, tiles.length - 1); } else { s.idx = tiles.length - 1; S.partialKey = true; } } // 下: ボタンからは、もといた牌へ。牌の上では、いちばん右の牌(14枚目。まだ引いていなければ13枚目)へ
       else if (k === 'back' && s.row === 1) { s.row = 0; s.idx = Math.min(s.back != null ? s.back : tiles.length - 1, tiles.length - 1); } // 戻る: もといた牌へ
       else if (k === 'back' && s.rm) { s.rm = false; }
+      else if (k === 'back' && s.row === 0) { openMenu(); }
       else if (k === 'ok') {
         if (s.row === 0) { const live = myTiles(s.p), h = live[s.idx] || tiles[s.idx]; if (h && allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.curIdx = s.idx; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
         else {
@@ -1010,7 +1013,7 @@
   }
   function stopGame() { // ゲームを途中でやめて、タイトルへ
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
-    g.stopped = true; S.tmsgShown = 0; S.side = S.coach = null;
+    g.stopped = true; MJ.paused = false; S.tmsgShown = 0; S.side = S.coach = null;
     const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
     S.self = S.react = S.result = S.end = S.saveP = null;
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
@@ -1045,6 +1048,11 @@
   };
   const perf = { t0: 0, n: 0, ms: 0, shown: '' };
   const drawBody = function () {
+    // カーソルだけが動いたとき: 画面ぜんたいは描きなおさず、手牌のあたりだけ描く(キビキビ動かすため)
+    if (S.partialKey && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
+      S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [14, 84, 52]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
+    }
+    S.partialKey = false; S.full = false; S.fullDrawn = true;
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
