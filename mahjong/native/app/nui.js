@@ -313,9 +313,13 @@
       const bx = sd === 3 ? 76 : sd === 1 ? 636 - bw : Math.round((W - bw) / 2);
       face(bn.p, bx, by, 108, 108); frame(bx - 1, by - 1, 110, 110, [240, 210, 120], 2);
       { const tx = bx + 124, ty = by + 28; text(bn.text, tx + 5, ty + 7, sz, [0, 0, 0], 0); [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, tx + d[0], ty + d[1], sz, [255, 255, 255])); text(bn.text, tx, ty, sz, col); }
-    } else if (S.banner) { // 局のはじまり: 「東二局」「一本場」を、はっきり見せる
-      const lb = String(S.banner.text).split(' '), my = 232 - (lb[1] ? 12 : 0); rrect(110, my - 74, 500, lb[1] ? 168 : 128, 6, [4, 18, 12], 238);
-      text(lb[0], 364, my - 52, 84, [0, 0, 0], 1); text(lb[0], 360, my - 56, 84, YEL, 1); if (lb[1]) { text(lb[1], 362, my + 40, 40, [0, 0, 0], 1); text(lb[1], 360, my + 38, 40, WHITE, 1); } }
+    } else if (S.banner) { // 局のはじまり: 4人の顔(★つき)を席の位置に出し、まん中に「東二局 一本場」
+      fill(0, 0, W, H, [16, 66, 50]); fill(30, 30, W - 60, H - 60, [22, 84, 62]); fill(90, 70, W - 180, H - 140, [28, 100, 72]); // 緑のしずかな背景(サイコロの画面と同じ)
+      const P4 = g.players, FS = 84, SEATS = [{ s: 0, x: 318, y: 292, pc: 360, py: 386, cx: 284, cy: 292 }, { s: 1, x: 590, y: 128, pc: 632, py: 218, cx: 680, cy: 130 }, { s: 2, x: 318, y: 16, pc: 360, py: 106, cx: 284, cy: 18 }, { s: 3, x: 46, y: 128, pc: 88, py: 218, cx: 8, cy: 130 }];
+      SEATS.forEach((o) => { const p = P4[o.s]; rrect(o.x - 7, o.y - 7, FS + 14, FS + 14, 4, [150, 100, 46]); rrect(o.x - 4, o.y - 4, FS + 8, FS + 8, 3, [205, 150, 80]); rrect(o.x - 2, o.y - 2, FS + 4, FS + 4, 2, [70, 110, 85]); face(p, o.x, o.y, FS, FS); plate(o.pc, o.py, p.name, p.char && p.char.level ? p.char.level : 0);
+        const sw = g.seatWindOf(p); rrect(o.cx, o.cy, 28, 28, 5, [255, 255, 255]); rrect(o.cx + 2, o.cy + 2, 24, 24, 4, WIND_BG[sw]); text(WIND[sw], o.cx + 14, o.cy + 3, 20, WHITE, 1); });
+      const lb = String(S.banner.text).split(' '), my = lb[1] ? 0 : 20; rrect(236, 170, 248, 108, 6, [4, 18, 12], 240);
+      text(lb[0], 363, 176 + my, 66, [0, 0, 0], 1); text(lb[0], 360, 173 + my, 66, YEL, 1); if (lb[1]) { text(lb[1], 362, 243, 32, [0, 0, 0], 1); text(lb[1], 360, 241, 32, WHITE, 1); } }
   }
   function myTiles(p) { const hs = p.hand.filter((h) => h !== p.drawn); if (p.drawn) hs.push(p.drawn); return hs; }
   function allowed(s, h) { const p = s.p; if (p.riichi) return h === p.drawn; if (s.opts.forbid.includes(h.t)) return false; if (s.rm) return s.opts.riichi.includes(h.t); return true; }
