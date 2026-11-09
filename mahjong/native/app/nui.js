@@ -988,7 +988,7 @@
   const ui = {
     render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
     sfx(name) { NSND.sfx(name); },
-    speak(g, p, t) { S.bub[p.seat] = { name: p.name, text: t, until: __now() + 2300 }; dirty(); setTimeout(dirty, 2400); },
+    speak(g, p, t, ms) { ms = ms || Math.max(2800, Math.min(4800, 1300 + String(t).length * 110)); S.bub[p.seat] = { name: p.name, text: t, until: __now() + ms }; dirty(); setTimeout(dirty, ms + 100); },
     banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
     handStart(g) {
       S.curIdx = null; if (teacherOn() && !S.tmsgShown) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
@@ -1005,6 +1005,8 @@
     padHand() {},
     dice(g, first) { if (g.fast) return Promise.resolve(null); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { id: (S.diceSeq = (S.diceSeq || 0) + 1), a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done: (tg) => { g.dealer = tg; S.skipBanner = true; S.skipKyokuVoice = true; done(tg); } }; dirty(); }); },
     askSelf(g, p, opts, st) {
+      (S.thT || []).forEach(clearTimeout); S.thT = []; // 悩んでいるとき: 30秒・60秒・120秒、それ以降は3分ごとに、CPUがひとこと(Edge版と同じ)
+      if (!p.riichi && !g.fast && MJ.Banter) { const say = (i) => { if (S.self && S.self.p === p && S.game === g) { try { MJ.Banter.think(g, i); } catch (e) { /* ignore */ } } }; S.thT = [30, 60, 120].map((sec, i) => setTimeout(() => say(i), sec * 1000)); const loop = () => { say(3); S.thT.push(setTimeout(loop, 180000)); }; S.thT.push(setTimeout(loop, 180000)); }
       return new Promise((res) => {
         const tiles = myTiles(p); const btns = [];
         if (opts.tsumo) btns.push({ label: 'ツモ', act: 'tsumo' });
