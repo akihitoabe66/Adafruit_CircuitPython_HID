@@ -475,20 +475,26 @@
     (PIP[v] || []).forEach((i) => { const cx = x + Math.round(s / 2 + ((i % 3) - 1) * u * 0.9), cy = y + Math.round(s / 2 + (Math.floor(i / 3) - 1) * u * 0.9); fill(cx - pr, cy - pr, pr * 2, pr * 2, v === 1 ? [220, 40, 40] : [30, 30, 30]); });
   }
   const DPOS = { 2: [SW / 2 - 40, 6], 3: [70, 150], 1: [SW - 150, 150], 0: [SW / 2 - 40, 324] };
-  function diceSeat(p, s, hi, wind) { // サイコロの画面の、4人の顔(大きく)と名前
-    const x = DPOS[s][0], y = DPOS[s][1], fs = 80; if (hi) { rrect(x - 8, y - 8, fs + 16, fs + 16, 8, [255, 120, 40]); rrect(x - 5, y - 5, fs + 10, fs + 10, 6, [255, 230, 80]); } face(p, x, y, fs, fs); frame(x - 1, y - 1, fs + 2, fs + 2, hi ? [255, 255, 255] : [240, 210, 120], hi ? 3 : 2);
-    plate(x + fs / 2, y + fs + 16, p.name, 0);
+  function diceSeat(p, s, hi, wind, rv) { // サイコロの画面の、4人の顔(大きく)と名前。rv: 親が決まったあとの経過ミリ秒(親だけ、跳ねて、光る)
+    let x = DPOS[s][0], y = DPOS[s][1], fs = 80, dealer = rv != null;
+    if (dealer) { const k = Math.min(1, rv / 380), ex = k < 0.6 ? 80 + (k / 0.6) * 36 : 116 - ((k - 0.6) / 0.4) * 14; fs = Math.round(ex); x -= Math.round((fs - 80) / 2); y -= Math.round((fs - 80) / 2); }
+    if (dealer) { const pu = 0.5 + 0.5 * Math.sin(rv / 140); rrect(x - 16, y - 16, fs + 32, fs + 32, 12, [255, 190, 30], Math.round(70 + 110 * pu)); rrect(x - 10, y - 10, fs + 20, fs + 20, 9, [255, 230, 90], Math.round(150 + 105 * pu)); rrect(x - 4, y - 4, fs + 8, fs + 8, 6, [255, 255, 255]); }
+    else if (hi) { rrect(x - 8, y - 8, fs + 16, fs + 16, 8, [255, 120, 40]); rrect(x - 5, y - 5, fs + 10, fs + 10, 6, [255, 230, 80]); }
+    face(p, x, y, fs, fs); if (!dealer) frame(x - 1, y - 1, fs + 2, fs + 2, hi ? [255, 255, 255] : [240, 210, 120], hi ? 3 : 2);
+    plate(DPOS[s][0] + 40, DPOS[s][1] + 96, p.name, 0);
     if (wind) { const wi = ['東', '南', '西', '北'].indexOf(wind); rrect(x - 46, y + 6, 38, 38, 6, [255, 255, 255]); rrect(x - 44, y + 8, 34, 34, 5, WIND_BG[wi]); text(wind, x - 27, y + 11, 28, WHITE, 1); }
+    if (dealer) { const bx = Math.min(x + fs + 25, SW - 24), by = y + Math.round(fs / 2) - 22; rrect(bx - 22, by, 44, 44, 22, [255, 255, 255]); rrect(bx - 19, by + 3, 38, 38, 19, [214, 48, 40]); text('親', bx, by + 8, 26, WHITE, 1); }
   }
   function drawDice() {
     const d = S.dice, g = S.game, now = __now(); stage();
     if (!d.started && now - d.t0 > 600) { d.started = true; d.rolling = true; d.t0 = now; NSND.sfx('deal4'); }
     const total = d.a + d.b, cStart = d.t1 + 700, cStep = 380, cEnd = cStart + total * cStep;
-    if (d.settled && now > cEnd + 1100 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); }
+    if (d.settled && now > cEnd + 3200 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); }
     const P = g.players, counting = d.settled && now >= cStart && now < cEnd, done = d.settled && now >= cEnd;
     const step = counting ? Math.floor((now - cStart) / cStep) + 1 : (done ? total : 0), hiSeat = d.settled && step > 0 ? (step - 1) % 4 : -1;
     if (counting && d._lastStep !== step) { d._lastStep = step; NSND.sfx('select', 0.5); }
-    [2, 3, 1, 0].forEach((s) => diceSeat(P[s], s, s === hiSeat, done ? ['東', '南', '西', '北'][(s - d.target + 4) % 4] : ''));
+    if (done && !d.revealT) { d.revealT = now; NSND.sfx('start', 0.8); }
+    [2, 3, 1, 0].forEach((s) => diceSeat(P[s], s, s === hiSeat && !done, done ? ['東', '南', '西', '北'][(s - d.target + 4) % 4] : '', done && s === d.target ? now - d.revealT : null));
     let va = d.started ? d.a : 1, vb = d.started ? d.b : 6; const T = [[350, 196], [446, 184]];
     const SEG = [[0.34, 0.62, 0.82, 1.0], [0.38, 0.66, 0.85, 1.0]], AMP = [[70, 34, 14, 5], [62, 30, 12, 4]];
     const sz = [72, 72], pos = [T[0].slice(), T[1].slice()];
@@ -512,7 +518,7 @@
     if (!d.started) text('サイコロを振ります', SW / 2, 282, 22, YEL, 1);
     else if (d.rolling) text('…', SW / 2, 282, 22, WHITE, 1);
     else if (!done) text('合計 ' + total + ' …  あなたから 左回りに 数えます', SW / 2, 284, 19, WHITE, 1);
-    else text(P[d.target].name + ' が 東家(親)です', SW / 2, 282, 22, YEL, 1);
+    else text(P[d.target].name + ' が 東家(親)です', SW / 2, 280, 26, YEL, 1);
     if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
     if (d.settled) dirty();
   }
@@ -754,6 +760,8 @@
     }
     if (S.side) { // 右の操作の列
       if (k === 'up' || k === 'down') S.side.idx = SIDE_ORDER[wrap(SIDE_ORDER.indexOf(S.side.idx) + (k === 'up' ? -1 : 1), SIDE_ORDER.length)];
+      else if (k === 'left' && S.side.idx === 3) S.side.idx = 0; // スピーカーから左: MENUへ
+      else if (k === 'right' && S.side.idx === 0) S.side.idx = 3; // MENUから右: スピーカーへ
       else if (k === 'left' || k === 'back') { S.side = null; if (S.self && k === 'left' && S.self.row === 0) S.self.idx = S.self.tiles.length - 1; else if (!S.self && k === 'left' && S.game) S.curIdx = Math.max(0, myTiles(S.game.players[0]).length - 1); } // 左: いちばん右の牌へ
       else if (k === 'right') { S.side = null; S.curIdx = 0; if (S.self) { S.self.row = 0; S.self.idx = 0; } } // 右: いちばん左の牌へもどる
       else if (k === 'ok') {
