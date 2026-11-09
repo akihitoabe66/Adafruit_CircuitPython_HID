@@ -59,7 +59,8 @@
   }
   function back(x, y, w, h, side) { // 裏向きの牌(Edge版と同じ: 青い面と、クリーム色の縁)
     fill(x, y, w, h, [243, 236, 212]);
-    if (side === 'l') fill(x, y, Math.round(w * 0.72), h, [74, 143, 224]); else if (side === 'r') fill(x + w - Math.round(w * 0.72), y, Math.round(w * 0.72), h, [74, 143, 224]); else fill(x, y, w, Math.round(h * 0.72), [74, 143, 224]);
+    // クリーム色の縁(牌の上の面)は、卓の外がわ。青い背は、卓の中がわ
+    if (side === 'l') fill(x + w - Math.round(w * 0.72), y, Math.round(w * 0.72), h, [74, 143, 224]); else if (side === 'r') fill(x, y, Math.round(w * 0.72), h, [74, 143, 224]); else if (side === 'self') fill(x, y, w, Math.round(h * 0.72), [74, 143, 224]); else fill(x, y + h - Math.round(h * 0.72), w, Math.round(h * 0.72), [74, 143, 224]);
     frame(x, y, w, h, [138, 150, 168], 1);
   }
   function button(x, y, w, h, label, sel) {
@@ -128,7 +129,7 @@
         if (horiz) { bx = ax + off; bw = side ? h : w; bh = side ? w : h; by = seat === 0 ? ay + h - bh : ay; }
         else { by = ay + off; bw = side ? w : h; bh = side ? h : w; bx = seat === 3 ? ax : ax + h - bw; }
         rot = side ? (rot0 + 90) % 360 : rot0;
-        if (m.kind === 'ankan' && (i === 0 || i === 3)) back(bx, by, bw, bh);
+        if (m.kind === 'ankan' && (i === 0 || i === 3)) back(bx, by, bw, bh, seat === 0 ? 'self' : seat === 3 ? 'l' : seat === 1 ? 'r' : undefined);
         else tileR(tl.t, bx, by, w, h, tl.red, false, rot);
         pos += len + 1;
       }
@@ -266,7 +267,7 @@
     cached(1, okey, () => {
     // 伏せた手牌(小さな牌)
     const nHand = (p) => Math.min(p.hand.length, DS.n);
-    for (let i = 0; i < nHand(P[2]); i++) back(265 + i * 17, 23, 16, 24);
+    for (let i = 0; i < nHand(P[2]); i++) back(265 + i * 17, 32, 16, 24);
     for (let i = 0; i < nHand(P[3]); i++) back(3, 66 + i * 17, 24, 16, 'l');
     for (let i = 0; i < nHand(P[1]); i++) back(692, 66 + i * 17, 24, 16, 'r');
     // 副露
