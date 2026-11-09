@@ -250,19 +250,22 @@
   }
   /* 配牌: 4牌ずつ配られ、最後に「チャッ」と並び替わる */
   /* 配牌: 親から反時計回りに、4牌ずつ(12牌)→ 1牌ずつ。配り終わると「チャ!」と牌が少し上がって並びかわり、「タンッ!」と手牌の位置にそろう */
-  const DEAL_R = [0, 230, 460, 690], DEAL_J = 70, DEAL_LIFT = 1060, DEAL_DROP = 1400, DEAL_END = 1580, LIFT_PX = 24;
+  const DEAL_R = [0, 300, 600, 900], DEAL_J = 90, DEAL_LIFT = 1450, DEAL_DROP = 1820, DEAL_END = 1990, LIFT_PX = 24;
   function dealState() {
     const d = S.deal, ALL = { n: 99, ns: [99, 99, 99, 99], sorted: true, lift: 0 }; if (!d) return ALL;
-    const t = __now() - d.t0; if (t >= DEAL_END) { S.deal = null; return ALL; }
+    if (d.seq === S.drawSeq && d.last) return d.last; // 1コマの中で、何度よばれても同じ答え
+    const t = __now() - d.t0; if (t >= DEAL_END && d.groups >= 16) { S.deal = null; return ALL; }
+    // 配った回数(親から反時計回りに、1人ぶん=1回): 時間で決まる目標まで、1コマに1回ずつ進める(遅い機械でも、1人ずつ見える)
+    let target = 0; for (let r = 0; r < 4; r++) for (let j = 0; j < 4; j++) if (t >= DEAL_R[r] + j * DEAL_J) target++;
+    if (d.groups == null) d.groups = 0;
+    if (d.groups < target) { d.groups++; if (d.groups % 4 === 1) NSND.sfx(d.groups > 12 ? 'deal1' : 'deal4', 0.5); }
     const ns = [0, 0, 0, 0], dl = S.game ? S.game.dealer : 0;
-    for (let r = 0; r < 4; r++) {
-      if (t >= DEAL_R[r] && d.step < r + 1) { d.step = r + 1; NSND.sfx(r === 3 ? 'deal1' : 'deal4', 0.5); }
-      for (let j = 0; j < 4; j++) if (t >= DEAL_R[r] + j * DEAL_J) ns[(dl + j) % 4] += r < 3 ? 4 : 1;
-    }
-    const sorted = t >= DEAL_LIFT; if (sorted && !d.liftSfx) { d.liftSfx = 1; NSND.sfx('sort1', 0.7); }
-    if (t >= DEAL_DROP && !d.dropSfx) { d.dropSfx = 1; NSND.sfx('discard', 0.7); }
-    const lift = t < DEAL_LIFT ? 0 : t < DEAL_DROP ? LIFT_PX : Math.round(LIFT_PX * Math.max(0, 1 - (t - DEAL_DROP) / 130));
-    return { n: ns[0], ns, sorted, lift };
+    for (let k = 0; k < d.groups; k++) ns[(dl + (k % 4)) % 4] += k < 12 ? 4 : 1;
+    const all = d.groups >= 16, sorted = all && t >= DEAL_LIFT; if (sorted && !d.liftSfx) { d.liftSfx = 1; NSND.sfx('sort1', 0.7); }
+    if (all && t >= DEAL_DROP && !d.dropSfx) { d.dropSfx = 1; NSND.sfx('discard', 0.7); }
+    const lift = !sorted ? 0 : t < DEAL_DROP ? LIFT_PX : Math.round(LIFT_PX * Math.max(0, 1 - (t - DEAL_DROP) / 130));
+    d.seq = S.drawSeq; d.last = { n: ns[0], ns, sorted, lift };
+    return d.last;
   }
   const cached = (i, key, fn) => { const c = S.lay[i]; if (!c || c.key !== key) { gfx.layerBegin(i); fn(); gfx.layerEnd(); S.lay[i] = { key }; } gfx.layer(i); };
   function drawTable(g) {
@@ -276,13 +279,8 @@
     // 河(変わったときだけ描き直し、あとは1枚の絵を貼る)
     const rkey = P.map((p) => p.discards.length + ':' + p.discards.map((d) => (d.called ? 1 : 0)).join('') + ':' + p.discards.indexOf(g.lastDiscard && g.lastDiscard.d)).join('|') + (S.fly ? 'f' : '');
     cached(0, rkey, () => P.forEach((p) => drawRiver(g, p)));
-    const okey = [g.turn, DS.ns.join(','), g.live.length, g.kyotaku, g.kyokuLabel(), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
+    const okey = [g.turn, g.live.length, g.kyotaku, g.kyokuLabel(), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
     cached(1, okey, () => {
-    // 伏せた手牌(小さな牌)
-    const nHand = (p) => Math.min(p.hand.length, DS.ns[p.seat]);
-    for (let i = 0; i < nHand(P[2]); i++) back(265 + i * 17, 32, 16, 24);
-    for (let i = 0; i < nHand(P[3]); i++) back(3, 66 + i * 17, 24, 16, 'l');
-    for (let i = 0; i < nHand(P[1]); i++) back(692, 66 + i * 17, 24, 16, 'r');
     // 副露
     drawMelds(P[2], 520, 34, 16, 22); drawMelds(P[3], 3, 312 - meldWH(P[3], 16, 22), 16, 22); drawMelds(P[1], 694, 312 - meldWH(P[1], 16, 22), 16, 22);
     // 名札(横長の板)
@@ -294,6 +292,12 @@
     { const WX = 356, WY = 188, WS = 128 / 219; gfx.image('img/wall.webp', WX, WY, 128, Math.round(88 * WS), 255); // 王牌の絵の上に、ドラ表示牌を重ねる
       (g.doraInd || []).slice(0, 5).forEach((d, k) => { if (d) tile(d.t, WX + Math.round((3.4 + (4 - k) * 30.1) * WS), WY + Math.round(4.4 * WS), Math.round(29.2 * WS), Math.round(39.4 * WS), d.red); }); }
     });
+    { // 伏せた手牌(小さな牌): 配牌のあいだは1人ずつ増えるので、層の外で毎回描く
+      const nHand = (p) => Math.min(p.hand.length, DS.ns[p.seat]);
+      for (let i = 0; i < nHand(P[2]); i++) back(265 + i * 17, 32, 16, 24);
+      for (let i = 0; i < nHand(P[3]); i++) back(3, 66 + i * 17, 24, 16, 'l');
+      for (let i = 0; i < nHand(P[1]); i++) back(692, 66 + i * 17, 24, 16, 'r');
+    }
     // 自分の手牌
     drawHand(g);
     // 吹き出し
@@ -388,7 +392,11 @@
     const sc = (i) => { // 選んでいるボタンは少し大きく。押すと「ぎゅっと縮んで、ぽんと跳ねる」
       if (i !== f) return 1; if (!pr) return 1.06; const k = (__now() - S.pressT) / (S.pressMs || 170);
       return k < 0.3 ? 1.06 - (k / 0.3) * 0.22 : k < 0.65 ? 0.84 + ((k - 0.3) / 0.35) * 0.36 : 1.2 - ((k - 0.65) / 0.35) * 0.14; };
-    const img = (path, x, y, w, h, i) => { const k = sc(i), W2 = Math.round(w * k), H2 = Math.round(h * k); gfx.image(path, Math.round(x - (W2 - w) / 2), Math.round(y - (H2 - h) / 2), W2, H2, 255); };
+    const img = (path, x, y, w, h, i) => {
+      const k = sc(i), W2 = Math.round(w * k), H2 = Math.round(h * k), X2 = Math.round(x - (W2 - w) / 2), Y2 = Math.round(y - (H2 - h) / 2);
+      if (i === f) { rrect(X2 - 9, Y2 - 9, W2 + 18, H2 + 18, 14, [255, 190, 30], 95); rrect(X2 - 5, Y2 - 5, W2 + 10, H2 + 10, 11, pr ? [255, 255, 255] : [255, 226, 80]); } // 選んでいるボタン: 形にそった、黄色く光る縁
+      gfx.image(path, X2, Y2, W2, H2, 255);
+    };
     img('img/btn_start.webp', (SW - 250) / 2, SH - 100, 250, 78, 0);
     img(NSND.on ? 'img/bgm_on.webp' : 'img/bgm_off.webp', SW - 120, 10, 108, 37, 1);
     img('img/btn_exit.webp', SW - 130, SH - 60, 108, 37, 2);
@@ -935,7 +943,7 @@
     if (__auto && now > nextAuto && !S.coach && !S.side) { nextAuto = now + 90; window.__key('ok'); }
     if (__lsDirty && now - lastSave > 1500) { lastSave = now; __lsDirty = false; try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ } }
     /* 画面の入れかえ(ダブル/トリプルバッファ)で、古い絵が交互に出て点滅しないよう、変化のあとは3回続けて描く */
-    if (pressing() || S.intro || S.dice || S.fly || S.deal || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
+    if (pressing() || S.intro || S.dice || S.fly || (S.deal && now >= S.deal.t0 - 50) || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
     if (!S.dirty) return false;
     S.dirty = false; return true;
   };
@@ -967,6 +975,7 @@
     return true;
   };
   window.__draw = function () {
+    S.drawSeq = (S.drawSeq || 0) + 1;
     const t0 = __now(); const r = drawBody(); const dt = __now() - t0; perf.n++; perf.ms += dt;
     if (t0 - perf.t0 >= 1000) { perf.shown = '描 ' + perf.n + '回/秒  ' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; }
     if (perfOn()) { gfx.view(0, 0); fill(0, 0, 150, 18, [0, 0, 0], 170); text(perf.shown, 4, 2, 13, [120, 255, 160]); }
