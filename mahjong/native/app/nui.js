@@ -15,8 +15,8 @@
 
   /* ---------- セーブ(手動・最新から5件) ---------- */
   const wrap = (i, n) => (i + n) % n;
-  const pressing = () => __now() - S.pressT < 170;
-  const later = (fn) => { S.pressT = __now(); S.locked = true; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 170); }; // 押したボタンが光ってから、次へ
+  const pressing = () => __now() - S.pressT < (S.pressMs || 170);
+  const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 170; S.locked = true; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, S.pressMs); }; // 押したボタンが光ってから、次へ
   const NSLOT = 5;
   function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
     const out = [];
@@ -332,7 +332,7 @@
     order.forEach((h, i) => {
       if (i >= shown) return;
       const x = handX(i, i === gapAt); let y = HY;
-      const sel = s ? (!S.side && s.row === 0 && s.idx === i) : (!S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && Math.min(S.curIdx, hs.length - 1) === i);
+      const sel = s ? (!S.side && s.row === 0 && s.idx === i) : (!S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && S.curIdx < hs.length && S.curIdx === i) || (!S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && S.curIdx >= hs.length && hs.length % 3 !== 1 && i === hs.length - 1);
       const dim = s ? !allowed(s, h) : false;
       if (sel) y -= 8;
       const hl = S.react && S._hl && S._hl[h.t] > 0 ? (S._hl[h.t]--, true) : false;
@@ -347,7 +347,7 @@
     };
     L.forEach((o) => { if (!o.sel && !o.hl) one(o); });
     L.forEach((o) => { if (o.sel || o.hl) one(o); }); // 枠のある牌は、あとから描く(となりの牌に、枠が隠れないように)
-    if (!p.drawn && DS.sorted && hs.length % 3 === 1 && !S.result) rrect(handX(hs.length, true), HY, HW, HH, 4, [0, 0, 0], 95); // まだ引いていない14枚目の場所に、黒い半透明の影(Edge版と同じ)
+    if (!p.drawn && DS.sorted && hs.length % 3 === 1 && !S.result) { const px = handX(hs.length, true), onSlot = !s && !S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && S.curIdx >= hs.length; if (onSlot) { rrect(px - 5, HY - 13, HW + 10, HH + 10, 6, YEL, 90); rrect(px - 3, HY - 11, HW + 6, HH + 6, 5, YEL); rrect(px, HY - 8, HW, HH, 4, [60, 70, 60]); } else rrect(px, HY, HW, HH, 4, [0, 0, 0], 95); } // 14枚目の場所(まだ引いていない)。カーソルがあれば、そこに残る // まだ引いていない14枚目の場所に、黒い半透明の影(Edge版と同じ)
     drawMelds(p, 713 - meldWH(p, 31, 40), 398, 31, 40);
     if (s) {
       const bw = 112; let bx = 8;
@@ -370,7 +370,9 @@
     gfx.clear(14, 84, 52);
     gfx.image('img/title_art.webp', 0, 0, SW, SH, 255); // タイトルの文字は、絵に入っている
     const f = S.titleIdx, pr = pressing();
-    const sc = (i) => (i === f ? (pr ? 1.12 : 1.06) : 1); // 選んでいるボタンは、少し大きく(押すと、さらに大きく)
+    const sc = (i) => { // 選んでいるボタンは少し大きく。押すと「ぎゅっと縮んで、ぽんと跳ねる」
+      if (i !== f) return 1; if (!pr) return 1.06; const k = (__now() - S.pressT) / (S.pressMs || 170);
+      return k < 0.3 ? 1.06 - (k / 0.3) * 0.22 : k < 0.65 ? 0.84 + ((k - 0.3) / 0.35) * 0.36 : 1.2 - ((k - 0.65) / 0.35) * 0.14; };
     const img = (path, x, y, w, h, i) => { const k = sc(i), W2 = Math.round(w * k), H2 = Math.round(h * k); gfx.image(path, Math.round(x - (W2 - w) / 2), Math.round(y - (H2 - h) / 2), W2, H2, 255); };
     img('img/btn_start.webp', (SW - 250) / 2, SH - 100, 250, 78, 0);
     img(NSND.on ? 'img/bgm_on.webp' : 'img/bgm_off.webp', SW - 120, 10, 108, 37, 1);
@@ -690,7 +692,7 @@
     }
     if (S.mode === 'title') { // タイトル: はじめる / BGM / 終了
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { const m = { 0: { up: 1, left: 1, right: 2, down: 2 }, 1: { down: 0, left: 0, right: 2, up: 2 }, 2: { up: 1, right: 1, left: 0, down: 0 } }; S.titleIdx = m[S.titleIdx][k]; }
-      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }); else if (S.titleIdx === 1) { NSND.toggle(); if (NSND.on) NSND.home(); } else S.confirmQ = { idx: 0 }; }
+      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 320); else if (S.titleIdx === 1) { S.pressT = __now(); S.pressMs = 320; NSND.toggle(); if (NSND.on) NSND.home(); dirty(); } else later(() => { S.confirmQ = { idx: 0 }; }, 320); }
       return;
     }
     if (S.mode === 'settings') {
@@ -758,9 +760,9 @@
     if (r && __now() - r.t0 < 600) return; // 確認が出た直後は、キーを受け付けない(連打で押してしまうのを防ぐ。Edge版と同じ)
     if (r && k === 'back' && !r.pick) return; // 確認の間は、戻るは何もしない(誤操作防止)
     if (S.mode === 'game' && !s && !r && S.game && (k === 'left' || k === 'right' || k === 'up' || k === 'down')) { // 相手の番でも、牌をなぞれる
-      const n = myTiles(S.game.players[0]).length; if (!n) return; if (S.curIdx == null) { S.curIdx = (k === 'right' || k === 'up') ? 0 : n - 1; dirty(); return; } const c = Math.min(S.curIdx, n - 1);
-      if (k === 'left') { if (c === 0) S.side = { idx: 2 }; else S.curIdx = c - 1; }
-      else if (k === 'right') { if (c >= n - 1) S.side = { idx: 1 }; else S.curIdx = c + 1; }
+      const n = myTiles(S.game.players[0]).length; if (!n) return; if (S.curIdx == null) { S.curIdx = (k === 'right' || k === 'up') ? 0 : n - 1; dirty(); return; } const slot = S.curIdx >= n && n % 3 === 1, c = Math.min(S.curIdx, n - 1); // slot: 14枚目の場所にカーソルがある
+      if (k === 'left') { if (slot) S.curIdx = n - 1; else if (c === 0) S.side = { idx: 2 }; else S.curIdx = c - 1; }
+      else if (k === 'right') { if (slot || c >= n - 1) S.side = { idx: 1 }; else S.curIdx = c + 1; }
       else S.curIdx = k === 'up' ? 0 : n - 1;
       dirty(); return;
     }
