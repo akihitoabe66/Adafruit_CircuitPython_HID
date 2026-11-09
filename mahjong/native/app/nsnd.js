@@ -48,6 +48,7 @@
       });
       snd.musicVol(V.bgm * 0.2); clearTimeout(duckT); duckT = setTimeout(() => snd.musicVol(V.bgm), t * 1000 + 300);
       if (cb) setTimeout(cb, t * 1000);
+      return t; // 読み上げにかかる秒数
     },
     has(k) { return !!yk[k]; },
     /* 上がったときの、役と点数の読み上げ(ブラウザ版 ui.js と同じ組み立て) */
@@ -85,7 +86,7 @@
       const HB = { 1: 'イッポンバ', 2: 'ニホンバ', 3: 'サンボンバ', 4: 'ヨンホンバ', 5: 'ゴホンバ', 6: 'ロッポンバ', 7: 'ナナホンバ', 8: 'ハッポンバ', 9: 'キュウホンバ' };
       if (game.honba && HB[Math.min(9, game.honba)]) keys.push(null, 'x:' + HB[Math.min(9, game.honba)]);
       if (game.isOras && game.isOras()) keys.push(null, 'x:オーラス'); // 最終局
-      A.speak(keys);
+      return A.speak(keys);
     },
   });
 })();

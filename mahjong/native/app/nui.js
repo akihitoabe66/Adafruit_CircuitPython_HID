@@ -249,13 +249,20 @@
     const w = Math.round(HW + (RW - HW) * e), h = Math.round(HH + (RH - HH) * e); tileR(f.t, Math.round(x), Math.round(y), w, h, f.red, false, f.rot); // 置かれる向きのまま飛ぶ
   }
   /* 配牌: 4牌ずつ配られ、最後に「チャッ」と並び替わる */
-  const DEAL_AT = [0.04, 0.24, 0.44, 0.64];
+  /* 配牌: 親から反時計回りに、4牌ずつ(12牌)→ 1牌ずつ。配り終わると「チャ!」と牌が少し上がって並びかわり、「タンッ!」と手牌の位置にそろう */
+  const DEAL_R = [0, 230, 460, 690], DEAL_J = 70, DEAL_LIFT = 1060, DEAL_DROP = 1400, DEAL_END = 1580, LIFT_PX = 24;
   function dealState() {
-    const d = S.deal; if (!d) return { n: 99, sorted: true };
-    const k = (__now() - d.t0) / d.dur; if (k >= 1) { S.deal = null; return { n: 99, sorted: true }; }
-    let n = 0; DEAL_AT.forEach((a, i) => { if (k >= a) { n = i < 3 ? 4 * (i + 1) : 13; if (d.step < i + 1) { d.step = i + 1; NSND.sfx(i === 3 ? 'deal1' : 'deal4', 0.5); } } });
-    const sorted = k >= 0.84; if (sorted && !d.sortedSfx) { d.sortedSfx = 1; NSND.sfx('sort1', 0.6); }
-    return { n, sorted };
+    const d = S.deal, ALL = { n: 99, ns: [99, 99, 99, 99], sorted: true, lift: 0 }; if (!d) return ALL;
+    const t = __now() - d.t0; if (t >= DEAL_END) { S.deal = null; return ALL; }
+    const ns = [0, 0, 0, 0], dl = S.game ? S.game.dealer : 0;
+    for (let r = 0; r < 4; r++) {
+      if (t >= DEAL_R[r] && d.step < r + 1) { d.step = r + 1; NSND.sfx(r === 3 ? 'deal1' : 'deal4', 0.5); }
+      for (let j = 0; j < 4; j++) if (t >= DEAL_R[r] + j * DEAL_J) ns[(dl + j) % 4] += r < 3 ? 4 : 1;
+    }
+    const sorted = t >= DEAL_LIFT; if (sorted && !d.liftSfx) { d.liftSfx = 1; NSND.sfx('sort1', 0.7); }
+    if (t >= DEAL_DROP && !d.dropSfx) { d.dropSfx = 1; NSND.sfx('discard', 0.7); }
+    const lift = t < DEAL_LIFT ? 0 : t < DEAL_DROP ? LIFT_PX : Math.round(LIFT_PX * Math.max(0, 1 - (t - DEAL_DROP) / 130));
+    return { n: ns[0], ns, sorted, lift };
   }
   const cached = (i, key, fn) => { const c = S.lay[i]; if (!c || c.key !== key) { gfx.layerBegin(i); fn(); gfx.layerEnd(); S.lay[i] = { key }; } gfx.layer(i); };
   function drawTable(g) {
@@ -269,10 +276,10 @@
     // 河(変わったときだけ描き直し、あとは1枚の絵を貼る)
     const rkey = P.map((p) => p.discards.length + ':' + p.discards.map((d) => (d.called ? 1 : 0)).join('') + ':' + p.discards.indexOf(g.lastDiscard && g.lastDiscard.d)).join('|') + (S.fly ? 'f' : '');
     cached(0, rkey, () => P.forEach((p) => drawRiver(g, p)));
-    const okey = [g.turn, DS.n, g.live.length, g.kyotaku, g.kyokuLabel(), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
+    const okey = [g.turn, DS.ns.join(','), g.live.length, g.kyotaku, g.kyokuLabel(), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
     cached(1, okey, () => {
     // 伏せた手牌(小さな牌)
-    const nHand = (p) => Math.min(p.hand.length, DS.n);
+    const nHand = (p) => Math.min(p.hand.length, DS.ns[p.seat]);
     for (let i = 0; i < nHand(P[2]); i++) back(265 + i * 17, 32, 16, 24);
     for (let i = 0; i < nHand(P[3]); i++) back(3, 66 + i * 17, 24, 16, 'l');
     for (let i = 0; i < nHand(P[1]); i++) back(692, 66 + i * 17, 24, 16, 'r');
@@ -304,7 +311,9 @@
       face(bn.p, 215, 96, 108, 108); frame(214, 95, 110, 110, [240, 210, 120], 2);
       { const by = 124 - Math.round((sz - 84) / 2); text(bn.text, 345, by + 7, sz, [0, 0, 0], 0); [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, 340 + d[0], by + d[1], sz, [255, 255, 255])); }
       text(bn.text, 340, 124 - Math.round((sz - 84) / 2), sz, col);
-    } else if (S.banner) { const k = Math.min(1, (__now() - (S.banner.t0 || 0)) / 180), sz = k < 0.34 ? 78 : k < 0.67 ? 66 : 56; fill(0, 200, W, 80, [0, 0, 0], 170); text(S.banner.text, 360, 240 - Math.round(sz * 0.55), sz, YEL, 1); }
+    } else if (S.banner) { // 局のはじまり: 「東二局」「一本場」を、はっきり見せる
+      const lb = String(S.banner.text).split(' '), my = 232 - (lb[1] ? 12 : 0); rrect(110, my - 74, 500, lb[1] ? 168 : 128, 6, [4, 18, 12], 238);
+      text(lb[0], 364, my - 52, 84, [0, 0, 0], 1); text(lb[0], 360, my - 56, 84, YEL, 1); if (lb[1]) { text(lb[1], 362, my + 40, 40, [0, 0, 0], 1); text(lb[1], 360, my + 38, 40, WHITE, 1); } }
   }
   function myTiles(p) { const hs = p.hand.filter((h) => h !== p.drawn); if (p.drawn) hs.push(p.drawn); return hs; }
   function allowed(s, h) { const p = s.p; if (p.riichi) return h === p.drawn; if (s.opts.forbid.includes(h.t)) return false; if (s.rm) return s.opts.riichi.includes(h.t); return true; }
@@ -331,7 +340,7 @@
     const L = [];
     order.forEach((h, i) => {
       if (i >= shown) return;
-      const x = handX(i, i === gapAt); let y = HY;
+      const x = handX(i, i === gapAt); let y = HY - (DS.lift || 0);
       const sel = s ? (!S.side && s.row === 0 && s.idx === i) : (!S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && S.curIdx < hs.length && S.curIdx === i) || (!S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && S.curIdx >= hs.length && hs.length % 3 !== 1 && i === hs.length - 1);
       const dim = s ? !allowed(s, h) : false;
       if (sel) y -= 8;
@@ -801,7 +810,17 @@
     sfx(name) { NSND.sfx(name); },
     speak(g, p, t) { S.bub[p.seat] = { name: p.name, text: t, until: __now() + 2300 }; dirty(); setTimeout(dirty, 2400); },
     banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
-    handStart(g) { S.curIdx = null; if (teacherOn() && !S.tmsgShown) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); } S.game = g; NSND.game(g); NSND.sfx('slam'); if (S.skipKyokuVoice) S.skipKyokuVoice = false; else NSND.readKyoku(g); S.banner = { text: g.kyokuLabel(), t0: __now() }; S.deal = g.fast ? null : { t0: __now() + 300, dur: 1500, step: 0, perm: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].sort(() => Math.random() - 0.5) }; dirty(); return sleep(900).then(() => { S.banner = null; dirty(); }); },
+    handStart(g) {
+      S.curIdx = null; if (teacherOn() && !S.tmsgShown) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
+      S.game = g; NSND.game(g); NSND.sfx('slam');
+      let vlen = 0; if (S.skipKyokuVoice) S.skipKyokuVoice = false; else { try { vlen = NSND.readKyoku(g) || 0; } catch (e) { /* ignore */ } }
+      S.banner = { text: g.kyokuLabel(), t0: __now() };
+      if (g.fast) { S.deal = null; dirty(); return sleep(300).then(() => { S.banner = null; dirty(); }); }
+      const bms = vlen ? Math.max(2200, Math.round(vlen * 1000) + 700) : 900; // 読み上げが終わって、少し画面を見せてから、配牌
+      S.deal = { t0: __now() + bms, step: 0, perm: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].sort(() => Math.random() - 0.5) };
+      setTimeout(() => { S.banner = null; dirty(); }, bms); dirty();
+      return sleep(bms + DEAL_END + 80);
+    },
     padHand() {},
     dice(g, first) { if (g.fast) return Promise.resolve(null); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done }; dirty(); }); },
     askSelf(g, p, opts, st) {
