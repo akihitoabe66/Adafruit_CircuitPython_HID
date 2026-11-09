@@ -114,6 +114,7 @@
     if (!rot) rrect(x + 2, y + 2, ST, h - 4, 3, sc); else if (rot === 90) rrect(x + 2, y + 2, w - 4, ST, 3, sc); else rrect(x + 2, y + h - 2 - ST, w - 4, ST, 3, sc);
     const parts = barPieces(g, p).slice(1).map((q, i) => ({ s: q.s, sz: q.sz, c: act ? (i === 0 ? [27, 27, 18] : i === 1 ? [120, 60, 0] : [200, 30, 30]) : q.c }));
     const off = ST + 8;
+    { const avail = (rot ? h : w) - off - CH - 10 - 8, tot = parts.reduce((a, q) => a + gfx.measure(q.s, q.sz), 0) + 12 * (parts.length - 1), k = Math.min(1, avail / tot); if (k < 1) parts.forEach((q) => { q.sz = Math.max(10, Math.floor(q.sz * k)); }); } // はみ出すときは、文字を小さくして、板に収める
     if (!rot) {
       const cy0 = y + (h - CH) / 2; rrect(x + off, cy0, CH, CH, 5, bg); text(WIND[sw], x + off + CH / 2, cy0 + 2, 18, WHITE, 1);
       let cx = x + off + CH + 10; parts.forEach((q) => { text(q.s, cx, y + (h - q.sz) / 2 - 2, q.sz, q.c); cx += gfx.measure(q.s, q.sz) + 12; }); return;
@@ -307,9 +308,9 @@
     // 副露
     drawMelds(P[2], 520, 34, 16, 22); drawMelds(P[3], 3, 312 - meldWH(P[3], 16, 22), 16, 22); drawMelds(P[1], 694, 312 - meldWH(P[1], 16, 22), 16, 22);
     // 名札(横長の板)
-    drawBar(g, P[2], 190, 3, 322, 28, 0); drawBar(g, P[3], 35, 21, 27, 280, 90); drawBar(g, P[1], 643, 21, 27, 280, 270); drawBar(g, P[0], 501, 317, 221, 34, 0);
+    drawBar(g, P[2], 190, 3, 322, 28, 0); drawBar(g, P[3], 35, 21, 27, 280, 90); drawBar(g, P[1], 643, 21, 27, 280, 270); drawBar(g, P[0], 452, 317, 270, 34, 0);
     // 季節牌(花牌)をもっている人は、名札のそばに小さく並べる
-    P.forEach((p) => { const fl = p.flowers || []; fl.forEach((f, i) => { const [fx, fy] = p.seat === 0 ? [497 - (i + 1) * 20, 324] : p.seat === 2 ? [518 + i * 20, 5] : p.seat === 3 ? [36 + i * 20, 304] : [640 + i * 20, 304]; tile(f.t, fx, fy, 16, 22, false); }); });
+    P.forEach((p) => { const fl = p.flowers || []; fl.forEach((f, i) => { const [fx, fy] = p.seat === 0 ? [448 - (i + 1) * 20, 324] : p.seat === 2 ? [518 + i * 20, 5] : p.seat === 3 ? [36 + i * 20, 304] : [640 + i * 20, 304]; tile(f.t, fx, fy, 16, 22, false); }); });
     if (!S.deal) { // 配牌のあいだは、中央の情報を出さない(山の輪を見せるため)
     // 中央の情報
     panel(218, 163, 281, 101, 14, [6, 44, 26], [90, 140, 110], 2);
@@ -341,7 +342,7 @@
     if (__auto && globalThis.__shotDir && !S._stbl && g.players[2].discards.length >= 4 && g.players[3].discards.length >= 4) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
     // 演出: 札の文字が、少し大きいところから縮んで止まる
     if (S.banner && S.banner.call && S.banner.p) { // ポン・チー・ロンなど: 顔と、色のついた大きな文字(Edge版と同じ)
-      const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = 84, col = bn.text === 'リーチ' ? [255, 91, 138] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [255, 123, 90] : [196, 139, 255];
+      const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = 84, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [255, 123, 90] : [196, 139, 255];
       // 鳴いた人の席の側に出す: 対面=中央の上 / 上家=左 / 下家=右(上家と同じ高さ) / 自分=中央の下
       const tw = gfx.measure(bn.text, sz), bw = 108 + 16 + tw, sd = bn.p.seat, by = sd === 2 ? 46 : sd === 0 ? 256 : 160;
       const bx = sd === 3 ? 76 : sd === 1 ? 636 - bw : Math.round((W - bw) / 2);
