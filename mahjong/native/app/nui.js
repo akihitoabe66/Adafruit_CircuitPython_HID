@@ -634,6 +634,23 @@
     text('0にすると、その音が消えます。対局は、とじるまで止まります。', 360, y0 + 58 + 4 * 52 + 2, 15, [190, 205, 195], 1);
     const cy = y0 + h - 56; if (sp.idx === 4) rrect(300, cy - 4, 120, 52, 7, [255, 255, 255]); rrect(304, cy, 112, 44, 6, [248, 208, 80]); text('とじる', 360, cy + 9, 22, BLACK, 1);
   }
+  function drawSaveQ() { // 局のあとの保存: 左右の大きな2つ(左: ここまでを保存する / 右: 保存しない)。押すと、そのまま次へ進む
+    overlay(215); const q = S.saveP, g = S.game, ink = [26, 26, 20];
+    text('この局は 終わりました', 360, 52, 42, [0, 0, 0], 1); text('この局は 終わりました', 360, 49, 42, YEL, 1);
+    text(g ? g.kyokuLabel() : '', 360, 112, 26, WHITE, 1);
+    const B = [{ x: 36, l: 'ここまでを保存する', s: '続きから遊べます' }, { x: 384, l: '保存しない', s: 'そのまま次へ' }], y = 168, w = 300, h = 160;
+    B.forEach((b, i) => {
+      const sel = q.idx === i, bx = b.x;
+      if (sel) { rrect(bx - 7, y - 7, w + 14, h + 14, 10, [26, 26, 20]); rrect(bx - 4, y - 4, w + 8, h + 8, 8, [255, 255, 255]); }
+      rrect(bx + 2, y + 6, w, h, 6, [0, 0, 0], 90);
+      rrect(bx, y, w, h, 6, sel ? [196, 150, 20] : [150, 156, 150]); rrect(bx, y, w, h - 4, 6, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : [245, 247, 244]);
+      const cx = bx + w / 2, iy = y + 22;
+      if (i === 0) { rrect(cx - 17, iy, 34, 34, 4, ink); fill(cx - 10, iy + 3, 18, 11, [215, 218, 212]); fill(cx + 3, iy + 5, 4, 7, ink); fill(cx - 11, iy + 19, 22, 12, [245, 245, 238]); }
+      else { for (let k = 0; k < 30; k++) { fill(cx - 15 + k, iy + 2 + k, 5, 5, [90, 90, 84]); fill(cx + 11 - k, iy + 2 + k, 5, 5, [90, 90, 84]); } }
+      text(b.l, cx, y + 70, b.l.length > 6 ? 31 : 36, ink, 1); text(b.s, cx, y + 118, 18, [90, 90, 80], 1);
+    });
+    text('◀ ▶ で えらんで 決定ボタン', 360, 372, 20, [205, 224, 212], 1);
+  }
   function drawDialog(title, items, idx, note) {
     overlay(190); const h = 70 + items.length * 50; const y0 = Math.round((H - h) / 2);
     panel(150, y0, 420, h, 16, [20, 60, 42], [240, 210, 120], 3);
@@ -933,7 +950,7 @@
     if (S.intro && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawIntro(); return true; }
     if (S.dice && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawDice(); return true; }
     S.vx = 56; S.vy = 20; gfx.view(56, 20); // 以降の板(メニューなど)は、画面の中央に
-    if (S.saveP) drawDialog('この局が おわりました', ['セーブして次の局へ', 'セーブしないで次の局へ'], S.saveP.idx, S.saveP.snap ? kyokuText(S.saveP.snap) + ' の つづきから' : '');
+    if (S.saveP) drawSaveQ();
     if (S.toast && S.toast.until > __now()) { rrect(110, 180, 500, 54, 12, [0, 0, 0], 215); text(S.toast.text, 360, 193, 24, YEL, 1); }
     if (S.menuP) drawDialog('メニュー', menuItems(), S.menuP.idx, '');
     if (S.soundP) drawSound();
