@@ -38,6 +38,19 @@ static SDL_Texture *getimg(const char *path, int *w, int *h){
   Ent *e = &imgs[nimg++]; e->hs = hp; strncpy(e->key, path, 199); e->tex = t; e->w = s->w; e->h = s->h; SDL_FreeSurface(s);
   if (w) *w = e->w; if (h) *h = e->h; return t;
 }
+/* 絵の形(透明でないところ)だけを、黄色一色にぬった絵。ボタンのふちを光らせるのに使う */
+static SDL_Texture *getsil(const char *path, int *w, int *h){
+  char key[260]; snprintf(key, sizeof key, "%.240s#sil", path); unsigned hp = hashs(key);
+  for (int i = 0; i < nimg; i++) if (imgs[i].hs == hp && !strcmp(imgs[i].key, key)) { if (w) *w = imgs[i].w; if (h) *h = imgs[i].h; return imgs[i].tex; }
+  if (nimg >= NIMG) return NULL;
+  char full[1400]; snprintf(full, sizeof full, "%s/%s", root, path);
+  SDL_Surface *s0 = IMG_Load(full); if (!s0) return NULL;
+  SDL_Surface *s = SDL_ConvertSurfaceFormat(s0, SDL_PIXELFORMAT_ARGB8888, 0); SDL_FreeSurface(s0); if (!s) return NULL;
+  SDL_LockSurface(s); for (int y = 0; y < s->h; y++) { Uint32 *row = (Uint32 *)((Uint8 *)s->pixels + y * s->pitch); for (int x = 0; x < s->w; x++) { Uint32 a = row[x] >> 24; row[x] = (a << 24) | (255u << 16) | (222u << 8) | 70u; } } SDL_UnlockSurface(s);
+  SDL_Texture *t = SDL_CreateTextureFromSurface(ren, s);
+  Ent *e = &imgs[nimg++]; e->hs = hp; strncpy(e->key, key, 199); e->tex = t; e->w = s->w; e->h = s->h; SDL_FreeSurface(s);
+  if (w) *w = e->w; if (h) *h = e->h; return t;
+}
 static TTF_Font *getfont(int sz){
   for (int i = 0; i < nfonts; i++) if (fsz[i] == sz) return fonts[i];
   if (nfonts >= 64) return fonts[0];
@@ -63,6 +76,9 @@ static JSValue j_fill(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL
 static JSValue j_frame(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_SetRenderDrawColor(ren, ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), 255); int th = n > 7 ? ai(c,a[7]) : 1; for (int i = 0; i < th; i++) { SDL_Rect r = { ai(c,a[0])+i, ai(c,a[1])+i, ai(c,a[2])-2*i, ai(c,a[3])-2*i }; SDL_RenderDrawRect(ren, &r); } return JS_UNDEFINED; }
 static JSValue j_image(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getimg(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE;
+  SDL_Rect d = { ai(c,a[1]), ai(c,a[2]), ai(c,a[3]), ai(c,a[4]) }; SDL_SetTextureAlphaMod(tx, n > 5 ? ai(c,a[5]) : 255); SDL_RenderCopy(ren, tx, NULL, &d); return JS_TRUE; }
+static JSValue j_imagesil(JSContext *c, JSValueConst t, int n, JSValueConst *a){
+  const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getsil(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE;
   SDL_Rect d = { ai(c,a[1]), ai(c,a[2]), ai(c,a[3]), ai(c,a[4]) }; SDL_SetTextureAlphaMod(tx, n > 5 ? ai(c,a[5]) : 255); SDL_RenderCopy(ren, tx, NULL, &d); return JS_TRUE; }
 typedef struct { SDL_Texture *tx; SDL_Rect d, sr; } TopImg; static TopImg topq[24]; static int ntop = 0; /* 画面に出す直前に、窓の本当の解像度で描く絵(顔など。くっきり見せるため) */
 static JSValue j_imagetop(JSContext *c, JSValueConst t, int n, JSValueConst *a){
@@ -243,7 +259,7 @@ int main(int argc, char **argv){
   rt = JS_NewRuntime(); JS_SetMemoryLimit(rt, 192 * 1024 * 1024); JS_SetMaxStackSize(rt, 2 * 1024 * 1024); JS_SetHostPromiseRejectionTracker(rt, rejected, NULL);
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
-  reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
+  reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
   reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "shot", j_shot, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);

@@ -394,7 +394,10 @@
       return k < 0.3 ? 1.06 - (k / 0.3) * 0.22 : k < 0.65 ? 0.84 + ((k - 0.3) / 0.35) * 0.36 : 1.2 - ((k - 0.65) / 0.35) * 0.14; };
     const img = (path, x, y, w, h, i) => {
       const k = sc(i), W2 = Math.round(w * k), H2 = Math.round(h * k), X2 = Math.round(x - (W2 - w) / 2), Y2 = Math.round(y - (H2 - h) / 2);
-      if (i === f) { rrect(X2 - 9, Y2 - 9, W2 + 18, H2 + 18, 14, [255, 190, 30], 95); rrect(X2 - 5, Y2 - 5, W2 + 10, H2 + 10, 11, pr ? [255, 255, 255] : [255, 226, 80]); } // 選んでいるボタン: 形にそった、黄色く光る縁
+      if (i === f && gfx.imageSil) { // 選んでいるボタン: ボタンの形(透明なところは除く)にそって、黄色く光る縁
+        const ring = (r, al) => { for (let q = 0; q < 12; q++) { const an = q * Math.PI / 6; gfx.imageSil(path, X2 + Math.round(Math.cos(an) * r), Y2 + Math.round(Math.sin(an) * r), W2, H2, al); } };
+        ring(7, 60); ring(5, 110); ring(3, 255);
+      }
       gfx.image(path, X2, Y2, W2, H2, 255);
     };
     img('img/btn_start.webp', (SW - 250) / 2, SH - 100, 250, 78, 0);
