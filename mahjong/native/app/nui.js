@@ -321,6 +321,7 @@
     const gapAt = p.drawn ? hs.length - 1 : -1; const DS = dealState(), shown = Math.min(hs.length, DS.n);
     let order = hs; if (!DS.sorted && S.deal && S.deal.perm) order = S.deal.perm.filter((j) => j < hs.length).map((j) => hs[j]); // 配られている間は、並び替える前の順で見せる
     S._hl = S.react ? reactHL(S.react, g) : null;
+    const L = [];
     order.forEach((h, i) => {
       if (i >= shown) return;
       const x = handX(i, i === gapAt); let y = HY;
@@ -328,11 +329,17 @@
       const dim = s ? !allowed(s, h) : false;
       if (sel) y -= 8;
       const hl = S.react && S._hl && S._hl[h.t] > 0 ? (S._hl[h.t]--, true) : false;
-      if (sel) { rrect(x - 5, y - 5, HW + 10, HH + 10, 6, YEL, 90); rrect(x - 3, y - 3, HW + 6, HH + 6, 5, YEL); } // 選んでいる牌: 角の丸い金色の枠(Edge版ふう)
-      tile(h.t, x, y, HW, HH, h.red, dim);
-      if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, y - 20, 16, YEL, 1);
-      if (hl) { rrect(x - 3, y - 3, HW + 6, HH + 6, 4, YEL); tile(h.t, x, y, HW, HH, h.red, false); }
+      L.push({ h, x, y, sel, dim, hl });
     });
+    const one = (o) => {
+      const { h, x, y } = o;
+      if (o.sel) { rrect(x - 5, y - 5, HW + 10, HH + 10, 6, YEL, 90); rrect(x - 3, y - 3, HW + 6, HH + 6, 5, YEL); } // 選んでいる牌: 角の丸い金色の枠(Edge版ふう)
+      else if (o.hl) rrect(x - 3, y - 3, HW + 6, HH + 6, 4, YEL);
+      tile(h.t, x, y, HW, HH, h.red, o.dim && !o.hl);
+      if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, y - 20, 16, YEL, 1);
+    };
+    L.forEach((o) => { if (!o.sel && !o.hl) one(o); });
+    L.forEach((o) => { if (o.sel || o.hl) one(o); }); // 枠のある牌は、あとから描く(となりの牌に、枠が隠れないように)
     if (!p.drawn && DS.sorted && hs.length % 3 === 1 && !S.result) rrect(handX(hs.length, true), HY, HW, HH, 4, [0, 0, 0], 95); // まだ引いていない14枚目の場所に、黒い半透明の影(Edge版と同じ)
     drawMelds(p, 713 - meldWH(p, 31, 40), 398, 31, 40);
     if (s) {
