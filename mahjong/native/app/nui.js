@@ -328,6 +328,7 @@
       if (sel) frame(x - 1, y - 1, HW + 2, HH + 2, YEL, 3);
       if (hl) { rrect(x - 3, y - 3, HW + 6, HH + 6, 4, YEL); tile(h.t, x, y, HW, HH, h.red, false); }
     });
+    if (!p.drawn && DS.sorted && hs.length % 3 === 1 && !S.result) rrect(handX(hs.length, true), HY, HW, HH, 4, [0, 0, 0], 95); // まだ引いていない14枚目の場所に、黒い半透明の影(Edge版と同じ)
     drawMelds(p, 713 - meldWH(p, 31, 40), 398, 31, 40);
     if (s) {
       const bw = 112; let bx = 8;
@@ -416,7 +417,7 @@
   const shotOnce = (nm) => { if (__auto && globalThis.__shotDir && !S['_s' + nm]) { S['_s' + nm] = 1; gfx.view(0, 0); gfx.shot(__shotDir + '/' + nm + '.bmp'); gfx.view(S.vx, S.vy); } };
   function plate(cx, y, name, lv) { // 名前の板(角の丸い、黒地に金の縁)
     const w = Math.max(lv ? 128 : 100, gfx.measure(name, 21) + 34), x = Math.round(cx - w / 2), h = lv ? 56 : 38;
-    rrect(x - 2, y - 2, w + 4, h + 4, 14, [240, 200, 60]); rrect(x, y, w, h, 12, [14, 20, 32]);
+    rrect(x - 2, y - 2, w + 4, h + 4, 6, [240, 200, 60]); rrect(x, y, w, h, 5, [14, 20, 32]);
     text(name, cx, y + 6, 21, WHITE, 1); if (lv) stars(cx, y + 40, Math.min(5, lv));
   }
   function stage() { // 緑のしずかな背景(中央が少し明るい)
