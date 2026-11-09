@@ -165,16 +165,19 @@
     return { tile: pick.tile, t: pick.t, sh: pick.sh, n: pick.ukeire ? pick.ukeire.n : 0, label: stc ? stc.label : '', why: stc ? stc.why : '', riichi: rch, minSh: an.minSh };
   }
   function waitInfoOf(g) { // いまの手牌がテンパイなら、あたり牌と、見えていない残りの枚数
-    const p = g.players[0]; const hand = p.hand.filter((h) => h !== p.drawn);
+    const p = g.players[0]; let hand = p.hand.filter((h) => h !== p.drawn), plan = false;
+    if (S.self && S.self.rm) { // リーチする牌を選んでいる間は、その牌を切ったあとの待ち(予定)を出す
+      const h = myTiles(p)[S.self.idx]; if (!h) return null; hand = p.hand.filter((x) => x !== h); plan = true;
+    }
     if (hand.length % 3 !== 1) return null;
-    const key = hand.map((h) => h.id).join(',') + '|' + p.melds.length + '|' + g.players.map((q) => q.discards.length).join(',');
+    const key = (plan ? 'P' : '') + hand.map((h) => h.id).join(',') + '|' + p.melds.length + '|' + g.players.map((q) => q.discards.length).join(',');
     if (key === S.waitKey) return S.waitInfo; S.waitKey = key; S.waitInfo = null;
     const c = MJ.toCounts(hand); if (MJ.shanten(c, p.melds.length) !== 0) return null;
     const ws = MJ.waits(c.slice(), p.melds.length); if (!ws.length) return null;
-    const seen = Array(34).fill(0); hand.forEach((h) => seen[h.t]++); if (p.drawn) seen[p.drawn.t]++;
+    const seen = Array(34).fill(0); hand.forEach((h) => seen[h.t]++); if (p.drawn && hand.indexOf(p.drawn) < 0 && !plan) seen[p.drawn.t]++;
     g.players.forEach((q) => { q.discards.forEach((d) => { if (!d.called) seen[d.tile.t]++; }); q.melds.forEach((m) => m.tiles.forEach((h) => seen[h.t]++)); });
     g.doraInd.forEach((d) => seen[d.t]++);
-    S.waitInfo = ws.slice(0, 5).map((t) => ({ t, left: Math.max(0, 4 - seen[t]) })); return S.waitInfo;
+    S.waitInfo = ws.slice(0, 5).map((t) => ({ t, left: Math.max(0, 4 - seen[t]), plan, fu: !!(p.tempFuriten || p.riichiFuriten || ws.some((w) => p.discardTypes.has(w))) })); return S.waitInfo;
   }
   /* ---------- 右の操作の列(Edge版と同じ並び): MENU / 局 / あたり牌 / 解説 / 麻雀先生 ---------- */
   const SIDE_ORDER = [0, 3, 1, 2]; // 上から: MENU(と音) / 解説 / 麻雀先生
@@ -187,10 +190,11 @@
     sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 762, 14, 13, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
     sbtn(796, 6, 30, 32, [50, 90, 160], [25, 50, 100], [''], f === 3, 13); fill(803, 17, 4, 10, WHITE); fill(807, 14, 3, 16, WHITE); fill(810, 11, 3, 22, WHITE); fill(816, 17, 2, 10, WHITE);
     { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 46, 22, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 72, 12, GREY, 1); }
-    if (teacherOn()) {
+    {
       const w = waitInfoOf(g);
-      if (w) { panel(726, 94, 100, 40 + Math.ceil(w.length / 3) * 58, 10, [6, 44, 26], [255, 220, 40], 2, 235); text('あたり牌', 776, 98, 14, YEL, 1);
-        w.forEach((x, i) => { const tx = 731 + (i % 3) * 32, ty = 118 + Math.floor(i / 3) * 58; tile(x.t, tx, ty, 28, 38); text('あと' + x.left, tx + 14, ty + 40, 11, WHITE, 1); }); }
+      if (w) { const ph = 40 + Math.ceil(w.length / 3) * 58 + (w[0].fu ? 18 : 0); panel(726, 94, 100, ph, 10, [6, 44, 26], [255, 220, 40], 2, 235); text(w[0].plan ? '待ち(予定)' : 'あたり牌', 776, 98, 14, YEL, 1);
+        w.forEach((x, i) => { const tx = 731 + (i % 3) * 32, ty = 118 + Math.floor(i / 3) * 58; tile(x.t, tx, ty, 28, 38); text('あと' + x.left, tx + 14, ty + 40, 11, WHITE, 1); });
+        if (w[0].fu) text('フリテン', 776, 94 + ph - 22, 13, [255, 120, 100], 1); }
     }
     sbtn(726, 330, 100, 40, [40, 90, 190], [20, 50, 120], ['解説'], f === 1, 20);
     sbtn(726, 378, 100, 44, teacherOn() ? [30, 120, 80] : [90, 90, 90], teacherOn() ? [15, 70, 45] : [50, 50, 50], ['麻雀先生', teacherOn() ? 'あり' : 'なし'], f === 2, 15);
@@ -1082,7 +1086,7 @@
   const perf = { t0: 0, n: 0, ms: 0, shown: '' };
   const drawBody = function () {
     // カーソルだけが動いたとき: 画面ぜんたいは描きなおさず、手牌のあたりだけ描く(キビキビ動かすため)
-    if (S.partialKey && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
+    if (S.partialKey && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
       S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [14, 84, 52]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;
