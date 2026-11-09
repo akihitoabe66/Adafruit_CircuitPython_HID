@@ -244,12 +244,17 @@
     const p = g.players[ld.by], i = p.discards.indexOf(ld.d); if (i < 0) return;
     const q = riverPos(ld.by, i);
     const from = ld.by === 0 && S.pick ? S.pick : ({ 2: [330, 20], 3: [10, 150], 1: [690, 150] }[ld.by] || [360, 300]);
-    S.fly = { d: ld.d, t: ld.tile.t, red: ld.tile.red, from, to: [q.x, q.y], rot: q.rot, bw: q.bw, bh: q.bh, t0: __now(), dur: 190 }; S.pick = null;
+    S.fly = { d: ld.d, t: ld.tile.t, red: ld.tile.red, from, to: [q.x, q.y], rot: q.rot, bw: q.bw, bh: q.bh, t0: __now(), dur: FLY_END }; S.pick = null;
   }
+  /* 捨て牌: 3コマ(案B)。「ひょい」少し浮く → 「ぴゅっ」河の手前へ → 「タン!」河に置いて、白い枠が一瞬光る。途中をつながない */
+  const FLY_F = [[0, 0.05, 1.12], [45, 0.78, 1.2], [95, 1, 1]], FLY_END = 165;
   function drawFly() {
-    const f = S.fly; if (!f) return; const k = Math.min(1, (__now() - f.t0) / f.dur), e = 1 - (1 - k) * (1 - k);
-    const x = f.from[0] + (f.to[0] - f.from[0]) * e, y = f.from[1] + (f.to[1] - f.from[1]) * e;
-    const w = Math.round(HW + (RW - HW) * e), h = Math.round(HH + (RH - HH) * e); tileR(f.t, Math.round(x), Math.round(y), w, h, f.red, false, f.rot); // 置かれる向きのまま飛ぶ
+    const f = S.fly; if (!f) return; const e = __now() - f.t0; let fr = FLY_F[0]; for (const q of FLY_F) if (e >= q[0]) fr = q;
+    const k = fr[1], sc = fr[2], x = f.from[0] + (f.to[0] - f.from[0]) * k, y = f.from[1] + (f.to[1] - f.from[1]) * k;
+    const w0 = Math.round(HW + (RW - HW) * k), h0 = Math.round(HH + (RH - HH) * k), w = Math.round(w0 * sc), h = Math.round(h0 * sc);
+    const bw0 = (f.rot === 90 || f.rot === 270) ? h0 : w0, bh0 = (f.rot === 90 || f.rot === 270) ? w0 : h0, bw = (f.rot === 90 || f.rot === 270) ? h : w, bh = (f.rot === 90 || f.rot === 270) ? w : h;
+    tileR(f.t, Math.round(x - (bw - bw0) / 2), Math.round(y - (bh - bh0) / 2), w, h, f.red, false, f.rot); // 置かれる向きのまま飛ぶ
+    if (k === 1) frame(f.to[0] - 3, f.to[1] - 3, f.bw + 6, f.bh + 6, [255, 255, 255], 2); // タン!
   }
   /* 配牌: 4牌ずつ配られ、最後に「チャッ」と並び替わる */
   /* 配牌: 親から反時計回りに、4牌ずつ(12牌)→ 1牌ずつ。配り終わると「チャ!」と牌が少し上がって並びかわり、「タンッ!」と手牌の位置にそろう */
@@ -338,12 +343,12 @@
   function allowed(s, h) { const p = s.p; if (p.riichi) return h === p.drawn; if (s.opts.forbid.includes(h.t)) return false; if (s.rm) return s.opts.riichi.includes(h.t); return true; }
   const b0w = (btns) => (btns.length >= 3 ? 150 : 170);
   function actBtn(x, y, w, h, label, sub, sel, pass, kind) { // 操作ボタン: 選んでいるものは黄色、ほかは白。リーチ・ツモは、色つきで目立たせる
-    const kc = !sel && kind === 'riichi' ? [[200, 36, 90], [255, 91, 138]] : !sel && (kind === 'tsumo' || kind === 'ankan') ? [[190, 70, 30], [255, 123, 90]] : null;
+    const kc = null; // リーチ・ツモも、ほかのボタンと同じ(選んでいる = 黄色 / ほか = 白)
     if (kc) rrect(x - 6, y - 6, w + 12, h + 12, 10, kc[1], 90);
     if (sel) rrect(x - 4, y - 4, w + 8, h + 8, 10, [30, 30, 30]); if (sel) rrect(x - 2, y - 2, w + 4, h + 4, 8, [255, 255, 255]);
     rrect(x + 1, y + 3, w, h, 6, [0, 0, 0], 90);
     rrect(x, y, w, h, 6, sel ? [196, 150, 20] : kc ? kc[0] : [150, 156, 150]); rrect(x, y, w, h - 3, 6, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : kc ? kc[1] : [245, 247, 244]);
-    const col = kc ? WHITE : [26, 26, 20], big = kind === 'riichi' || kind === 'tsumo';
+    const col = [26, 26, 20], big = !sub;
     if (sub) { text(label, x + w / 2, y + 4, 17, col, 1); text(sub, x + w / 2, y + 23, 12, [90, 90, 80], 1); } else text(label, x + w / 2, y + (h - 3 - (big ? 26 : 20)) / 2, big ? 26 : 20, col, 1);
   }
   function reactHL(r, g) { // 副露に使う牌(手牌の中で、金の枠をつける)
@@ -904,8 +909,12 @@
       const tiles = s.tiles;
       if (k === 'left' || k === 'right') {
         const n = s.row === 0 ? tiles.length : s.btns.length; if (!n) return; s.idx = wrap(s.idx + (k === 'left' ? -1 : 1), n);
-      } else if (k === 'up') { if (s.row === 0 && s.idx !== 0) s.idx = 0; else if (s.row === 0 && s.btns.length) { s.row = 1; s.idx = 0; } } // 上: 1枚目の牌へ(そこで、もう一度上: ボタンへ)
-      else if (k === 'down') { if (s.row === 1) { s.row = 0; s.idx = tiles.length - 1; } else s.idx = tiles.length - 1; } // 下: いちばん右の牌(14枚目。まだ引いていなければ13枚目)へ
+      } else if (k === 'up') { // ボタンがあるとき: どの牌からでも、上でボタン(リーチなど)へ。ないとき: 1枚目の牌へ
+        if (s.row === 0 && s.btns.length) { s.back = s.idx; s.row = 1; const ri = s.btns.findIndex((b) => b.act === 'riichi'); s.idx = ri >= 0 ? ri : 0; }
+        else if (s.row === 0) s.idx = 0;
+      }
+      else if (k === 'down') { if (s.row === 1) { s.row = 0; s.idx = Math.min(s.back != null ? s.back : tiles.length - 1, tiles.length - 1); } else s.idx = tiles.length - 1; } // 下: ボタンからは、もといた牌へ。牌の上では、いちばん右の牌(14枚目。まだ引いていなければ13枚目)へ
+      else if (k === 'back' && s.row === 1) { s.row = 0; s.idx = Math.min(s.back != null ? s.back : tiles.length - 1, tiles.length - 1); } // 戻る: もといた牌へ
       else if (k === 'back' && s.rm) { s.rm = false; }
       else if (k === 'ok') {
         if (s.row === 0) { const live = myTiles(s.p), h = live[s.idx] || tiles[s.idx]; if (h && allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.curIdx = s.idx; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
@@ -956,7 +965,7 @@
         opts.kakan.forEach((t) => btns.push({ label: '加カン ' + MJ.tileName(t), act: 'kakan', t }));
         S.side = null; S.coach = null;
         S.hint = null; if (teacherOn() && !p.riichi && !g.fast) { try { S.hint = teacherAdvice(g, p, opts); } catch (e) { print('teacher err ' + e); } }
-        S.self = { p, opts, st: st || {}, res, tiles, btns, rm: false, row: (opts.tsumo || btns.some((b) => b.act === 'riichi')) ? 1 : 0, idx: opts.tsumo ? 0 : btns.some((b) => b.act === 'riichi') ? btns.findIndex((b) => b.act === 'riichi') : (S.curIdx != null && !p.riichi ? Math.min(S.curIdx, tiles.length - 1) : tiles.length - 1) };
+        S.self = { p, opts, st: st || {}, res, tiles, btns, rm: false, back: (S.curIdx != null && !p.riichi ? Math.min(S.curIdx, tiles.length - 1) : tiles.length - 1), row: (opts.tsumo || btns.some((b) => b.act === 'riichi')) ? 1 : 0, idx: opts.tsumo ? 0 : btns.some((b) => b.act === 'riichi') ? btns.findIndex((b) => b.act === 'riichi') : (S.curIdx != null && !p.riichi ? Math.min(S.curIdx, tiles.length - 1) : tiles.length - 1) };
         dirty();
       });
     },
