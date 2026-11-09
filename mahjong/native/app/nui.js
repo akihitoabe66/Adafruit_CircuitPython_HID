@@ -230,7 +230,8 @@
   }
   function drawTeacher(g) {
     if (!teacherOn()) return;
-    const h = S.hint, s = S.self; if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 280, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生', 14, 282, 14, YEL); text(S.tmsg.text, 14, 301, 17, WHITE); return; }
+    const h = S.hint, s = S.self; if (s && s.rm) return; // リーチする牌をえらぶ間は、案内の文字だけ
+     if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 280, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生', 14, 282, 14, YEL); text(S.tmsg.text, 14, 301, 17, WHITE); return; }
     if (!h || !s || s.row !== 0) return;
     panel(6, 280, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240);
     text('★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), 14, 282, 17, YEL);
@@ -335,12 +336,15 @@
   }
   function myTiles(p) { const hs = p.hand.filter((h) => h !== p.drawn); if (p.drawn) hs.push(p.drawn); return hs; }
   function allowed(s, h) { const p = s.p; if (p.riichi) return h === p.drawn; if (s.opts.forbid.includes(h.t)) return false; if (s.rm) return s.opts.riichi.includes(h.t); return true; }
-  function actBtn(x, y, w, h, label, sub, sel, pass) { // 操作ボタン: 選んでいるものは黄色、ほかは白(ほかの画面のボタンと同じ)
+  const b0w = (btns) => (btns.length >= 3 ? 150 : 170);
+  function actBtn(x, y, w, h, label, sub, sel, pass, kind) { // 操作ボタン: 選んでいるものは黄色、ほかは白。リーチ・ツモは、色つきで目立たせる
+    const kc = !sel && kind === 'riichi' ? [[200, 36, 90], [255, 91, 138]] : !sel && (kind === 'tsumo' || kind === 'ankan') ? [[190, 70, 30], [255, 123, 90]] : null;
+    if (kc) rrect(x - 6, y - 6, w + 12, h + 12, 10, kc[1], 90);
     if (sel) rrect(x - 4, y - 4, w + 8, h + 8, 10, [30, 30, 30]); if (sel) rrect(x - 2, y - 2, w + 4, h + 4, 8, [255, 255, 255]);
     rrect(x + 1, y + 3, w, h, 6, [0, 0, 0], 90);
-    rrect(x, y, w, h, 6, sel ? [196, 150, 20] : [150, 156, 150]); rrect(x, y, w, h - 3, 6, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : [245, 247, 244]);
-    const col = [26, 26, 20];
-    if (sub) { text(label, x + w / 2, y + 4, 17, col, 1); text(sub, x + w / 2, y + 23, 12, [90, 90, 80], 1); } else text(label, x + w / 2, y + (h - 3 - 20) / 2, 20, col, 1);
+    rrect(x, y, w, h, 6, sel ? [196, 150, 20] : kc ? kc[0] : [150, 156, 150]); rrect(x, y, w, h - 3, 6, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : kc ? kc[1] : [245, 247, 244]);
+    const col = kc ? WHITE : [26, 26, 20], big = kind === 'riichi' || kind === 'tsumo';
+    if (sub) { text(label, x + w / 2, y + 4, 17, col, 1); text(sub, x + w / 2, y + 23, 12, [90, 90, 80], 1); } else text(label, x + w / 2, y + (h - 3 - (big ? 26 : 20)) / 2, big ? 26 : 20, col, 1);
   }
   function reactHL(r, g) { // 副露に使う牌(手牌の中で、金の枠をつける)
     const b = r.btns[r.idx]; if (!b || !b.d) return null; const ld = g.lastDiscard; const need = {};
@@ -378,9 +382,9 @@
     if (!p.drawn && DS.sorted && hs.length % 3 === 1 && !S.result) { const px = handX(hs.length, true), onSlot = !s && !S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && S.curIdx >= hs.length; if (onSlot) { rrect(px - 5, HY - 13, HW + 10, HH + 10, 6, YEL, 90); rrect(px - 3, HY - 11, HW + 6, HH + 6, 5, YEL); rrect(px, HY - 8, HW, HH, 4, [60, 70, 60]); } else rrect(px, HY, HW, HH, 4, [0, 0, 0], 95); } // 14枚目の場所(まだ引いていない)。カーソルがあれば、そこに残る // まだ引いていない14枚目の場所に、黒い半透明の影(Edge版と同じ)
     drawMelds(p, 713 - meldWH(p, 31, 40), 398, 31, 40);
     if (s) {
-      const bw = 112; let bx = 8;
-      s.btns.forEach((b, i) => { actBtn(bx, 332, bw, 40, b.label, '', s.row === 1 && s.idx === i, false); bx += bw + 12; });
-      if (s.rm) text('リーチする牌をえらんで決定', 8 + s.btns.length * 124 + 4, 344, 15, YEL);
+      const bw = b0w(s.btns), tot = s.btns.length * bw + (s.btns.length - 1) * 14; let bx = Math.round(360 - tot / 2); // 雀卓の中央、自牌のすぐ上に、大きく出す
+      s.btns.forEach((b, i) => { actBtn(bx, 332, bw, 44, b.label, '', s.row === 1 && s.idx === i, false, b.act); bx += bw + 14; });
+      if (s.rm) { rrect(190, 296, 340, 30, 6, [0, 0, 0], 200); text('リーチする牌をえらんで決定', 360, 300, 19, YEL, 1); }
     }
     if (S.react) {
       const r = S.react; const ld = g.lastDiscard; const who = ld ? g.players[ld.by].name : '';
@@ -952,7 +956,7 @@
         opts.kakan.forEach((t) => btns.push({ label: '加カン ' + MJ.tileName(t), act: 'kakan', t }));
         S.side = null; S.coach = null;
         S.hint = null; if (teacherOn() && !p.riichi && !g.fast) { try { S.hint = teacherAdvice(g, p, opts); } catch (e) { print('teacher err ' + e); } }
-        S.self = { p, opts, st: st || {}, res, tiles, btns, rm: false, row: opts.tsumo ? 1 : 0, idx: opts.tsumo ? 0 : (S.curIdx != null && !p.riichi ? Math.min(S.curIdx, tiles.length - 1) : tiles.length - 1) };
+        S.self = { p, opts, st: st || {}, res, tiles, btns, rm: false, row: (opts.tsumo || btns.some((b) => b.act === 'riichi')) ? 1 : 0, idx: opts.tsumo ? 0 : btns.some((b) => b.act === 'riichi') ? btns.findIndex((b) => b.act === 'riichi') : (S.curIdx != null && !p.riichi ? Math.min(S.curIdx, tiles.length - 1) : tiles.length - 1) };
         dirty();
       });
     },
