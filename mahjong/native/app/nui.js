@@ -308,11 +308,12 @@
   }
   function myTiles(p) { const hs = p.hand.filter((h) => h !== p.drawn); if (p.drawn) hs.push(p.drawn); return hs; }
   function allowed(s, h) { const p = s.p; if (p.riichi) return h === p.drawn; if (s.opts.forbid.includes(h.t)) return false; if (s.rm) return s.opts.riichi.includes(h.t); return true; }
-  function actBtn(x, y, w, h, label, sub, sel, pass) { // Edge版ふうの、大きな操作ボタン(青 / 見送るは灰色)
-    if (sel) rrect(x - 4, y - 4, w + 8, h + 8, 10, [255, 255, 255]); rrect(x + 1, y + 3, w, h, 6, [0, 0, 0], 90);
-    rrect(x, y, w, h, 6, pass ? [150, 148, 130] : [34, 84, 190]); rrect(x, y, w, h - 3, 6, pass ? [226, 224, 206] : [74, 134, 238]);
-    const col = pass ? [30, 30, 30] : WHITE;
-    if (sub) { text(label, x + w / 2, y + 4, 17, col, 1); text(sub, x + w / 2, y + 23, 12, [215, 230, 255], 1); } else text(label, x + w / 2, y + (h - 3 - 20) / 2, 20, col, 1);
+  function actBtn(x, y, w, h, label, sub, sel, pass) { // 操作ボタン: 選んでいるものは黄色、ほかは白(ほかの画面のボタンと同じ)
+    if (sel) rrect(x - 4, y - 4, w + 8, h + 8, 10, [30, 30, 30]); if (sel) rrect(x - 2, y - 2, w + 4, h + 4, 8, [255, 255, 255]);
+    rrect(x + 1, y + 3, w, h, 6, [0, 0, 0], 90);
+    rrect(x, y, w, h, 6, sel ? [196, 150, 20] : [150, 156, 150]); rrect(x, y, w, h - 3, 6, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : [245, 247, 244]);
+    const col = [26, 26, 20];
+    if (sub) { text(label, x + w / 2, y + 4, 17, col, 1); text(sub, x + w / 2, y + 23, 12, [90, 90, 80], 1); } else text(label, x + w / 2, y + (h - 3 - 20) / 2, 20, col, 1);
   }
   function reactHL(r, g) { // 副露に使う牌(手牌の中で、金の枠をつける)
     const b = r.btns[r.idx]; if (!b || !b.d) return null; const ld = g.lastDiscard; const need = {};
