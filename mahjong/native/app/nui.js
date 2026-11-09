@@ -475,15 +475,21 @@
     (PIP[v] || []).forEach((i) => { const cx = x + Math.round(s / 2 + ((i % 3) - 1) * u * 0.9), cy = y + Math.round(s / 2 + (Math.floor(i / 3) - 1) * u * 0.9); fill(cx - pr, cy - pr, pr * 2, pr * 2, v === 1 ? [220, 40, 40] : [30, 30, 30]); });
   }
   const DPOS = { 2: [SW / 2 - 40, 6], 3: [70, 150], 1: [SW - 150, 150], 0: [SW / 2 - 40, 324] };
+  function dealerPlate(cx, y, name, rv) { // 親の名札: 金色の板に、左端に赤い「親」の札(脈打つ光つき)
+    const TW = 40, w = Math.max(150, gfx.measure(name, 21) + 34 + TW), x = Math.round(cx - w / 2), h = 38, pu = 0.5 + 0.5 * Math.sin(rv / 140);
+    rrect(x - 8, y - 8, w + 16, h + 16, 8, [255, 190, 30], Math.round(60 + 100 * pu));
+    rrect(x - 3, y - 3, w + 6, h + 6, 7, [255, 255, 255]); rrect(x, y, w, h, 5, [255, 214, 58]); rrect(x, y + 17, w, h - 17, 5, [244, 190, 20]); rrect(x, y, w, 26, 5, [255, 226, 110]);
+    rrect(x, y, TW, h, 5, [214, 48, 40]); rrect(x + TW - 6, y, 6, h, 0, [214, 48, 40]);
+    text('親', x + TW / 2, y + 7, 24, WHITE, 1); text(name, x + TW + (w - TW) / 2, y + 7, 21, [35, 26, 0], 1);
+  }
   function diceSeat(p, s, hi, wind, rv) { // サイコロの画面の、4人の顔(大きく)と名前。rv: 親が決まったあとの経過ミリ秒(親だけ、跳ねて、光る)
     let x = DPOS[s][0], y = DPOS[s][1], fs = 80, dealer = rv != null;
     if (dealer) { const k = Math.min(1, rv / 380), ex = k < 0.6 ? 80 + (k / 0.6) * 36 : 116 - ((k - 0.6) / 0.4) * 14; fs = Math.round(ex); x -= Math.round((fs - 80) / 2); y -= Math.round((fs - 80) / 2); }
     if (dealer) { const pu = 0.5 + 0.5 * Math.sin(rv / 140); rrect(x - 16, y - 16, fs + 32, fs + 32, 12, [255, 190, 30], Math.round(70 + 110 * pu)); rrect(x - 10, y - 10, fs + 20, fs + 20, 9, [255, 230, 90], Math.round(150 + 105 * pu)); rrect(x - 4, y - 4, fs + 8, fs + 8, 6, [255, 255, 255]); }
     else if (hi) { rrect(x - 8, y - 8, fs + 16, fs + 16, 8, [255, 120, 40]); rrect(x - 5, y - 5, fs + 10, fs + 10, 6, [255, 230, 80]); }
     face(p, x, y, fs, fs); if (!dealer) frame(x - 1, y - 1, fs + 2, fs + 2, hi ? [255, 255, 255] : [240, 210, 120], hi ? 3 : 2);
-    plate(DPOS[s][0] + 40, DPOS[s][1] + 96, p.name, 0);
+    if (dealer) dealerPlate(DPOS[s][0] + 40, DPOS[s][1] + 96, p.name, rv); else plate(DPOS[s][0] + 40, DPOS[s][1] + 96, p.name, 0);
     if (wind) { const wi = ['東', '南', '西', '北'].indexOf(wind); rrect(x - 46, y + 6, 38, 38, 6, [255, 255, 255]); rrect(x - 44, y + 8, 34, 34, 5, WIND_BG[wi]); text(wind, x - 27, y + 11, 28, WHITE, 1); }
-    if (dealer) { const bx = Math.min(x + fs + 25, SW - 24), by = y + Math.round(fs / 2) - 22; rrect(bx - 22, by, 44, 44, 22, [255, 255, 255]); rrect(bx - 19, by + 3, 38, 38, 19, [214, 48, 40]); text('親', bx, by + 8, 26, WHITE, 1); }
   }
   function drawDice() {
     const d = S.dice, g = S.game, now = __now(); stage();
