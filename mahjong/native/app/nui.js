@@ -308,9 +308,11 @@
     // 演出: 札の文字が、少し大きいところから縮んで止まる
     if (S.banner && S.banner.call && S.banner.p) { // ポン・チー・ロンなど: 顔と、色のついた大きな文字(Edge版と同じ)
       const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = 84, col = bn.text === 'リーチ' ? [255, 91, 138] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [255, 123, 90] : [196, 139, 255];
-      face(bn.p, 215, 96, 108, 108); frame(214, 95, 110, 110, [240, 210, 120], 2);
-      { const by = 124 - Math.round((sz - 84) / 2); text(bn.text, 345, by + 7, sz, [0, 0, 0], 0); [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, 340 + d[0], by + d[1], sz, [255, 255, 255])); }
-      text(bn.text, 340, 124 - Math.round((sz - 84) / 2), sz, col);
+      // 鳴いた人の席の側に出す: 対面=中央の上 / 上家=左 / 下家=右(上家と同じ高さ) / 自分=中央の下
+      const tw = gfx.measure(bn.text, sz), bw = 108 + 16 + tw, sd = bn.p.seat, by = sd === 2 ? 46 : sd === 0 ? 256 : 160;
+      const bx = sd === 3 ? 76 : sd === 1 ? 636 - bw : Math.round((W - bw) / 2);
+      face(bn.p, bx, by, 108, 108); frame(bx - 1, by - 1, 110, 110, [240, 210, 120], 2);
+      { const tx = bx + 124, ty = by + 28; text(bn.text, tx + 5, ty + 7, sz, [0, 0, 0], 0); [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, tx + d[0], ty + d[1], sz, [255, 255, 255])); text(bn.text, tx, ty, sz, col); }
     } else if (S.banner) { // 局のはじまり: 「東二局」「一本場」を、はっきり見せる
       const lb = String(S.banner.text).split(' '), my = 232 - (lb[1] ? 12 : 0); rrect(110, my - 74, 500, lb[1] ? 168 : 128, 6, [4, 18, 12], 238);
       text(lb[0], 364, my - 52, 84, [0, 0, 0], 1); text(lb[0], 360, my - 56, 84, YEL, 1); if (lb[1]) { text(lb[1], 362, my + 40, 40, [0, 0, 0], 1); text(lb[1], 360, my + 38, 40, WHITE, 1); } }
