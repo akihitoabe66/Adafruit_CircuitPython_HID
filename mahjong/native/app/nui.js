@@ -102,16 +102,22 @@
     return parts;
   }
   const WIND_BG = [[214, 64, 52], [36, 150, 92], [52, 110, 210], [138, 92, 206]]; // 東・南・西・北の色(Edge版と同じく、家ごとに色を分ける)
+  const SEAT_C = [[229, 57, 53], [58, 138, 238], [47, 191, 106], [165, 107, 255]]; // 家ごとの色(あなた=赤・下家=青・対面=緑・上家=紫。Edge版と同じ)
   function drawBar(g, p, x, y, w, h, rot) {
-    if (g.turn === p.seat) { rrect(x - 5, y - 5, w + 10, h + 10, 9, [255, 214, 60], 90); rrect(x - 3, y - 3, w + 6, h + 6, 8, [255, 214, 60]); panel(x, y, w, h, 9, [34, 52, 30], [255, 240, 150], 2); } else panel(x, y, w, h, 9, BAR, [225, 225, 215], 2, 240); // いま番の人は、金色に光らせる
-    const sw = g.seatWindOf(p), parts = barPieces(g, p).slice(1), CH = 24, bg = WIND_BG[sw];
+    const act = g.turn === p.seat, sw = g.seatWindOf(p), CH = 24, ST = 8, bg = WIND_BG[sw], sc = SEAT_C[p.seat];
+    if (act) { rrect(x - 8, y - 8, w + 16, h + 16, 11, [255, 210, 60], 80); rrect(x - 4, y - 4, w + 8, h + 8, 9, [255, 255, 255]); panel(x, y, w, h, 7, [255, 214, 58], [255, 255, 255], 2); } // いま番の人: 黄色い板に白い縁・金色の光(Edge版と同じ)
+    else panel(x, y, w, h, 7, BAR, [190, 190, 182], 2, 215);
+    // 家の色の帯(板のはしの太い線)
+    if (!rot) rrect(x + 2, y + 2, ST, h - 4, 3, sc); else if (rot === 90) rrect(x + 2, y + 2, w - 4, ST, 3, sc); else rrect(x + 2, y + h - 2 - ST, w - 4, ST, 3, sc);
+    const parts = barPieces(g, p).slice(1).map((q, i) => ({ s: q.s, sz: q.sz, c: act ? (i === 0 ? [27, 27, 18] : i === 1 ? [120, 60, 0] : [200, 30, 30]) : q.c }));
+    const off = ST + 8;
     if (!rot) {
-      const cy0 = y + (h - CH) / 2; rrect(x + 8, cy0, CH, CH, 5, bg); text(WIND[sw], x + 8 + CH / 2, cy0 + 2, 18, WHITE, 1);
-      let cx = x + 8 + CH + 10; parts.forEach((q) => { text(q.s, cx, y + (h - q.sz) / 2 - 2, q.sz, q.c); cx += gfx.measure(q.s, q.sz) + 12; }); return;
+      const cy0 = y + (h - CH) / 2; rrect(x + off, cy0, CH, CH, 5, bg); text(WIND[sw], x + off + CH / 2, cy0 + 2, 18, WHITE, 1);
+      let cx = x + off + CH + 10; parts.forEach((q) => { text(q.s, cx, y + (h - q.sz) / 2 - 2, q.sz, q.c); cx += gfx.measure(q.s, q.sz) + 12; }); return;
     }
-    const cxm = x + w / 2, cc = rot === 90 ? y + 8 + CH / 2 : y + h - 8 - CH / 2;
+    const cxm = x + w / 2, cc = rot === 90 ? y + off + CH / 2 : y + h - off - CH / 2;
     rrect(Math.round(cxm - CH / 2), Math.round(cc - CH / 2), CH, CH, 5, bg); gfx.textRot(WIND[sw], Math.round(cxm), Math.round(cc), 18, 255, 255, 255, rot);
-    let cy = y + 8 + CH + 10;
+    let cy = y + off + CH + 10;
     parts.forEach((q) => { const tw = gfx.measure(q.s, q.sz); if (rot === 90) { gfx.textRot(q.s, Math.round(cxm), Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); cy += tw + 12; } else { gfx.textRot(q.s, Math.round(cxm), Math.round(y + h - (cy - y) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); cy += tw + 12; } });
   }
   /* 副露: 席ごとの向きで並べ、鳴いた牌は90度回して、鳴かれた相手の側に置く */
