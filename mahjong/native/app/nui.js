@@ -228,11 +228,11 @@
   }
   function drawTeacher(g) {
     if (!teacherOn()) return;
-    const h = S.hint, s = S.self; if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 304, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生', 14, 306, 14, YEL); text(S.tmsg.text, 14, 325, 17, WHITE); return; }
+    const h = S.hint, s = S.self; if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 280, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生', 14, 282, 14, YEL); text(S.tmsg.text, 14, 301, 17, WHITE); return; }
     if (!h || !s || s.row !== 0) return;
-    panel(6, 304, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240);
-    text('★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), 14, 306, 17, YEL);
-    text((h.sh === 0 ? 'テンパイ' : 'テンパイまであと' + h.sh + '歩') + ' 受け入れ' + h.n + '枚  ' + (h.label || ''), 14, 327, 14, WHITE);
+    panel(6, 280, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240);
+    text('★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), 14, 282, 17, YEL);
+    text((h.sh === 0 ? 'テンパイ' : 'テンパイまであと' + h.sh + '歩') + ' 受け入れ' + h.n + '枚  ' + (h.label || ''), 14, 303, 14, WHITE);
   }
 
   /* ---------- 軽い動き(牌が河へ飛ぶ・配牌・札の拡大) ---------- */
@@ -576,13 +576,27 @@
     if (__auto && globalThis.__shotDir && !S._rkShot) { S._rkShot = 1; gfx.shot(__shotDir + '/rank.bmp'); }
   }
   function overlay(a) { gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], a == null ? 200 : a); gfx.view(S.vx, S.vy); }
+  function drawRankP(){ // 局のあとの、4人のじゅんい(点数と増減)
+    const r = S.rankP.r, g = S.game; stage(); text('この局の結果', SW / 2, 14, 34, YEL, 1);
+    const win = new Set(r.wins.map((w) => w.winner.seat)), order = g.players.map((p, i) => i).sort((a, b) => (r.after[b] - r.after[a]) || (a - b));
+    order.forEach((i, k) => {
+      const p = g.players[i], y = 66 + k * 86, x = 96, w = 640, h = 78, d = r.delta[i], me = p.isHuman;
+      rrect(x - 3, y - 3, w + 6, h + 6, 6, k === 0 ? [240, 200, 60] : [30, 70, 56]); rrect(x, y, w, h, 5, me ? [58, 100, 50] : [22, 56, 44]);
+      text((k + 1) + '位', x + 22, y + 20, 38, k === 0 ? YEL : WHITE);
+      face(p, x + 118, y + 7, 64, 64);
+      text(p.name, x + 202, y + 12, 28, WHITE);
+      if (win.has(i)) { rrect(x + 202, y + 46, 64, 24, 4, [214, 48, 40]); text('上がり', x + 234, y + 49, 17, WHITE, 1); }
+      text(String(r.after[i]), x + w - 150, y + 14, 36, YEL, 2); text((d > 0 ? '+' : '') + d, x + w - 18, y + 20, 26, d > 0 ? [120, 230, 140] : d < 0 ? [255, 120, 100] : GREY, 2);
+    });
+    text('決定ボタンで 次へ', SW / 2, 420, 20, [205, 224, 212], 1);
+  }
   function drawResult(r) {
     const g = S.game; stage(); rrect(40, 12, 752, 444, 18, [240, 200, 60]); rrect(43, 15, 746, 438, 16, [10, 38, 30]);
     if (r.type === 'win') {
       const w = r.wins[0], res = w.res, v = w.view;
       face(w.winner, 58, 24, 48, 48); frame(57, 23, 50, 50, [240, 210, 120], 2);
       text(w.winner.name, 120, 28, 30, WHITE); { const nw = gfx.measure(w.winner.name, 30); rrect(120 + nw + 14, 30, 84, 34, 10, w.tsumo ? [60, 130, 200] : [210, 60, 50]); text(w.tsumo ? 'ツモ' : 'ロン', 120 + nw + 56, 35, 22, WHITE, 1); }
-      if (r.wins.length > 1) text('ほか ' + r.wins.slice(1).map((x) => x.winner.name).join('・') + ' もロン', 760, 36, 15, GREY, 2);
+      if (r.total > 1) text((r.idx + 1) + ' / ' + r.total + ' 人目の上がり', 760, 36, 16, GREY, 2);
       if (res.limit) text(res.limit, 760, 62, 30, [255, 120, 90], 2);
       // 手牌(大きく、中央ぞろえ)
       const tw = 36, th = 48, gap = 14, melds = v.melds.reduce((a, m) => a + m.tiles.length * 30 + 10, 0), total = v.concealed.length * (tw + 1) + gap + (w.winTile ? tw : 0) + (melds ? 16 + melds : 0);
@@ -790,6 +804,7 @@
       return;
     }
     if (S.result) { if (k === 'ok') { const r = S.result; S.result = null; r.done(); } return; }
+    if (S.rankP) { if (k === 'ok') { const q = S.rankP; q.done(); dirty(); } return; }
     if (S.end) { if (k === 'ok') { const r = S.end; S.end = null; r.done(); } return; }
     if (S.coach) { // 解説の窓
       const c = S.coach, cs = c.cards || [];
@@ -903,8 +918,17 @@
     showResult(g, r) {
       S.bub = {}; S.banner = null;
       NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
-      if (r.type === 'win') NSND.readWin(g, r); else NSND.sfx('drawgame');
-      return new Promise((done) => { S.result = Object.assign({ done }, r, { done: () => { NSND.stopSpeak(); done(); } }); dirty(); });
+      if (r.type !== 'win') { NSND.sfx('drawgame'); return new Promise((done) => { S.result = Object.assign({ done }, r, { done: () => { NSND.stopSpeak(); done(); } }); dirty(); }); }
+      return (async () => { // 上がった人ごとに、役と点数の画面(読み上げつき)。そのあと、4人のじゅんいの画面
+        const n = r.wins.length;
+        for (let i = 0; i < n; i++) {
+          if (g.stopped) return;
+          try { NSND.readWin(g, { wins: [r.wins[i]] }); } catch (e) { /* ignore */ }
+          await new Promise((done) => { S.result = Object.assign({}, r, { wins: [r.wins[i]], idx: i, total: n, done: () => { NSND.stopSpeak(); done(); } }); dirty(); });
+        }
+        if (g.stopped) return;
+        await new Promise((done) => { S.rankP = { r, done: () => { S.rankP = null; done(); } }; dirty(); });
+      })();
     },
     askSave(g) { return new Promise((res) => { S.saveP = { idx: 0, res, snap: g.snapshot() }; dirty(); }); },
     gameEnd(g, f) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({}, f, { done: () => { let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } S.rankScr = { rk, done }; dirty(); } }); }); },
@@ -918,7 +942,7 @@
   function stopGame() { // ゲームを途中でやめて、タイトルへ
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
     g.stopped = true; S.tmsgShown = 0; S.side = S.coach = null;
-    const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
+    const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
     S.self = S.react = S.result = S.end = S.saveP = null;
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
     dirty();
@@ -954,11 +978,12 @@
   const drawBody = function () {
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings';
-    const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end;
-    if (full || inGame || S.result) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
+    const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
+    if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
     gfx.view(S.vx, S.vy);
     if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'slots') { gfx.clear(14, 84, 52); drawSlots(); }
     else if (S.game) { gfx.clear(14, 84, 52); drawTable(S.game); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
+    if (S.rankP) drawRankP();
     if (S.result) { drawResult(S.result); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
     if (__auto && globalThis.__shotDir && (S.react || (S.self && S.self.btns.length)) && S.shotR < 6) { gfx.shot(__shotDir + '/act' + (++S.shotR) + '.bmp'); }
     if (S.end) { drawEnd(S.end); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/end.bmp'); }
