@@ -98,7 +98,7 @@
   }
   const WIND_BG = [[214, 64, 52], [36, 150, 92], [52, 110, 210], [138, 92, 206]]; // 東・南・西・北の色(Edge版と同じく、家ごとに色を分ける)
   function drawBar(g, p, x, y, w, h, rot) {
-    panel(x, y, w, h, 9, BAR, [225, 225, 215], 2, 240);
+    if (g.turn === p.seat) { rrect(x - 5, y - 5, w + 10, h + 10, 9, [255, 214, 60], 90); rrect(x - 3, y - 3, w + 6, h + 6, 8, [255, 214, 60]); panel(x, y, w, h, 9, [34, 52, 30], [255, 240, 150], 2); } else panel(x, y, w, h, 9, BAR, [225, 225, 215], 2, 240); // いま番の人は、金色に光らせる
     const sw = g.seatWindOf(p), parts = barPieces(g, p).slice(1), CH = 24, bg = WIND_BG[sw];
     if (!rot) {
       const cy0 = y + (h - CH) / 2; rrect(x + 8, cy0, CH, CH, 5, bg); text(WIND[sw], x + 8 + CH / 2, cy0 + 2, 18, WHITE, 1);
@@ -258,7 +258,7 @@
     // 河(変わったときだけ描き直し、あとは1枚の絵を貼る)
     const rkey = P.map((p) => p.discards.length + ':' + p.discards.map((d) => (d.called ? 1 : 0)).join('') + ':' + p.discards.indexOf(g.lastDiscard && g.lastDiscard.d)).join('|') + (S.fly ? 'f' : '');
     cached(0, rkey, () => P.forEach((p) => drawRiver(g, p)));
-    const okey = [DS.n, g.live.length, g.kyotaku, g.kyokuLabel(), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
+    const okey = [g.turn, DS.n, g.live.length, g.kyotaku, g.kyokuLabel(), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
     cached(1, okey, () => {
     // 伏せた手牌(小さな牌)
     const nHand = (p) => Math.min(p.hand.length, DS.n);
@@ -427,8 +427,8 @@
     const it = S.intro, g = S.game, t = __now() - it.t0; stage();
     const P = g.players, st = (p) => (p.char && p.char.level ? p.char.level : 0), wf = (x, y, z) => { rrect(x - 9, y - 9, z + 18, z + 18, 4, [150, 100, 46]); rrect(x - 6, y - 6, z + 12, z + 12, 3, [205, 150, 80]); rrect(x - 3, y - 3, z + 6, z + 6, 2, [70, 110, 85]); };
     if (t > 0) { wf(360, 18, 112); face(P[2], 360, 18, 112, 112); plate(416, 140, P[2].name, st(P[2])); }
-    if (t > 350) { wf(70, 150, 112); face(P[3], 70, 150, 112, 112); plate(126, 268, P[3].name, st(P[3])); }
-    if (t > 700) { wf(650, 150, 112); face(P[1], 650, 150, 112, 112); plate(706, 268, P[1].name, st(P[1])); }
+    if (t > 0) { wf(70, 150, 112); face(P[3], 70, 150, 112, 112); plate(126, 268, P[3].name, st(P[3])); }
+    if (t > 0) { wf(650, 150, 112); face(P[1], 650, 150, 112, 112); plate(706, 268, P[1].name, st(P[1])); }
     if (t > 1000) { try { gfx.imageTop('img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp', 60, 336, 92, 92); } catch (e) { /* ignore */ } plate(204, 366, 'あなた', 0); }
     if (t > 1200 && !it.v1) { it.v1 = 1; S.skipKyokuVoice = true; try { NSND.readKyoku(g); } catch (e) { /* ignore */ } }
     if (t >= 2400 && !it.v2) { it.v2 = 1; try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }
@@ -443,11 +443,11 @@
     const u = s / 3.2, pr = Math.max(3, Math.round(s / 13));
     (PIP[v] || []).forEach((i) => { const cx = x + Math.round(s / 2 + ((i % 3) - 1) * u * 0.9), cy = y + Math.round(s / 2 + (Math.floor(i / 3) - 1) * u * 0.9); fill(cx - pr, cy - pr, pr * 2, pr * 2, v === 1 ? [220, 40, 40] : [30, 30, 30]); });
   }
-  const DPOS = { 2: [SW / 2 - 44, 8], 3: [66, 150], 1: [SW - 154, 150], 0: [SW / 2 - 44, 330] };
+  const DPOS = { 2: [SW / 2 - 40, 6], 3: [70, 150], 1: [SW - 150, 150], 0: [SW / 2 - 40, 324] };
   function diceSeat(p, s, hi, wind) { // サイコロの画面の、4人の顔(大きく)と名前
-    const x = DPOS[s][0], y = DPOS[s][1], fs = 88; if (hi) { rrect(x - 12, y - 12, fs + 24, fs + 24, 14, [255, 120, 40]); rrect(x - 8, y - 8, fs + 16, fs + 16, 10, [255, 230, 80]); } face(p, x, y, fs, fs); frame(x - 1, y - 1, fs + 2, fs + 2, hi ? [255, 255, 255] : [240, 210, 120], hi ? 3 : 2);
-    plate(x + fs / 2, y + fs + 6, p.name, 0);
-    if (wind) text(wind, x - 28, y + 28, 38, wind === '東' ? RED : YEL, 1);
+    const x = DPOS[s][0], y = DPOS[s][1], fs = 80; if (hi) { rrect(x - 8, y - 8, fs + 16, fs + 16, 8, [255, 120, 40]); rrect(x - 5, y - 5, fs + 10, fs + 10, 6, [255, 230, 80]); } face(p, x, y, fs, fs); frame(x - 1, y - 1, fs + 2, fs + 2, hi ? [255, 255, 255] : [240, 210, 120], hi ? 3 : 2);
+    plate(x + fs / 2, y + fs + 16, p.name, 0);
+    if (wind) { const wi = ['東', '南', '西', '北'].indexOf(wind); rrect(x - 46, y + 6, 38, 38, 6, [255, 255, 255]); rrect(x - 44, y + 8, 34, 34, 5, WIND_BG[wi]); text(wind, x - 27, y + 11, 28, WHITE, 1); }
   }
   function drawDice() {
     const d = S.dice, g = S.game, now = __now(); stage();
@@ -477,11 +477,11 @@
       }
     }
     pos.forEach((p, i) => drawDie(p[0], p[1], i ? vb : va, sz[i]));
-    rrect(190, 290, 452, 40, 10, [0, 0, 0], 190);
-    if (!d.started) text('サイコロを振ります', SW / 2, 296, 22, YEL, 1);
-    else if (d.rolling) text('…', SW / 2, 296, 22, WHITE, 1);
-    else if (!done) text('合計 ' + total + ' …  あなたから 左回りに 数えます', SW / 2, 298, 19, WHITE, 1);
-    else text(P[d.target].name + ' が 東家(親)です', SW / 2, 296, 22, YEL, 1);
+    rrect(190, 276, 452, 38, 6, [0, 0, 0], 190);
+    if (!d.started) text('サイコロを振ります', SW / 2, 282, 22, YEL, 1);
+    else if (d.rolling) text('…', SW / 2, 282, 22, WHITE, 1);
+    else if (!done) text('合計 ' + total + ' …  あなたから 左回りに 数えます', SW / 2, 284, 19, WHITE, 1);
+    else text(P[d.target].name + ' が 東家(親)です', SW / 2, 282, 22, YEL, 1);
     if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
     if (d.settled) dirty();
   }
