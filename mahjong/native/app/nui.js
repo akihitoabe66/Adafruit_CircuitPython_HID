@@ -1073,14 +1073,16 @@
     panel(x, y, w, h, 12, on ? YEL : WHITE, on ? [160, 110, 0] : GREEN, on ? 4 : 2, 255);
     text(r, x + w / 2, y + 5, 15, [90, 90, 80], 1); const sz = fitSz(n, 28, w - (star ? 56 : 28), 16); text(n, x + w / 2 + (star ? 12 : 0), y + 23 + Math.round((28 - sz) / 2), sz, INK, 1);
     if (star) text('★', x + w / 2 - gfx.measure(n, sz) / 2 - 10, y + 26, 20, [214, 150, 0], 1);
+    if (on) { rrect(x + w - 40, y + 14, 32, 36, 8, [160, 110, 0]); text('▶', x + w - 24, y + 21, 22, WHITE, 1); } // 選んでいるボタン: 「押すと ひらく」の目印
   }
   function drawDict() {
     const d = S.dict, L = D_().list;
     if (d.view === 'main') {
       const items = dItems(d), np = Math.max(1, Math.ceil(items.length / DPER)), pg = Math.floor(d.sel / DPER);
-      quizFrame('麻雀用語じてん', '', np > 1 && d.foc === 1 ? (pg + 1) + ' / ' + np + ' ページ' : '', d.foc === 0 ? '▲ ▼ 分類をえらぶ    ▶ 決定: 語の一覧へ    戻る: 勉強へ' : '◀ ▶ ▲ ▼ えらぶ    決定: ひらく    ◀(左はし): 分類へ    戻る');
+      quizFrame('麻雀用語じてん', '', np > 1 && d.foc === 1 ? (pg + 1) + ' / ' + np + ' ページ' : '', '');
+      rrect(204, 410, 594, 38, 10, d.foc === 1 ? [160, 110, 0] : [40, 90, 60]); text(d.foc === 0 ? '▶ を押すと、右の 言葉を えらべます' : '決定ボタンを押すと、くわしい説明が ひらきます', 501, 416, 22, WHITE, 1); text(d.foc === 0 ? '▲▼ 分類  戻る: 勉強へ' : '◀(左はし)で分類へ', 100, 417, 15, [210, 225, 205], 1);
       DM.forEach((c, i) => { const cur = d.m === i, f = d.foc === 0 && cur; panel(14, 56 + i * 40, 176, 36, 10, f ? YEL : cur ? [60, 130, 60] : [50, 70, 60], f ? [160, 110, 0] : cur ? [150, 200, 140] : [74, 97, 84], f ? 4 : 2, 255); text(c, 102, 56 + i * 40 + (c.length > 6 ? 9 : 7), c.length > 6 ? 17 : 20, f ? INK : cur ? WHITE : [185, 201, 189], 1); });
-      items.slice(pg * DPER, pg * DPER + DPER).forEach((it, i) => dBtn(204 + (i % 2) * 302, 56 + Math.floor(i / 2) * 70, 292, 64, it.n, it.r, d.foc === 1 && pg * DPER + i === d.sel, it.star));
+      items.slice(pg * DPER, pg * DPER + DPER).forEach((it, i) => dBtn(204 + (i % 2) * 302, 54 + Math.floor(i / 2) * 70, 292, 64, it.n, it.r, d.foc === 1 && pg * DPER + i === d.sel, it.star));
       if (!items.length) text('この分類は、まだありません', 500, 200, 22, GREY, 1);
       return;
     }
