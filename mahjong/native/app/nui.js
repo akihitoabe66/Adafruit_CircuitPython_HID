@@ -1277,7 +1277,7 @@
     }
     if (S.mode === 'title') { // タイトル: はじめる / BGM / 終了
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { const m = { 0: { up: 1, left: 1, right: 2, down: 2 }, 1: { down: 0, left: 0, right: 2, up: 2 }, 2: { up: 1, right: 1, left: 0, down: 0 } }; S.titleIdx = m[S.titleIdx][k]; }
-      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 320); else if (S.titleIdx === 1) { S.pressT = __now(); S.pressMs = 320; NSND.toggle(); if (NSND.on) NSND.home(); dirty(); } else later(() => { S.confirmQ = { idx: 0 }; }, 320); }
+      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 150); else if (S.titleIdx === 1) { S.pressT = __now(); S.pressMs = 150; NSND.toggle(); if (NSND.on) NSND.home(); dirty(); } else later(() => { S.confirmQ = { idx: 0 }; }, 150); }
       return;
     }
     if (S.mode === 'rules') { // 麻雀のルール
