@@ -35,10 +35,15 @@ for r in range(4):
         sq = Image.fromarray(pad[top:top + Wd, left:left + Wd]).resize((176, 176), Image.LANCZOS)
         sq.save(os.path.join(O, 'chars', 'face', '%02d.webp' % n), quality=90); sq.transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(O, 'chars', 'face', '%02d_f.webp' % n), quality=90)
 YL, YR = [12, 322, 634, 946], [307, 617, 930, 1243]; YT, YB = [12, 324, 635, 944], [309, 619, 930, 1244]
+YOU_SCALE = 0.95  # あなた(ずんだもん)の大きさ(1=いっぱい)。肩(下)はそのままで、上と左右に、ぼかした背景を足す
 im = Image.open(os.path.join(U, 'sheet_you.png')).convert('RGB'); n = 0
 for r in range(4):
     for c in range(4):
-        n += 1; im.crop((YL[c] + M, YT[r] + M, YR[c] - M, YB[r] - M)).resize((256, 256), Image.LANCZOS).save(os.path.join(O, 'zunda', '%02d.webp' % n), quality=90)
+        n += 1; x0, x1, y0, y1 = YL[c] + M, YR[c] - M, YT[r] + M, YB[r] - M; w = x1 - x0; h = y1 - y0
+        src = im.crop((x0, y0, x1, y1)); pim = Image.fromarray(np.pad(np.array(src), ((P, P), (P, P), (0, 0)), mode='reflect')); blur = pim.filter(ImageFilter.GaussianBlur(9))
+        mask = Image.new('L', pim.size, 0); mask.paste(255, (P, P, P + w, P + h)); pad = np.array(Image.composite(pim, blur, mask.filter(ImageFilter.GaussianBlur(1.5))))
+        Wd = round(w / YOU_SCALE); left = P + (w - Wd) // 2; top = P + h - Wd   # 下はそろえる
+        Image.fromarray(pad[top:top + Wd, left:left + Wd]).resize((256, 256), Image.LANCZOS).save(os.path.join(O, 'zunda', '%02d.webp' % n), quality=90)
 Image.open(os.path.join(U, 'title.jpg')).convert('RGB').resize((1362, 768), Image.LANCZOS).save(os.path.join(O, 'title_art.webp'), quality=88)
 os.makedirs(os.path.join(R, 'native', 'img', 'uk'), exist_ok=True)
 Image.open(os.path.join(U, 'title.jpg')).convert('RGB').resize((832, 469), Image.LANCZOS).save(os.path.join(R, 'native', 'img', 'uk', 'title_art.webp'), quality=88) # 実機用(小さい)
