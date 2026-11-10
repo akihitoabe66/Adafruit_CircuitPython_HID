@@ -68,7 +68,7 @@
   }
   function button(x, y, w, h, label, sel) {
     panel(x, y, w, h, 7, sel ? YEL : WHITE, sel ? [160, 110, 0] : [120, 120, 120], sel ? 3 : 1);
-    text(label, x + w / 2, y + (h - 16) / 2 - 1, 15, BLACK, 1);
+    text(label, x + w / 2, y + (h - 18) / 2 - 1, 18, BLACK, 1);
   }
   function face(p, x, y, w, h) {
     const ch = p.char; const src = p.isHuman ? ch.face : (MJ.faceSrc ? MJ.faceSrc(ch) : ch.face);
@@ -101,8 +101,8 @@
   }
   const BAR = [8, 26, 18];
   function barPieces(g, p) {
-    const sw = g.seatWindOf(p), parts = [{ s: WIND[sw], c: sw === 0 ? [235, 90, 70] : [120, 160, 230], sz: 18 }, { s: p.name, c: WHITE, sz: 16 }, { s: String(p.score).replace(/\B(?=(\d{3})+(?!\d))/g, ','), c: p.score < 0 ? RED : YEL, sz: 18 }];
-    if (p.riichi) parts.push({ s: 'リーチ中', c: [255, 120, 100], sz: 15 });
+    const sw = g.seatWindOf(p), parts = [{ s: WIND[sw], c: sw === 0 ? [235, 90, 70] : [120, 160, 230], sz: 20 }, { s: p.name, c: WHITE, sz: 20 }, { s: String(p.score).replace(/\B(?=(\d{3})+(?!\d))/g, ','), c: p.score < 0 ? RED : YEL, sz: 22 }];
+    if (p.riichi) parts.push({ s: 'リーチ中', c: [255, 120, 100], sz: 17 });
     return parts;
   }
   const WIND_BG = [[214, 64, 52], [36, 150, 92], [52, 110, 210], [138, 92, 206]]; // 東・南・西・北の色(Edge版と同じく、家ごとに色を分ける)
@@ -188,25 +188,27 @@
   }
   function drawSide(g) {
     const f = S.side ? S.side.idx : -1;
-    sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 762, 14, 13, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
+    sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 768, 10, 16, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
     sbtn(796, 6, 30, 32, [50, 90, 160], [25, 50, 100], [''], f === 3, 13); fill(803, 17, 4, 10, WHITE); fill(807, 14, 3, 16, WHITE); fill(810, 11, 3, 22, WHITE); fill(816, 17, 2, 10, WHITE);
-    { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 46, 22, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 72, 12, GREY, 1); }
+    { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 44, 24, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 70, 16, [200, 215, 200], 1); }
     {
       const w = waitInfoOf(g);
-      if (w) { const ph = 40 + Math.ceil(w.length / 3) * 58 + (w[0].fu ? 18 : 0); panel(726, 94, 100, ph, 10, [6, 44, 26], [255, 220, 40], 2, 235); text(w[0].plan ? '待ち(予定)' : 'あたり牌', 776, 98, 14, YEL, 1);
-        w.forEach((x, i) => { const tx = 731 + (i % 3) * 32, ty = 118 + Math.floor(i / 3) * 58; tile(x.t, tx, ty, 28, 38); text('あと' + x.left, tx + 14, ty + 40, 11, WHITE, 1); });
-        if (w[0].fu) text('フリテン', 776, 94 + ph - 22, 13, [255, 120, 100], 1); }
+      if (w) { // あたり牌: 4種類までは大きく(2列)、それより多いときだけ小さく(3列)
+        const big = w.length <= 4, cols = big ? 2 : 3, rows = Math.ceil(w.length / cols), tw = big ? 38 : 28, th = big ? 50 : 38, pitch = big ? 46 : 32, rh = big ? 74 : 58, fs = big ? 16 : 14;
+        const ph = 34 + rows * rh + (w[0].fu ? 22 : 0); panel(726, 88, 100, ph, 10, [6, 44, 26], [255, 220, 40], 2, 235); text(w[0].plan ? '待ち(予定)' : 'あたり牌', 776, 92, w[0].plan ? 17 : 18, YEL, 1);
+        w.forEach((x, i) => { const tx = 731 + (i % cols) * pitch + (big ? 2 : 0), ty = 118 + Math.floor(i / cols) * rh; tile(x.t, tx, ty, tw, th); text('あと' + x.left, tx + tw / 2, ty + th + 2, fs, WHITE, 1); });
+        if (w[0].fu) text('フリテン', 776, 88 + ph - 24, 16, [255, 120, 100], 1); }
     }
-    sbtn(726, 330, 100, 40, [40, 90, 190], [20, 50, 120], ['解説'], f === 1, 20);
-    sbtn(726, 378, 100, 44, teacherOn() ? [30, 120, 80] : [90, 90, 90], teacherOn() ? [15, 70, 45] : [50, 50, 50], ['麻雀先生', teacherOn() ? 'あり' : 'なし'], f === 2, 15);
+    sbtn(726, 322, 100, 46, [40, 90, 190], [20, 50, 120], ['解説'], f === 1, 24);
+    sbtn(726, 376, 100, 56, teacherOn() ? [30, 120, 80] : [90, 90, 90], teacherOn() ? [15, 70, 45] : [50, 50, 50], ['麻雀先生', teacherOn() ? 'あり' : 'なし'], f === 2, 19);
   }
   function wrapText(s, sz, maxw) { // 文字列を、幅に収まるように、行に分ける
     const out = []; let cur = '';
-    for (const ch of String(s)) { if (ch === '\n') { out.push(cur); cur = ''; continue; } if (gfx.measure(cur + ch, sz) > maxw) { out.push(cur); cur = ch; } else cur += ch; }
+    for (const ch of String(s)) { if (ch === '\n') { out.push(cur); cur = ''; continue; } if (gfx.measure(cur + ch, sz) > maxw && !'。、,.」』)）!?!?…ー'.includes(ch)) { out.push(cur); cur = ch; } else cur += ch; }
     if (cur) out.push(cur); return out;
   }
   /* Edge版の解説(coach.js が作るカード)を、文字のカードに直して使う */
-  const htmlText = (h) => String(h).replace(/<span class="tile[^>]*>[\s\S]*?<\/svg><\/span>/g, '').replace(/<br\s*\/?>/g, '\n').replace(/<li>/g, '・').replace(/<\/li>/g, '\n').replace(/<\/div>/g, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/\n{3,}/g, '\n\n').trim();
+  const htmlText = (h) => String(h).replace(/<span class="tile[^>]*>[\s\S]*?<\/svg><\/span>/g, '').replace(/<br\s*\/?>/g, '\n').replace(/<li>/g, '\n・').replace(/<\/li>/g, '\n').replace(/<\/div>/g, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/\n{3,}/g, '\n\n').trim();
   function parseCards(html) {
     const out = [], re = /<div class="cc(?: [^"]*)?"><div class="cc-h">([\s\S]*?)<\/div><div class="cc-b">([\s\S]*?)<\/div><\/div>(?=<div class="cc|\s*$)/g; let m;
     while ((m = re.exec(html))) out.push({ title: htmlText(m[1]), text: htmlText(m[2]) });
@@ -225,24 +227,31 @@
     panel(10, 8, 700, 412, 18, [14, 40, 32], [240, 210, 120], 3, 247);
     text('麻雀先生', 24, 14, 22, YEL);
     const c = S.coach, cards = c.cards;
-    if (!teacherOn()) { text('麻雀先生が「なし」です。右の「麻雀先生」ボタンで「あり」にしてください。', 28, 80, 18, WHITE); text('決定・もどる で とじる', 360, 396, 14, GREY, 1); return; }
-    if (!cards.length) { text('あなたの番(または、ポン・チーなどの選択)のときに、開いてください。', 28, 80, 18, WHITE); text('決定・もどる で とじる', 360, 396, 14, GREY, 1); return; }
+    if (!teacherOn()) { text('麻雀先生が「なし」です。右の「麻雀先生」ボタンで「あり」にしてください。', 28, 80, 18, WHITE); text('決定・もどる で とじる', 360, 392, 20, GREY, 1); return; }
+    if (!cards.length) { text('あなたの番(または、ポン・チーなどの選択)のときに、開いてください。', 28, 80, 18, WHITE); text('決定・もどる で とじる', 360, 392, 20, GREY, 1); return; }
     const tw = Math.min(110, Math.floor(540 / cards.length));
-    cards.forEach((cd, i) => { const on = c.tab === i; fill(150 + i * (tw + 4), 14, tw, 30, on ? YEL : [60, 90, 80]); text(shortTitle(cd.title), 150 + i * (tw + 4) + tw / 2, 18, 15, on ? BLACK : WHITE, 1); });
-    const cd = cards[c.tab]; if (!cd.lines) { cd.lines = []; wrapText(cd.title, 21, 650).forEach((l) => cd.lines.push({ t: l, h: 1 })); cd.lines.push({ t: '', h: 0 }); wrapText(cd.text, 18, 650).forEach((l) => cd.lines.push({ t: l, h: 0 })); }
-    const per = 12, top = c.scroll || 0; let y = 56;
-    cd.lines.slice(top, top + per).forEach((l) => { text(l.t, 28, y, l.h ? 21 : 18, l.h ? YEL : WHITE); y += l.h ? 30 : 27; });
-    if (cd.lines.length > per) text((top > 0 ? '↑ ' : '') + ((top + per) < cd.lines.length ? '↓ つづき' : ''), 690, 380, 13, GREY, 2);
-    text('← → カードをえらぶ   ↑ ↓ 文章をうごかす   決定・もどる とじる', 360, 396, 14, GREY, 1);
+    cards.forEach((cd, i) => { const on = c.tab === i; fill(150 + i * (tw + 4), 14, tw, 30, on ? YEL : [60, 90, 80]); text(shortTitle(cd.title), 150 + i * (tw + 4) + tw / 2, 16, 18, on ? BLACK : WHITE, 1); });
+    const cd = cards[c.tab];
+    if (!cd.fit) { // 入りきる いちばん大きな字で(スクロールさせない)。最後まで入らないときだけ、小さな字で、スクロール
+      for (const sz of [26, 24, 22, 20, 18]) {
+        const lines = []; wrapText(cd.title, sz + 2, 650).forEach((l) => lines.push({ t: l, h: 1 })); lines.push({ t: '', h: 0 }); wrapText(cd.text, sz, 650).forEach((l) => lines.push({ t: l, h: 0 }));
+        const hh = lines.reduce((a2, l) => a2 + (l.h ? Math.round((sz + 2) * 1.4) : Math.round(sz * 1.4)), 0); cd.fit = { sz, lines, hh }; if (hh <= 322) break;
+      }
+    }
+    const F = cd.fit, top = c.scroll || 0; let y = 54; gfx.clip(10, 50, 700, 330);
+    F.lines.slice(top).forEach((l) => { text(l.t, 28, y, l.h ? F.sz + 2 : F.sz, l.h ? YEL : WHITE); y += l.h ? Math.round((F.sz + 2) * 1.4) : Math.round(F.sz * 1.4); }); gfx.clip();
+    if (F.hh > 322) text((top > 0 ? '↑ ' : '') + '↓ つづき', 690, 384, 18, GREY, 2);
+    text('← → カードをえらぶ   ↑ ↓ 文章をうごかす   決定・もどる とじる', 360, 392, 18, GREY, 1);
   }
+  const fitSz = (str, sz, maxw, min) => { while (sz > min && gfx.measure(str, sz) > maxw) sz--; return sz; }; // 幅に入るまで、字を小さくする
   function drawTeacher(g) {
     if (!teacherOn()) return;
     const h = S.hint, s = S.self; if (s && s.rm) return; // リーチする牌をえらぶ間は、案内の文字だけ
-     if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 280, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生', 14, 282, 14, YEL); text(S.tmsg.text, 14, 301, 17, WHITE); return; }
+     if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 272, 540, 58, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生', 16, 274, 16, YEL); text(S.tmsg.text, 16, 296, fitSz(S.tmsg.text, 21, 516, 16), WHITE); return; }
     if (!h || !s || s.row !== 0) return;
-    panel(6, 280, 430, 46, 10, [6, 44, 26], [255, 220, 40], 2, 240);
-    text('★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), 14, 282, 17, YEL);
-    text((h.sh === 0 ? 'テンパイ' : 'テンパイまであと' + h.sh + '歩') + ' 受け入れ' + h.n + '枚  ' + (h.label || ''), 14, 303, 14, WHITE);
+    panel(6, 270, 540, 62, 10, [6, 44, 26], [255, 220, 40], 2, 240);
+    const l1 = '★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), l2 = (h.sh === 0 ? 'テンパイ' : 'テンパイまであと' + h.sh + '歩') + ' 受け入れ' + h.n + '枚  ' + (h.label || '');
+    text(l1, 16, 272, fitSz(l1, 24, 516, 18), YEL); text(l2, 16, 301, fitSz(l2, 19, 516, 14), WHITE);
   }
 
   /* ---------- 軽い動き(牌が河へ飛ぶ・配牌・札の拡大) ---------- */
@@ -327,8 +336,8 @@
     if (!S.deal) { // 配牌のあいだは、中央の情報を出さない(山の輪を見せるため)
     // 中央の情報
     panel(218, 163, 281, 101, 14, [6, 44, 26], [90, 140, 110], 2);
-    const lb = g.kyokuLabel().split(' '); text(lb[0], 234, 172, 24, WHITE); text('供託 ' + g.kyotaku + (lb[1] ? '  ' + lb[1] : ''), 234, 204, 12, GREY);
-    text('残り', 234, 226, 14, WHITE); text(String(g.live.length), 262, 220, 34, YEL); text('枚', 316, 232, 14, WHITE);
+    const lb = g.kyokuLabel().split(' '); text(lb[0], 234, 170, 28, WHITE); text('供託 ' + g.kyotaku + (lb[1] ? '  ' + lb[1] : ''), 234, 204, 17, [200, 215, 200]);
+    text('残り', 234, 228, 18, WHITE); text(String(g.live.length), 280, 220, 34, YEL); text('枚', 334, 230, 18, WHITE);
     { const WX = 356, WY = 188, WS = 128 / 219; gfx.image('img/wall.webp', WX, WY, 128, Math.round(88 * WS), 255); // 王牌の絵の上に、ドラ表示牌を重ねる
       (g.doraInd || []).slice(0, 5).forEach((d, k) => { if (d) tile(d.t, WX + Math.round((3.4 + (4 - k) * 30.1) * WS), WY + Math.round(4.4 * WS), Math.round(29.2 * WS), Math.round(39.4 * WS), d.red); }); }
     }
@@ -346,13 +355,13 @@
     drawHand(g);
     // 吹き出し
     const now = __now();
-    const BUB = { 0: [250, 282], 1: [388, 150], 2: [416, 40], 3: [70, 172] }, BW = 252;
+    const BUB = { 0: [250, 276], 1: [336, 150], 2: [404, 40], 3: [70, 172] }, BW = 300;
     const calling = S.banner && S.banner.call; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; } if (calling) continue;
-      const pos = BUB[k] || [300, 200], lines = wrapText(b.text, 15, BW - 92).slice(0, 4), h = Math.max(78, 30 + lines.length * 20);
+      const pos = BUB[k] || [300, 200]; let bsz = 20, lines = wrapText(b.text, bsz, BW - 92); if (lines.length > 4) { bsz = 18; lines = wrapText(b.text, bsz, BW - 92).slice(0, 4); } const lh = bsz + 6, h = Math.max(78, 34 + lines.length * lh);
       rrect(pos[0] + 2, pos[1] + 3, BW, h, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, h, 10, [240, 243, 238]);
       if (b.p) { face(b.p, pos[0] + 8, pos[1] + 8, 58, 58); frame(pos[0] + 7, pos[1] + 7, 60, 60, [176, 122, 58], 2); } // 話している人の顔
-      text(b.name, pos[0] + 76, pos[1] + 6, 12, [90, 100, 96]); lines.forEach((l, i) => text(l, pos[0] + 76, pos[1] + 24 + i * 20, 15, [30, 34, 32])); }
+      text(b.name, pos[0] + 76, pos[1] + 6, 17, [80, 90, 86]); lines.forEach((l, i) => text(l, pos[0] + 76, pos[1] + 28 + i * lh, bsz, [30, 34, 32])); }
     drawFly(); drawTeacher(g);
     if (__auto && globalThis.__shotDir && !S._stbl && g.players[2].discards.length >= 4 && g.players[3].discards.length >= 4) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
     // 演出: 札の文字が、少し大きいところから縮んで止まる
@@ -381,7 +390,7 @@
     rrect(x + 1, y + 3, w, h, 6, [0, 0, 0], 90);
     rrect(x, y, w, h, 6, sel ? [196, 150, 20] : kc ? kc[0] : [150, 156, 150]); rrect(x, y, w, h - 3, 6, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : kc ? kc[1] : [245, 247, 244]);
     const col = [26, 26, 20], big = !sub;
-    if (sub) { text(label, x + w / 2, y + 4, 17, col, 1); text(sub, x + w / 2, y + 23, 12, [90, 90, 80], 1); } else text(label, x + w / 2, y + (h - 3 - (big ? 26 : 20)) / 2, big ? 26 : 20, col, 1);
+    if (sub) { text(label, x + w / 2, y + 3, 20, col, 1); text(sub, x + w / 2, y + 26, 15, [90, 90, 80], 1); } else text(label, x + w / 2, y + (h - 3 - (big ? 26 : 20)) / 2, big ? 26 : 20, col, 1);
   }
   function reactHL(r, g) { // 副露に使う牌(手牌の中で、金の枠をつける)
     const b = r.btns[r.idx]; if (!b || !b.d) return null; const ld = g.lastDiscard; const need = {};
@@ -436,11 +445,11 @@
     }
     if (S.react) {
       const r = S.react; const ld = g.lastDiscard; const who = ld ? g.players[ld.by].name : '';
-      if (ld) { panel(8, 332, 170, 40, 6, [6, 44, 26], [90, 140, 110], 2, 235); tile(ld.tile.t, 14, 336, 22, 29, ld.tile.red); text(who + ' の ' + MJ.tileName(ld.tile.t), 42, 342, 15, WHITE); }
+      if (ld) { { const lt = who + ' の ' + MJ.tileName(ld.tile.t); panel(8, 328, 230, 46, 6, [6, 44, 26], [90, 140, 110], 2, 235); tile(ld.tile.t, 14, 335, 26, 34, ld.tile.red); text(lt, 46, 338, fitSz(lt, 21, 186, 15), WHITE); } }
       let bx = 196; r.btns.forEach((b, i) => { actBtn(bx, 332, 124, 40, b.label, b.sub || '', r.idx === i && !r.pick, b.pass); bx += 124 + 14; });
-      if (r.note) text(r.note, 196, 312, 14, YEL);
+      if (r.note) text(r.note, 246, 340, 20, YEL);
       if (r.pick) { // チーの組み合わせ
-        const n = r.chis.length, gw = 118, pw = 150 + n * (gw + 8) + 6; panel(8, 268, pw, 58, 6, [10, 30, 22], [90, 140, 110], 2, 240); text('チーの組み合わせ', 18, 288, 14, YEL);
+        const n = r.chis.length, gw = 118, pw = 150 + n * (gw + 8) + 6; panel(8, 268, pw, 58, 6, [10, 30, 22], [90, 140, 110], 2, 240); text('チーの組み合わせ', 18, 286, 18, YEL);
         r.chis.forEach((c, i) => { const gx = 150 + i * (gw + 8), ts = c.use.concat([ld.tile.t]).sort((a, b) => a - b); panel(gx, 273, gw, 48, 5, [20, 50, 36], r.pick.idx === i ? YEL : [120, 130, 120], r.pick.idx === i ? 3 : 1);
           ts.forEach((t, k) => { const tx = gx + 6 + k * 37; if (t === ld.tile.t) rrect(tx - 2, 276, 36, 43, 3, [255, 100, 150]); tile(t, tx, 278, 32, 40, t === ld.tile.t ? ld.tile.red : false); }); });
       }
@@ -526,25 +535,25 @@
       if (i < RULE_ROWS.length) {
         const r = RULE_ROWS[i], cur = r.vals.find((q) => String(q[0]) === String(MJ.RULES[r.k])) || r.vals[0], common = String(COMMON_RULES[r.k]) === String(cur[0]);
         text(r.label, 90, y + 6, 20, BLACK); text('◀', 440, y + 7, 18, [90, 90, 80], 1); text(cur[1], 580, y + 6, 20, BLACK, 1); text('▶', 724, y + 7, 18, [90, 90, 80], 1);
-        if (common) { rrect(290, y + 7, 72, 22, 4, [60, 140, 90]); text('おすすめ', 326, y + 9, 14, WHITE, 1); }
+        if (common) { rrect(290, y + 7, 72, 22, 4, [60, 140, 90]); text('おすすめ', 326, y + 6, 16, WHITE, 1); }
       } else text(i === RULE_ROWS.length ? 'おすすめの設定に もどす' : 'もどる', SW / 2, y + 6, 20, BLACK, 1);
     }
     const cur = i0 < RULE_ROWS.length ? RULE_ROWS[i0].note : (i0 === RULE_ROWS.length ? 'すべてのルールを、おすすめ(全国的な設定・赤ドラなし)にもどします。' : '');
     panel(70, 392, 692, 40, 8, [6, 44, 26], [90, 140, 110], 2, 235); text(cur, SW / 2, 402, 18, WHITE, 1);
-    text('変えたルールは、次の対局から使われます', SW / 2, 440, 15, [205, 224, 212], 1);
+    text('変えたルールは、次の対局から使われます', SW / 2, 438, 19, [205, 224, 212], 1);
   }
   function drawSettings() {
     gfx.clear(14, 84, 52); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
     text('設定', SW / 2, 8, 30, YEL, 1);
     SETS.forEach((s, i) => {
       const y = 44 + i * 42, sel = S.setIdx === i; panel(110, y, 612, 38, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
-      text(s.label, 130, y + 7, 21, BLACK);
-      if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 9, 24, 22, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 8, 20, BLACK, 2); }
-      else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 8, 22, BLACK, 1);
-      else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 8, 22, BLACK, 1);
-      else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 8, 22, BLACK, 1);
-      else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 8, 22, BLACK, 1);
-      else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 8, 22, BLACK, 1);
+      text(s.label, 130, y + 5, 24, BLACK);
+      if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 9, 24, 22, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 6, 24, BLACK, 2); }
+      else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 6, 24, BLACK, 1);
+      else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 6, 24, BLACK, 1);
+      else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 6, 24, BLACK, 1);
+      else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 6, 24, BLACK, 1);
+      else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 6, 24, BLACK, 1);
       else if (s.k === 'rules') text(MJ.rulesSummary ? '▶' : '▶', 600, y + 7, 22, BLACK, 1);
     });
   }
@@ -552,7 +561,7 @@
   const SEATPOS = { 0: [SW / 2 - 28, 372], 1: [SW - 190, 130], 2: [SW / 2 - 28, 16], 3: [110, 130] };
   function seatBox(p, s, x, y, big, wind) {
     const fs = big ? 64 : 56; face(p, x, y, fs, fs); frame(x - 1, y - 1, fs + 2, fs + 2, [240, 210, 120], 2);
-    text(p.name, x + fs / 2, y + fs + 4, 17, WHITE, 1);
+    text(p.name, x + fs / 2, y + fs + 4, 20, WHITE, 1);
     if (wind) text(wind, x - 14, y + 18, 26, wind === '東' ? RED : YEL, 1);
   }
   const shotOnce = (nm) => { if (__auto && globalThis.__shotDir && !S['_s' + nm]) { S['_s' + nm] = 1; gfx.view(0, 0); gfx.shot(__shotDir + '/' + nm + '.bmp'); gfx.view(S.vx, S.vy); } };
@@ -660,7 +669,7 @@
     gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
     text('対戦成績', SW / 2, 12, 30, YEL, 1);
     const total = s.games || 0, avg = total ? ((s.ranks[0] + s.ranks[1] * 2 + s.ranks[2] * 3 + s.ranks[3] * 4) / total).toFixed(1) : '-';
-    gfx.image('img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp', 40, 70, 150, 150, 255); text(f.name, 115, 230, 26, YEL, 1); text('平均順位 ' + avg + '位', 115, 266, 17, WHITE, 1);
+    gfx.image('img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp', 40, 70, 150, 150, 255); text(f.name, 115, 230, 26, YEL, 1); text('平均順位 ' + avg + '位', 115, 266, 22, WHITE, 1);
     s.ranks.forEach((c, i) => { const y = 70 + i * 40; text((i + 1) + '位', 230, y + 6, 20, WHITE); text(c + '回', 330, y + 6, 20, YEL, 2); fill(345, y + 4, 200, 24, [60, 70, 66]); fill(345, y + 4, total ? Math.round(200 * c / total) : 0, 24, [230, 190, 70]); });
     text('対局数 ' + total + '    1位の割合 ' + (total ? Math.round(s.ranks[0] / total * 100) : 0) + '%', 230, 236, 18, WHITE);
     const opps = Object.keys(s.opp).map((id) => ({ c: MJ.CHARS.find((x) => x.id === +id), o: s.opp[id] })).filter((x) => x.c).sort((a, b) => b.o.n - a.o.n);
@@ -694,7 +703,7 @@
       text((k + 1) + '位', x + 22, y + 20, 38, k === 0 ? YEL : WHITE);
       face(p, x + 118, y + 7, 64, 64);
       text(p.name, x + 202, y + 12, 28, WHITE);
-      if (win.has(i)) { rrect(x + 202, y + 46, 64, 24, 4, [214, 48, 40]); text('上がり', x + 234, y + 49, 17, WHITE, 1); }
+      if (win.has(i)) { rrect(x + 202, y + 46, 64, 24, 4, [214, 48, 40]); text('上がり', x + 234, y + 47, 19, WHITE, 1); }
       text(String(r.after[i]), x + w - 150, y + 14, 36, YEL, 2); text((d > 0 ? '+' : '') + d, x + w - 18, y + 20, 26, d > 0 ? [120, 230, 140] : d < 0 ? [255, 120, 100] : GREY, 2);
     });
     text('決定ボタンで 次へ', SW / 2, 420, 20, [205, 224, 212], 1);
@@ -707,7 +716,7 @@
       text(w.winner.name, 120, 28, 30, WHITE); { const nw = gfx.measure(w.winner.name, 30); rrect(120 + nw + 14, 30, 84, 34, 10, w.tsumo ? [60, 130, 200] : [210, 60, 50]); text(w.tsumo ? 'ツモ' : 'ロン', 120 + nw + 56, 35, 22, WHITE, 1);
         const sw = g ? g.seatWindOf(w.winner) : 0, lab = WIND[sw] + '家' + (sw === 0 ? '(親)' : ''), lx = 120 + nw + 112, lw = gfx.measure(lab, 22) + 24;
         rrect(lx, 30, lw, 34, 10, [255, 255, 255]); rrect(lx + 2, 32, lw - 4, 30, 8, WIND_BG[sw]); text(lab, lx + lw / 2, 35, 22, WHITE, 1); }
-      if (r.total > 1) text((r.idx + 1) + ' / ' + r.total + ' 人目の上がり', 760, 36, 16, GREY, 2);
+      if (r.total > 1) text((r.idx + 1) + ' / ' + r.total + ' 人目の上がり', 760, 34, 20, GREY, 2);
       if (res.limit) text(res.limit, 760, 62, 30, [255, 120, 90], 2);
       // 手牌(大きく、中央ぞろえ)
       const tw = 36, th = 48, gap = 14, melds = v.melds.reduce((a, m) => a + m.tiles.length * 30 + 10, 0), total = v.concealed.length * (tw + 1) + gap + (w.winTile ? tw : 0) + (melds ? 16 + melds : 0);
@@ -732,8 +741,8 @@
     const g = S.game;
     g.players.forEach((p, i) => {
       const x = 62 + i * 178, d = r.delta[i];
-      rrect(x, y0, 168, 54, 10, [24, 56, 46]); text(p.name, x + 10, y0 + 4, 16, WHITE);
-      text(r.before[i] + ' → ' + r.after[i], x + 10, y0 + 28, 15, GREY); text((d > 0 ? '+' : '') + d, x + 158, y0 + 4, 18, d > 0 ? [120, 230, 140] : d < 0 ? RED : GREY, 2);
+      rrect(x, y0, 168, 54, 10, [24, 56, 46]); text(p.name, x + 10, y0 + 2, fitSz(p.name, 20, 96, 14), WHITE);
+      { const bt = r.before[i] + ' → ' + r.after[i]; text(bt, x + 10, y0 + 29, fitSz(bt, 20, 150, 13), GREY); } text((d > 0 ? '+' : '') + d, x + 158, y0 + 4, 18, d > 0 ? [120, 230, 140] : d < 0 ? RED : GREY, 2);
     });
   }
   function drawEnd(f) {
@@ -742,7 +751,7 @@
       const y = 90 + i * 66; fill(120, y, 480, 58, o.p.isHuman ? [255, 240, 150] : [255, 255, 255], 235);
       text(o.rank + '位', 130, y + 14, 28, BLACK); face(o.p, 210, y + 4, 46, 50); text(o.p.name, 270, y + 18, 22, BLACK); text(o.p.score, 590, y + 16, 26, BLACK, 2);
     });
-    text('決定ボタンで タイトルへ', 360, 380, 16, WHITE, 1);
+    text('決定ボタンで タイトルへ', 360, 378, 22, WHITE, 1);
   }
 
 
@@ -772,7 +781,7 @@
         text(String(lv), x0 + 560, ry + 4, 30, YEL, 1);
       } else { rrect(x0 + 130, ry, 394, 44, 5, [232, 238, 228]); text('速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()], x0 + 327, ry + 8, 24, BLACK, 1); }
     }
-    text('0にすると、その音が消えます。対局は、とじるまで止まります。', 360, y0 + 58 + 4 * 52 + 2, 15, [190, 205, 195], 1);
+    text('0にすると、その音が消えます。対局は、とじるまで止まります。', 360, y0 + 58 + 4 * 52, 19, [190, 205, 195], 1);
     const cy = y0 + h - 56; if (sp.idx === 4) rrect(300, cy - 4, 120, 52, 7, [255, 255, 255]); rrect(304, cy, 112, 44, 6, [248, 208, 80]); text('とじる', 360, cy + 9, 22, BLACK, 1);
   }
   function drawSaveQ() { // 局のあとの保存: 左右の大きな2つ(左: ここまでを保存する / 右: 保存しない)。押すと、そのまま次へ進む
@@ -797,7 +806,7 @@
     panel(150, y0, 420, h, 16, [20, 60, 42], [240, 210, 120], 3);
     text(title, 360, y0 + 12, 22, YEL, 1);
     items.forEach((l, i) => button(190, y0 + 48 + i * 50, 340, 40, l, idx === i));
-    if (note) text(note, 360, y0 + h + 6, 14, WHITE, 1);
+    if (note) text(note, 360, y0 + h + 6, 19, WHITE, 1);
   }
 
   /* ---------- 麻雀クイズ と 点数計算の勉強(学習コーナー) ---------- */
@@ -806,7 +815,7 @@
   const CREAM = [244, 241, 228], GREEN = [44, 90, 26], GREEN2 = [30, 66, 18], INK = [28, 28, 24], QRED = [226, 62, 42];
   let rubyRE = null, rubyN = -1;
   function rubyMatch() { const d = (MJ.Ruby && MJ.Ruby.dict) || {}, ks = Object.keys(d); if (ks.length !== rubyN) { rubyN = ks.length; ks.sort((a, b) => b.length - a.length); rubyRE = ks.length ? new RegExp(ks.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g') : null; } return rubyRE; }
-  const rsz = (sz) => Math.max(8, Math.round(sz * 0.5));
+  const rsz = (sz) => Math.max(10, Math.round(sz * 0.5));
   function richWrap(str, sz, maxw) { // 文字・牌の絵(⟦番号⟧)・ふりがなつきの言葉を、幅に収まるように、行に分ける
     const lines = []; const tw = Math.round(sz * 0.8), dict = (MJ.Ruby && MJ.Ruby.dict) || {}, re = rubyMatch();
     String(str).split('\n').forEach((para) => {
@@ -821,18 +830,24 @@
     });
     return lines;
   }
-  function richDraw(lines, x, y, sz, col, lh, center) { // 各行の上に、ふりがなの場所を あけてある(lh は sz + ふりがな + すきま)
-    const tw = Math.round(sz * 0.8), th = Math.round(sz * 1.12), rs = rsz(sz), top = rs + 2;
-    lines.forEach((ln, i) => {
-      let w = 0; ln.forEach((tk) => { w += tk.tile != null ? tw + 2 : tk.r ? Math.max(gfx.measure(tk.s, sz), gfx.measure(tk.r, rs)) : gfx.measure(tk.s, sz); });
-      let rx = center ? x - Math.round(w / 2) : x; const yy = y + i * lh + top;
-      let run = '', sx = rx; const flush = () => { if (run) { text(run, sx, yy, sz, col); sx += gfx.measure(run, sz); run = ''; } };
+  const lineRu = (ln) => ln.some((tk) => tk.r);
+  const lineH = (sz, ru) => Math.round(sz * 1.28) + (ru ? rsz(sz) + 2 : 0);
+  const richH = (lines, sz) => lines.reduce((a, ln) => a + lineH(sz, lineRu(ln)), 0);
+  function fitRich(str, sizes, maxw, maxh) { // 入りきる いちばん大きな字で。入らなければ、いちばん小さな字(それでも入らないときだけ、はみ出す)
+    let last = null; for (const sz of sizes) { const ls = richWrap(str, sz, maxw); last = { sz, lines: ls, h: richH(ls, sz) }; if (last.h <= maxh) return last; } return last;
+  }
+  function richDraw(lines, x, y, sz, col, lh, center) { // 行の高さは、ふりがながある行だけ ふやす
+    const tw = Math.round(sz * 0.8), th = Math.round(sz * 1.12), rs = rsz(sz); let yy = y;
+    lines.forEach((ln) => {
+      const ru = lineRu(ln); let w = 0; ln.forEach((tk) => { w += tk.tile != null ? tw + 2 : tk.r ? Math.max(gfx.measure(tk.s, sz), gfx.measure(tk.r, rs)) : gfx.measure(tk.s, sz); });
+      const rx = center ? x - Math.round(w / 2) : x, ty = yy + (ru ? rs + 2 : 0);
+      let run = '', sx = rx; const flush = () => { if (run) { text(run, sx, ty, sz, col); sx += gfx.measure(run, sz); run = ''; } };
       ln.forEach((tk) => {
-        if (tk.tile != null) { flush(); tile(tk.tile, sx, yy - 1, tw, th); sx += tw + 2; }
-        else if (tk.r) { flush(); const ww = Math.max(gfx.measure(tk.s, sz), gfx.measure(tk.r, rs)); text(tk.r, sx + ww / 2, yy - rs - 1, rs, col, 1); text(tk.s, sx + (ww - gfx.measure(tk.s, sz)) / 2, yy, sz, col); sx += ww; }
+        if (tk.tile != null) { flush(); tile(tk.tile, sx, ty - 1, tw, th); sx += tw + 2; }
+        else if (tk.r) { flush(); const ww = Math.max(gfx.measure(tk.s, sz), gfx.measure(tk.r, rs)); text(tk.r, sx + ww / 2, ty - rs - 1, rs, col, 1); text(tk.s, sx + (ww - gfx.measure(tk.s, sz)) / 2, ty, sz, col); sx += ww; }
         else run += tk.s;
       });
-      flush();
+      flush(); yy += lineH(sz, ru);
     });
   }
   const QKINDS = [() => MJ.Drill.genEff, () => MJ.Drill.genDef, () => MJ.Drill.genCall, () => MJ.Drill.genYaku, () => MJ.Drill.genWait, () => MJ.Drill.genPush, () => MJ.Drill.genRiichi, () => MJ.Drill.genKeep];
@@ -850,9 +865,8 @@
       if (!p) { q.phase = 'fail'; dirty(); return; }
       q.p = p; q.n++; q.phase = 'ask'; q.idx = 0;
       q.disp = (p.hand || []).slice().sort((a, b) => a.t - b.t);
-      { const hs = mark(p.sit || '') + (p.sit ? '\n' : '') + mark(p.prompt || ''); q.hsz = 16; q.head = richWrap(hs, 16, 770).slice(0, 5);
-        for (const sz of [22, 19]) { const ls = richWrap(hs, sz, 770); if (ls.length * (sz + rsz(sz) + 9) <= 138) { q.hsz = sz; q.head = ls; break; } } }
-      q.opts = (p.options || []).slice(0, 4).map((o) => ({ id: o.id, lines: richWrap(mark(o.html), 19, 290).slice(0, 2) }));
+      { const hs = mark(p.sit || '') + (p.sit ? '\n' : '') + mark(p.prompt || ''), f = fitRich(hs, [30, 28, 26, 24, 22, 20, 18], 770, p.kind === 'choice' ? 140 : 262); q.hsz = f.sz; q.head = f.lines; }
+      q.opts = (p.options || []).slice(0, 4).map((o) => { const f = fitRich(mark(o.html), [28, 26, 24, 22, 20, 18], 290, 50); return { id: o.id, lines: f.lines, sz: f.sz, h: f.h }; });
       dirty();
     }, 60);
   }
@@ -860,7 +874,11 @@
     const q = S.quiz, p = q.p; let r = null;
     try { r = p.grade(ans); } catch (e) { print('quiz grade err ' + (e && e.stack || e)); r = { r: 'ng', html: '<p>採点できませんでした。</p>' }; }
     q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7);
-    q.rlines = richWrap(mark(r.html), 18, 730); dirty();
+    { // 解説は、入りきる大きさの字で出す。長いときは、おまけの説明(小さな注)と、うしろの段落を はぶいて、スクロールさせない
+      const paras = mark(String(r.html).replace(/<div class="cc-s">[\s\S]*?<\/div>/g, '')).split('\n').filter((x) => x.trim() !== '');
+      let f = null; while (paras.length) { f = fitRich(paras.join('\n'), [28, 26, 24, 22, 20], 730, 236); if (f.h <= 236 || paras.length <= 1) break; paras.pop(); }
+      if (!f) f = fitRich('', [20], 730, 236); q.rsz = f.sz; q.rlines = f.lines; q.rh = f.h;
+    } dirty();
   }
   function quizClose() { const q = S.quiz; S.quiz = null; if (q && q.onEnd) q.onEnd(q.ok, q.total, true); else { S.mode = 'menu'; } dirty(); }
   function quizKey(k) {
@@ -876,15 +894,15 @@
       dirty(); return;
     }
     if (q.phase === 'res') {
-      const per = 8, mx = Math.max(0, q.rlines.length - per);
-      if (k === 'up') q.scroll = Math.max(0, q.scroll - 1); else if (k === 'down') q.scroll = Math.min(mx, q.scroll + 1); else if (k === 'ok') quizNext();
+      const mx = Math.max(0, q.rlines.length - 1);
+      if (k === 'up') q.scroll = Math.max(0, q.scroll - 1); else if (k === 'down') q.scroll = q.rh > 236 ? Math.min(mx, q.scroll + 1) : 0; else if (k === 'ok') quizNext();
       dirty();
     }
   }
   function quizFrame(title, left, right, hint) { // 暗い背景(ホームと同じ絵を暗くしたもの)の上に、文字を出す
     gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 165); fill(0, 48, SW, 2, [150, 190, 140], 160);
     if (left) text(left, 24, 8, 28, WHITE); if (title) { const sz = gfx.measure(title, 28) > 440 ? 22 : 28; text(title, SW / 2, sz === 28 ? 8 : 12, sz, YEL, 1); } if (right) text(right, SW - 24, 14, 18, YEL, 2);
-    if (hint) text(hint, SW / 2, SH - 28, 15, [210, 225, 205], 1);
+    if (hint) { let hs = 20; while (hs > 15 && gfx.measure(hint, hs) > SW - 40) hs--; text(hint, SW / 2, SH - 29, hs, [210, 225, 205], 1); }
   }
   function drawQuiz() {
     const q = S.quiz; const p = q.p;
@@ -897,25 +915,25 @@
     }
     if (q.phase === 'res') {
       const r = q.res.r, col = r === 'ok' ? [255, 110, 90] : r === 'near' ? [255, 200, 70] : [200, 210, 200];
-      quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, '▲ ▼ で 解説を動かせます    決定ボタンで 次の問題へ');
+      quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, '決定ボタンで 次の問題へ');
       rrect(36, 62, 120, 44, 12, r === 'ok' ? QRED : r === 'near' ? [210, 140, 20] : [100, 110, 100]); text(r === 'ok' ? '正解' : r === 'near' ? 'おしい' : 'ちがうよ', 96, 70, 28, WHITE, 1);
       text(r === 'ok' ? 'よくできました!' : r === 'near' ? 'あと一歩です' : '解説を読んで、覚えましょう', 176, 70, 26, col);
       panel(24, 132, SW - 48, 258, 14, [6, 28, 18], [140, 190, 130], 3, 235); rrect(44, 118, 86, 30, 14, [60, 130, 60]); text('解説', 87, 120, 20, WHITE, 1);
-      const per = 8, vis = q.rlines.slice(q.scroll, q.scroll + per); richDraw(vis, 48, 154, 18, WHITE, 29);
-      if (q.rlines.length > per) text((q.scroll > 0 ? '▲ ' : '') + (q.scroll + per < q.rlines.length ? '▼ つづき' : ''), SW - 30, 398, 14, GREY, 2);
+      gfx.clip(30, 138, SW - 60, 246); richDraw(q.rlines.slice(q.scroll), 48, 148, q.rsz, WHITE, 0); gfx.clip();
+      if (q.rh > 236) text((q.scroll > 0 ? '▲ ' : '') + '▼ つづき', SW - 30, 398, 18, GREY, 2);
       return;
     }
     quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, p.kind === 'tile' ? '◀ ▶ で牌をえらんで 決定ボタン(切る牌)' : '◀ ▶ ▲ ▼ で えらんで 決定ボタン');
-    richDraw(q.head, 30, 56, q.hsz, WHITE, q.hsz + rsz(q.hsz) + 9);
+    richDraw(q.head, 30, 54, q.hsz, WHITE, 0);
     if (p.kind === 'choice') q.opts.forEach((o, i) => {
-      const x = 30 + (i % 2) * 394, y = 196 + Math.floor(i / 2) * 62, sel = q.idx === i;
+      const x = 30 + (i % 2) * 394, y = 202 + Math.floor(i / 2) * 62, sel = q.idx === i;
       panel(x, y, 378, 54, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 3, 255); rrect(x + 10, y + 10, 34, 34, 17, sel ? [160, 110, 0] : GREEN); text('ABCD'[i], x + 27, y + 12, 24, WHITE, 1);
-      richDraw(o.lines, x + 44 + 167, y + 3, 19, INK, 25, true);
+      richDraw(o.lines, x + 44 + 167, y + Math.round((54 - o.h) / 2), o.sz, INK, 0, true);
     });
-    const n = q.disp.length, x0 = Math.round((SW - (n * 48 + (p.win ? 62 : 0))) / 2), HYq = 330;
+    const n = q.disp.length, x0 = Math.round((SW - (n * 48 + (p.win ? 62 : 0))) / 2), HYq = 342;
     q.disp.forEach((h, i) => { const sel = p.kind === 'tile' && q.idx === i, x = x0 + i * 48, y = HYq - (sel ? 12 : 0); if (sel) { rrect(x - 5, y - 5, 54, 68, 7, [160, 110, 0]); rrect(x - 3, y - 3, 50, 64, 6, YEL); } tile(h.t, x, y, 44, 58, h.red); });
-    if (p.win) { const x = x0 + n * 48 + 14; text('上がり牌', x + 22, HYq - 22, 13, YEL, 1); frame(x - 2, HYq - 2, 48, 62, YEL, 2); tile(p.win.t, x, HYq, 44, 58, p.win.red); }
-    if (p.melds && p.melds.length) { let mx = 30; p.melds.forEach((m) => { (m.tiles || []).forEach((tl) => { tile(tl.t, mx, 396, 20, 26, tl.red); mx += 22; }); mx += 8; }); text('鳴いている牌', mx + 4, 400, 14, GREY); }
+    if (p.win) { const x = x0 + n * 48 + 14; text('上がり牌', x + 22, HYq - 26, 18, YEL, 1); frame(x - 2, HYq - 2, 48, 62, YEL, 2); tile(p.win.t, x, HYq, 44, 58, p.win.red); }
+    if (p.melds && p.melds.length) { let mx = 30; p.melds.forEach((m) => { (m.tiles || []).forEach((tl) => { tile(tl.t, mx, 402, 20, 26, tl.red); mx += 22; }); mx += 8; }); text('鳴いている牌', mx + 4, 404, 18, GREY); }
   }
   /* ---- 学習コーナー(地図 → 読み物 → クイズ。しおりと「おぼえた」を覚えておく) ---- */
   const LKEY = 'mj_learn';
@@ -965,41 +983,44 @@
   }
   function learnPage(L) { // 1ページぶんの、絵と文を並べた形(1度だけ作る)
     if (L.cache && L.cache.key === L.step + ':' + L.page) return L.cache;
-    const pg = MJ.Learn.STEPS[L.step].pages[L.page], out = [];
-    pg.items.forEach((it) => {
-      if (!it) { out.push({ gap: 10 }); return; }
-      if (typeof it === 'string') { const ls = richWrap(it, 19, 740); out.push({ lines: ls, h: ls.length * 36 + 6 }); }
-      else if (it.hand) out.push({ hand: MJ.Learn.tiles(it.hand), h: 62 });
-    });
-    return (L.cache = { key: L.step + ':' + L.page, items: out, h: out.reduce((a, o) => a + (o.h || o.gap || 0), 0) });
+    const pg = MJ.Learn.STEPS[L.step].pages[L.page]; let best = null;
+    for (const sz of [30, 28, 26, 24, 22, 20]) { // 入りきる いちばん大きな字を選ぶ(スクロールさせない)
+      const out = []; pg.items.forEach((it) => {
+        if (!it) { out.push({ gap: 8 }); return; }
+        if (typeof it === 'string') { const ls = richWrap(it, sz, 760); out.push({ lines: ls, h: richH(ls, sz) + 8 }); }
+        else if (it.hand) out.push({ hand: MJ.Learn.tiles(it.hand), h: 64 });
+      });
+      best = { key: L.step + ':' + L.page, sz, items: out, h: out.reduce((a2, o) => a2 + (o.h || o.gap || 0), 0) }; if (best.h <= 298) break;
+    }
+    return (L.cache = best);
   }
   function drawLearn() {
     const L = S.learn, STEPS = MJ.Learn.STEPS, D = L.d;
     if (L.view === 'read') {
       const st = STEPS[L.step], pg = st.pages[L.page], c = learnPage(L);
-      quizFrame('ステップ' + (L.step + 1) + '  ' + st.t, '', (L.page + 1) + ' / ' + st.pages.length, L.page < st.pages.length - 1 ? '◀ ▶ でページをめくる    ▲ ▼ で動かす    戻る: 地図へ' : '決定ボタンで クイズに進む    ◀ 前のページ    戻る: 地図へ');
+      quizFrame('ステップ' + (L.step + 1) + '  ' + st.t, '', (L.page + 1) + ' / ' + st.pages.length, L.page < st.pages.length - 1 ? '◀ ▶ でページをめくる    戻る: 地図へ' : '決定ボタンで クイズに進む    ◀ 前のページ    戻る: 地図へ');
       text(pg.h, 30, 58, 28, YEL); fill(30, 94, SW - 60, 3, [140, 190, 130]);
-      const my = Math.max(0, c.h - 300); L.scroll = Math.min(L.scroll, my); gfx.clip(0, 102, SW, 300);
-      let y = 106 - L.scroll;
+      const my = Math.max(0, c.h - 298); L.scroll = Math.min(L.scroll, my); gfx.clip(0, 102, SW, 300);
+      let y = 104 - L.scroll;
       c.items.forEach((o) => {
         if (o.gap) { y += o.gap; return; }
-        if (o.lines) { richDraw(o.lines, 36, y, 19, WHITE, 36); y += o.h; }
-        else if (o.hand) { let x = 36; o.hand.forEach((t) => { if (t < 0) { x += 14; return; } tile(t, x, y + 4, 36, 48); x += 38; }); y += o.h; }
+        if (o.lines) { richDraw(o.lines, 36, y, c.sz, WHITE, 0); y += o.h; }
+        else if (o.hand) { let x = 36; o.hand.forEach((t) => { if (t < 0) { x += 14; return; } tile(t, x, y + 4, 40, 53); x += 42; }); y += o.h; }
       });
       gfx.clip();
-      if (my > 0) text((L.scroll > 0 ? '▲ ' : '') + (L.scroll < my ? '▼ つづき' : ''), SW - 30, 408, 14, GREY, 2);
+      if (my > 0) text((L.scroll > 0 ? '▲ ' : '') + (L.scroll < my ? '▼ つづき' : ''), SW - 30, 404, 18, GREY, 2);
       return;
     }
     quizFrame('点数計算の勉強', '', '', L.view === 'sub' ? '' : '▲ ▼ でえらんで 決定ボタン    ◀ ▶ でページを かえる    戻る: ホームへ');
     const pgi = learnPages(), pi = pgi[0].includes(L.sel) ? 0 : 1, nDone = STEPS.filter((s) => D.done[s.id]).length;
     text('おぼえた ' + nDone + ' / ' + STEPS.length, SW - 24, 12, 18, WHITE, 2);
     ['入門・初級', '中級・上級'].forEach((lb, i) => { const x = 24 + i * 200, on = i === pi; rrect(x, 58, 190, 34, 10, on ? [60, 130, 60] : [50, 70, 60]); text(lb, x + 95, 62, 22, on ? WHITE : [170, 190, 170], 1); });
-    text((pi + 1) + ' / 2 ページ', SW - 24, 64, 17, GREY, 2);
+    text((pi + 1) + ' / 2 ページ', SW - 24, 62, 20, GREY, 2);
     pgi[pi].forEach((i, r) => {
       const st = STEPS[i], y = 102 + r * 62, sel = L.sel === i && L.view === 'map', done = !!D.done[st.id], bm = D.bm.step === i;
       panel(24, y, SW - 48, 56, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
       rrect(34, y + 8, 40, 40, 20, done ? GREEN : [160, 170, 150]); text(done ? '✔' : String(i + 1), 54, y + 12, 28, WHITE, 1);
-      text(st.t, 90, y + 4, 28, INK); text(st.sum, 92, y + 36, 15, [90, 90, 80]);
+      text(st.t, 90, y + 1, 28, INK); text(st.sum, 92, y + 33, 18, [80, 80, 70]);
       rrect(SW - 150, y + 14, 58, 28, 9, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, SW - 121, y + 17, 18, WHITE, 1);
       if (bm && (D.bm.read || D.bm.next)) { rrect(SW - 84, y + 14, 56, 28, 9, D.bm.read ? QRED : [80, 130, 190]); text(D.bm.read ? 'しおり' : 'つぎ', SW - 56, y + 17, 18, WHITE, 1); }
     });
@@ -1012,8 +1033,8 @@
     gfx.clear(14, 84, 52); text('セーブデータをえらぶ', 360, 18, 28, YEL, 1);
     if (!S.slots.length) text('セーブデータがありません', 360, 180, 20, WHITE, 1);
     S.slots.forEach((q, i) => { const sn = q.v.snap, y = 62 + i * 56; panel(80, y, 560, 48, 10, S.slotIdx === i ? YEL : WHITE, [120, 120, 120], 1, 235);
-      text((i === 0 ? '最新  ' : (i + 1) + '番目  ') + kyokuText(sn), 94, y + 6, 18, BLACK); text('持ち点 ' + sn.scores.join(' / '), 94, y + 27, 14, [60, 60, 60]); });
-    text('↑↓ えらぶ   決定 ロード   もどる でタイトルへ', 360, 400, 14, WHITE, 1);
+      text((i === 0 ? '最新  ' : (i + 1) + '番目  ') + kyokuText(sn), 94, y + 3, 22, BLACK); text('持ち点 ' + sn.scores.join(' / '), 94, y + 29, 17, [60, 60, 60]); });
+    text('↑↓ えらぶ   決定 ロード   もどる でタイトルへ', 360, 398, 20, WHITE, 1);
   }
 
   /* ---------- 入力 ---------- */
@@ -1152,7 +1173,7 @@
     if (S.coach) { // 解説の窓
       const c = S.coach, cs = c.cards || [];
       if (k === 'left' || k === 'right') { if (cs.length) { c.tab = (c.tab + (k === 'right' ? 1 : cs.length - 1)) % cs.length; c.scroll = 0; } }
-      else if (k === 'up' || k === 'down') { const cd = cs[c.tab]; if (cd && cd.lines) c.scroll = Math.max(0, Math.min(Math.max(0, cd.lines.length - 12), (c.scroll || 0) + (k === 'down' ? 6 : -6))); }
+      else if (k === 'up' || k === 'down') { const cd = cs[c.tab]; if (cd && cd.fit && cd.fit.hh > 322) c.scroll = Math.max(0, Math.min(Math.max(0, cd.fit.lines.length - 3), (c.scroll || 0) + (k === 'down' ? 2 : -2))); }
       else if (k === 'ok' || k === 'back') S.coach = null;
       return;
     }
@@ -1367,7 +1388,7 @@
     if (S.dice && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawDice(); return true; }
     S.vx = 56; S.vy = 20; gfx.view(56, 20); // 以降の板(メニューなど)は、画面の中央に
     if (S.saveNote && S.saveNote.until > __now() && !S.saveP) { // 自動セーブの知らせ: 画面の左下に、小さく
-      gfx.view(0, 0); const w = 150, x = 8, y = SH - 24; rrect(x, y, w, 20, 5, [0, 0, 0], 170); text(S.saveNote.text, x + w / 2, y + 2, 13, S.saveNote.text === 'セーブしました' ? [190, 235, 200] : [255, 160, 140], 1); gfx.view(S.vx, S.vy);
+      gfx.view(0, 0); const w = 170, x = 8, y = SH - 26; rrect(x, y, w, 22, 5, [0, 0, 0], 170); text(S.saveNote.text, x + w / 2, y + 1, 16, S.saveNote.text === 'セーブしました' ? [190, 235, 200] : [255, 160, 140], 1); gfx.view(S.vx, S.vy);
     }
     const toastOn = S.toast && S.toast.until > __now();
     if (S.saveP || toastOn) { // 保存の質問・セーブ中は、画面全体を黒で覆って卓を見せず、画面の中心に出す
