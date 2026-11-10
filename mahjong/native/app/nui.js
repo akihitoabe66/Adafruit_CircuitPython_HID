@@ -17,7 +17,7 @@
   /* ---------- セーブ(手動・最新から5件) ---------- */
   const wrap = (i, n) => (i + n) % n;
   const pressing = () => __now() - S.pressT < (S.pressMs || 170);
-  const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 170; S.locked = true; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, S.pressMs); }; // 押したボタンが光ってから、次へ
+  const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 170; S.locked = true; dirty(); setTimeout(() => { S.pressT = -9999; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 40); }, S.pressMs); }; // 押している間のあと、いちど「もとの形にもどった絵」を描いてから、次の画面へ(描くのがおそい機械でも、へこんだ絵のまま、つぎの画面にならないように) // 押したボタンが光ってから、次へ
   const NSLOT = 5;
   function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
     const out = [];
@@ -1277,7 +1277,7 @@
     }
     if (S.mode === 'title') { // タイトル: はじめる / BGM / 終了
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { const m = { 0: { up: 1, left: 1, right: 2, down: 2 }, 1: { down: 0, left: 0, right: 2, up: 2 }, 2: { up: 1, right: 1, left: 0, down: 0 } }; S.titleIdx = m[S.titleIdx][k]; }
-      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 150); else if (S.titleIdx === 1) { S.pressT = __now(); S.pressMs = 150; NSND.toggle(); if (NSND.on) NSND.home(); dirty(); } else later(() => { S.confirmQ = { idx: 0 }; }, 150); }
+      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 120); else if (S.titleIdx === 1) { S.pressT = __now(); S.pressMs = 120; NSND.toggle(); if (NSND.on) NSND.home(); dirty(); } else later(() => { S.confirmQ = { idx: 0 }; }, 120); }
       return;
     }
     if (S.mode === 'rules') { // 麻雀のルール
