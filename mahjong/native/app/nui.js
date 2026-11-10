@@ -102,7 +102,7 @@
     if (seat === 0) return me ? { x: 281 + c * RW, y: 268 + r * RH + D, rot: 90, bw: RH, bh: RW } : { x: 281 + c * RW + sh, y: 268 + r * RH, rot: 0, bw: RW, bh: RH };
     if (seat === 2) return me ? { x: 412 - c * RW - D, y: 127 - r * RH, rot: 270, bw: RH, bh: RW } : { x: 412 - c * RW - sh, y: 127 - r * RH, rot: 180, bw: RW, bh: RH };
     if (seat === 3) return me ? { x: 181 - r * 35, y: 157 + c * RW, rot: 180, bw: RW, bh: RH } : { x: 181 - r * 35, y: 157 + c * RW + sh, rot: 90, bw: RH, bh: RW };
-    return me ? { x: 503 + r * 35 + D, y: 287 - c * RW - D, rot: 0, bw: RW, bh: RH } : { x: 503 + r * 35, y: 287 - c * RW - sh, rot: 270, bw: RH, bh: RW };
+    return me ? { x: 503 + r * 35 + D, y: 287 - c * RW - D, rot: 180, bw: RW, bh: RH } : { x: 503 + r * 35, y: 287 - c * RW - sh, rot: 270, bw: RH, bh: RW };
   }
   function tileR(t, x, y, w, h, red, dim, rot) {
     if (!rot) { tile(t, x, y, w, h, red, dim); return; }
@@ -160,9 +160,10 @@
     p.discards.forEach((d, i) => {
       if (S.fly && S.fly.d === d && __now() < S.fly.t0 + S.fly.dur) return; // 飛んでいる間は、河には描かない
       const q = riverPos(p.seat, i, p);
+      const isLast = g.lastDiscard && g.lastDiscard.d === d && !(g.turn === 0 && !S.react && g.lastDiscard.by !== 0); // 自分の番になったら、直前の捨て牌の枠は消す
+      if (isLast) rrect(q.x - 2, q.y - 2, q.bw + 4, q.bh + 4, 3, YEL); else if (d.riichi) rrect(q.x - 1, q.y - 1, q.bw + 2, q.bh + 2, 3, RED);
       tileR(d.tile.t, q.x, q.y, RW, RH, d.tile.red, d.called, q.rot);
-      if (d.riichi) frame(q.x, q.y, q.bw, q.bh, RED, 2);
-      if (g.lastDiscard && g.lastDiscard.d === d) frame(q.x - 1, q.y - 1, q.bw + 2, q.bh + 2, YEL, 2);
+      if (isLast && d.riichi) frame(q.x, q.y, q.bw, q.bh, RED, 1);
     });
   }
   /* ---------- 麻雀先生(バランス型) ---------- */
@@ -336,7 +337,7 @@
     if (S.fly && __now() >= S.fly.t0 + S.fly.dur) S.fly = null; // 着いたら、その同じコマから、河の絵に入れる(ちらつき防止)
     const DS = dealState();
     // 河(変わったときだけ描き直し、あとは1枚の絵を貼る)
-    const rkey = P.map((p) => p.discards.length + ':' + p.discards.map((d) => (d.called ? 1 : 0)).join('') + ':' + p.discards.indexOf(g.lastDiscard && g.lastDiscard.d)).join('|') + (S.fly ? 'f' : '');
+    const rkey = P.map((p) => p.discards.length + ':' + p.discards.map((d) => (d.called ? 1 : 0)).join('') + ':' + p.discards.indexOf(g.lastDiscard && g.lastDiscard.d)).join('|') + (g.turn === 0 && !S.react ? 't' : 'o') + (S.fly ? 'f' : '');
     cached(0, rkey, () => P.forEach((p) => drawRiver(g, p)));
     const okey = [S.deal ? 'd' : '-', g.turn, P.map((p) => (p.flowers || []).length).join(''), g.live.length, g.kyotaku, g.kyokuLabel(), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
     cached(1, okey, () => {
@@ -529,7 +530,7 @@
     const ot = (s, x, y, sz, c) => { [[-1, 1], [1, 1], [0, 2]].forEach((d) => text(s, x + d[0], y + d[1], sz, [0, 0, 0], 0)); text(s, x, y, sz, c, 0); };
     const HELP = { play: ['麻雀をはじめる', '3人の相手と、麻雀を', 'うちます。つづきから', '始めることもできます。'], quiz: ['麻雀クイズ', '問題に答えて、腕を', 'みがきます。苦手な問題', 'は、多めに出ます。'], study: ['点数計算の勉強', '役から点数まで、順番', 'に学びます。しおりも', 'つけられます。'], diag: ['あなたの診断', '遊び方やクイズの結果', 'から、いいところと、', '伸ばせるところを見ます。'], settings: ['設定', '音の大きさや、CPUの', '速さ、ボタンの入れ替', 'えを変えます。'], exit: ['ゲーム終了', '遊ぶのをやめます。', '電源を切る前の画面へ', ''], rank: ['成績', 'いまの段位と、これま', 'での成績を見ます。', '対戦成績もここから。'] };
     { const its = homeItems(), key = S.homeBot ? HOME_BOTTOM[S.homeBotIdx].k : (its[S.menuIdx] || its[0]).act, hp = HELP[key] || HELP.play;
-      ot(hp[0], 38, 177, hp[0].length > 6 ? 32 : 38, [255, 225, 74]); hp.slice(1).forEach((l, i) => ot(l, 38, 232 + i * 32, 23, WHITE)); }
+      ot(hp[0], 38, 177, 32, [255, 225, 74]); hp.slice(1).forEach((l, i) => ot(l, 38, 232 + i * 32, 23, WHITE)); }
     const items = homeItems(); const IY = [58, 145, 227, 309];
     items.forEach((it, i) => { const sel = !it.off && !S.homeBot && S.menuIdx === i && !S.teachQ && !S.playQ && !S.confirmQ; if (sel) btnR(370, IY[i] - (i ? 4 : 0), 433, 67, 7, true, false, it.label, 34, true); else btnR(383, IY[i], 408, 58, 7, false, it.off, it.label, 32, false); });
     const BW = [[150, 230]];
