@@ -953,8 +953,7 @@
     if (q.phase === 'end') {
       const pass = q.ok >= Math.ceil(q.total * 0.8);
       quizFrame(q.title, '', '', '決定ボタンで すすむ'); text('おつかれさまでした', SW / 2, 80, 34, YEL, 1); text(q.total + '問中  ' + q.ok + '問  せいかい', SW / 2, 150, 44, WHITE, 1);
-      tFace(pass ? 'ok' : 'cheer', 'qe' + q.total + q.ok, SW - 410, 262, 150);
-      if (!YOU_OLD) gfx.imageTop('img/zunda/' + (pass ? '13' : '10') + '.webp', SW - 230, 250, 170, 170);
+      tFace(pass ? 'ok' : 'cheer', 'qe' + q.total + q.ok, SW - 240, 250, 170);
       text(q.onEnd && q.learn ? (pass ? 'ごうかく! 「おぼえた」に しました' : 'もう一度 読んで、またチャレンジしましょう') : (q.ok >= 8 ? 'すばらしい! 本格派ですね' : q.ok >= 5 ? 'よくできました' : 'またチャレンジしましょう'), SW / 2, 240, 24, [255, 190, 150], 1); return;
     }
     if (q.phase === 'res') {
@@ -962,8 +961,7 @@
       quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, '決定ボタンで 次の問題へ');
       rrect(36, 62, 120, 44, 12, r === 'ok' ? QRED : r === 'near' ? [210, 140, 20] : [100, 110, 100]); text(r === 'ok' ? '正解' : r === 'near' ? 'おしい' : q.res.alt ? 'ちがうよ' : 'ハズレ', 96, 70, 28, WHITE, 1);
       text(r === 'ok' ? 'よくできました!' : r === 'near' ? 'あと一歩です' : '解説を読んで、覚えましょう', 176, 70, 26, col);
-      tFace(r === 'ok' ? 'ok' : r === 'near' ? 'cheer' : 'pass', 'r' + q.n + (q.title || ''), SW - 206, 54, 76);
-      if (!YOU_OLD) gfx.imageTop('img/zunda/' + String({ ok: 2, near: 10, ng: q.res.alt ? 11 : 12 }[r] || 1).padStart(2, '0') + '.webp', SW - 112, 52, 80, 80); // あなた(ずんだもん)の表情
+      tFace(r === 'ok' ? 'ok' : r === 'near' ? 'cheer' : 'pass', 'r' + q.n + (q.title || ''), SW - 118, 52, 78); // 麻雀先生
       panel(24, 132, SW - 48, 258, 14, [6, 28, 18], [140, 190, 130], 3, 235); rrect(44, 118, 86, 30, 14, [60, 130, 60]); text('解説', 87, 120, 20, WHITE, 1);
       gfx.clip(30, 138, SW - 60, 246); richDraw(q.rlines.slice(q.scroll), 48, 148, q.rsz, WHITE, 0); gfx.clip();
       if (q.rh > 236) text((q.scroll > 0 ? '▲ ' : '') + '▼ つづき', SW - 30, 398, 18, GREY, 2);
