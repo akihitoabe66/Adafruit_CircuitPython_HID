@@ -39,8 +39,9 @@
     stopSpeak() { token++; },
     /* 'y:ツモ' などの並び(null は短い間)を、録音をつなげて鳴らす。 BGMは読み上げの間だけ小さくする */
     speak(keys, cb) {
-      const id = ++token; let t = 0.05; const known = keys.filter((k) => !k || yk[k]);
+      const id = ++token; let t = 0.05; const known = keys.filter((k) => !k || k === '+' || yk[k]);
       known.forEach((k) => {
+        if (k === '+') { t -= 0.06; return; } // 「+」: 前の声に、ほとんど間をあけずに つなげる(じゅう + いっぽんば)
         if (!k) { t += 0.28; return; }
         const p = 'audio/yk/' + yk[k]; const len = snd.len(p); if (!len) return;
         setTimeout(() => { if (id === token) snd.play(p, V.read); }, t * 1000); t += len + 0.07;
@@ -81,8 +82,9 @@
     readKyoku(game) {
       const W = ['トン', 'ナン', 'シャー', 'ペー'], KY = ['イッキョク', 'ニキョク', 'サンキョク', 'ヨンキョク'];
       const keys = ['x:' + W[game.roundWind % 4], null, 'x:' + (KY[game.kyoku % 4] || 'イッキョク')];
-      const HB = { 1: 'イッポンバ', 2: 'ニホンバ', 3: 'サンボンバ', 4: 'ヨンホンバ', 5: 'ゴホンバ', 6: 'ロッポンバ', 7: 'ナナホンバ', 8: 'ハッポンバ', 9: 'キュウホンバ' };
-      if (game.honba && HB[Math.min(9, game.honba)]) keys.push(null, 'x:' + HB[Math.min(9, game.honba)]);
+      const HB = { 1: 'イッポンバ', 2: 'ニホンバ', 3: 'サンボンバ', 4: 'ヨンホンバ', 5: 'ゴホンバ', 6: 'ロッポンバ', 7: 'ナナホンバ', 8: 'ハッポンバ', 9: 'キュウホンバ', 10: 'ジュッポンバ' };
+      const hb = Math.min(19, game.honba || 0); // 10本場までは、そのまま。11本場からは「じゅう」+「1〜9本場」(19本場まで)
+      if (hb >= 1 && hb <= 10) keys.push(null, 'x:' + HB[hb]); else if (hb > 10) keys.push(null, 'x:ジュウ', '+', 'x:' + HB[hb - 10]);
       if (game.isOras && game.isOras()) keys.push(null, 'x:オーラス'); // 最終局
       return A.speak(keys);
     },
