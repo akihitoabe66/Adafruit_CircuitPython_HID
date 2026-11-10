@@ -373,6 +373,12 @@
       if (b.p) { face(b.p, pos[0] + 8, pos[1] + 8, 58, 58); } // 話している人の顔
       text(b.name, pos[0] + 76, pos[1] + 6, 17, [80, 90, 86]); lines.forEach((l, i) => text(l, pos[0] + 76, pos[1] + 28 + i * lh, bsz, [30, 34, 32])); }
     drawFly(); drawTeacher(g);
+    if (S.ryu) { // 「流局」: 黒い帯に大きな白文字が、左から流れてきて止まる。少し置いて、すっと消える
+      const t = __now() - S.ryu.t0, k = Math.min(1, t / 380), e = 1 - (1 - k) * (1 - k), out = t > 1600 ? Math.min(1, (t - 1600) / 350) : 0, a = Math.round(200 * (1 - out));
+      for (let i = 0; i < 12; i++) fill(0, 170 + Math.round(i * 9.5), W, 10, [0, 0, 0], a); // 帯
+      const cx = Math.round(W / 2 - (1 - e) * 560), sz = 96, ty = 224 - sz / 2;
+      if (out < 1) { [[-4, 0], [4, 0], [0, -4], [0, 4], [3, 3]].forEach((dd) => text('流局', cx + dd[0], ty + dd[1], sz, [0, 0, 0], 1)); text('流局', cx, ty, sz, [255, 244, 207], 1); }
+    }
     if (__auto && globalThis.__shotDir && !S._stbl && g.players[2].discards.length >= 4 && g.players[3].discards.length >= 4) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
     // 演出: 札の文字が、少し大きいところから縮んで止まる
     if (S.banner && S.banner.call && S.banner.p) { // ポン・チー・ロンなど: 顔と、色のついた大きな文字(Edge版と同じ)
@@ -718,6 +724,43 @@
     });
     text('決定ボタンで 次へ', SW / 2, 420, 20, [205, 224, 212], 1);
   }
+  /* 流局の結果(Edge版と同じ流れ): 顔つきの4枚のカード。1人ずつ読み上げに合わせて見せる。テンパイの人は手牌と待ちを公開、ノーテンの人は選んで決定で見られる */
+  function drawDrawResult(r) {
+    const g = S.game, rd = r.rd, P = g.players, CW = 172, CG = 8, X0 = 60, CY = 82, CH = 166;
+    text('流局', SW / 2, 16, 40, YEL, 1); text(g.kyokuLabel().split(' ')[0] + ' ／ 山の牌がなくなりました', SW / 2, 58, 18, GREY, 1);
+    P.forEach((p, i) => {
+      const x = X0 + i * (CW + CG), sh = i < rd.shown, ten = r.tenpai[i], d = r.delta[i];
+      if (rd.sel === i && !rd.reading) rrect(x - 4, CY - 4, CW + 8, CH + 8, 10, YEL); else if (rd.now === i) rrect(x - 4, CY - 4, CW + 8, CH + 8, 10, [255, 211, 90]);
+      rrect(x, CY, CW, CH, 8, sh ? [30, 70, 56] : [22, 56, 44]);
+      if (rd.pop < 0) face(p, x + (CW - 64) / 2, CY + 6, 64, 64); if (!sh) fill(x + (CW - 64) / 2, CY + 6, 64, 64, [22, 56, 44], 150);
+      text(p.name, x + CW / 2, CY + 74, fitSz(p.name, 20, CW - 12, 14), sh ? WHITE : GREY, 1);
+      if (sh) {
+        text(ten ? 'テンパイ' : 'ノーテン', x + CW / 2, CY + 96, 26, ten ? YEL : GREY, 1);
+        text((d > 0 ? '+' : d < 0 ? '' : '±') + d, x + CW / 2, CY + 120, 20, d > 0 ? [120, 230, 140] : d < 0 ? RED : GREY, 1);
+        text(r.after[i] + '点', x + CW / 2, CY + 143, 16, WHITE, 1);
+      }
+    });
+    let y = CY + CH + 8; // テンパイの人: 手牌と待ち(読み上げのあとで出る)
+    P.forEach((p, i) => {
+      if (!r.tenpai[i] || i >= rd.shown) return;
+      rrect(52, y - 2, 740, 36, 6, [30, 70, 56], 150); text(p.name, 62, y + 5, fitSz(p.name, 18, 108, 12), WHITE);
+      let x = 180; const v = r.hands[i];
+      v.concealed.forEach((h) => { tile(h.t, x, y, 24, 32, h.red); x += 25; });
+      (v.melds || []).forEach((m) => { x += 8; m.tiles.forEach((h) => { tile(h.t, x, y, 24, 32, h.red); x += 25; }); });
+      const ws = rd.waits[i] || []; if (ws.length) { text('待ち', 560, y + 6, 18, YEL); ws.slice(0, 8).forEach((t, k) => tile(t, 600 + k * 24, y, 22, 30)); }
+      y += 36;
+    });
+    text('テンパイの人が、ノーテンの人から合計3000点を受け取ります', 60, 422, 15, GREY); if (!rd.reading) text('← → えらぶ    決定: 手牌を見る', 60, 440, 15, GREY);
+    if (!rd.reading) button(600, 414, 192, 38, '次へ', rd.sel === 4);
+    if (rd.pop >= 0) {
+      const p = P[rd.pop], v = r.hands[rd.pop], all = v.concealed.map((h) => h).concat((v.melds || []).reduce((a, m) => a.concat(m.tiles), [])), tw = 46;
+      overlay(170); panel(60, 130, 712, 210, 16, [14, 50, 38], [240, 210, 120], 3);
+      text(p.name + 'の手牌(' + (r.tenpai[rd.pop] ? 'テンパイ' : 'ノーテン') + ')', SW / 2, 142, 26, YEL, 1);
+      const x0 = Math.round((SW - all.length * tw) / 2); all.forEach((h, k) => tile(h.t, x0 + k * tw, 190, 42, 56, h.red));
+      const ws = rd.waits[rd.pop] || []; if (ws.length) { text('待ち', 300, 266, 22, YEL); ws.slice(0, 8).forEach((t, k) => tile(t, 350 + k * 30, 260, 26, 36)); }
+      text('決定・もどる で とじる', SW / 2, 312, 18, GREY, 1);
+    }
+  }
   function drawResult(r) {
     const g = S.game; stage(); rrect(40, 12, 752, 444, 8, [10, 38, 30]);
     if (r.type === 'win') {
@@ -740,6 +783,7 @@
       const pay = w.pay; const pts = pay.ron != null ? pay.ron + '点' : (pay.each != null ? pay.each + '点オール' : pay.fromOther + ' / ' + pay.fromDealer + '点');
       rrect(70, 336, 692, 48, 12, [30, 70, 56]); text((res.yakuman ? '役満' : res.han + '飜 ' + res.fu + '符'), 90, 354, 28, YEL); text(pts, 742, 342, 32, WHITE, 2);
       scoreCards(r, 396);
+    } else if (r.rd) { drawDrawResult(r);
     } else {
       text('流局', SW / 2, 30, 42, YEL, 1);
       if (r.abort) { text(r.abort + '(3人が同時にロン)', SW / 2, 110, 28, WHITE, 1); text('点数の動きは ありません。親は そのまま続けます。', SW / 2, 160, 20, GREY, 1); }
@@ -1273,6 +1317,14 @@
       }
       return;
     }
+    if (S.result && S.result.rd) { // 流局の結果: 読み上げ中は、決定で全部見せる / そのあとは ← → で人を選んで 決定=手牌 / 「次へ」で つぎの画面
+      const r = S.result, rd = r.rd;
+      if (rd.reading) { if (k === 'ok') { rd.token++; rd.reading = false; rd.shown = 4; rd.now = -1; NSND.stopSpeak(); dirty(); } return; }
+      if (rd.pop >= 0) { if (k === 'ok' || k === 'back') { rd.pop = -1; dirty(); } return; }
+      if (k === 'left') rd.sel = Math.max(0, rd.sel - 1); else if (k === 'right') rd.sel = Math.min(4, rd.sel + 1);
+      else if (k === 'ok') { if (rd.sel < 4) rd.pop = rd.sel; else { S.result = null; r.done(); } }
+      dirty(); return;
+    }
     if (S.result) { if (k === 'ok') { const r = S.result; S.result = null; r.done(); } return; }
     if (S.rankP) { if (k === 'ok') { const q = S.rankP; q.done(); dirty(); } return; }
     if (S.end) { if (k === 'ok') { const r = S.end; S.end = null; r.done(); } return; }
@@ -1404,7 +1456,25 @@
       NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
       const iWon = r.type === 'win' && r.wins.some((w) => w.winner.isHuman), iLost = r.type === 'win' && !iWon && r.delta && r.delta[0] < 0;
       setMood(r.type !== 'win' ? 'relief' : iWon ? 'win' : iLost ? 'shock' : 'focus'); S.carryMood = iLost ? 'grumpy' : iWon ? 'laugh' : null;
-      if (r.type !== 'win') { NSND.sfx('drawgame'); return new Promise((done) => { S.result = Object.assign({ done }, r, { done: () => { NSND.stopSpeak(); done(); } }); dirty(); }); }
+      if (r.type !== 'win') {
+        return (async () => {
+          if (!g.fast && !r.abort) { await sleep(900); if (g.stopped) return; S.ryu = { t0: __now() }; NSND.sfx('slam'); dirty(); await sleep(1950); S.ryu = null; dirty(); if (g.stopped) return; } // 最後の牌のあと、ひと呼吸 → 「流局」が左から流れてきて止まる(Edge版と同じ)
+          NSND.sfx('drawgame');
+          return new Promise((done) => {
+            const rd = r.abort || g.fast ? null : { shown: 0, now: -1, sel: 4, pop: -1, reading: true, token: 0, waits: [] };
+            if (rd) r.hands.forEach((v, i) => { try { rd.waits[i] = r.tenpai[i] ? MJ.waits(MJ.toCounts(v.concealed), (v.melds || []).length) : []; } catch (e) { rd.waits[i] = []; } });
+            if (rd && g.fast) { rd.shown = 4; rd.reading = false; }
+            S.result = Object.assign({ done }, r, { rd, done: () => { NSND.stopSpeak(); done(); } }); dirty();
+            if (rd) (async () => { // 「りゅうきょく」→ 1人ずつ「テンパイ」「ノーテン」
+              const tk = ++rd.token, alive = () => S.result && S.result.rd === rd && rd.token === tk && !g.stopped;
+              await sleep(250); if (!alive()) return;
+              let d = 0.8; try { d = NSND.speak(['x:りゅうきょく']) || 0.8; } catch (e) { /* ignore */ } await sleep(d * 1000 + 200);
+              for (let i = 0; i < 4; i++) { if (!alive()) return; rd.now = i; rd.shown = i + 1; dirty(); d = 0.9; try { d = NSND.speak([r.tenpai[i] ? 'x:テンパイ' : 'x:ノーテン']) || 0.9; } catch (e) { /* ignore */ } await sleep(d * 1000 + 450); }
+              if (!alive()) return; rd.now = -1; rd.reading = false; dirty();
+            })();
+          });
+        })();
+      }
       return (async () => { // 上がった人ごとに、役と点数の画面(読み上げつき)。そのあと、4人のじゅんいの画面
         const n = r.wins.length;
         for (let i = 0; i < n; i++) {
@@ -1461,7 +1531,7 @@
     if (__auto && now > nextAuto && !S.coach && !S.side) { nextAuto = now + 90; window.__key('ok'); }
     if (__lsDirty && now - lastSave > 1500) { lastSave = now; __lsDirty = false; try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ } }
     /* 画面の入れかえ(ダブル/トリプルバッファ)で、古い絵が交互に出て点滅しないよう、変化のあとは3回続けて描く */
-    if (pressing() || S.intro || S.dice || S.fly || (S.deal && now >= S.deal.t0 - 50) || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
+    if (pressing() || S.intro || S.dice || S.fly || (S.deal && now >= S.deal.t0 - 50) || S.ryu || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
     if (!S.dirty) return false;
     S.dirty = false; return true;
   };
@@ -1478,7 +1548,7 @@
   }
   const drawBody = function () {
     // カーソルだけが動いたとき: 画面ぜんたいは描きなおさず、手牌のあたりだけ描く(キビキビ動かすため)
-    if (S.partialKey && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
+    if (S.partialKey && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.ryu && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
       S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [14, 84, 52]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;
