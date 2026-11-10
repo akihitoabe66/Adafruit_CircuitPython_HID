@@ -17,6 +17,9 @@ EYE_T = 0.55
 EYE = [88, 93, 90, 95, 98, 95, 90, 93,   100, 105, 100, 100, 100, 108, 100, 90,   100, 92, 95, 85, 100, 100, 105, 95,   90, 85, 95, 85, 85, 90, 98, 90]
 import numpy as np
 SCALE = 0.88  # 顔の大きさ(1=パネルの横幅いっぱい)。小さくすると、まわりを足して、顔が小さく見える
+# 1人ずつの調整(番号は 1〜32)。 SIZE: 顔の大きさを、全体(SCALE)の何倍にするか / UP: 顔を上にあげる量(窓の高さに対する割合。0.05 = 5%)
+SIZE = {1: 0.90, 4: 0.95, 6: 0.95, 9: 0.95}
+UP = {1: 0.05, 2: 0.05, 3: 0.05, 4: 0.05, 5: 0.05, 6: 0.05, 20: 0.05, 26: 0.05}
 P = 60        # まわりを足す幅(鏡のように折り返す)
 im = Image.open(os.path.join(U, 'sheet_cpu.png')).convert('RGB')
 n = 0
@@ -27,8 +30,8 @@ for r in range(4):
         # 足したところは、折り返しを強くぼかして、ぼんやりした背景にする(模様が、ぎらぎらしないように)
         pim = Image.fromarray(pad); blur = pim.filter(ImageFilter.GaussianBlur(9)); mask = Image.new('L', pim.size, 0); mask.paste(255, (P, P, P + w, P + h)); mask = mask.filter(ImageFilter.GaussianBlur(1.5))
         pad = np.array(Image.composite(pim, blur, mask))
-        Wd = round(w / SCALE); left = P + (w - Wd) // 2                       # 窓の大きさ(正方形)と、左のはし(中央そろえ)
-        top = P + round(EYE[n - 1] - EYE_T * Wd); top = max(0, min(h + 2 * P - Wd, top))  # 目の線が、窓の EYE_T の高さに来るように
+        Wd = round(w / (SCALE * SIZE.get(n, 1))); left = P + (w - Wd) // 2                       # 窓の大きさ(正方形)と、左のはし(中央そろえ)
+        top = P + round(EYE[n - 1] - (EYE_T - UP.get(n, 0)) * Wd); top = max(0, min(h + 2 * P - Wd, top))  # 目の線が、窓の EYE_T の高さに来るように
         sq = Image.fromarray(pad[top:top + Wd, left:left + Wd]).resize((176, 176), Image.LANCZOS)
         sq.save(os.path.join(O, 'chars', 'face', '%02d.webp' % n), quality=90); sq.transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(O, 'chars', 'face', '%02d_f.webp' % n), quality=90)
 YL, YR = [12, 322, 634, 946], [307, 617, 930, 1243]; YT, YB = [12, 324, 635, 944], [309, 619, 930, 1244]
