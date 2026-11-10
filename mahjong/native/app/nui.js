@@ -908,12 +908,12 @@
     quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, p.kind === 'tile' ? '◀ ▶ で牌をえらんで 決定ボタン(切る牌)' : '◀ ▶ ▲ ▼ で えらんで 決定ボタン');
     richDraw(q.head, 30, 56, q.hsz, INK, q.hsz + rsz(q.hsz) + 9);
     if (p.kind === 'choice') q.opts.forEach((o, i) => {
-      const x = 30 + (i % 2) * 394, y = 196 + Math.floor(i / 2) * 62, sel = q.idx === i, bc = sel ? QRED : GREEN;
-      panel(x, y, 378, 54, 14, WHITE, bc, sel ? 4 : 3, 255); rrect(x + 10, y + 10, 34, 34, 17, bc); text('ABCD'[i], x + 27, y + 12, 24, WHITE, 1);
-      richDraw(o.lines, x + 44 + 167, y + 3, 19, sel ? QRED : INK, 25, true);
+      const x = 30 + (i % 2) * 394, y = 196 + Math.floor(i / 2) * 62, sel = q.idx === i;
+      panel(x, y, 378, 54, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 3, 255); rrect(x + 10, y + 10, 34, 34, 17, sel ? [160, 110, 0] : GREEN); text('ABCD'[i], x + 27, y + 12, 24, WHITE, 1);
+      richDraw(o.lines, x + 44 + 167, y + 3, 19, INK, 25, true);
     });
     const n = q.disp.length, x0 = Math.round((SW - (n * 48 + (p.win ? 62 : 0))) / 2), HYq = 330;
-    q.disp.forEach((h, i) => { const sel = p.kind === 'tile' && q.idx === i, x = x0 + i * 48, y = HYq - (sel ? 12 : 0); if (sel) rrect(x - 4, y - 4, 52, 66, 6, QRED); tile(h.t, x, y, 44, 58, h.red); });
+    q.disp.forEach((h, i) => { const sel = p.kind === 'tile' && q.idx === i, x = x0 + i * 48, y = HYq - (sel ? 12 : 0); if (sel) { rrect(x - 5, y - 5, 54, 68, 7, [160, 110, 0]); rrect(x - 3, y - 3, 50, 64, 6, YEL); } tile(h.t, x, y, 44, 58, h.red); });
     if (p.win) { const x = x0 + n * 48 + 14; text('上がり牌', x + 22, HYq - 22, 13, GREEN, 1); frame(x - 2, HYq - 2, 48, 62, QRED, 2); tile(p.win.t, x, HYq, 44, 58, p.win.red); }
     if (p.melds && p.melds.length) { let mx = 30; p.melds.forEach((m) => { (m.tiles || []).forEach((tl) => { tile(tl.t, mx, 396, 20, 26, tl.red); mx += 22; }); mx += 8; }); text('鳴いている牌', mx + 4, 400, 14, [90, 90, 80]); }
   }
@@ -997,7 +997,7 @@
     text((pi + 1) + ' / 2 ページ', SW - 24, 64, 17, [90, 90, 80], 2);
     pgi[pi].forEach((i, r) => {
       const st = STEPS[i], y = 102 + r * 62, sel = L.sel === i && L.view === 'map', done = !!D.done[st.id], bm = D.bm.step === i;
-      panel(24, y, SW - 48, 56, 14, WHITE, sel ? QRED : GREEN, sel ? 4 : 2, 255);
+      panel(24, y, SW - 48, 56, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
       rrect(34, y + 8, 40, 40, 20, done ? GREEN : [160, 170, 150]); text(done ? '✔' : String(i + 1), 54, y + 12, 28, WHITE, 1);
       text(st.t, 90, y + 4, 28, INK); text(st.sum, 92, y + 36, 15, [90, 90, 80]);
       rrect(SW - 150, y + 14, 58, 28, 9, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, SW - 121, y + 17, 18, WHITE, 1);
@@ -1005,7 +1005,7 @@
     });
     if (L.view === 'sub') {
       fill(0, 0, SW, SH, [0, 0, 0], 130); const st = STEPS[L.sel]; panel(190, 110, 452, 240, 14, WHITE, GREEN, 4, 255); text('ステップ' + (L.sel + 1) + '  ' + st.t, SW / 2, 124, 22, GREEN, 1);
-      SUBS.forEach((lb, i) => { const y = 164 + i * 44, sel = L.sub === i, lab = i === 2 && D.done[st.id] ? '「おぼえた」を はずす' : i === 0 && D.bm.step === L.sel && D.bm.read ? '読む(しおりの ところから)' : lb; panel(220, y, 392, 38, 10, WHITE, sel ? QRED : [150, 160, 140], sel ? 4 : 2, 255); text(lab, SW / 2, y + 7, 21, sel ? QRED : INK, 1); });
+      SUBS.forEach((lb, i) => { const y = 164 + i * 44, sel = L.sub === i, lab = i === 2 && D.done[st.id] ? '「おぼえた」を はずす' : i === 0 && D.bm.step === L.sel && D.bm.read ? '読む(しおりの ところから)' : lb; panel(220, y, 392, 38, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [150, 160, 140], sel ? 4 : 2, 255); text(lab, SW / 2, y + 7, 21, INK, 1); });
     }
   }
   function drawSlots() {
