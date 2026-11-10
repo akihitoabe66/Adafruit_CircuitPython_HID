@@ -342,12 +342,12 @@
       if (this.mode === 'train') { const t = (this.trainRes[this.cat.id] = this.trainRes[this.cat.id] || { n: 0, ok: 0 }); t.n++; if (good) t.ok++; }
       MJ.SFX.play(good ? 'pinpon' : r.r === 'near' ? 'select' : 'bubu');
       { // 効果音のあと、「正解!」「ふせいかい」「おしい!」と声で言う(答え合わせの見出しは、読み上げの対象にしない)
-        const key = good ? 'q:正解' : r.r === 'near' ? 'q:おしい' : 'q:不正解', say = good ? '正解!' : r.r === 'near' ? 'おしい!' : 'まちがい!';
+        const key = good ? 'q:正解' : r.r === 'near' ? 'q:おしい' : 'q:不正解', say = good ? '正解!' : r.r === 'near' ? 'おしい!' : 'ハズレ!';
         clearTimeout(this._qv);
         this._qv = setTimeout(() => { try { if (!(MJ.SFX.ykHas(key) && MJ.SFX.speakClips([key]))) MJ.SFX.read(say, null, { pitch: 0.2, rate: 1.1 }); } catch (e) { /* ignore */ } }, good ? 700 : 750); // (端末の読み上げを止める cancel() は、Windowsで画面が止まることがあるので呼ばない)
       }
       $('#drill-score').textContent = this.scoreText();
-      const head = good ? '⭕ 正解!' : r.r === 'near' ? '△ おしい!' : '❌ まちがい!';
+      const head = good ? '⭕ 正解!' : r.r === 'near' ? '△ おしい!' : '❌ ハズレ!';
       this.showFb(head, good ? 'good' : r.r === 'near' ? 'warn' : 'bad', r.html);
     },
 
