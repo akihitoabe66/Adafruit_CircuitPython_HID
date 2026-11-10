@@ -33,6 +33,7 @@ static SDL_Texture *getimg(const char *path, int *w, int *h){
   for (int i = 0; i < nimg; i++) if (imgs[i].hs == hp && !strcmp(imgs[i].key, path)) { if (w) *w = imgs[i].w; if (h) *h = imgs[i].h; return imgs[i].tex; }
   if (nimg >= NIMG) return NULL;
   char full[1400]; snprintf(full, sizeof full, "%s/%s", root, path);
+  if (!strncmp(path, "img/", 4)) { char alt[1400]; snprintf(alt, sizeof alt, "%s/native/img/%s", root, path + 4); FILE *tf = fopen(alt, "rb"); if (tf) { fclose(tf); strcpy(full, alt); } } /* 実機用に小さくした絵(native/img)が、あれば、そちらを使う */
   SDL_Surface *s = IMG_Load(full); if (!s) { fprintf(stderr, "img? %s (%s)\n", full, IMG_GetError()); return NULL; }
   SDL_Texture *t = SDL_CreateTextureFromSurface(ren, s);
   Ent *e = &imgs[nimg++]; e->hs = hp; strncpy(e->key, path, 199); e->tex = t; e->w = s->w; e->h = s->h; SDL_FreeSurface(s);
@@ -182,6 +183,7 @@ static void preload(void){
   qsort(list, n, sizeof(char *), cmpstr);
   double t0 = nowms(); int last = -1;
   for (int i = 0; i < n; i++) {
+    if (strstr(list[i], "/cert") || strstr(list[i], "/tenbo_")) continue; /* 実機では使わない絵は、読まない(起動を速く) */
     size_t L = strlen(list[i]); if (L > 4 && !strcmp(list[i] + L - 4, ".wav")) { if (audio_ok) (void)getsnd(list[i]); } else getimg(list[i], NULL, NULL);
     SDL_PumpEvents(); int pc = i * 20 / (n ? n : 1); if (pc != last) { last = pc; loading_screen(i, n); }
   }

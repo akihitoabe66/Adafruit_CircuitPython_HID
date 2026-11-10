@@ -22,5 +22,8 @@ for d, _, fs in os.walk(os.path.join(root, 'img')):
         rel = os.path.relpath(p, root).replace(os.sep, '/')
         mime = {'webp': 'image/webp', 'png': 'image/png', 'jpg': 'image/jpeg', 'svg': 'image/svg+xml'}.get(f.rsplit('.', 1)[-1], 'application/octet-stream')
         assets[rel] = 'data:%s;base64,%s' % (mime, base64.b64encode(open(p, 'rb').read()).decode())
+for f in (os.listdir(os.path.join(root, 'native', 'img')) if os.path.isdir(os.path.join(root, 'native', 'img')) else []): # 実機用に小さくした絵が、あれば、そちらを使う
+    p = os.path.join(root, 'native', 'img', f); assets['img/' + f] = 'data:image/webp;base64,%s' % base64.b64encode(open(p, 'rb').read()).decode()
+for k in [k for k in assets if k.startswith('img/cert') or k.startswith('img/tenbo_')]: del assets[k]  # 実機では使わない絵
 json.dump(assets, open(os.path.join(out, 'assets.json'), 'w'))
 print('bundle %d bytes, assets %d files, chars %d' % (len(body), len(assets), len(chars)))
