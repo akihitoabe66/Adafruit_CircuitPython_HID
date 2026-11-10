@@ -366,7 +366,7 @@
     // 吹き出し
     const now = __now();
     const BUB = { 0: [250, 276], 1: [336, 150], 2: [404, 40], 3: [70, 172] }, BW = 300;
-    const calling = S.banner && S.banner.call; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
+    const calling = (S.banner && S.banner.call) || S.ryu; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; } if (calling) continue;
       const pos = BUB[k] || [300, 200]; let bsz = 20, lines = wrapText(b.text, bsz, BW - 92); if (lines.length > 4) { bsz = 18; lines = wrapText(b.text, bsz, BW - 92).slice(0, 4); } const lh = bsz + 6, h = Math.max(78, 34 + lines.length * lh);
       rrect(pos[0] + 2, pos[1] + 3, BW, h, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, h, 10, [240, 243, 238]);
