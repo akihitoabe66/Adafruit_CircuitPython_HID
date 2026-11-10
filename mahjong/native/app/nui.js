@@ -1004,7 +1004,7 @@
       dirty(); return;
     }
     if (L.view === 'map') {
-      if (k === 'back') { L.confirm = { idx: 0 }; dirty(); return; }
+      if (k === 'back') { S.mode = 'menu'; S.learn = null; dirty(); return; }
       const pgi = learnPages(), pi = pgi[0].includes(L.sel) ? 0 : 1, cur = pgi[pi], at = cur.indexOf(L.sel);
       if (k === 'up') L.sel = cur[wrap(at - 1, cur.length)]; else if (k === 'down') L.sel = cur[wrap(at + 1, cur.length)];
       else if (k === 'left' || k === 'right') { const o = pgi[1 - pi]; L.sel = o[Math.min(at, o.length - 1)]; }
