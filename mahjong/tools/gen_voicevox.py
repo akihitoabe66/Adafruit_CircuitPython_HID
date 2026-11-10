@@ -8,7 +8,8 @@
   python3 tools/gen_voicevox.py --list                  # 使える声(speaker)の一覧
   python3 tools/gen_voicevox.py you                     # ずんだもん(ノーマル)で、あなたの掛け声を作る
   python3 tools/gen_voicevox.py you --speaker 1         # あまあま
-  python3 tools/gen_voicevox.py yomi --prefix q:        # 読み上げのうち「q:」で始まるものだけ(クイズの正解など)
+  python3 tools/gen_voicevox.py yomi --prefix y:        # 読み上げのうち「y:」(役の名前)だけ。ふつうは、局(x:)とクイズ(q:)は、自分で録った声を守るため作らない
+  python3 tools/gen_voicevox.py yomi --prefix y:,n:,m:,k:,h:,l:,pt   # 役名・飜・点数を順に
   python3 tools/gen_voicevox.py all --speed 1.1 --pitch 0.02
   python3 tools/gen_voicevox.py you --dry               # 台本だけ見る(何も作らない)
 必要なもの: Python 3 と ffmpeg だけ(追加のライブラリは不要)。
@@ -75,7 +76,8 @@ def main():
     ap.add_argument('--url', default='http://127.0.0.1:50021', help='VOICEVOX エンジンの場所')
     ap.add_argument('--speaker', type=int, default=3, help='声の番号(ずんだもん ノーマル=3。--list で一覧)')
     ap.add_argument('--speed', type=float, default=1.0); ap.add_argument('--pitch', type=float, default=0.0); ap.add_argument('--intonation', type=float, default=1.1)
-    ap.add_argument('--prefix', default='', help='yomi で、このキーで始まるものだけ作る(例: q:  y:  n:)')
+    ap.add_argument('--prefix', default='', help='yomi で、このキーで始まるものだけ作る。「,」で複数(例: y:  y:,n:,m:)')
+    ap.add_argument('--skip', default='x:,q:', help='yomi で作らないもの(すでに自分で録ったものを、上書きしないため。ふつうは x:(局・本場・流局)と q:(クイズの答え)。全部作り直すときは --skip "")')
     ap.add_argument('--no-extra', action='store_true', help='「勝負!」は作らない')
     ap.add_argument('--keep-wav', default='', help='元の wav を、このフォルダにも残す')
     ap.add_argument('--dry', action='store_true', help='台本を表示するだけ')
@@ -94,7 +96,8 @@ def main():
     if a.what in ('yomi', 'all'):
         manifest = json.load(open(os.path.join(YK_DIR, 'manifest.json'), encoding='utf-8'))
         for key, text in yomi_clips().items():
-            if key in manifest and key.startswith(a.prefix): jobs.append((text, os.path.join(YK_DIR, manifest[key])))
+            pre = tuple(x for x in a.prefix.split(',') if x) or ('',); skp = tuple(x for x in a.skip.split(',') if x)
+            if key in manifest and key.startswith(pre) and not (skp and key.startswith(skp)): jobs.append((text, os.path.join(YK_DIR, manifest[key])))
     for t, dst in jobs:
         print('%-18s → %s' % (t, os.path.relpath(dst, ROOT)))
         if not a.dry: to_mp3(synth(base, t, a), dst, a)
