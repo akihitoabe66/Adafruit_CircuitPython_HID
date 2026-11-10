@@ -72,12 +72,15 @@
   }
   /* あなた(ずんだもん)の表情: 場面ごとに切りかわる。16枚(img/zunda/01〜16)。 */
   const ZN = { normal: 1, happy: 2, think: 3, fight: 4, call: 5, shock: 6, smug: 7, laugh: 8, focus: 9, relief: 10, grumpy: 11, what: 12, win: 13, lose: 14, dokidoki: 15, point: 16 };
+  /* 絵のバージョン: ふだんは「浮世絵版」(img/uk/…)。いまは MJ_STYLE=uk を付けて起動したときだけ浮世絵版。確認後は、ふだんが浮世絵版で、MJ_STYLE=old で前のバージョンの絵(img/chars, img/zunda, img/title_art.webp)に戻る */
+  const UKIYO = globalThis.__styleEnv === 'uk'; // (確認がすんだら、ここを「!== 'old'」にして、浮世絵版をふだんにする)
+  const skin = (p) => (UKIYO && typeof p === 'string' ? p.replace(/^img\/(chars\/face|zunda|title_art)/, 'img/uk/$1') : p);
   const YOU_OLD = globalThis.__youEnv === 'old'; // 起動のとき MJ_YOU=old を付けると、前の「あなた」の絵(img/you)に戻る。 ふだんは ずんだもん
-  const youSrc = () => YOU_OLD ? 'img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp' : 'img/zunda/' + String(ZN[S.mood && S.moodUntil > __now() ? S.mood : 'normal']).padStart(2, '0') + '.webp';
+  const youSrc = () => YOU_OLD ? 'img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp' : skin('img/zunda/' + String(ZN[S.mood && S.moodUntil > __now() ? S.mood : 'normal']).padStart(2, '0') + '.webp');
   function setMood(m, ms) { S.mood = m; S.moodUntil = __now() + (ms || 60000); dirty(); }
   const TYADJ = 0; // 宣言の文字を、顔の中心に合わせるための微調整
   function face(p, x, y, w, h) {
-    const ch = p.char; const src = p.isHuman ? youSrc() : (MJ.faceSrc ? MJ.faceSrc(ch) : ch.face);
+    const ch = p.char; const src = skin(p.isHuman ? youSrc() : (MJ.faceSrc ? MJ.faceSrc(ch) : ch.face));
     if (w >= 48) { fill(x, y, w, h, [90, 110, 100]); gfx.imageTop(src, x, y, w, h); return; } // 大きな顔は、窓の解像度でくっきり描く(縦横の比は、切り取って合わせる)
     if (!gfx.image(src, x, y, w, h)) fill(x, y, w, h, [90, 110, 100]);
   }
@@ -473,7 +476,7 @@
   }
   function drawTitle() {
     gfx.clear(14, 84, 52);
-    gfx.image('img/title_art.webp', 0, 0, SW, SH, 255); // タイトルの文字は、絵に入っている
+    gfx.image(skin('img/title_art.webp'), 0, 0, SW, SH, 255); // タイトルの文字は、絵に入っている
     const f = S.titleIdx, pr = pressing();
     const sc = (i) => { // 選んでいるボタンは少し大きく。押すと「ぎゅっと縮んで、ぽんと跳ねる」
       if (i !== f) return 1; if (!pr) return 1.06; const k = (__now() - S.pressT) / (S.pressMs || 170);
@@ -486,9 +489,23 @@
       }
       gfx.image(path, X2, Y2, W2, H2, 255);
     };
+    if (UKIYO) { // 浮世絵版: 藍色の板に金の細い線(和風の、シンプルなボタン)。選んでいるボタンは朱色
+      const wb = (i, x, y, w, h, label, sz, badge) => {
+        const k = sc(i), W2 = Math.round(w * k), H2 = Math.round(h * k), X = Math.round(x - (W2 - w) / 2), Y = Math.round(y - (H2 - h) / 2), on = i === f, GOLD = [214, 176, 84];
+        rrect(X + 2, Y + 4, W2, H2, 5, [0, 0, 0], 110);
+        if (on) rrect(X - 4, Y - 4, W2 + 8, H2 + 8, 8, pr ? [255, 240, 170] : [255, 252, 235]);
+        rrect(X, Y, W2, H2, 5, GOLD); rrect(X + 2, Y + 2, W2 - 4, H2 - 4, 4, on ? [178, 38, 28] : [22, 38, 82]); frame(X + 6, Y + 6, W2 - 12, H2 - 12, GOLD, 1);
+        const fs = Math.round(sz * k), tw = gfx.measure(label, fs), ty = Y + Math.round((H2 - fs) / 2) - 1;
+        if (badge) { const r = Math.round(fs * 0.62), bx = X + Math.round((W2 - tw) / 2) - r * 2 - 8; rrect(bx, ty + Math.round((fs - 2 * r) / 2) + 1, r * 2, r * 2, r, GOLD); text(badge, bx + r, ty + Math.round((fs - 2 * r) / 2) + 1 + Math.round((r * 2 - fs * 0.8) / 2) - 1, Math.round(fs * 0.8), [22, 38, 82], 1); text(label, X + Math.round(W2 / 2) + r + 4, ty, fs, [252, 244, 220], 1); } else text(label, X + Math.round(W2 / 2), ty, fs, [252, 244, 220], 1);
+      };
+      wb(0, (SW - 250) / 2, SH - 92, 250, 62, 'はじめる', 34, 'A');
+      wb(1, SW - 128, 10, 116, 34, NSND.on ? 'BGM あり' : 'BGM なし', 17);
+      wb(2, SW - 140, SH - 52, 120, 34, 'ゲーム終了', 17);
+    } else {
     img('img/btn_start.webp', (SW - 250) / 2, SH - 100, 250, 78, 0);
     img(NSND.on ? 'img/bgm_on.webp' : 'img/bgm_off.webp', SW - 120, 10, 108, 37, 1);
     img('img/btn_exit.webp', SW - 130, SH - 60, 108, 37, 2);
+    }
   }
   function btnR(x, y, w, h, r, sel, off, label, sz, arrow) {
     if (sel) { rrect(x - 5, y - 5, w + 10, h + 10, r + 5, [30, 30, 30]); rrect(x - 3, y - 3, w + 6, h + 6, r + 3, [255, 255, 255]); rrect(x, y, w, h, r, pressing() ? [255, 246, 170] : [253, 213, 63]); if (pressing()) rrect(x - 9, y - 9, w + 18, h + 18, r + 9, [255, 255, 255], 90); }
@@ -691,7 +708,7 @@
     const opps = Object.keys(s.opp).map((id) => ({ c: MJ.CHARS.find((x) => x.id === +id), o: s.opp[id] })).filter((x) => x.c).sort((a, b) => b.o.n - a.o.n);
     const pages = Math.max(1, Math.ceil(opps.length / 3)), cur = opps.slice(pg * 3, pg * 3 + 3);
     if (!cur.length) text('まだ、対戦の記録がありません。', 600, 120, 18, WHITE, 1);
-    cur.forEach((x, i) => { const y = 70 + i * 92; fill(560, y, 252, 84, [235, 235, 225], 235); gfx.image(x.c.face, 566, y + 6, 72, 72, 255); text(x.c.short || x.c.name, 646, y + 8, 18, BLACK); text('対戦 ' + x.o.n + '回', 646, y + 34, 15, [70, 70, 70]); text('勝ち ' + x.o.w + '  勝率 ' + Math.round(x.o.w / x.o.n * 100) + '%', 646, y + 56, 15, [20, 90, 50]); });
+    cur.forEach((x, i) => { const y = 70 + i * 92; fill(560, y, 252, 84, [235, 235, 225], 235); gfx.image(skin(x.c.face), 566, y + 6, 72, 72, 255); text(x.c.short || x.c.name, 646, y + 8, 18, BLACK); text('対戦 ' + x.o.n + '回', 646, y + 34, 15, [70, 70, 70]); text('勝ち ' + x.o.w + '  勝率 ' + Math.round(x.o.w / x.o.n * 100) + '%', 646, y + 56, 15, [20, 90, 50]); });
     text('◀ ' + (pg + 1) + ' / ' + pages + ' ▶', 686, 352, 16, WHITE, 1);
   }
   /* ---------- 段位の画面(背景の絵の座標は、絵のピクセル 1404x768) ---------- */

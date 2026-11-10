@@ -178,7 +178,8 @@ static void loading_screen(int done, int total){
 static void preload(void){
   static char *list[1200]; int n = 0;
   n = listdir("img", ".webp", list, 1200, n); n = listdir("img/tiles", ".webp", list, 1200, n); n = listdir("img/chars", ".webp", list, 1200, n); n = listdir("img/chars/face", ".webp", list, 1200, n);
-  n = listdir("img/you", ".webp", list, 1200, n); n = listdir("img/zunda", ".webp", list, 1200, n); n = listdir("img/teacher", ".webp", list, 1200, n);
+  n = listdir("img/you", ".webp", list, 1200, n); n = listdir("img/teacher", ".webp", list, 1200, n);
+  { const char *st = getenv("MJ_STYLE"); if (!(st && !strcmp(st, "uk"))) n = listdir("img/zunda", ".webp", list, 1200, n); else { n = listdir("img/uk", ".webp", list, 1200, n); n = listdir("img/uk/chars/face", ".webp", list, 1200, n); n = listdir("img/uk/zunda", ".webp", list, 1200, n); } } /* 浮世絵版(ふだん) / MJ_STYLE=old で、前のバージョンの絵 */
   int nimgs = n; n = listdir("audio/sfx", ".wav", list, 1200, n);
   qsort(list, n, sizeof(char *), cmpstr);
   double t0 = nowms(); int last = -1;
@@ -280,6 +281,7 @@ int main(int argc, char **argv){
   { if (getenv("MJ_FPS")) JS_SetPropertyStr(ctx, g, "__perfEnv", JS_NewBool(ctx, 1)); }
   { const char *tp = getenv("MJ_TEACHER"); if (tp) JS_SetPropertyStr(ctx, g, "__teacherEnv", JS_NewString(ctx, tp)); }
   { const char *cp = getenv("MJ_CPU"); if (cp) JS_SetPropertyStr(ctx, g, "__cpuEnv", JS_NewString(ctx, cp)); }
+  { const char *sy = getenv("MJ_STYLE"); if (sy) JS_SetPropertyStr(ctx, g, "__styleEnv", JS_NewString(ctx, sy)); } /* MJ_STYLE=old で、前のバージョン(浮世絵版の前)の絵に戻す */
   { const char *yo = getenv("MJ_YOU"); if (yo) JS_SetPropertyStr(ctx, g, "__youEnv", JS_NewString(ctx, yo)); } /* MJ_YOU=old で、前の「あなた」の絵に戻す */
   JS_SetPropertyStr(ctx, g, "__auto", JS_NewBool(ctx, auto_)); if (shots) JS_SetPropertyStr(ctx, g, "__shotDir", JS_NewString(ctx, shots));
   const char *list[] = { "native/app/prelude.js", "js/tiles.js", "js/rules.js", "js/forms.js", "js/chars.js", "js/ai.js", "js/coach.js", "js/game.js", "js/banter.js", "js/banter2.js", "js/chars2.js", "js/rank.js", "native/app/icon.js", "js/ruby.js", "js/drill.js", "native/app/stats.js", "native/app/learn.js", "native/app/nsnd.js", "native/app/nui.js", NULL };
