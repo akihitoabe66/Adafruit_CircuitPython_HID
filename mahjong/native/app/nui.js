@@ -884,7 +884,8 @@
     const q = S.quiz, p = q.p; let r = null;
     try { r = p.grade(ans); } catch (e) { print('quiz grade err ' + (e && e.stack || e)); r = { r: 'ng', html: '<p>採点できませんでした。</p>' }; }
     try { MJ.Stats.quiz(p, r.r === 'ok'); } catch (e) { /* ignore */ }
-    q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7); setTimeout(() => { try { NSND.speak(['q:' + (r.r === 'ok' ? '正解' : r.r === 'near' ? 'おしい' : '不正解')]); } catch (e) { /* ignore */ } }, 500); // 答え合わせの声
+    q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7); q.wrongRun = r.r === 'ng' ? (q.wrongRun || 0) + 1 : 0; r.alt = r.r === 'ng' && q.wrongRun % 2 === 0; // つづけて まちがえたとき、2回目は「ちがうよ」(同じ声ばかりにならないように)
+    setTimeout(() => { try { NSND.speak(['q:' + (r.r === 'ok' ? '正解' : r.r === 'near' ? 'おしい' : r.alt ? 'ちがうよ' : '不正解')]); } catch (e) { /* ignore */ } }, 500); // 答え合わせの声
     { // 解説は、入りきる大きさの字で出す。長いときは、おまけの説明(小さな注)と、うしろの段落を はぶいて、スクロールさせない
       const paras = mark(String(r.html).replace(/<div class="cc-s">[\s\S]*?<\/div>/g, '')).split('\n').filter((x) => x.trim() !== '');
       let f = null; while (paras.length) { f = fitRich(paras.join('\n'), [28, 26, 24, 22, 20], 730, 236); if (f.h <= 236 || paras.length <= 1) break; paras.pop(); }
@@ -927,7 +928,7 @@
     if (q.phase === 'res') {
       const r = q.res.r, col = r === 'ok' ? [255, 110, 90] : r === 'near' ? [255, 200, 70] : [200, 210, 200];
       quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, '決定ボタンで 次の問題へ');
-      rrect(36, 62, 120, 44, 12, r === 'ok' ? QRED : r === 'near' ? [210, 140, 20] : [100, 110, 100]); text(r === 'ok' ? '正解' : r === 'near' ? 'おしい' : 'ハズレ', 96, 70, 28, WHITE, 1);
+      rrect(36, 62, 120, 44, 12, r === 'ok' ? QRED : r === 'near' ? [210, 140, 20] : [100, 110, 100]); text(r === 'ok' ? '正解' : r === 'near' ? 'おしい' : q.res.alt ? 'ちがうよ' : 'ハズレ', 96, 70, 28, WHITE, 1);
       text(r === 'ok' ? 'よくできました!' : r === 'near' ? 'あと一歩です' : '解説を読んで、覚えましょう', 176, 70, 26, col);
       panel(24, 132, SW - 48, 258, 14, [6, 28, 18], [140, 190, 130], 3, 235); rrect(44, 118, 86, 30, 14, [60, 130, 60]); text('解説', 87, 120, 20, WHITE, 1);
       gfx.clip(30, 138, SW - 60, 246); richDraw(q.rlines.slice(q.scroll), 48, 148, q.rsz, WHITE, 0); gfx.clip();
