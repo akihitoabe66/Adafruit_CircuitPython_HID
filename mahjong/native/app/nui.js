@@ -492,9 +492,11 @@
     if (UKIYO) { // 浮世絵版: 藍色の板に金の細い線(和風の、シンプルなボタン)。選んでいるボタンは朱色
       const wb = (i, x, y, w, h, label, sz, badge) => {
         const k = sc(i), W2 = Math.round(w * k), H2 = Math.round(h * k), X = Math.round(x - (W2 - w) / 2), Y = Math.round(y - (H2 - h) / 2), on = i === f, GOLD = [214, 176, 84];
-        rrect(X + 2, Y + 4, W2, H2, 5, [0, 0, 0], 110);
-        if (on) rrect(X - 4, Y - 4, W2 + 8, H2 + 8, 8, pr ? [255, 240, 170] : [255, 252, 235]);
-        rrect(X, Y, W2, H2, 5, GOLD); rrect(X + 2, Y + 2, W2 - 4, H2 - 4, 4, on ? [178, 38, 28] : [22, 38, 82]); frame(X + 6, Y + 6, W2 - 12, H2 - 12, GOLD, 1);
+        const R = Math.min(18, Math.round(H2 * 0.3)), base = on ? [178, 38, 28] : [22, 38, 82]; // 角を丸く
+        rrect(X + 2, Y + 4, W2, H2, R, [0, 0, 0], 110);
+        if (on) rrect(X - 4, Y - 4, W2 + 8, H2 + 8, R + 4, pr ? [255, 240, 170] : [255, 252, 235]);
+        rrect(X, Y, W2, H2, R, GOLD); rrect(X + 2, Y + 2, W2 - 4, H2 - 4, Math.max(2, R - 2), base);
+        rrect(X + 6, Y + 6, W2 - 12, H2 - 12, Math.max(2, R - 5), GOLD); rrect(X + 7, Y + 7, W2 - 14, H2 - 14, Math.max(2, R - 6), base); // 内がわの細い金の線
         const fs = Math.round(sz * k), tw = gfx.measure(label, fs), ty = Y + Math.round((H2 - fs) / 2) - 1;
         if (badge) { const r = Math.round(fs * 0.62), bx = X + Math.round((W2 - tw) / 2) - r * 2 - 8; rrect(bx, ty + Math.round((fs - 2 * r) / 2) + 1, r * 2, r * 2, r, GOLD); text(badge, bx + r, ty + Math.round((fs - 2 * r) / 2) + 1 + Math.round((r * 2 - fs * 0.8) / 2) - 1, Math.round(fs * 0.8), [22, 38, 82], 1); text(label, X + Math.round(W2 / 2) + r + 4, ty, fs, [252, 244, 220], 1); } else text(label, X + Math.round(W2 / 2), ty, fs, [252, 244, 220], 1);
       };
