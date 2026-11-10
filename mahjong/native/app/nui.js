@@ -87,12 +87,13 @@
   /* Edge版の卓と同じ配置(座標は、画面 832x468 の中) */
   const HX0 = 17, HPITCH = 45.5, HY = 387, HW = 44, HH = 58, RW = 26, RH = 33;
   const handX = (i, gap) => Math.round(HX0 + i * HPITCH + (gap ? 15 : 0));
-  function riverPos(seat, i) { // 河の i 番目の牌: 外枠の位置と、回す角度
-    const c = i % 6, r = Math.floor(i / 6);
-    if (seat === 0) return { x: 281 + c * RW, y: 268 + r * RH, rot: 0, bw: RW, bh: RH };
-    if (seat === 2) return { x: 412 - c * RW, y: 127 - r * RH, rot: 180, bw: RW, bh: RH };
-    if (seat === 3) return { x: 181 - r * 35, y: 157 + c * RW, rot: 90, bw: RH, bh: RW };
-    return { x: 503 + r * 35, y: 287 - c * RW, rot: 270, bw: RH, bh: RW };
+  function riverPos(seat, i, p) { // 河の i 番目の牌: 外枠の位置と、回す角度。リーチ宣言の牌は、右に90度まわして横向きに置く(あとの牌は、横向きの分だけずれる)
+    const c = i % 6, r = Math.floor(i / 6), ds = p && p.discards ? p.discards : [], ri = ds.findIndex((d) => d.riichi), D = RH - RW;
+    const sameRow = ri >= 0 && Math.floor(ri / 6) === r, sh = sameRow && ri < i ? D : 0, me = ri === i;
+    if (seat === 0) return me ? { x: 281 + c * RW, y: 268 + r * RH + D, rot: 90, bw: RH, bh: RW } : { x: 281 + c * RW + sh, y: 268 + r * RH, rot: 0, bw: RW, bh: RH };
+    if (seat === 2) return me ? { x: 412 - c * RW - D, y: 127 - r * RH, rot: 270, bw: RH, bh: RW } : { x: 412 - c * RW - sh, y: 127 - r * RH, rot: 180, bw: RW, bh: RH };
+    if (seat === 3) return me ? { x: 181 - r * 35, y: 157 + c * RW, rot: 180, bw: RW, bh: RH } : { x: 181 - r * 35, y: 157 + c * RW + sh, rot: 90, bw: RH, bh: RW };
+    return me ? { x: 503 + r * 35 + D, y: 287 - c * RW - D, rot: 0, bw: RW, bh: RH } : { x: 503 + r * 35, y: 287 - c * RW - sh, rot: 270, bw: RH, bh: RW };
   }
   function tileR(t, x, y, w, h, red, dim, rot) {
     if (!rot) { tile(t, x, y, w, h, red, dim); return; }
@@ -149,7 +150,7 @@
   function drawRiver(g, p) {
     p.discards.forEach((d, i) => {
       if (S.fly && S.fly.d === d && __now() < S.fly.t0 + S.fly.dur) return; // 飛んでいる間は、河には描かない
-      const q = riverPos(p.seat, i);
+      const q = riverPos(p.seat, i, p);
       tileR(d.tile.t, q.x, q.y, RW, RH, d.tile.red, d.called, q.rot);
       if (d.riichi) frame(q.x, q.y, q.bw, q.bh, RED, 2);
       if (g.lastDiscard && g.lastDiscard.d === d) frame(q.x - 1, q.y - 1, q.bw + 2, q.bh + 2, YEL, 2);
@@ -248,7 +249,7 @@
   function startFly(g, ld) {
     if (g.fast || ld.by == null) return;
     const p = g.players[ld.by], i = p.discards.indexOf(ld.d); if (i < 0) return;
-    const q = riverPos(ld.by, i);
+    const q = riverPos(ld.by, i, p);
     const from = ld.by === 0 && S.pick ? S.pick : ({ 2: [330, 20], 3: [10, 150], 1: [690, 150] }[ld.by] || [360, 300]);
     S.fly = { d: ld.d, t: ld.tile.t, red: ld.tile.red, from, to: [q.x, q.y], rot: q.rot, bw: q.bw, bh: q.bh, t0: __now(), dur: FLY_END }; S.pick = null;
   }
@@ -266,7 +267,7 @@
   /* 配牌: 親から反時計回りに、4牌ずつ(12牌)→ 1牌ずつ。配り終わると「チャ!」と牌が少し上がって並びかわり、「タンッ!」と手牌の位置にそろう */
   const FLY_MS = 140, DEAL_R = [0, 400, 800, 1200], DEAL_J = 120, DEAL_LIFT = 1900, DEAL_DROP = 2340, DEAL_END = 2720, SRT_L = 200, SRT_S = 240, SRT_D = 150;
   /* 配牌の山(2段重ねの牌が、輪になっている)。親の側から、反時計回りに、2つ(=4牌)ずつ取られていく */
-  const WALL_P = 15, WALL_X0 = 232, WALL_Y0 = 86;
+  const WALL_P = 15, WALL_X0 = 232, WALL_Y0 = 62;
   function wallList(dealer) {
     const out = [], side = (sd, i) => (sd === 0 ? { x: WALL_X0 + i * WALL_P, y: WALL_Y0 + 236, w: 14, h: 18, sd: '' } : sd === 1 ? { x: WALL_X0 + 261, y: Math.round(WALL_Y0 + 20 + (16 - i) * 12.8), w: 18, h: 12, sd: 'r' } : sd === 2 ? { x: WALL_X0 + (16 - i) * WALL_P, y: WALL_Y0, w: 14, h: 18, sd: '' } : { x: WALL_X0 - 24, y: Math.round(WALL_Y0 + 20 + i * 12.8), w: 18, h: 12, sd: 'l' });
     for (let q = 0; q < 4; q++) for (let i = 0; i < 17; i++) out.push(side((dealer + q) % 4, i));
@@ -789,7 +790,7 @@
       else { for (let k = 0; k < 30; k++) { fill(cx - 15 + k, iy + 2 + k, 5, 5, [90, 90, 84]); fill(cx + 11 - k, iy + 2 + k, 5, 5, [90, 90, 84]); } }
       text(b.l, cx, y + 70, b.l.length > 6 ? 31 : 36, ink, 1); text(b.s, cx, y + 118, 18, [90, 90, 80], 1);
     });
-    text('◀ ▶ で えらんで 決定ボタン', 360, 372, 20, [205, 224, 212], 1);
+    text('◀ ▶ で えらんで 決定ボタン', 360, 366, 20, [205, 224, 212], 1); text('えらんだあとは、自動で次へ進みます', 360, 394, 15, [150, 180, 160], 1);
   }
   function drawDialog(title, items, idx, note) {
     overlay(190); const h = 70 + items.length * 50; const y0 = Math.round((H - h) / 2);
@@ -809,6 +810,7 @@
   /* ---------- 入力 ---------- */
   window.__key = function (k) {
     S.dirty = true; if (S.locked) return;
+    if (S.guardUntil && __now() < S.guardUntil) return; // 保存のあと、次の画面に変わった直後の押しまちがいを無視する
     NSND.sfx(k === 'ok' ? 'ok' : k === 'back' ? 'click' : 'select', 0.5);
     if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = 1 - (r.idx || 0); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 1)) { S.rankScr = null; r.done(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; } return; }
     if (k === 'menu' && !S.menuP) { openMenu(); return; } // スタート+セレクト長押し
@@ -831,9 +833,9 @@
       if (k === 'up' || k === 'down' || k === 'left' || k === 'right') S.saveP.idx = 1 - S.saveP.idx;
       else if (k === 'ok') {
         const p = S.saveP; S.saveP = null;
-        if (p.idx !== 0) { p.res(); return; }
+        if (p.idx !== 0) { S.guardUntil = __now() + 1500; p.res(); return; }
         S.locked = true; S.toast = { text: 'セーブ中です…  電源を切らないでください', until: __now() + 60000 }; dirty();
-        setTimeout(() => { const ok = slotWrite(p.snap); S.toast = { text: ok ? 'セーブしました' : 'セーブできませんでした', until: __now() + 1400 }; dirty(); setTimeout(() => { S.toast = null; S.locked = false; dirty(); p.res(); }, 1600); }, 700);
+        setTimeout(() => { const ok = slotWrite(p.snap); S.toast = { text: ok ? 'セーブしました  自動で次へ進みます' : 'セーブできませんでした', until: __now() + 1400 }; dirty(); setTimeout(() => { S.toast = null; S.locked = false; S.guardUntil = __now() + 1500; dirty(); p.res(); }, 1600); }, 700);
       }
       return;
     }

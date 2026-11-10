@@ -340,6 +340,8 @@
       if (!B.on || !game.ui || !p || p.isHuman || game.fast || game.stopped) return false;
       const now = Date.now();
       if (!opt.force && now - lastAt < 3300) return false; // 立て続けにしゃべらない
+      const grp = /riichi/i.test(kind) ? 'riichi' : kind, gl = (B._grp = B._grp || {}); // 同じ話題(リーチへの反応など)を、続けて別の人が言わない
+      if (gl[grp] && now - gl[grp] < (grp === 'riichi' ? 9000 : 4000)) return false;
       const set = L[p.char.id];
       if (!set) return false;
       let pool = set[kind] || ((kind === 'genbutsu' || kind === 'avoid') && MJ.BanterGEN ? MJ.BanterGEN[MJ.isFemaleChar(p.char) ? 'f' : 'm'][kind] : null); // 現物切り・一発回避は、どのキャラも同じ言い回し(男性・女性で口調だけ分ける)
@@ -360,7 +362,7 @@
       text = text.replace(/\{n\}/g, () => worst.name).replace(/\{r\}/g, opt.r || pick(others).name).replace(/\{k\}/g, opt.k || pick(others).name);
       text = text.replace(/あなた(さん|殿|どん|はん)/g, 'あなた'); // あなたを呼ぶときは、敬称をつけない(リーチ・カンをしたのがあなたのとき、「あなたさん」にならないように)
       if (text[0] === '!') text = text.slice(1); // 「!」で始まるセリフも、ふつうの吹き出しで出す(カットインは、リーチ・ポン・ロンなど、何かが起きた時だけ)
-      lastAt = now;
+      lastAt = now; gl[grp] = now;
       game.ui.speak(game, p, text, opt.ms);
       return true;
     },
