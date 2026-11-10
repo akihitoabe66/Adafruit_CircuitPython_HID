@@ -96,12 +96,12 @@
   /* Edge版の卓と同じ配置(座標は、画面 832x468 の中) */
   const HX0 = 17, HPITCH = 45.5, HY = 387, HW = 44, HH = 58, RW = 26, RH = 33;
   const handX = (i, gap) => Math.round(HX0 + i * HPITCH + (gap ? 15 : 0));
-  function riverPos(seat, i, p) { // 河の i 番目の牌: 外枠の位置と、回す角度。リーチ宣言の牌は、右に90度まわして横向きに置く(あとの牌は、横向きの分だけずれる)
+  function riverPos(seat, i, p) { // 河の i 番目の牌: 外枠の位置と、回す角度。リーチ宣言の牌は、その席から見て左に90度まわして横向きに置く(あとの牌は、横向きの分だけずれる)
     const c = i % 6, r = Math.floor(i / 6), ds = p && p.discards ? p.discards : [], ri = ds.findIndex((d) => d.riichi), D = RH - RW;
     const sameRow = ri >= 0 && Math.floor(ri / 6) === r, sh = sameRow && ri < i ? D : 0, me = ri === i;
-    if (seat === 0) return me ? { x: 281 + c * RW, y: 268 + r * RH + D, rot: 90, bw: RH, bh: RW } : { x: 281 + c * RW + sh, y: 268 + r * RH, rot: 0, bw: RW, bh: RH };
-    if (seat === 2) return me ? { x: 412 - c * RW - D, y: 127 - r * RH, rot: 270, bw: RH, bh: RW } : { x: 412 - c * RW - sh, y: 127 - r * RH, rot: 180, bw: RW, bh: RH };
-    if (seat === 3) return me ? { x: 181 - r * 35, y: 157 + c * RW, rot: 180, bw: RW, bh: RH } : { x: 181 - r * 35, y: 157 + c * RW + sh, rot: 90, bw: RH, bh: RW };
+    if (seat === 0) return me ? { x: 281 + c * RW, y: 268 + r * RH + D, rot: 270, bw: RH, bh: RW } : { x: 281 + c * RW + sh, y: 268 + r * RH, rot: 0, bw: RW, bh: RH };
+    if (seat === 2) return me ? { x: 412 - c * RW - D, y: 127 - r * RH, rot: 90, bw: RH, bh: RW } : { x: 412 - c * RW - sh, y: 127 - r * RH, rot: 180, bw: RW, bh: RH };
+    if (seat === 3) return me ? { x: 181 - r * 35, y: 157 + c * RW, rot: 0, bw: RW, bh: RH } : { x: 181 - r * 35, y: 157 + c * RW + sh, rot: 90, bw: RH, bh: RW };
     return me ? { x: 503 + r * 35 + D, y: 287 - c * RW - D, rot: 180, bw: RW, bh: RH } : { x: 503 + r * 35, y: 287 - c * RW - sh, rot: 270, bw: RH, bh: RW };
   }
   function tileR(t, x, y, w, h, red, dim, rot) {

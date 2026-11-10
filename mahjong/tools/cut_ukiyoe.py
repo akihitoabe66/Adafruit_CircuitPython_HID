@@ -5,7 +5,7 @@
   tools/ukiyoe/title.jpg → img/uk/title_art.webp
 起動のとき MJ_STYLE=old を付けると、前のバージョン(img/chars, img/zunda, img/title_art.webp)に戻る。"""
 import os
-from PIL import Image, ImageFilter
+from PIL import Image, ImageFilter, ImageDraw
 R = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'); U = os.path.join(R, 'tools', 'ukiyoe'); O = os.path.join(R, 'img', 'uk')
 os.makedirs(os.path.join(O, 'chars', 'face'), exist_ok=True); os.makedirs(os.path.join(O, 'zunda'), exist_ok=True)
 # 枠線の内側(絵のあるところ)。AI生成の一覧は少しずつずれているので、実測した値
@@ -20,12 +20,18 @@ SCALE = 0.748  # 顔の大きさ(1=パネルの横幅いっぱい)。小さく�
 # 1人ずつの調整(番号は 1〜32)。 SIZE: 顔の大きさを、全体(SCALE)の何倍にするか / UP: 顔を上にあげる量(窓の高さに対する割合。0.05 = 5%)
 SIZE = {1: 0.90, 4: 0.95, 6: 0.95, 7: 1.05, 8: 1.05, 9: 0.95, 12: 1.00, 13: 0.95, 14: 1.05, 17: 1.05, 26: 1.05, 27: 1.05, 29: 1.05}
 UP = {1: 0.05, 2: 0.10, 3: 0.05, 4: 0.05, 5: 0.10, 6: 0.10, 7: 0.07, 8: 0.10, 17: 0.05, 20: 0.05, 26: 0.10, 27: 0.05, 28: 0.05, 29: 0.05}
+MAT = None   # 例: (200, 30, 30) にすると、顔を小さくして足りなくなったところを、ぼかさずに この色で塗る(絵のまわりに細い線もつける)
 P = 60        # まわりを足す幅(鏡のように折り返す)
 im = Image.open(os.path.join(U, 'sheet_cpu.png')).convert('RGB')
 n = 0
 for r in range(4):
     for c in range(8):
         n += 1; x0, x1, y0, y1 = CL[c] + M, CR[c] - M, CT[r] + M, CB[r] - M; w = x1 - x0; h = y1 - y0
+        if MAT:
+            Wd = round(w / (SCALE * SIZE.get(n, 1))); top = round((EYE_T - UP.get(n, 0)) * Wd - EYE[n - 1]); pl = (Wd - w) // 2
+            can = Image.new('RGB', (Wd, Wd), MAT); can.paste(im.crop((x0, y0, x1, y1)), (pl, top)); ImageDraw.Draw(can).rectangle((pl - 2, top - 2, pl + w + 1, top + h + 1), outline=(40, 30, 22), width=3)
+            sq = can.resize((176, 176), Image.LANCZOS)
+            sq.save(os.path.join(O, 'chars', 'face', '%02d.webp' % n), quality=90); sq.transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(O, 'chars', 'face', '%02d_f.webp' % n), quality=90); continue
         src = im.crop((x0, y0, x1, y1)); pad = np.pad(np.array(src), ((P, P), (P, P), (0, 0)), mode='reflect')
         # 足したところは、折り返しを強くぼかして、ぼんやりした背景にする(模様が、ぎらぎらしないように)
         pim = Image.fromarray(pad); blur = pim.filter(ImageFilter.GaussianBlur(9)); mask = Image.new('L', pim.size, 0); mask.paste(255, (P, P, P + w, P + h)); mask = mask.filter(ImageFilter.GaussianBlur(1.5))
