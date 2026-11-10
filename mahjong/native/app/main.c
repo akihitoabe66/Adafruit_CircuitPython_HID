@@ -1,4 +1,4 @@
-/* 操作シンプル 本格麻雀 — Raspberry Pi 用ネイティブ版(試作)
+/* シンプル操作 AI本格麻雀 — Raspberry Pi 用ネイティブ版(試作)
    C → SDL2 → Linux。ゲームの頭脳は JavaScript(QuickJS)のまま使い回す。
    使い方: ./mj <ゲームのフォルダ(mahjong)> [--shots 出力フォルダ] [--auto] [--frames N] */
 #include <stdio.h>
@@ -257,7 +257,7 @@ int main(int argc, char **argv){
   IMG_Init(IMG_INIT_WEBP | IMG_INIT_PNG); TTF_Init();
   if (!getenv("MJ_NOSOUND")) { if (SDL_InitSubSystem(SDL_INIT_AUDIO) == 0 && Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, getenv("MJ_ABUF") ? atoi(getenv("MJ_ABUF")) : 4096) == 0) { int mf = Mix_Init(MIX_INIT_MP3); Mix_AllocateChannels(16); audio_ok = 1; int fr, nc; Uint16 fm; Mix_QuerySpec(&fr, &fm, &nc); printf("audio: ok (driver=%s, %dHz, ch=%d, mp3=%s)\n", SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver() : "?", fr, nc, (mf & MIX_INIT_MP3) ? "ok" : "NG"); } else fprintf(stderr, "audio? %s\n", SDL_GetError()); }
   int windowed = getenv("MJ_WINDOWED") != NULL;
-  win = SDL_CreateWindow("mahjong", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowed ? 1080 : 0, windowed ? 642 : 0, windowed ? SDL_WINDOW_RESIZABLE : SDL_WINDOW_FULLSCREEN_DESKTOP);
+  win = SDL_CreateWindow("シンプル操作 AI本格麻雀", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowed ? 1080 : 0, windowed ? 642 : 0, windowed ? SDL_WINDOW_RESIZABLE : SDL_WINDOW_FULLSCREEN_DESKTOP);
   if (!win) { fprintf(stderr, "window: %s\n", SDL_GetError()); return 1; }
   ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
   if (!ren) ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_SOFTWARE);

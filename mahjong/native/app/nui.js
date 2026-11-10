@@ -345,11 +345,13 @@
     drawHand(g);
     // 吹き出し
     const now = __now();
-    const BUB = { 0: [250, 282], 1: [520, 172], 2: [440, 40], 3: [74, 172] };
-    for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; }
-      const pos = BUB[k] || [300, 200], lines = wrapText(b.text, 15, 164).slice(0, 4), h = 30 + lines.length * 20;
-      rrect(pos[0] + 2, pos[1] + 3, 188, h, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], 188, h, 10, [240, 243, 238]);
-      text(b.name, pos[0] + 12, pos[1] + 6, 12, [90, 100, 96]); lines.forEach((l, i) => text(l, pos[0] + 12, pos[1] + 24 + i * 20, 15, [30, 34, 32])); }
+    const BUB = { 0: [250, 282], 1: [402, 150], 2: [430, 40], 3: [70, 172] }, BW = 236;
+    const calling = S.banner && S.banner.call; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
+    for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; } if (calling) continue;
+      const pos = BUB[k] || [300, 200], lines = wrapText(b.text, 15, BW - 80).slice(0, 4), h = Math.max(64, 30 + lines.length * 20);
+      rrect(pos[0] + 2, pos[1] + 3, BW, h, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, h, 10, [240, 243, 238]);
+      if (b.p) { face(b.p, pos[0] + 8, pos[1] + 8, 46, 46); frame(pos[0] + 7, pos[1] + 7, 48, 48, [176, 122, 58], 2); } // 話している人の顔
+      text(b.name, pos[0] + 64, pos[1] + 6, 12, [90, 100, 96]); lines.forEach((l, i) => text(l, pos[0] + 64, pos[1] + 24 + i * 20, 15, [30, 34, 32])); }
     drawFly(); drawTeacher(g);
     if (__auto && globalThis.__shotDir && !S._stbl && g.players[2].discards.length >= 4 && g.players[3].discards.length >= 4) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
     // 演出: 札の文字が、少し大きいところから縮んで止まる
@@ -988,7 +990,9 @@
   const ui = {
     render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
     sfx(name) { NSND.sfx(name); },
-    speak(g, p, t, ms) { ms = ms || Math.max(2800, Math.min(4800, 1300 + String(t).length * 110)); S.bub[p.seat] = { name: p.name, text: t, until: __now() + ms }; dirty(); setTimeout(dirty, ms + 100); },
+    speak(g, p, t, ms) { // セリフは、ポン・チー・リーチなどの宣言や、ほかの人のセリフが終わるまで待ってから、1人ずつ出す(かぶらないように)
+      ms = ms || Math.max(2800, Math.min(4800, 1300 + String(t).length * 110)); (S.sayQ || (S.sayQ = [])).push({ g, p, t, ms, t0: __now() }); pumpSay();
+    },
     banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
     handStart(g) {
       S.curIdx = null; if (teacherOn() && !S.tmsgShown) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
@@ -1035,7 +1039,7 @@
       });
     },
     showResult(g, r) {
-      S.bub = {}; S.banner = null;
+      S.bub = {}; S.sayQ = []; S.banner = null;
       NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
       if (r.type !== 'win') { NSND.sfx('drawgame'); return new Promise((done) => { S.result = Object.assign({ done }, r, { done: () => { NSND.stopSpeak(); done(); } }); dirty(); }); }
       return (async () => { // 上がった人ごとに、役と点数の画面(読み上げつき)。そのあと、4人のじゅんいの画面
@@ -1094,6 +1098,16 @@
     S.dirty = false; return true;
   };
   const perf = { t0: 0, n: 0, ms: 0, shown: '' };
+  function pumpSay() {
+    if (S.sayT) return;
+    const q = S.sayQ || []; const now = __now();
+    while (q.length && (now - q[0].t0 > 4000 || q[0].g !== S.game)) q.shift(); // 古くなったセリフは出さない
+    if (!q.length) return;
+    const busy = (S.banner && S.banner.call) || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
+    if (busy) { S.sayT = setTimeout(() => { S.sayT = null; pumpSay(); }, 250); return; }
+    const x = q.shift(); S.bub[x.p.seat] = { name: x.p.name, text: x.t, p: x.p, until: __now() + x.ms }; dirty();
+    S.sayT = setTimeout(() => { S.sayT = null; dirty(); pumpSay(); }, x.ms + 120);
+  }
   const drawBody = function () {
     // カーソルだけが動いたとき: 画面ぜんたいは描きなおさず、手牌のあたりだけ描く(キビキビ動かすため)
     if (S.partialKey && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
