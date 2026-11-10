@@ -752,12 +752,26 @@
     });
   }
   function drawEnd(f) {
-    gfx.clear(14, 84, 52); text('対局終了', 360, 20, 32, YEL, 1);
+    gfx.clear(14, 84, 52); fill(0, 0, 720, 428, [18, 92, 58], 255); fill(0, 0, 720, 58, [10, 58, 38]); fill(0, 58, 720, 3, [230, 190, 70]);
+    text('対局終了', 360, 8, 40, YEL, 1);
+    const MED = [[236, 190, 52], [190, 196, 204], [205, 133, 72], [120, 140, 130]], RH = 62, GAP = 6, Y0 = 72;
     f.results.forEach((o, i) => {
-      const y = 90 + i * 66; fill(120, y, 480, 58, o.p.isHuman ? [255, 240, 150] : [255, 255, 255], 235);
-      text(o.rank + '位', 130, y + 14, 28, BLACK); face(o.p, 210, y + 4, 46, 50); text(o.p.name, 270, y + 18, 22, BLACK); text(o.p.score, 590, y + 16, 26, BLACK, 2);
+      const y = Y0 + i * (RH + GAP), me = o.p.isHuman, mc = MED[Math.min(3, o.rank - 1)];
+      rrect(60, y, 600, RH, 8, [0, 0, 0], 70); rrect(58, y - 2, 600, RH, 8, me ? [255, 236, 130] : [244, 247, 240]);
+      rrect(58, y - 2, 12, RH, 6, mc); rrect(64, y - 2, 6, RH, 0, me ? [255, 236, 130] : [244, 247, 240]);
+      text(o.rank + '位', 80, y + 8, 38, o.rank === 1 ? [190, 130, 0] : BLACK);
+      face(o.p, 170, y + 1, RH - 6, RH - 6);
+      text(o.p.name, 246, y + 10, fitSz(o.p.name, 34, 250, 20), BLACK);
+      text(String(o.p.score), 640, y + 8, 42, BLACK, 2);
     });
-    text('決定ボタンで ホームへ', 360, 378, 22, WHITE, 1);
+    const rk = f.rk, yb = Y0 + 4 * (RH + GAP) + 2;
+    if (rk) {
+      rrect(60, yb, 600, 44, 8, [10, 58, 38]);
+      const d = rk.delta, col = d > 0 ? [140, 240, 150] : d < 0 ? [255, 130, 120] : WHITE;
+      text('段位ポイント', 80, yb + 8, 26, WHITE); text((d > 0 ? '+' : '') + d + ' 点', 280, yb + 4, 34, col);
+      text(rk.msg ? rk.msg.replace('🎉 ', '') : (rk.name + (rk.next ? '   あと ' + rk.left + ' 点で ' + rk.next : '')), 640, yb + 10, fitSz(rk.msg || rk.name, 22, 330, 14), YEL, 2);
+    }
+    text('決定ボタンで ホームへ', 360, 396, 24, WHITE, 1);
   }
 
 
@@ -1387,7 +1401,7 @@
       S.saveNote = { text: ok ? 'セーブしました' : 'セーブできませんでした', t0: __now(), until: __now() + 4200 }; dirty(); setTimeout(dirty, 4300);
       return Promise.resolve();
     },
-    gameEnd(g, f) { NSND.sfx('end'); try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } return new Promise((done) => { S.end = Object.assign({}, f, { done: () => { let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } S.rankScr = { rk, done }; dirty(); } }); }); },
+    gameEnd(g, f) { NSND.sfx('end'); try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { S.rankScr = { rk, done }; dirty(); } }); }); },
   };
 
   function pickChars() {
