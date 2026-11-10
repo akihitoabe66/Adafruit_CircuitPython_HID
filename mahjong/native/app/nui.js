@@ -39,7 +39,7 @@
   try { if (localStorage.getItem('mj_rules_ver') !== '3') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '3'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
   const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz', off: true }, { label: '点数計算の勉強', act: 'study', off: true }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
-  const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right']; // 隠しコマンド(タイトル): 5件のセーブから選べる
+  const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'back', 'ok']; // 隠しコマンド(タイトル): 5件のセーブから選べる
 
   /* ---------- 描く道具 ---------- */
   const fill = (x, y, w, h, c, a) => gfx.fill(x, y, w, h, c[0], c[1], c[2], a == null ? 255 : a);
@@ -908,8 +908,12 @@
     }
     if (S.mode === 'menu') { // ホーム
       const items = homeItems();
-      S.hid.push(k); if (S.hid.length > HIDDEN.length) S.hid.shift();
-      if (S.hid.join() === HIDDEN.join()) { S.hid = []; S.slots = slotRead(); S.slotIdx = 0; S.mode = 'slots'; return; }
+      { // 隠しコマンド(↑↑↓↓←→←→ BA): 順番どおり、しかも続けて入れたときだけ(ガチャガチャでは開かない)
+        const nw = __now(); if (!S.hidN || nw - (S.hidT || 0) > 2500) S.hidN = 0; S.hidT = nw;
+        if (k === HIDDEN[S.hidN]) S.hidN++; else S.hidN = k === HIDDEN[0] ? 1 : 0;
+        if (S.hidN >= HIDDEN.length) { S.hidN = 0; S.slots = slotRead(); S.slotIdx = 0; S.mode = 'slots'; return; }
+        if (S.hidN === HIDDEN.length - 1) return; // 最後の1つ手前の「戻る」は、何も起こさない
+      }
       if (S.menuIdx >= items.length) S.menuIdx = 0;
       if (S.homeBot) { // 下の段: ゲーム終了 / 成績 / 対戦成績 / 麻雀先生
         if (k === 'left') S.homeBotIdx = 0; else if (k === 'right') { if (S.homeBotIdx === 0) S.homeBotIdx = 1; else S.homeBot = false; } // 右: もとの項目へ(menuIdx は覚えている)
@@ -1066,7 +1070,11 @@
         await new Promise((done) => { S.rankP = { r, done: () => { S.rankP = null; done(); } }; dirty(); });
       })();
     },
-    askSave(g) { return new Promise((res) => { S.saveP = { idx: 0, res, snap: g.snapshot() }; dirty(); }); },
+    askSave(g) { // 局が終わるたびに、質問なしで、自動で保存する(次の局の画面が出ている間に、すみっこに小さく知らせる)
+      let ok = false; try { ok = slotWrite(g.snapshot()); } catch (e) { /* ignore */ }
+      S.saveNote = { text: ok ? 'セーブしました' : 'セーブできませんでした', t0: __now(), until: __now() + 4200 }; dirty(); setTimeout(dirty, 4300);
+      return Promise.resolve();
+    },
     gameEnd(g, f) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({}, f, { done: () => { let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } S.rankScr = { rk, done }; dirty(); } }); }); },
   };
 
@@ -1143,6 +1151,9 @@
     if (S.intro && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawIntro(); return true; }
     if (S.dice && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawDice(); return true; }
     S.vx = 56; S.vy = 20; gfx.view(56, 20); // 以降の板(メニューなど)は、画面の中央に
+    if (S.saveNote && S.saveNote.until > __now() && !S.saveP) { // 自動セーブの知らせ: 画面の左下に、小さく
+      gfx.view(0, 0); const w = 150, x = 8, y = SH - 24; rrect(x, y, w, 20, 5, [0, 0, 0], 170); text(S.saveNote.text, x + w / 2, y + 2, 13, S.saveNote.text === 'セーブしました' ? [190, 235, 200] : [255, 160, 140], 1); gfx.view(S.vx, S.vy);
+    }
     const toastOn = S.toast && S.toast.until > __now();
     if (S.saveP || toastOn) { // 保存の質問・セーブ中は、画面全体を黒で覆って卓を見せず、画面の中心に出す
       gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], 165);
