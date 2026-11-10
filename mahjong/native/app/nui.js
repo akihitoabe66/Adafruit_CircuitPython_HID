@@ -366,7 +366,7 @@
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; } if (calling) continue;
       const pos = BUB[k] || [300, 200]; let bsz = 20, lines = wrapText(b.text, bsz, BW - 92); if (lines.length > 4) { bsz = 18; lines = wrapText(b.text, bsz, BW - 92).slice(0, 4); } const lh = bsz + 6, h = Math.max(78, 34 + lines.length * lh);
       rrect(pos[0] + 2, pos[1] + 3, BW, h, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, h, 10, [240, 243, 238]);
-      if (b.p) { face(b.p, pos[0] + 8, pos[1] + 8, 58, 58); frame(pos[0] + 7, pos[1] + 7, 60, 60, [176, 122, 58], 2); } // 話している人の顔
+      if (b.p) { face(b.p, pos[0] + 8, pos[1] + 8, 58, 58); } // 話している人の顔
       text(b.name, pos[0] + 76, pos[1] + 6, 17, [80, 90, 86]); lines.forEach((l, i) => text(l, pos[0] + 76, pos[1] + 28 + i * lh, bsz, [30, 34, 32])); }
     drawFly(); drawTeacher(g);
     if (__auto && globalThis.__shotDir && !S._stbl && g.players[2].discards.length >= 4 && g.players[3].discards.length >= 4) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
@@ -381,7 +381,7 @@
     } else if (S.banner) { // 局のはじまり: 4人の顔(★つき)を席の位置に出し、まん中に「東二局 一本場」
       fill(0, 0, W, H, [16, 66, 50]); fill(30, 30, W - 60, H - 60, [22, 84, 62]); fill(90, 70, W - 180, H - 140, [28, 100, 72]); // 緑のしずかな背景(サイコロの画面と同じ)
       const P4 = g.players, FS = 84, SEATS = [{ s: 0, x: 318, y: 292, pc: 360, py: 386, cx: 284, cy: 292 }, { s: 1, x: 590, y: 128, pc: 632, py: 218, cx: 680, cy: 130 }, { s: 2, x: 318, y: 16, pc: 360, py: 106, cx: 284, cy: 18 }, { s: 3, x: 46, y: 128, pc: 88, py: 218, cx: 8, cy: 130 }];
-      SEATS.forEach((o) => { const p = P4[o.s]; rrect(o.x - 7, o.y - 7, FS + 14, FS + 14, 4, [150, 100, 46]); rrect(o.x - 4, o.y - 4, FS + 8, FS + 8, 3, [205, 150, 80]); rrect(o.x - 2, o.y - 2, FS + 4, FS + 4, 2, [70, 110, 85]); face(p, o.x, o.y, FS, FS); plate(o.pc, o.py, p.name, p.char && p.char.level ? p.char.level : 0);
+      SEATS.forEach((o) => { const p = P4[o.s]; face(p, o.x, o.y, FS, FS); plate(o.pc, o.py, p.name, p.char && p.char.level ? p.char.level : 0);
         const sw = g.seatWindOf(p); rrect(o.cx, o.cy, 28, 28, 5, [255, 255, 255]); rrect(o.cx + 2, o.cy + 2, 24, 24, 4, WIND_BG[sw]); text(WIND[sw], o.cx + 14, o.cy + 3, 20, WHITE, 1); });
       const lb = String(S.banner.text).split(' '), my = lb[1] ? 0 : 20; rrect(236, 170, 248, 108, 6, [4, 18, 12], 240);
       text(lb[0], 363, 176 + my, 66, [0, 0, 0], 1); text(lb[0], 360, 173 + my, 66, YEL, 1); if (lb[1]) { text(lb[1], 362, 243, 32, [0, 0, 0], 1); text(lb[1], 360, 241, 32, WHITE, 1); } }
@@ -566,7 +566,7 @@
   /* ---------- 対局のはじめの演出: 顔の登場 → 東一局 → 勝負! → サイコロ ---------- */
   const SEATPOS = { 0: [SW / 2 - 28, 372], 1: [SW - 190, 130], 2: [SW / 2 - 28, 16], 3: [110, 130] };
   function seatBox(p, s, x, y, big, wind) {
-    const fs = big ? 64 : 56; face(p, x, y, fs, fs); frame(x - 1, y - 1, fs + 2, fs + 2, [240, 210, 120], 2);
+    const fs = big ? 64 : 56; face(p, x, y, fs, fs);
     text(p.name, x + fs / 2, y + fs + 4, 20, WHITE, 1);
     if (wind) text(wind, x - 14, y + 18, 26, wind === '東' ? RED : YEL, 1);
   }
@@ -718,7 +718,7 @@
     const g = S.game; stage(); rrect(40, 12, 752, 444, 8, [10, 38, 30]);
     if (r.type === 'win') {
       const w = r.wins[0], res = w.res, v = w.view;
-      face(w.winner, 58, 24, 48, 48); frame(57, 23, 50, 50, [240, 210, 120], 2);
+      face(w.winner, 58, 24, 48, 48);
       text(w.winner.name, 120, 28, 30, WHITE); { const nw = gfx.measure(w.winner.name, 30); rrect(120 + nw + 14, 30, 84, 34, 10, w.tsumo ? [60, 130, 200] : [210, 60, 50]); text(w.tsumo ? 'ツモ' : 'ロン', 120 + nw + 56, 35, 22, WHITE, 1);
         const sw = g ? g.seatWindOf(w.winner) : 0, lab = WIND[sw] + '家' + (sw === 0 ? '(親)' : ''), lx = 120 + nw + 112, lw = gfx.measure(lab, 22) + 24;
         rrect(lx, 30, lw, 34, 10, [255, 255, 255]); rrect(lx + 2, 32, lw - 4, 30, 8, WIND_BG[sw]); text(lab, lx + lw / 2, 35, 22, WHITE, 1); }
