@@ -36,7 +36,7 @@ ALIAS = {'1本場': 'イッポンバ', '2本場': 'ニホンバ', '3本場': '�
 # いきなり大きく出る破裂音(ぱ・ぼ)は、やさしく押さえて(コンプレッサー)、割れないように(リミッター)する。出来上がりを測って、ずれていたら やり直す
 TARGET_DB = -16.0
 COMP = 'acompressor=threshold=-18dB:ratio=3:attack=4:release=60:makeup=1'
-LIMIT = 'alimiter=limit=0.89:attack=2:release=40'
+LIMIT = 'alimiter=limit=0.80:attack=2:release=40'
 TAIL = 'lowpass=f=9000,afade=t=in:d=0.004,areverse,afade=t=in:d=0.03,areverse'
 TRIM = 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.02,areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.03,areverse'
 
@@ -91,7 +91,7 @@ def final_mp3(raw, dst, target_db=None, rate=24000):
         comp = subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', w, '-af', COMP, '-ar', str(rate), '-ac', '1', '-f', 's16le', '-'], capture_output=True, check=True).stdout
         gain = target_db - rms_db(comp)
         for _ in range(4):
-            subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', w, '-af', '%s,volume=%.2fdB,%s,%s' % (COMP, gain, LIMIT, TAIL), '-ar', '44100', '-ac', '1', '-b:a', '96k', dst], check=True)
+            subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', w, '-af', '%s,volume=%.2fdB,%s,%s' % (COMP, gain, TAIL, LIMIT), '-ar', '44100', '-ac', '1', '-b:a', '96k', dst], check=True)
             got = rms_db(subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', dst, '-ar', str(rate), '-ac', '1', '-f', 's16le', '-'], capture_output=True, check=True).stdout)
             if abs(got - target_db) <= 0.6: break
             gain += target_db - got

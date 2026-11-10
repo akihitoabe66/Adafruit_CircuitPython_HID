@@ -63,7 +63,11 @@ def cmd_import(a):
     import join_parts as jp
     sc, man = script()
     with tempfile.TemporaryDirectory() as tmp:
-        files = wavs_in(a.src, tmp)
+        raw_files = wavs_in(a.src, tmp)
+        # 読みが空のもの(VOICEVOXが最初や最後に作る空のセル)は、とばして、番号の順に、台本の行へ あてはめる
+        order = [n for n in sorted(raw_files) if raw_files[n][1].split('_', 1)[-1].strip()]
+        files = {i + 1: raw_files[n] for i, n in enumerate(order)}
+        if len(order) != len(raw_files): print('読みが空のファイルを %d 個 とばしました' % (len(raw_files) - len(order)))
         ok, bad, miss = [], [], []
         for n, (key, text) in enumerate(sc, 1):
             if n not in files: miss.append((n, key, text)); continue
