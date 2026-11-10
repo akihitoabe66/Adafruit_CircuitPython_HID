@@ -884,7 +884,7 @@
     const q = S.quiz, p = q.p; let r = null;
     try { r = p.grade(ans); } catch (e) { print('quiz grade err ' + (e && e.stack || e)); r = { r: 'ng', html: '<p>採点できませんでした。</p>' }; }
     try { MJ.Stats.quiz(p, r.r === 'ok'); } catch (e) { /* ignore */ }
-    q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7);
+    q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7); setTimeout(() => { try { NSND.speak(['q:' + (r.r === 'ok' ? '正解' : r.r === 'near' ? 'おしい' : '不正解')]); } catch (e) { /* ignore */ } }, 500); // 答え合わせの声
     { // 解説は、入りきる大きさの字で出す。長いときは、おまけの説明(小さな注)と、うしろの段落を はぶいて、スクロールさせない
       const paras = mark(String(r.html).replace(/<div class="cc-s">[\s\S]*?<\/div>/g, '')).split('\n').filter((x) => x.trim() !== '');
       let f = null; while (paras.length) { f = fitRich(paras.join('\n'), [28, 26, 24, 22, 20], 730, 236); if (f.h <= 236 || paras.length <= 1) break; paras.pop(); }

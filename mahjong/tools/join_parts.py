@@ -25,6 +25,13 @@ RECIPES = {
 }
 # ゲームで使うもの(使わない 'x:シャー' 'x:ペー' は、なくてもよい)
 OPTIONAL = {'x:シャー', 'x:ペー'}
+# 1語まるごとの声(クイズの答え合わせ。ゲームの音声の名前(キー)へ)
+RECIPES.update({'q:正解': ['セイカイ'], 'q:不正解': ['ハズレ'], 'q:おしい': ['オシイ']})
+# あなたの掛け声(audio/voice/ に置く)
+VOICE = {'0_riichi.mp3': 'リーチ', '0_pon.mp3': 'ポン', '0_chi.mp3': 'チー', '0_kan.mp3': 'カン', '0_ron.mp3': 'ロン', '0_tsumo.mp3': 'ツモ', 'intro_w2.mp3': 'ショウブ'}
+# ファイル名の言いかえ(漢字・数字など → 部品の名前)。数字は、麻雀の読みで
+ALIAS = {'一局': 'イッキョク', 'ニ局': 'ニキョク', '二局': 'ニキョク', '三局': 'サンキョク', '四局': 'ヨンキョク', '局': 'キョク', '勝負': 'ショウブ', '正解': 'セイカイ', '外れ': 'ハズレ', '外レ': 'ハズレ', 'ハズレ': 'ハズレ', 'ペイ': 'ペー',
+         '1': 'イッ', '2': 'ニ', '3': 'サン', '4': 'ヨン', '5': 'ゴ', '6': 'ロク', '7': 'ナナ', '8': 'ハチ', '9': 'キュウ', 'ポン': 'ポン'}
 FILTER = ('lowpass=f=9000,loudnorm=I=-17:TP=-1.5:LRA=7,afade=t=in:d=0.004,areverse,afade=t=in:d=0.03,areverse')
 TRIM = 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.02,areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.03,areverse'
 
@@ -39,8 +46,10 @@ def part_name(fn):
     stem = os.path.splitext(fn)[0]
     if re.match(r'^\d+_', stem):
         stem = stem.split('_', 2)[-1]          # 021_ずんだもん(ノーマル)_トン → トン
-    stem = re.sub(r'_\d+$', '', stem)            # 同じ名前の重なり(_2)をはぶく
-    return norm(stem)
+    m = re.match(r'^(.*?)[(（](.+?)[)）]$', stem)    # 本(ぽん) → ぽん / 6(ろっ) → ろっ : かっこの中が読み
+    if m: stem = m.group(2)
+    n = norm(stem)
+    return ALIAS.get(n, n)
 
 
 def load_parts(folder):
@@ -74,12 +83,16 @@ def main():
     ap.add_argument('folder', help='部品の wav が入っているフォルダ')
     ap.add_argument('--check', action='store_true', help='足りない部品を教えるだけ(何も作らない)')
     ap.add_argument('--gap', type=float, default=0.03, help='部品のあいだの間(秒)')
-    ap.add_argument('--out-dir', default=YK_DIR, help='出力先(ふつうは audio/yk)')
+    ap.add_argument('--out-dir', default=YK_DIR, help='読み上げの出力先(ふつうは audio/yk)')
+    ap.add_argument('--voice-dir', default=os.path.join(ROOT, 'audio', 'voice'), help='掛け声の出力先(ふつうは audio/voice)')
     a = ap.parse_args()
     parts, bad = load_parts(a.folder)
     manifest = json.load(open(os.path.join(YK_DIR, 'manifest.json'), encoding='utf-8'))
     print('部品 %d 個を 読み取りました: %s' % (len(parts), ' '.join(sorted(parts))))
     for fn in bad: print('  ?? 読みが決められません(カタカナの名前にしてください): %s' % fn)
+    vtodo = [(f, p) for f, p in VOICE.items() if p in parts]
+    for f, p in VOICE.items():
+        if p not in parts: print('  (掛け声) %s に必要: %s' % (f, p))
     todo, miss = [], {}
     for key, seq in RECIPES.items():
         whole = norm(key.split(':', 1)[1])
@@ -88,16 +101,18 @@ def main():
         if lack:
             if key not in OPTIONAL: miss[key] = lack
         else: todo.append((key, seq))
-    print('\nつなげて作れるもの: %d 個' % len(todo))
+    print('\n掛け声(audio/voice): %d 個  %s' % (len(vtodo), ' '.join(f for f, _ in vtodo)))
+    print('つなげて作れるもの(audio/yk): %d 個' % len(todo))
     for key, seq in todo: print('  %-14s = %s' % (key, ' + '.join(seq)))
     need = sorted({p for lack in miss.values() for p in lack}, key=lambda x: (len(x), x))
     print('\n足りない部品: %s' % (' '.join(need) if need else 'なし(全部そろっています)'))
     for key, lack in miss.items(): print('  %-14s に必要: %s' % (key, ' '.join(lack)))
     if a.check: return
+    for f, p in vtodo: build([p], parts, os.path.join(a.voice_dir, f), a.gap)
     for key, seq in todo:
         dst = os.path.join(a.out_dir, manifest.get(key, key.replace(':', '_') + '.mp3'))
         build(seq, parts, dst, a.gap)
-    print('\n%d 個 作りました → %s' % (len(todo), os.path.relpath(os.path.abspath(a.out_dir), ROOT)))
+    print('\n掛け声 %d 個・読み上げ %d 個 作りました' % (len(vtodo), len(todo)))
 
 
 if __name__ == '__main__':
