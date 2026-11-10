@@ -997,8 +997,14 @@
   const SUBS = ['読む', 'クイズに挑戦', '「おぼえた」にする', 'もどる'];
   function learnKey(k) {
     const L = S.learn, STEPS = MJ.Learn.STEPS;
+    if (L.confirm) { // 「ホームにもどりますか?」
+      if (k === 'left' || k === 'right' || k === 'up' || k === 'down') L.confirm.idx = 1 - L.confirm.idx;
+      else if (k === 'back') L.confirm = null;
+      else if (k === 'ok') { const go = L.confirm.idx === 1; L.confirm = null; if (go) { S.mode = 'menu'; S.learn = null; } }
+      dirty(); return;
+    }
     if (L.view === 'map') {
-      if (k === 'back') { S.mode = 'menu'; S.learn = null; dirty(); return; }
+      if (k === 'back') { L.confirm = { idx: 0 }; dirty(); return; }
       const pgi = learnPages(), pi = pgi[0].includes(L.sel) ? 0 : 1, cur = pgi[pi], at = cur.indexOf(L.sel);
       if (k === 'up') L.sel = cur[wrap(at - 1, cur.length)]; else if (k === 'down') L.sel = cur[wrap(at + 1, cur.length)];
       else if (k === 'left' || k === 'right') { const o = pgi[1 - pi]; L.sel = o[Math.min(at, o.length - 1)]; }
@@ -1468,8 +1474,8 @@
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
-    if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); if (S.quiz && S.quiz.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('ホームに もどりますか?', ['つづける', 'ホームにもどる'], S.quiz.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
-    if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); return true; }
+    if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); if (S.quiz && S.quiz.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog(S.quiz.learn ? 'クイズを やめますか?' : 'ホームに もどりますか?', ['つづける', S.quiz.learn ? 'やめる' : 'ホームにもどる'], S.quiz.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
+    if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); if (S.learn && S.learn.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('ホームに もどりますか?', ['つづける', 'ホームにもどる'], S.learn.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
     if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); return true; }
     if (S.mode === 'credits') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawCredits(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules';
