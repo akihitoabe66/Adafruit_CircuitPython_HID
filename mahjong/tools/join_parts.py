@@ -32,7 +32,12 @@ VOICE = {'0_riichi.mp3': 'リーチ', '0_pon.mp3': 'ポン', '0_chi.mp3': 'チ�
 # ファイル名の言いかえ(漢字・数字など → 部品の名前)。数字は、麻雀の読みで
 ALIAS = {'1本場': 'イッポンバ', '2本場': 'ニホンバ', '3本場': 'サンボンバ', '4本場': 'ヨンホンバ', '5本場': 'ゴホンバ', '6本場': 'ロッポンバ', '7本場': 'ナナホンバ', '8本場': 'ハッポンバ', '9本場': 'キュウホンバ', '10本場': 'ジュッポンバ', '一局': 'イッキョク', 'ニ局': 'ニキョク', '二局': 'ニキョク', '三局': 'サンキョク', '四局': 'ヨンキョク', '局': 'キョク', '勝負': 'ショウブ', '正解': 'セイカイ', '外れ': 'ハズレ', '外レ': 'ハズレ', 'ハズレ': 'ハズレ', 'ペイ': 'ペー',
          '1': 'イッ', '2': 'ニ', '3': 'サン', '4': 'ヨン', '5': 'ゴ', '6': 'ロク', '7': 'ナナ', '8': 'ハチ', '9': 'キュウ', 'ポン': 'ポン'}
-FILTER = ('lowpass=f=9000,loudnorm=I=-17:TP=-1.5:LRA=7,afade=t=in:d=0.004,areverse,afade=t=in:d=0.03,areverse')
+# 音量(自動): 声のある部分の平均の大きさ(RMS)を、ぜんぶ同じ TARGET_DB にそろえる。
+# いきなり大きく出る破裂音(ぱ・ぼ)は、やさしく押さえて(コンプレッサー)、割れないように(リミッター)する。出来上がりを測って、ずれていたら やり直す
+TARGET_DB = -16.0
+COMP = 'acompressor=threshold=-18dB:ratio=3:attack=4:release=60:makeup=1'
+LIMIT = 'alimiter=limit=0.89:attack=2:release=40'
+TAIL = 'lowpass=f=9000,afade=t=in:d=0.004,areverse,afade=t=in:d=0.03,areverse'
 TRIM = 'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.02,areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.03,areverse'
 
 
@@ -67,15 +72,37 @@ def pcm(path, rate=24000):  # 短い無音を切って、同じ形(24kHz・モ�
     return r.stdout
 
 
+def rms_db(data):
+    """声のある部分(いちばん大きいところの 1/10 以上)の平均の大きさ(dBFS)"""
+    import array, math
+    x = array.array('h'); x.frombytes(data)
+    if len(x) < 480: return -90.0
+    win = 480; env = [math.sqrt(sum(v * v for v in x[i:i + win]) / win) for i in range(0, len(x) - win + 1, win)]
+    top = max(env) or 1.0; act = [e * e for e in env if e > top * 0.1]
+    return 20 * math.log10((math.sqrt(sum(act) / max(1, len(act))) / 32768) or 1e-6)
+
+
+def final_mp3(raw, dst, target_db=None, rate=24000):
+    """24kHz・16bit・モノラルの音(raw)を、音量をそろえて mp3 にする。出来上がりを測って、ずれていたら やり直す"""
+    target_db = TARGET_DB if target_db is None else target_db
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    with tempfile.TemporaryDirectory() as d:
+        w = os.path.join(d, 'a.wav'); f = wave.open(w, 'wb'); f.setnchannels(1); f.setsampwidth(2); f.setframerate(rate); f.writeframes(raw); f.close()
+        comp = subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', w, '-af', COMP, '-ar', str(rate), '-ac', '1', '-f', 's16le', '-'], capture_output=True, check=True).stdout
+        gain = target_db - rms_db(comp)
+        for _ in range(4):
+            subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', w, '-af', '%s,volume=%.2fdB,%s,%s' % (COMP, gain, LIMIT, TAIL), '-ar', '44100', '-ac', '1', '-b:a', '96k', dst], check=True)
+            got = rms_db(subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', dst, '-ar', str(rate), '-ac', '1', '-f', 's16le', '-'], capture_output=True, check=True).stdout)
+            if abs(got - target_db) <= 0.6: break
+            gain += target_db - got
+
+
 def build(seq, parts, dst, gap):
     rate = 24000; sil = b'\x00\x00' * int(rate * gap); data = b''
     for i, p in enumerate(seq):
         if i: data += sil
         data += pcm(parts[p], rate)
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    with tempfile.TemporaryDirectory() as d:
-        w = os.path.join(d, 'a.wav'); f = wave.open(w, 'wb'); f.setnchannels(1); f.setsampwidth(2); f.setframerate(rate); f.writeframes(data); f.close()
-        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', w, '-af', FILTER, '-ar', '44100', '-ac', '1', '-b:a', '96k', dst], check=True)
+    final_mp3(data, dst, TARGET_DB, rate)
 
 
 def main():

@@ -22,8 +22,7 @@ YOU = {'riichi': 'リーチ!', 'pon': 'ポン!', 'chi': 'チー!', 'kan': 'カ�
 EXTRA = {'intro_w2': 'しょうぶ!'}  # 「勝負!」(audio/voice/intro_w2.mp3)
 # 短い声を、頭と尾の無音を切り、音量をそろえ、プチッという音が出ないように小さく フェードする
 FILTER = ('silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.02,areverse,'
-          'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.04,areverse,'
-          'lowpass=f=9000,loudnorm=I=-17:TP=-1.5:LRA=7,afade=t=in:d=0.004,areverse,afade=t=in:d=0.03,areverse')
+          'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.04,areverse')
 
 
 def req(url, data=None, headers=None, method=None):
@@ -49,12 +48,14 @@ def synth(base, text, a):
 
 
 def to_mp3(wav, dst, a):
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from join_parts import final_mp3  # 声の大きさを、ぜんぶ同じにそろえる(join_parts.py と同じ方法)
+    if a.keep_wav:
+        os.makedirs(a.keep_wav, exist_ok=True); open(os.path.join(a.keep_wav, os.path.basename(dst) + '.wav'), 'wb').write(wav)
     with tempfile.TemporaryDirectory() as d:
         w = os.path.join(d, 'a.wav'); open(w, 'wb').write(wav)
-        if a.keep_wav:
-            os.makedirs(a.keep_wav, exist_ok=True); open(os.path.join(a.keep_wav, os.path.basename(dst) + '.wav'), 'wb').write(wav)
-        subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', w, '-af', FILTER, '-ar', '44100', '-ac', '1', '-b:a', '96k', dst], check=True)
+        raw = subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', w, '-af', FILTER, '-ar', '24000', '-ac', '1', '-f', 's16le', '-'], capture_output=True, check=True).stdout
+    final_mp3(raw, dst)
 
 
 def yomi_clips():
