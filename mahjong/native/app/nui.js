@@ -508,7 +508,7 @@
   const perfOn = () => { try { return localStorage.getItem('mj_perf') === '1' || !!globalThis.__perfEnv; } catch (e) { return false; } };
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'rules', label: '麻雀のルール' }, { k: 'perf', label: '速度の表示(開発用)' }, { k: 'back', label: 'もどる' },
+    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'back', label: 'もどる' },
   ];
   /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
   const RULE_ROWS = [
@@ -554,7 +554,7 @@
       else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 6, 24, BLACK, 1);
       else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 6, 24, BLACK, 1);
       else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 6, 24, BLACK, 1);
-      else if (s.k === 'rules') text(MJ.rulesSummary ? '▶' : '▶', 600, y + 7, 22, BLACK, 1);
+      else if (s.k === 'rules' || s.k === 'credits') text('▶', 600, y + 5, 24, BLACK, 1);
     });
   }
   /* ---------- 対局のはじめの演出: 顔の登場 → 東一局 → 勝負! → サイコロ ---------- */
@@ -1071,6 +1071,23 @@
       const f = fitRich(notes.join('\n'), [20, 18, 16], 780, 118); richDraw(f.lines, 26, 306, f.sz, [220, 235, 215], 0);
     }
   }
+
+  /* ---------- クレジット(設定から) ---------- */
+  const CREDITS = [
+    ['開発', 'Akihito Abe'], ['SPECIAL THANKS', 'Myumi'],
+    ['音声(あなたの掛け声など)', 'VOICEVOX:ずんだもん'],
+    ['音声(CPUの掛け声)', 'Open JTalk(pyopenjtalk)。音響モデル: Mei (MMDAgent Example Characters) CC BY 3.0'],
+    ['BGM・画像', '制作者が用意(生成)したものです。対戦相手は、歴史上の人物をモチーフにしています。'],
+    ['注意', '点数・符の計算や危険度は、学習用の目安です。実際のルール(店・地域・アプリ)によって異なる場合があります。'],
+  ];
+  function drawCredits() {
+    quizFrame('クレジット', '', '', '決定ボタン・戻る で もどる');
+    let best = null;
+    for (const sz of [32, 30, 28, 26, 24, 22, 20, 18]) { // 入りきる いちばん大きな字で
+      const items = CREDITS.map((c) => ({ h: c[0], lines: richWrap(c[1], sz, 770) })); const hh = items.reduce((a, it) => a + Math.round((sz - 4) * 1.4) + richH(it.lines, sz) + 6, 0); best = { sz, items }; if (hh <= 352) break;
+    }
+    let y = 56; best.items.forEach((it) => { text(it.h, 30, y, best.sz - 4, YEL); y += Math.round((best.sz - 4) * 1.4); richDraw(it.lines, 30, y, best.sz, WHITE, 0); y += richH(it.lines, best.sz) + 6; });
+  }
   function drawSlots() {
     gfx.clear(14, 84, 52); text('セーブデータをえらぶ', 360, 18, 28, YEL, 1);
     if (!S.slots.length) text('セーブデータがありません', 360, 180, 20, WHITE, 1);
@@ -1141,6 +1158,7 @@
     if (S.mode === 'quiz') { quizKey(k); return; }
     if (S.mode === 'learn') { learnKey(k); return; }
     if (S.mode === 'diag') { diagKey(k); return; }
+    if (S.mode === 'credits') { if (k === 'ok' || k === 'back') { S.mode = 'settings'; dirty(); } return; }
     if (S.mode === 'slots') {
       if (k === 'up' || k === 'down') { if (S.slots.length) S.slotIdx = wrap(S.slotIdx + (k === 'up' ? -1 : 1), S.slots.length); }
       else if (k === 'back') { S.mode = 'menu'; S.slots = []; }
@@ -1177,6 +1195,7 @@
         else if (it.k === 'swap') { try { localStorage.setItem('mj_swapab', swapOn() ? '0' : '1'); } catch (e) { /* ignore */ } __swapab(swapOn() ? 1 : 0); }
         else if (it.k === 'perf') { try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } }
         else if (it.k === 'rules' && k !== 'left') { S.mode = 'rules'; S.ruleIdx = 0; }
+        else if (it.k === 'credits' && k !== 'left') { S.mode = 'credits'; }
         else if (it.k === 'back' && k === 'ok') S.mode = 'menu';
       }
       return;
@@ -1416,6 +1435,7 @@
     if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); return true; }
     if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); return true; }
     if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); return true; }
+    if (S.mode === 'credits') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawCredits(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
     if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
