@@ -62,8 +62,8 @@
       const num = (n) => { const k = [], man = Math.floor(n / 10000), th = Math.floor((n % 10000) / 1000), hu = Math.floor((n % 1000) / 100); if (man) k.push('m:' + man); if (th) k.push('k:' + th); if (hu) k.push('h:' + hu); return k; };
       res.wins.forEach((w) => {
         const r = w.res;
-        // 「桃太郎 の ツモ」: 上がった人の名前 + の + ツモ/ロン(あなたのときは、名前なし)
-        if (!w.winner.isHuman && yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name, '+', 'x:の', '+');
+        // 「桃太郎 の ツモ」: 上がった人の名前 + の + ツモ/ロン(あなたも)
+        if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name, '+', 'x:の', '+');
         keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null);
         r.yaku.forEach((y) => {
           if (w.tsumo && y.n === '門前清自摸和') return; // 「ツモ」は、いま言ったので、くりかえさない
@@ -81,7 +81,7 @@
         if (!w.tsumo) keys.push(...num(p.ron), 'pt');
         else if (game.dealer === w.winner.seat) keys.push(...num(p.each), 'pt_all');
         else keys.push(...num(p.fromOther), null, ...num(p.fromDealer), 'pt');
-        if (!w.winner.isHuman && yk['x:なのだ'] && Math.random() < 0.5) keys.push('+', Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ'); // ときどき、ずんだもんの語尾「なのだ」
+        if (yk['x:なのだ'] && Math.random() < 0.5) keys.push('+', Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ'); // ときどき、ずんだもんの語尾「なのだ」
         keys.push(null);
       });
       setTimeout(() => A.speak(keys), 900);
