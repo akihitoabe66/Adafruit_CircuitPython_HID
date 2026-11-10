@@ -70,8 +70,13 @@
     panel(x, y, w, h, 7, sel ? YEL : WHITE, sel ? [160, 110, 0] : [120, 120, 120], sel ? 3 : 1);
     text(label, x + w / 2, y + (h - 18) / 2 - 1, 18, BLACK, 1);
   }
+  /* あなた(ずんだもん)の表情: 場面ごとに切りかわる。16枚(img/zunda/01〜16)。 */
+  const ZN = { normal: 1, happy: 2, think: 3, fight: 4, call: 5, shock: 6, smug: 7, laugh: 8, focus: 9, relief: 10, grumpy: 11, what: 12, win: 13, lose: 14, dokidoki: 15, point: 16 };
+  const YOU_OLD = globalThis.__youEnv === 'old'; // 起動のとき MJ_YOU=old を付けると、前の「あなた」の絵(img/you)に戻る。 ふだんは ずんだもん
+  const youSrc = () => YOU_OLD ? 'img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp' : 'img/zunda/' + String(ZN[S.mood && S.moodUntil > __now() ? S.mood : 'normal']).padStart(2, '0') + '.webp';
+  function setMood(m, ms) { S.mood = m; S.moodUntil = __now() + (ms || 60000); dirty(); }
   function face(p, x, y, w, h) {
-    const ch = p.char; const src = p.isHuman ? ch.face : (MJ.faceSrc ? MJ.faceSrc(ch) : ch.face);
+    const ch = p.char; const src = p.isHuman ? youSrc() : (MJ.faceSrc ? MJ.faceSrc(ch) : ch.face);
     if (w >= 48) { fill(x, y, w, h, [90, 110, 100]); gfx.imageTop(src, x, y, w, h); return; } // 大きな顔は、窓の解像度でくっきり描く(縦横の比は、切り取って合わせる)
     if (!gfx.image(src, x, y, w, h)) fill(x, y, w, h, [90, 110, 100]);
   }
@@ -582,7 +587,7 @@
     if (t > 0) { wf(360, 18, 112); face(P[2], 360, 18, 112, 112); pl(P[2], 416, 140, st(P[2])); wc(P[2], 306, 22); }
     if (t > 0) { wf(70, 150, 112); face(P[3], 70, 150, 112, 112); pl(P[3], 126, 268, st(P[3])); wc(P[3], 22, 154); }
     if (t > 0) { wf(650, 150, 112); face(P[1], 650, 150, 112, 112); pl(P[1], 706, 268, st(P[1])); wc(P[1], 774, 154); }
-    if (t > 0) { try { gfx.imageTop('img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp', 60, 336, 92, 92); } catch (e) { /* ignore */ } pl(P[0], 204, 366, 0); wc(P[0], 18, 340); }
+    if (t > 0) { try { gfx.imageTop(youSrc(), 60, 336, 92, 92); } catch (e) { /* ignore */ } pl(P[0], 204, 366, 0); wc(P[0], 18, 340); }
     if (t > 400 && !it.v1) { it.v1 = 1; S.skipKyokuVoice = true; try { NSND.readKyoku(g); } catch (e) { /* ignore */ } }
     if (t >= 1700 && !it.v2) { it.v2 = 1; try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }
     if (t > 400 && t < 1700) { const k = Math.min(1, (t - 400) / 160), sz = k < 0.5 ? 96 : 78; fill(192, 190, 448, 90, [0, 0, 0], 170); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz / 2, sz, YEL, 1); }
@@ -669,7 +674,7 @@
     gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
     text('対戦成績', SW / 2, 12, 30, YEL, 1);
     const total = s.games || 0, avg = total ? ((s.ranks[0] + s.ranks[1] * 2 + s.ranks[2] * 3 + s.ranks[3] * 4) / total).toFixed(1) : '-';
-    gfx.image('img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp', 40, 70, 150, 150, 255); text(f.name, 115, 230, 26, YEL, 1); text('平均順位 ' + avg + '位', 115, 266, 22, WHITE, 1);
+    gfx.image(youSrc(), 40, 70, 150, 150, 255); text(f.name, 115, 230, 26, YEL, 1); text('平均順位 ' + avg + '位', 115, 266, 22, WHITE, 1);
     s.ranks.forEach((c, i) => { const y = 70 + i * 40; text((i + 1) + '位', 230, y + 6, 20, WHITE); text(c + '回', 330, y + 6, 20, YEL, 2); fill(345, y + 4, 200, 24, [60, 70, 66]); fill(345, y + 4, total ? Math.round(200 * c / total) : 0, 24, [230, 190, 70]); });
     text('対局数 ' + total + '    1位の割合 ' + (total ? Math.round(s.ranks[0] / total * 100) : 0) + '%', 230, 236, 18, WHITE);
     const opps = Object.keys(s.opp).map((id) => ({ c: MJ.CHARS.find((x) => x.id === +id), o: s.opp[id] })).filter((x) => x.c).sort((a, b) => b.o.n - a.o.n);
@@ -923,6 +928,7 @@
     if (q.phase === 'end') {
       const pass = q.ok >= Math.ceil(q.total * 0.8);
       quizFrame(q.title, '', '', '決定ボタンで すすむ'); text('おつかれさまでした', SW / 2, 80, 34, YEL, 1); text(q.total + '問中  ' + q.ok + '問  せいかい', SW / 2, 150, 44, WHITE, 1);
+      if (!YOU_OLD) gfx.imageTop('img/zunda/' + (pass ? '13' : '10') + '.webp', SW - 230, 250, 170, 170);
       text(q.onEnd && q.learn ? (pass ? 'ごうかく! 「おぼえた」に しました' : 'もう一度 読んで、またチャレンジしましょう') : (q.ok >= 8 ? 'すばらしい! 本格派ですね' : q.ok >= 5 ? 'よくできました' : 'またチャレンジしましょう'), SW / 2, 240, 24, [255, 190, 150], 1); return;
     }
     if (q.phase === 'res') {
@@ -930,6 +936,7 @@
       quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, '決定ボタンで 次の問題へ');
       rrect(36, 62, 120, 44, 12, r === 'ok' ? QRED : r === 'near' ? [210, 140, 20] : [100, 110, 100]); text(r === 'ok' ? '正解' : r === 'near' ? 'おしい' : q.res.alt ? 'ちがうよ' : 'ハズレ', 96, 70, 28, WHITE, 1);
       text(r === 'ok' ? 'よくできました!' : r === 'near' ? 'あと一歩です' : '解説を読んで、覚えましょう', 176, 70, 26, col);
+      if (!YOU_OLD) gfx.imageTop('img/zunda/' + String({ ok: 2, near: 10, ng: q.res.alt ? 11 : 12 }[r] || 1).padStart(2, '0') + '.webp', SW - 112, 52, 80, 80); // あなた(ずんだもん)の表情
       panel(24, 132, SW - 48, 258, 14, [6, 28, 18], [140, 190, 130], 3, 235); rrect(44, 118, 86, 30, 14, [60, 130, 60]); text('解説', 87, 120, 20, WHITE, 1);
       gfx.clip(30, 138, SW - 60, 246); richDraw(q.rlines.slice(q.scroll), 48, 148, q.rsz, WHITE, 0); gfx.clip();
       if (q.rh > 236) text((q.scroll > 0 ? '▲ ' : '') + '▼ つづき', SW - 30, 398, 18, GREY, 2);
@@ -1307,10 +1314,14 @@
     speak(g, p, t, ms) { // セリフは、ポン・チー・リーチなどの宣言や、ほかの人のセリフが終わるまで待ってから、1人ずつ出す(かぶらないように)
       ms = ms || Math.max(2800, Math.min(4800, 1300 + String(t).length * 110)); (S.sayQ || (S.sayQ = [])).push({ g, p, t, ms, t0: __now() }); pumpSay();
     },
-    banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
+    banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; if (p && p.isHuman) setMood({ 'リーチ': 'fight', 'ポン': 'call', 'チー': 'call', 'カン': 'call', 'ロン': 'point', 'ツモ': 'happy' }[t] || 'normal', 4000); dirty(); if (!g.fast) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
     handStart(g) {
       S.curIdx = null; if (teacherOn() && !S.tmsgShown) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
       S.game = g; NSND.game(g); NSND.sfx('slam');
+      { // あなたの表情: 最終局はドキドキ。前の局で振り込んだらむすっ・上がったらくすくす。トップなら余裕・最下位ならやる気
+        const me = g.players[0], rk = 1 + g.players.filter((q) => q.score > me.score).length, even = g.players.every((q) => q.score === me.score);
+        setMood((g.isOras && g.isOras()) ? 'dokidoki' : S.carryMood || (even ? 'normal' : rk === 1 ? 'smug' : rk === 4 ? 'fight' : 'focus')); S.carryMood = null;
+      }
       let vlen = 0; if (S.skipKyokuVoice) S.skipKyokuVoice = false; else { try { vlen = NSND.readKyoku(g) || 0; } catch (e) { /* ignore */ } }
       const sb = S.skipBanner; S.skipBanner = false;
       if (!sb) S.banner = { text: g.kyokuLabel(), t0: __now() };
@@ -1355,6 +1366,8 @@
     showResult(g, r) {
       S.bub = {}; S.sayQ = []; S.banner = null; try { MJ.Stats.hand(g, r); } catch (e) { /* ignore */ }
       NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
+      const iWon = r.type === 'win' && r.wins.some((w) => w.winner.isHuman), iLost = r.type === 'win' && !iWon && r.delta && r.delta[0] < 0;
+      setMood(r.type !== 'win' ? 'relief' : iWon ? 'win' : iLost ? 'shock' : 'focus'); S.carryMood = iLost ? 'grumpy' : iWon ? 'laugh' : null;
       if (r.type !== 'win') { NSND.sfx('drawgame'); return new Promise((done) => { S.result = Object.assign({ done }, r, { done: () => { NSND.stopSpeak(); done(); } }); dirty(); }); }
       return (async () => { // 上がった人ごとに、役と点数の画面(読み上げつき)。そのあと、4人のじゅんいの画面
         const n = r.wins.length;
@@ -1364,6 +1377,7 @@
           await new Promise((done) => { S.result = Object.assign({}, r, { wins: [r.wins[i]], idx: i, total: n, done: () => { NSND.stopSpeak(); done(); } }); dirty(); });
         }
         if (g.stopped) return;
+        setMood(iWon ? 'win' : iLost ? 'lose' : 'normal');
         await new Promise((done) => { S.rankP = { r, done: () => { S.rankP = null; done(); } }; dirty(); });
       })();
     },
@@ -1372,7 +1386,7 @@
       S.saveNote = { text: ok ? 'セーブしました' : 'セーブできませんでした', t0: __now(), until: __now() + 4200 }; dirty(); setTimeout(dirty, 4300);
       return Promise.resolve();
     },
-    gameEnd(g, f) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({}, f, { done: () => { let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } S.rankScr = { rk, done }; dirty(); } }); }); },
+    gameEnd(g, f) { NSND.sfx('end'); try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } return new Promise((done) => { S.end = Object.assign({}, f, { done: () => { let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } S.rankScr = { rk, done }; dirty(); } }); }); },
   };
 
   function pickChars() {

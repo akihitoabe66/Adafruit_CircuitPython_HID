@@ -161,6 +161,7 @@
   /* ---------- ゲームを起動 ---------- */
   const quit = () => showMsg('終了しました。ページを読み込み直すと、また始められます。');
   window.__auto = false;
+  try { if (new URLSearchParams(location.search).get('you') === 'old') window.__youEnv = 'old'; } catch (e) { /* ignore */ } // ?you=old で、前の「あなた」の絵
   window.__mjBundle(gfx, snd, (...a) => console.log(...a), () => performance.now(),
     () => sget('mjpi_save'), (s) => sset('mjpi_save', s), noop, quit, () => '',
     slotKeys, (n) => sget('mjpi_slot_' + n), (n, s) => { sset('mjpi_slot_' + n, s); return true; }, (n) => sdel('mjpi_slot_' + n),
