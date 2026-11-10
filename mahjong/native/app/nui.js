@@ -1145,7 +1145,7 @@
     S.vx = 56; S.vy = 20; gfx.view(56, 20); // 以降の板(メニューなど)は、画面の中央に
     const toastOn = S.toast && S.toast.until > __now();
     if (S.saveP || toastOn) { // 保存の質問・セーブ中は、画面全体を黒で覆って卓を見せず、画面の中心に出す
-      gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], 245);
+      gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], 165);
       gfx.view(56, 20);
       if (S.saveP) drawSaveQ();
       if (toastOn) { rrect(110, 187, 500, 54, 8, [0, 0, 0], 225); text(S.toast.text, 360, 200, 24, YEL, 1); }
