@@ -510,7 +510,7 @@
     const BW = [[150, 230]];
     HOME_BOTTOM.forEach((b, i) => {
       const row = i >> 1, col = i & 1, lab = b.k === 'rank' ? '成績・' + MJ.Rank.label() : b.k === 'teacher' ? teacherLabel() : b.label, sel = S.homeBot && S.homeBotIdx === i && !S.teachQ && !S.playQ && !S.confirmQ;
-      const bxs = [19, 181, 435], bws = [150, 242, 220]; brownBtn(bxs[i], 398, bws[i], 46, lab, sel, 21);
+      const bxs = [21, 170, 21], bws = [143, 143, 292], bys = [345, 345, 397]; brownBtn(bxs[i], bys[i], bws[i], 44, lab, sel, 19); // 左の説明の枠に、左右をそろえた2段(上: 終了・成績 / 下: 診断)
     });
   }
   const swapOn = () => { try { const v = localStorage.getItem('mj_swapab'); return v === null ? true : v === '1'; } catch (e) { return true; } };
@@ -1252,15 +1252,17 @@
       }
       if (S.menuIdx >= items.length) S.menuIdx = 0;
       if (S.homeBot) { // 下の段: ゲーム終了 / 成績 / 対戦成績 / 麻雀先生
-        if (k === 'left') S.homeBotIdx = Math.max(0, S.homeBotIdx - 1); else if (k === 'right') { if (S.homeBotIdx < HOME_BOTTOM.length - 1) S.homeBotIdx++; else S.homeBot = false; } // 右: もとの項目へ(menuIdx は覚えている)
-        else if (k === 'up' || k === 'down') { S.homeBot = false; S.menuIdx = firstOn(items, 0, 1); } // 上でも下でも: 「麻雀をはじめる」へ
+        const bi = S.homeBotIdx; // 0: 終了 1: 成績(上の段) 2: 診断(下の段)
+        if (k === 'left') S.homeBotIdx = bi === 1 ? 0 : bi; else if (k === 'right') { if (bi === 0) S.homeBotIdx = 1; else S.homeBot = false; } // 右はし: もとの項目へ(menuIdx は覚えている)
+        else if (k === 'down') { if (bi < 2) S.homeBotIdx = 2; else { S.homeBot = false; S.menuIdx = firstOn(items, 0, 1); } } // 下: 診断へ。いちばん下から下: 「麻雀をはじめる」へ
+        else if (k === 'up') { if (bi === 2) S.homeBotIdx = 0; else { S.homeBot = false; S.menuIdx = firstOn(items, 0, 1); } }
         else if (k === 'back') S.mode = 'title';
         else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; later(() => { if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else if (b === 'diag') startDiag(); else toggleTeacher(); }); }
         return;
       }
       if (k === 'up') { const j = firstOn(items, S.menuIdx - 1, -1); S.menuIdx = j < S.menuIdx ? j : firstOn(items, items.length - 1, -1); } // いちばん上から上: いちばん下(設定)へ
       else if (k === 'down') { const j = firstOn(items, S.menuIdx + 1, 1); S.menuIdx = j > S.menuIdx ? j : firstOn(items, 0, 1); } // いちばん下から下: いちばん上へ
-      else if (k === 'left') { S.homeBot = true; S.homeBotIdx = HOME_BOTTOM.length - 1; }
+      else if (k === 'left') { S.homeBot = true; S.homeBotIdx = 1; }
       else if (k === 'back') S.mode = 'title';
       else if (k === 'ok') {
         const it = items[S.menuIdx]; if (!it || it.off) return;
