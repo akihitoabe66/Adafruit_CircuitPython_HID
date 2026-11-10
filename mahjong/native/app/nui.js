@@ -75,6 +75,7 @@
   const YOU_OLD = globalThis.__youEnv === 'old'; // 起動のとき MJ_YOU=old を付けると、前の「あなた」の絵(img/you)に戻る。 ふだんは ずんだもん
   const youSrc = () => YOU_OLD ? 'img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp' : 'img/zunda/' + String(ZN[S.mood && S.moodUntil > __now() ? S.mood : 'normal']).padStart(2, '0') + '.webp';
   function setMood(m, ms) { S.mood = m; S.moodUntil = __now() + (ms || 60000); dirty(); }
+  const TYADJ = 0; // 宣言の文字を、顔の中心に合わせるための微調整
   function face(p, x, y, w, h) {
     const ch = p.char; const src = p.isHuman ? youSrc() : (MJ.faceSrc ? MJ.faceSrc(ch) : ch.face);
     if (w >= 48) { fill(x, y, w, h, [90, 110, 100]); gfx.imageTop(src, x, y, w, h); return; } // 大きな顔は、窓の解像度でくっきり描く(縦横の比は、切り取って合わせる)
@@ -371,12 +372,12 @@
     if (__auto && globalThis.__shotDir && !S._stbl && g.players[2].discards.length >= 4 && g.players[3].discards.length >= 4) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
     // 演出: 札の文字が、少し大きいところから縮んで止まる
     if (S.banner && S.banner.call && S.banner.p) { // ポン・チー・ロンなど: 顔と、色のついた大きな文字(Edge版と同じ)
-      const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = 84, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [255, 123, 90] : [196, 139, 255];
+      const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = 84, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [230, 0, 18] : [196, 139, 255];
       // 鳴いた人の席の側に出す: 対面=中央の上 / 上家=左 / 下家=右(上家と同じ高さ) / 自分=中央の下
-      const FB = 92, tw = gfx.measure(bn.text, sz), bw = FB + 16 + tw, sd = bn.p.seat, by = sd === 2 ? 46 : sd === 0 ? 256 : 160;
+      const FB = 124, tw = gfx.measure(bn.text, sz), bw = FB + 16 + tw, sd = bn.p.seat, by = sd === 2 ? 36 : sd === 0 ? 252 : 144;
       const bx = sd === 3 ? 76 : sd === 1 ? 636 - bw : Math.round((W - bw) / 2);
-      face(bn.p, bx, by, FB, FB); frame(bx - 1, by - 1, FB + 2, FB + 2, [240, 210, 120], 2);
-      { const tx = bx + FB + 16, ty = by + 20; text(bn.text, tx + 5, ty + 7, sz, [0, 0, 0], 0); [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, tx + d[0], ty + d[1], sz, [255, 255, 255])); text(bn.text, tx, ty, sz, col); }
+      face(bn.p, bx, by, FB, FB);
+      { const tx = bx + FB + 16, ty = by + Math.round((FB - sz) / 2) + TYADJ; text(bn.text, tx + 5, ty + 7, sz, [0, 0, 0], 0); [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, tx + d[0], ty + d[1], sz, [255, 255, 255])); text(bn.text, tx, ty, sz, col); }
     } else if (S.banner) { // 局のはじまり: 4人の顔(★つき)を席の位置に出し、まん中に「東二局 一本場」
       fill(0, 0, W, H, [16, 66, 50]); fill(30, 30, W - 60, H - 60, [22, 84, 62]); fill(90, 70, W - 180, H - 140, [28, 100, 72]); // 緑のしずかな背景(サイコロの画面と同じ)
       const P4 = g.players, FS = 84, SEATS = [{ s: 0, x: 318, y: 292, pc: 360, py: 386, cx: 284, cy: 292 }, { s: 1, x: 590, y: 128, pc: 632, py: 218, cx: 680, cy: 130 }, { s: 2, x: 318, y: 16, pc: 360, py: 106, cx: 284, cy: 18 }, { s: 3, x: 46, y: 128, pc: 88, py: 218, cx: 8, cy: 130 }];
