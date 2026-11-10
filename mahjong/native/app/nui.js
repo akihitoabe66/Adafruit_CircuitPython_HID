@@ -37,7 +37,7 @@
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
   const COMMON_RULES = { length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: true, doubleRon: true, sanchahou: true, kuikae: false, kazoe: true, flower: false, start: 25000 }; // 全国的な(一般的な)ルール。ただし赤ドラは、はじめはなし
   try { if (localStorage.getItem('mj_rules_ver') !== '3') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '3'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
-  const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz', off: true }, { label: '点数計算の勉強', act: 'study', off: true }, { label: '設定', act: 'settings' }];
+  const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz' }, { label: '点数計算の勉強', act: 'study' }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
   const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'back', 'ok']; // 隠しコマンド(タイトル): 5件のセーブから選べる
 
@@ -799,6 +799,100 @@
     items.forEach((l, i) => button(190, y0 + 48 + i * 50, 340, 40, l, idx === i));
     if (note) text(note, 360, y0 + h + 6, 14, WHITE, 1);
   }
+
+  /* ---------- 麻雀クイズ・点数計算の勉強(問題づくりは、Edge版と同じ js/drill.js) ---------- */
+  const QN = 10;
+  const mark = (h) => htmlText(h).replace(/\s+\n/g, '\n').trim();
+  function richWrap(str, sz, maxw) { // 文字と牌の絵(⟦番号⟧)がまじった文を、幅に収まるように、行に分ける
+    const lines = []; const tw = Math.round(sz * 0.8);
+    String(str).split('\n').forEach((para) => {
+      let cur = [], w = 0;
+      const toks = para.split(/(⟦\d+⟧)/).filter((x) => x !== '');
+      const push = (tk, ww) => { if (w + ww > maxw && cur.length) { lines.push(cur); cur = []; w = 0; } cur.push(tk); w += ww; };
+      toks.forEach((tk) => { const m = /^⟦(\d+)⟧$/.exec(tk); if (m) push({ tile: +m[1] }, tw + 2); else for (const ch of tk) push({ s: ch }, gfx.measure(ch, sz)); });
+      lines.push(cur);
+    });
+    return lines;
+  }
+  function richDraw(lines, x, y, sz, col, lh, center) {
+    const tw = Math.round(sz * 0.8), th = Math.round(sz * 1.12);
+    lines.forEach((ln, i) => {
+      let w = 0; ln.forEach((tk) => { w += tk.tile != null ? tw + 2 : gfx.measure(tk.s, sz); });
+      let cx = center ? x - Math.round(w / 2) : x; const yy = y + i * lh;
+      let run = '', rx = cx;
+      const flush = () => { if (run) { text(run, rx, yy, sz, col); rx += gfx.measure(run, sz); run = ''; } };
+      ln.forEach((tk) => { if (tk.tile != null) { flush(); tile(tk.tile, rx, yy - 1, tw, th); rx += tw + 2; } else run += tk.s; });
+      flush();
+    });
+  }
+  function startQuiz(kind) { S.mode = 'quiz'; S.quiz = { kind, n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0, log: [] }; quizNext(); dirty(); }
+  function quizNext() {
+    const q = S.quiz; if (!q) return;
+    if (q.n >= QN) { q.phase = 'end'; dirty(); return; }
+    q.phase = 'gen'; q.p = null; q.res = null; q.scroll = 0; q.idx = 0; dirty();
+    setTimeout(() => {
+      if (S.mode !== 'quiz' || S.quiz !== q) return;
+      const D = MJ.Drill, gens = q.kind === 'study' ? [D.genScore] : [D.genEff, D.genDef, D.genCall, D.genYaku, D.genWait, D.genPush, D.genRiichi, D.genKeep];
+      let p = null; for (let i = 0; i < 14 && !p; i++) { try { p = gens[Math.floor(Math.random() * gens.length)](); } catch (e) { print('quiz gen err ' + (e && e.stack || e)); } }
+      if (!p) { q.phase = 'fail'; dirty(); return; }
+      q.p = p; q.n++; q.phase = 'ask'; q.idx = 0;
+      q.disp = (p.hand || []).slice().sort((a, b) => a.t - b.t);
+      q.head = richWrap(mark(p.sit || '') + (p.sit ? '\n' : '') + mark(p.prompt || ''), 17, 770).slice(0, p.kind === 'choice' ? 5 : 6);
+      q.opts = (p.options || []).map((o) => ({ id: o.id, lines: richWrap(mark(o.html), 20, 360).slice(0, 2) }));
+      dirty();
+    }, 60);
+  }
+  function quizAnswer(ans) {
+    const q = S.quiz, p = q.p; let r = null;
+    try { r = p.grade(ans); } catch (e) { print('quiz grade err ' + (e && e.stack || e)); r = { r: 'ng', html: '<p>採点できませんでした。</p>' }; }
+    q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7);
+    q.rlines = richWrap(mark(r.html), 17, 770); dirty();
+  }
+  function quizKey(k) {
+    const q = S.quiz; if (!q) { S.mode = 'menu'; return; }
+    if (k === 'back') { S.mode = 'menu'; S.quiz = null; dirty(); return; }
+    if (q.phase === 'gen') return;
+    if (q.phase === 'fail') { if (k === 'ok') quizNext(); return; }
+    if (q.phase === 'end') { if (k === 'ok') { S.mode = 'menu'; S.quiz = null; dirty(); } return; }
+    if (q.phase === 'ask') {
+      const p = q.p;
+      if (p.kind === 'tile') { const n = q.disp.length; if (k === 'left') q.idx = wrap(q.idx - 1, n); else if (k === 'right') q.idx = wrap(q.idx + 1, n); else if (k === 'ok') quizAnswer(q.disp[q.idx]); }
+      else { const n = q.opts.length; if (k === 'left' || k === 'right') q.idx = wrap(q.idx + (k === 'left' ? -1 : 1), n); else if (k === 'up') q.idx = Math.max(0, q.idx - 2); else if (k === 'down') q.idx = Math.min(n - 1, q.idx + 2); else if (k === 'ok') quizAnswer(q.opts[q.idx].id); }
+      dirty(); return;
+    }
+    if (q.phase === 'res') {
+      const per = 11, mx = Math.max(0, q.rlines.length - per);
+      if (k === 'up') q.scroll = Math.max(0, q.scroll - 1); else if (k === 'down') q.scroll = Math.min(mx, q.scroll + 1); else if (k === 'ok') quizNext();
+      dirty();
+    }
+  }
+  function drawQuiz() {
+    const q = S.quiz; gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 165);
+    const head = q.kind === 'study' ? '点数計算の勉強' : '麻雀クイズ';
+    text(head, 28, 10, 22, WHITE); if (q.phase !== 'end') text('第 ' + Math.max(1, q.n) + ' 問 / ' + QN + '    正解 ' + q.ok, SW - 28, 12, 18, YEL, 2);
+    if (q.phase === 'gen') { text('問題を作っています…', SW / 2, 210, 28, WHITE, 1); return; }
+    if (q.phase === 'fail') { text('問題を作れませんでした', SW / 2, 190, 26, WHITE, 1); text('決定ボタンで もう一度', SW / 2, 240, 20, GREY, 1); return; }
+    if (q.phase === 'end') {
+      text('おつかれさまでした', SW / 2, 90, 34, YEL, 1); text(QN + '問中  ' + q.ok + '問  せいかい', SW / 2, 160, 44, WHITE, 1);
+      text(q.ok >= 8 ? 'すばらしい! 本格派ですね' : q.ok >= 5 ? 'よくできました' : 'またチャレンジしましょう', SW / 2, 240, 26, WHITE, 1); text('決定ボタンで ホームへ', SW / 2, 400, 20, GREY, 1); return;
+    }
+    const p = q.p;
+    if (q.phase === 'res') {
+      const r = q.res.r, col = r === 'ok' ? [90, 220, 120] : r === 'near' ? [255, 210, 70] : [255, 110, 90];
+      text(r === 'ok' ? 'せいかい!' : r === 'near' ? 'おしい!' : 'ざんねん…', 28, 44, 38, col); text(p.title || '', SW - 28, 56, 18, GREY, 2);
+      const per = 11, vis = q.rlines.slice(q.scroll, q.scroll + per); richDraw(vis, 28, 100, 17, WHITE, 28);
+      if (q.rlines.length > per) text((q.scroll > 0 ? '↑ ' : '') + (q.scroll + per < q.rlines.length ? '↓ つづき' : ''), SW - 28, 416, 15, GREY, 2);
+      text('決定ボタンで 次の問題へ', SW / 2, 436, 20, YEL, 1); return;
+    }
+    text(p.title || '', 28, 40, 26, YEL); richDraw(q.head, 28, 82, 17, WHITE, 25);
+    if (p.kind === 'choice') q.opts.forEach((o, i) => { const x = 28 + (i % 2) * 394, y = 226 + Math.floor(i / 2) * 58, sel = q.idx === i; panel(x, y, 382, 50, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [120, 120, 120], sel ? 3 : 1, 245); richDraw(o.lines, x + 191, y + 14, 20, BLACK, 24, true); });
+    // 手牌(選ぶ問題は、カーソルで選ぶ)
+    const n = q.disp.length, x0 = Math.round((SW - (n * 48 + (p.win ? 62 : 0))) / 2), HYq = 372;
+    q.disp.forEach((h, i) => { const sel = p.kind === 'tile' && q.idx === i, x = x0 + i * 48, y = HYq - (sel ? 12 : 0); if (sel) { rrect(x - 4, y - 4, 52, 66, 6, YEL); } tile(h.t, x, y, 44, 58, h.red); });
+    if (p.win) { const x = x0 + n * 48 + 14; text('上がり牌', x + 22, HYq - 24, 13, YEL, 1); frame(x - 2, HYq - 2, 48, 62, YEL, 2); tile(p.win.t, x, HYq, 44, 58, p.win.red); }
+    if (p.melds && p.melds.length) { let mx = 28; p.melds.forEach((m) => { (m.tiles || []).forEach((tl) => { tile(tl.t, mx, 440, 20, 26, tl.red); mx += 22; }); mx += 8; }); text('鳴いている牌', mx + 4, 446, 14, GREY); }
+    text(p.kind === 'tile' ? '◀ ▶ で牌をえらんで 決定ボタン(切る牌)' : '◀ ▶ ▲ ▼ でえらんで 決定ボタン', SW / 2, 440, 15, GREY, 1);
+  }
   function drawSlots() {
     gfx.clear(14, 84, 52); text('セーブデータをえらぶ', 360, 18, 28, YEL, 1);
     if (!S.slots.length) text('セーブデータがありません', 360, 180, 20, WHITE, 1);
@@ -866,6 +960,7 @@
       else if (k === 'back') S.confirmQ = null; else if (k === 'ok') { const i = S.confirmQ.idx; S.confirmQ = null; if (i === 1) __quit(); }
       return;
     }
+    if (S.mode === 'quiz') { quizKey(k); return; }
     if (S.mode === 'slots') {
       if (k === 'up' || k === 'down') { if (S.slots.length) S.slotIdx = wrap(S.slotIdx + (k === 'up' ? -1 : 1), S.slots.length); }
       else if (k === 'back') { S.mode = 'menu'; S.slots = []; }
@@ -929,6 +1024,7 @@
       else if (k === 'ok') {
         const it = items[S.menuIdx]; if (!it || it.off) return;
         if (it.act === 'play') later(() => { const l = slotRead(); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else S.teachQ = { idx: teacherOn() ? 1 : 0, snap: null }; });
+        else if (it.act === 'quiz' || it.act === 'study') later(() => startQuiz(it.act));
         else if (it.act === 'settings') later(() => { S.mode = 'settings'; S.setIdx = 0; });
       }
       return;
@@ -1136,6 +1232,7 @@
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
+    if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
     if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
