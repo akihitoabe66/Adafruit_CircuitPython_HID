@@ -922,6 +922,7 @@
   function learnLoad() { try { const v = JSON.parse(localStorage.getItem(LKEY)); if (v && v.done) return v; } catch (e) { /* ignore */ } return { bm: { step: 0, page: 0, read: false }, done: {} }; }
   function learnSave() { try { localStorage.setItem(LKEY, JSON.stringify(S.learn.d)); } catch (e) { /* ignore */ } }
   function startLearn() { const d = learnLoad(); S.mode = 'learn'; S.learn = { d, view: 'map', sel: Math.min(d.bm.step || 0, MJ.Learn.STEPS.length - 1), sub: 0, page: 0, scroll: 0 }; dirty(); }
+  const learnPages = () => { const a = [], b = []; MJ.Learn.STEPS.forEach((st, i) => (st.lv === '入門' || st.lv === '初級' ? a : b).push(i)); return [a, b]; }; // 1ページ目: 入門・初級 / 2ページ目: 中級・上級
   function learnOpen(stepIdx, page) { // 読み物を開く(しおりも、ここに更新)
     const L = S.learn, st = MJ.Learn.STEPS[stepIdx]; L.step = stepIdx; L.page = Math.max(0, Math.min(st.pages.length - 1, page || 0)); L.scroll = 0; L.view = 'read'; L.cache = null;
     L.d.bm = { step: stepIdx, page: L.page, read: true }; learnSave(); dirty();
@@ -940,7 +941,9 @@
     const L = S.learn, STEPS = MJ.Learn.STEPS;
     if (L.view === 'map') {
       if (k === 'back') { S.mode = 'menu'; S.learn = null; dirty(); return; }
-      if (k === 'up') L.sel = wrap(L.sel - 1, STEPS.length); else if (k === 'down') L.sel = wrap(L.sel + 1, STEPS.length);
+      const pgi = learnPages(), pi = pgi[0].includes(L.sel) ? 0 : 1, cur = pgi[pi], at = cur.indexOf(L.sel);
+      if (k === 'up') L.sel = cur[wrap(at - 1, cur.length)]; else if (k === 'down') L.sel = cur[wrap(at + 1, cur.length)];
+      else if (k === 'left' || k === 'right') { const o = pgi[1 - pi]; L.sel = o[Math.min(at, o.length - 1)]; }
       else if (k === 'ok') { L.view = 'sub'; L.sub = 0; }
     } else if (L.view === 'sub') {
       if (k === 'back') L.view = 'map'; else if (k === 'up') L.sub = wrap(L.sub - 1, 4); else if (k === 'down') L.sub = wrap(L.sub + 1, 4);
@@ -987,17 +990,18 @@
       if (my > 0) text((L.scroll > 0 ? '▲ ' : '') + (L.scroll < my ? '▼ つづき' : ''), SW - 30, 408, 14, [90, 90, 80], 2);
       return;
     }
-    quizFrame('点数計算の勉強', '', '', L.view === 'sub' ? '' : '▲ ▼ でえらんで 決定ボタン    戻る: ホームへ');
-    text(MJ.Learn.GOAL, SW / 2, 54, 18, QRED, 1);
-    const RH = 36, y0 = 90, nDone = STEPS.filter((s) => D.done[s.id]).length;
+    quizFrame('点数計算の勉強', '', '', L.view === 'sub' ? '' : '▲ ▼ でえらんで 決定ボタン    ◀ ▶ でページを かえる    戻る: ホームへ');
+    const pgi = learnPages(), pi = pgi[0].includes(L.sel) ? 0 : 1, nDone = STEPS.filter((s) => D.done[s.id]).length;
     text('おぼえた ' + nDone + ' / ' + STEPS.length, SW - 24, 12, 18, WHITE, 2);
-    STEPS.forEach((st, i) => {
-      const y = y0 + i * (RH + 3), sel = L.sel === i && L.view === 'map', done = !!D.done[st.id], bm = D.bm.step === i;
-      panel(24, y, SW - 48, RH, 12, WHITE, sel ? QRED : GREEN, sel ? 4 : 2, 255);
-      rrect(32, y + 4, 28, 28, 14, done ? GREEN : [160, 170, 150]); text(done ? '✔' : String(i + 1), 46, y + 5, 20, WHITE, 1);
-      text(st.t, 72, y + 7, 20, INK); text(st.sum, 400, y + 11, 14, [90, 90, 80]);
-      rrect(SW - 150, y + 6, 50, 24, 8, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, SW - 125, y + 9, 15, WHITE, 1);
-      if (bm && (D.bm.read || D.bm.next)) { rrect(SW - 92, y + 6, 60, 24, 8, D.bm.read ? QRED : [80, 130, 190]); text(D.bm.read ? 'しおり' : 'つぎ', SW - 62, y + 9, 15, WHITE, 1); }
+    ['入門・初級', '中級・上級'].forEach((lb, i) => { const x = 24 + i * 200, on = i === pi; rrect(x, 58, 190, 34, 10, on ? GREEN : [190, 200, 180]); text(lb, x + 95, 62, 22, on ? WHITE : [90, 100, 80], 1); });
+    text((pi + 1) + ' / 2 ページ', SW - 24, 64, 17, [90, 90, 80], 2);
+    pgi[pi].forEach((i, r) => {
+      const st = STEPS[i], y = 102 + r * 62, sel = L.sel === i && L.view === 'map', done = !!D.done[st.id], bm = D.bm.step === i;
+      panel(24, y, SW - 48, 56, 14, WHITE, sel ? QRED : GREEN, sel ? 4 : 2, 255);
+      rrect(34, y + 8, 40, 40, 20, done ? GREEN : [160, 170, 150]); text(done ? '✔' : String(i + 1), 54, y + 12, 28, WHITE, 1);
+      text(st.t, 90, y + 4, 28, INK); text(st.sum, 92, y + 36, 15, [90, 90, 80]);
+      rrect(SW - 150, y + 14, 58, 28, 9, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, SW - 121, y + 17, 18, WHITE, 1);
+      if (bm && (D.bm.read || D.bm.next)) { rrect(SW - 84, y + 14, 56, 28, 9, D.bm.read ? QRED : [80, 130, 190]); text(D.bm.read ? 'しおり' : 'つぎ', SW - 56, y + 17, 18, WHITE, 1); }
     });
     if (L.view === 'sub') {
       fill(0, 0, SW, SH, [0, 0, 0], 130); const st = STEPS[L.sel]; panel(190, 110, 452, 240, 14, WHITE, GREEN, 4, 255); text('ステップ' + (L.sel + 1) + '  ' + st.t, SW / 2, 124, 22, GREEN, 1);
