@@ -618,7 +618,7 @@
     if (part !== 'face') {
       if (dealer) { const pu = 0.5 + 0.5 * Math.sin(rv / 140); rrect(x - 16, y - 16, fs + 32, fs + 32, 12, [255, 190, 30], Math.round(70 + 110 * pu)); rrect(x - 10, y - 10, fs + 20, fs + 20, 9, [255, 230, 90], Math.round(150 + 105 * pu)); rrect(x - 4, y - 4, fs + 8, fs + 8, 6, [255, 255, 255]); }
       else if (hi) { rrect(x - 8, y - 8, fs + 16, fs + 16, 8, [255, 120, 40]); rrect(x - 5, y - 5, fs + 10, fs + 10, 6, [255, 230, 80]); }
-      fill(x, y, fs, fs, [90, 110, 100]); if (!dealer) frame(x - 1, y - 1, fs + 2, fs + 2, hi ? [255, 255, 255] : [240, 210, 120], hi ? 3 : 2);
+      fill(x, y, fs, fs, [90, 110, 100]);
       if (dealer) dealerPlate(DPOS[s][0] + 40, DPOS[s][1] + 100, p.name, rv); else plate(DPOS[s][0] + 40, DPOS[s][1] + 96, p.name, p.char && p.char.level ? p.char.level : 0);
       if (wind) { const wi = ['東', '南', '西', '北'].indexOf(wind); rrect(x - 46, y + 6, 38, 38, 6, [255, 255, 255]); rrect(x - 44, y + 8, 34, 34, 5, WIND_BG[wi]); text(wind, x - 27, y + 11, 28, WHITE, 1); }
     } else face(p, x, y, fs, fs);
@@ -757,7 +757,7 @@
       const y = 90 + i * 66; fill(120, y, 480, 58, o.p.isHuman ? [255, 240, 150] : [255, 255, 255], 235);
       text(o.rank + '位', 130, y + 14, 28, BLACK); face(o.p, 210, y + 4, 46, 50); text(o.p.name, 270, y + 18, 22, BLACK); text(o.p.score, 590, y + 16, 26, BLACK, 2);
     });
-    text('決定ボタンで タイトルへ', 360, 378, 22, WHITE, 1);
+    text('決定ボタンで ホームへ', 360, 378, 22, WHITE, 1);
   }
 
 
@@ -1116,7 +1116,7 @@
       const items = menuItems();
       if (k === 'up' || k === 'down') S.menuP.idx = wrap(S.menuP.idx + (k === 'up' ? -1 : 1), items.length);
       else if (k === 'back') { S.menuP = null; MJ.paused = false; }
-      else if (k === 'ok') { const it = items[S.menuP.idx]; S.menuP = null; MJ.paused = false; if (it === 'タイトルにもどる') stopGame(); }
+      else if (k === 'ok') { const it = items[S.menuP.idx]; S.menuP = null; MJ.paused = false; if (it === 'ホームにもどる') stopGame(); }
       return;
     }
     if (S.soundP) { // 音のせってい
@@ -1395,7 +1395,7 @@
     while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
     return out;
   }
-  function stopGame() { // ゲームを途中でやめて、タイトルへ
+  function stopGame() { // ゲームを途中でやめて、ホームへ
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
     g.stopped = true; MJ.paused = false; S.tmsgShown = 0; S.side = S.coach = null;
     const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
@@ -1416,7 +1416,7 @@
     S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; S.homeBot = false; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
   }
-  const menuItems = () => ['つづける', 'タイトルにもどる'];
+  const menuItems = () => ['つづける', 'ホームにもどる'];
 
   /* ---------- メインループから ---------- */
   let nextAuto = 0, lastSave = 0, nextSide = 0, coachShots = 0;
