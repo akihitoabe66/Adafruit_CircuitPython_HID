@@ -205,7 +205,7 @@
         w.forEach((x, i) => { const tx = 731 + (i % cols) * pitch + (big ? 2 : 0), ty = 118 + Math.floor(i / cols) * rh; tile(x.t, tx, ty, tw, th); text('あと' + x.left, tx + tw / 2, ty + th + 2, fs, WHITE, 1); });
         if (w[0].fu) text('フリテン', 776, 88 + ph - 24, 16, [255, 120, 100], 1); }
     }
-    sbtn(726, 322, 100, 46, [40, 90, 190], [20, 50, 120], ['解説'], f === 1, 24);
+    sbtn(726, 322, 100, 46, [40, 90, 190], [20, 50, 120], [''], f === 1, 24); gfx.image('img/teacher/t12.webp', 730, 324, 38, 40, 255); text('解説', 792, 332, 22, WHITE, 1);
     sbtn(726, 376, 100, 56, teacherOn() ? [30, 120, 80] : [90, 90, 90], teacherOn() ? [15, 70, 45] : [50, 50, 50], ['麻雀先生', teacherOn() ? 'あり' : 'なし'], f === 2, 19);
   }
   function wrapText(s, sz, maxw) { // 文字列を、幅に収まるように、行に分ける
@@ -229,10 +229,14 @@
     return [];
   }
   const shortTitle = (t) => /おすすめ|★/.test(t) ? 'おすすめ' : /どうして/.test(t) ? 'どうして?' : /役/.test(t) ? '目指す役' : /警戒|危/.test(t) ? '警戒' : /手牌/.test(t) ? '手牌' : (t.replace(/^[^\u3040-\u9fff]+/, '').slice(0, 4) || t.slice(0, 4));
+  /* 麻雀先生の顔(Edge版と同じ表情の組み合わせ)。key が同じあいだは、同じ顔のまま */
+  const TM = { ok: ['21', '22', '31', '32', '35'], pass: ['15', '25', '24', '34', '12'], advice: ['26', '36', '16', '13', '12'], aim: ['16', '13', '26', '36', '12'], warn: ['24', '34', '25', '15'], cheer: ['35', '31', '21', '32', '22'], greet: ['14', '21', '11', '36'] };
+  const tPick = (mood, key) => { const c = S._tp || (S._tp = {}), k = mood + ':' + key; if (!c[k]) { const a = TM[mood] || TM.advice, last = S._tpLast || (S._tpLast = {}); let n = a[Math.floor(Math.random() * a.length)]; if (a.length > 1 && n === last[mood]) n = a[(a.indexOf(n) + 1) % a.length]; last[mood] = n; const ks = Object.keys(c); if (ks.length > 60) delete c[ks[0]]; c[k] = n; } return 'img/teacher/t' + c[k] + '.webp'; };
+  const tFace = (mood, key, x, y, h) => { const w = Math.round(h * 0.95); if (h >= 48) gfx.imageTop(tPick(mood, key), x, y, w, h); else gfx.image(tPick(mood, key), x, y, w, h); return w; };
   function drawCoach() {
     panel(10, 8, 700, 412, 18, [14, 40, 32], [240, 210, 120], 3, 247);
-    text('麻雀先生', 24, 14, 22, YEL);
     const c = S.coach, cards = c.cards;
+    { const t0 = cards[c.tab] ? cards[c.tab].title : ''; tFace(/警戒|危/.test(t0) ? 'warn' : /おすすめ|★/.test(t0) ? 'ok' : 'advice', 'c' + c.tab + t0, 14, 9, 38); } text('麻雀先生', 58, 14, 20, YEL);
     if (!teacherOn()) { text('麻雀先生が「なし」です。右の「麻雀先生」ボタンで「あり」にしてください。', 28, 80, 18, WHITE); text('決定・もどる で とじる', 360, 392, 20, GREY, 1); return; }
     if (!cards.length) { text('あなたの番(または、ポン・チーなどの選択)のときに、開いてください。', 28, 80, 18, WHITE); text('決定・もどる で とじる', 360, 392, 20, GREY, 1); return; }
     const tw = Math.min(110, Math.floor(540 / cards.length));
@@ -253,11 +257,11 @@
   function drawTeacher(g) {
     if (!teacherOn()) return;
     const h = S.hint, s = S.self; if (s && s.rm) return; // リーチする牌をえらぶ間は、案内の文字だけ
-     if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 272, 540, 58, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生', 16, 274, 16, YEL); text(S.tmsg.text, 16, 296, fitSz(S.tmsg.text, 21, 516, 16), WHITE); return; }
+     if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 268, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('advice', 'm' + S.tmsg.until, 12, 270, 60); text('麻雀先生', 80, 272, 16, YEL); text(S.tmsg.text, 80, 294, fitSz(S.tmsg.text, 21, 480, 16), WHITE); return; }
     if (!h || !s || s.row !== 0) return;
-    panel(6, 270, 540, 62, 10, [6, 44, 26], [255, 220, 40], 2, 240);
+    panel(6, 268, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('ok', 'h' + h.t + (h.riichi ? 'r' : ''), 12, 270, 60);
     const l1 = '★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), l2 = (h.sh === 0 ? 'テンパイ' : 'テンパイまであと' + h.sh + '歩') + ' 受け入れ' + h.n + '枚  ' + (h.label || '');
-    text(l1, 16, 272, fitSz(l1, 24, 516, 18), YEL); text(l2, 16, 301, fitSz(l2, 19, 516, 14), WHITE);
+    text(l1, 80, 272, fitSz(l1, 24, 484, 18), YEL); text(l2, 80, 301, fitSz(l2, 19, 484, 14), WHITE);
   }
 
   /* ---------- 軽い動き(牌が河へ飛ぶ・配牌・札の拡大) ---------- */
@@ -949,6 +953,7 @@
     if (q.phase === 'end') {
       const pass = q.ok >= Math.ceil(q.total * 0.8);
       quizFrame(q.title, '', '', '決定ボタンで すすむ'); text('おつかれさまでした', SW / 2, 80, 34, YEL, 1); text(q.total + '問中  ' + q.ok + '問  せいかい', SW / 2, 150, 44, WHITE, 1);
+      tFace(pass ? 'ok' : 'cheer', 'qe' + q.total + q.ok, SW - 410, 262, 150);
       if (!YOU_OLD) gfx.imageTop('img/zunda/' + (pass ? '13' : '10') + '.webp', SW - 230, 250, 170, 170);
       text(q.onEnd && q.learn ? (pass ? 'ごうかく! 「おぼえた」に しました' : 'もう一度 読んで、またチャレンジしましょう') : (q.ok >= 8 ? 'すばらしい! 本格派ですね' : q.ok >= 5 ? 'よくできました' : 'またチャレンジしましょう'), SW / 2, 240, 24, [255, 190, 150], 1); return;
     }
@@ -957,6 +962,7 @@
       quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, '決定ボタンで 次の問題へ');
       rrect(36, 62, 120, 44, 12, r === 'ok' ? QRED : r === 'near' ? [210, 140, 20] : [100, 110, 100]); text(r === 'ok' ? '正解' : r === 'near' ? 'おしい' : q.res.alt ? 'ちがうよ' : 'ハズレ', 96, 70, 28, WHITE, 1);
       text(r === 'ok' ? 'よくできました!' : r === 'near' ? 'あと一歩です' : '解説を読んで、覚えましょう', 176, 70, 26, col);
+      tFace(r === 'ok' ? 'ok' : r === 'near' ? 'cheer' : 'pass', 'r' + q.n + (q.title || ''), SW - 206, 54, 76);
       if (!YOU_OLD) gfx.imageTop('img/zunda/' + String({ ok: 2, near: 10, ng: q.res.alt ? 11 : 12 }[r] || 1).padStart(2, '0') + '.webp', SW - 112, 52, 80, 80); // あなた(ずんだもん)の表情
       panel(24, 132, SW - 48, 258, 14, [6, 28, 18], [140, 190, 130], 3, 235); rrect(44, 118, 86, 30, 14, [60, 130, 60]); text('解説', 87, 120, 20, WHITE, 1);
       gfx.clip(30, 138, SW - 60, 246); richDraw(q.rlines.slice(q.scroll), 48, 148, q.rsz, WHITE, 0); gfx.clip();
@@ -964,6 +970,7 @@
       return;
     }
     quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, p.kind === 'tile' ? '◀ ▶ で牌をえらんで 決定ボタン(切る牌)' : '◀ ▶ ▲ ▼ で えらんで 決定ボタン');
+    tFace('advice', 'q' + q.n + (q.title || ''), SW - 196, 3, 44);
     richDraw(q.head, 30, 54, q.hsz, WHITE, 0);
     if (p.kind === 'choice') q.opts.forEach((o, i) => {
       const x = 30 + (i % 2) * 394, y = 202 + Math.floor(i / 2) * 62, sel = q.idx === i;
@@ -1045,6 +1052,7 @@
     if (L.view === 'read') {
       const st = STEPS[L.step], pg = st.pages[L.page], c = learnPage(L);
       quizFrame('ステップ' + (L.step + 1) + '  ' + st.t, '', (L.page + 1) + ' / ' + st.pages.length, L.page < st.pages.length - 1 ? '◀ ▶ でページをめくる    戻る: 地図へ' : '決定ボタンで クイズに進む    ◀ 前のページ    戻る: 地図へ');
+      tFace('advice', 'lr' + L.step + '_' + L.page, 10, 2, 44);
       text(pg.h, 30, 58, 28, YEL); fill(30, 94, SW - 60, 3, [140, 190, 130]);
       const my = Math.max(0, c.h - 298); L.scroll = Math.min(L.scroll, my); gfx.clip(0, 102, SW, 300);
       let y = 104 - L.scroll;
@@ -1059,6 +1067,7 @@
     }
     quizFrame('点数計算の勉強', '', '', L.view === 'sub' ? '' : '▲ ▼ でえらんで 決定ボタン    ◀ ▶ でページを かえる    戻る: ホームへ');
     const pgi = learnPages(), pi = pgi[0].includes(L.sel) ? 0 : 1, nDone = STEPS.filter((s) => D.done[s.id]).length;
+    tFace('greet', 'lm', 10, 2, 44);
     text('おぼえた ' + nDone + ' / ' + STEPS.length, SW - 24, 12, 18, WHITE, 2);
     ['入門・初級', '中級・上級'].forEach((lb, i) => { const x = 24 + i * 200, on = i === pi; rrect(x, 58, 190, 34, 10, on ? [60, 130, 60] : [50, 70, 60]); text(lb, x + 95, 62, 22, on ? WHITE : [170, 190, 170], 1); });
     text((pi + 1) + ' / 2 ページ', SW - 24, 62, 20, GREY, 2);
