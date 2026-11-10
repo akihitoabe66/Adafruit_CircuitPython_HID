@@ -6,7 +6,7 @@ import base64, json, os, re, sys
 root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 out = sys.argv[1]
 os.makedirs(out, exist_ok=True)
-LIST = ['native/app/prelude.js', 'js/tiles.js', 'js/rules.js', 'js/forms.js', 'js/chars.js', 'js/ai.js', 'js/coach.js', 'js/game.js', 'js/banter.js', 'js/banter2.js', 'js/chars2.js', 'js/rank.js', 'native/app/icon.js', 'js/ruby.js', 'js/drill.js', 'native/app/stats.js', 'native/app/learn.js', 'native/app/nsnd.js', 'native/app/nui.js']
+LIST = ['native/app/prelude.js', 'js/tiles.js', 'js/rules.js', 'js/forms.js', 'js/chars.js', 'js/ai.js', 'js/coach.js', 'js/game.js', 'js/banter.js', 'js/banter2.js', 'js/chars2.js', 'js/rank.js', 'native/app/icon.js', 'js/ruby.js', 'js/drill.js', 'native/app/stats.js', 'native/app/learn.js', 'native/app/dictdata.js', 'native/app/nsnd.js', 'native/app/nui.js']
 src = []
 for f in LIST:
     src.append('/* ==== %s ==== */\n' % f + open(os.path.join(root, f), encoding='utf-8').read())

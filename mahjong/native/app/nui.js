@@ -1048,12 +1048,95 @@
     if (p.win) { const x = x0 + n * 48 + 14; text('上がり牌', x + 22, HYq - 26, 18, YEL, 1); frame(x - 2, HYq - 2, 48, 62, YEL, 2); tile(p.win.t, x, HYq, 44, 58, p.win.red); }
     if (p.melds && p.melds.length) { let mx = 30; p.melds.forEach((m) => { (m.tiles || []).forEach((tl) => { tile(tl.t, mx, 402, 20, 26, tl.red); mx += 22; }); mx += 8; }); text('鳴いている牌', mx + 4, 404, 18, GREY); }
   }
+  /* ---------- 麻雀用語じてん(勉強の中から開く。データは dictdata.js = Edge版の用語辞典) ---------- */
+  const DCAT = [['基本・牌', '牌のよびかた', 'ぱいの なまえ'], ['役', '役', 'やく'], ['点数・符', '点数・符', 'てんすう'], ['待ち・形', '待ちと形', 'まちと かたち'], ['鳴き', '鳴き', 'ポン・チーなど'], ['守備・押し引き', '守りと攻め', 'まもり・せめ'], ['局・ルール', '局とルール', 'きょく・きまり'], ['俗称・スラング', '俗称・ぞくご', 'よびかた いろいろ']];
+  const KROW = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ'], KSET = 'あいうえおぁぃぅぇぉ|かきくけこがぎぐげご|さしすせそざじずぜぞ|たちつてとだぢづでど|なにぬねの|はひふへほばびぶべぼぱぴぷぺぽ|まみむめも|やゆよゃゅょ|らりるれろ|わをん'.split('|');
+  const STAR = ['萬子', '筒子', '索子', '数牌', '字牌', '風牌', '三元牌', '么九牌', '順子', '刻子', '対子', '雀頭', '面子', 'ポン', 'チー', 'カン', 'リーチ', 'ロン', 'ツモ', '役牌', 'タンヤオ', 'ピンフ', '親', 'ドラ', 'テンパイ', '聴牌', '和了', '満貫', '門前', '副露', '鳴き', '赤ドラ', '一発', '場風', '自風'];
+  const hira = (s) => String(s).replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  const D_ = () => MJ.DictData, dRow = (e) => { const i = KSET.findIndex((t) => t.includes(hira(e.y)[0])); return i < 0 ? 0 : i; };
+  let dByName = null; const dFind = (nm) => { if (!dByName) { dByName = {}; D_().list.forEach((e, i) => [e.n].concat(e.a).forEach((t) => { if (t && dByName[t] == null) dByName[t] = i; })); } return dByName[nm]; };
+  const dStar = (e) => STAR.includes(e.n);
+  const dIds = (d) => d.tab === 0 ? D_().list.map((e, i) => i).filter((i) => D_().list[i].c === DCAT[d.g][0]) : D_().list.map((e, i) => i).filter((i) => dRow(D_().list[i]) === d.g).sort((a, b) => hira(D_().list[a].y).localeCompare(hira(D_().list[b].y), 'ja'));
+  const dOne = (e, w, sz) => { const s = String(e.d).split('。')[0]; let t = s; while (t.length > 2 && gfx.measure(t, sz) > w) t = t.slice(0, -1); return t.length < s.length ? t.slice(0, -1) + '…' : t; };
+  function startDict() { S.dict = { view: 'top', foc: 0, tab: 0, g: 0, ids: [], sel: 0, id: 0, rel: -1, hist: [] }; S.mode = 'dict'; dirty(); }
+  function dTiles(str) { // '123m 456p 55z' → 牌の並び(グループごと)
+    return String(str).split(' ').map((grp) => { const m = grp.match(/^(\d+)([mpsz])$/); if (!m) return { sep: grp }; const base = { m: 0, p: 9, s: 18, z: 27 }[m[2]]; return { tiles: m[1].split('').map((c) => ({ t: base + (c === '0' ? 4 : +c - 1), red: c === '0' })) }; });
+  }
+  function dTileRow(str, x, y, availW) {
+    const gs = dTiles(str), n = gs.reduce((a, g) => a + (g.tiles ? g.tiles.length : 0), 0), nsep = gs.length - 1;
+    const tw = Math.max(14, Math.min(30, Math.floor((availW - nsep * 9) / Math.max(1, n)))), th = Math.round(tw * 1.32); let cx = x;
+    gs.forEach((g, gi) => { if (g.sep != null) { text(g.sep, cx + 6, y + Math.round(th / 2) - 10, 18, GREY, 1); cx += 14; return; } g.tiles.forEach((h) => { tile(h.t, cx, y, tw, th, h.red); cx += tw + 1; }); cx += 8; });
+    return th;
+  }
+  function dChips(items, x, y, maxw, selK) { // ことばの札を、並べて、はしで折り返す。 戻り値: つぎの y
+    let cx = x, cy = y; items.forEach((s, k) => { const w = gfx.measure(s, 17) + 18; if (cx + w > x + maxw && cx > x) { cx = x; cy += 30; } const on = k === selK; rrect(cx, cy, w, 26, 12, on ? [255, 214, 58] : GREEN); text(s, cx + w / 2, cy + 3, 17, on ? INK : WHITE, 1); cx += w + 6; }); return cy + 32;
+  }
+  function drawDict() {
+    const d = S.dict, L = D_().list;
+    if (d.view === 'top') {
+      quizFrame('麻雀用語じてん', '', '', '◀ ▶ ▲ ▼ えらぶ    決定ボタン    戻る: 勉強へ');
+      ['分類で探す', '五十音で探す'].forEach((lb, i) => { const on = d.tab === i, f = d.foc === 0 && on; panel(90 + i * 350, 58, 300, 40, 12, f ? YEL : on ? [60, 130, 60] : [50, 70, 60], f ? [160, 110, 0] : [120, 160, 110], f ? 4 : 2, 255); text(lb, 240 + i * 350, 64, 24, f ? INK : WHITE, 1); });
+      if (d.tab === 0) DCAT.forEach((c, i) => { const x = 60 + (i % 2) * 372, y = 114 + Math.floor(i / 2) * 80, f = d.foc === 1 && d.g === i; panel(x, y, 340, 70, 14, f ? YEL : WHITE, f ? [160, 110, 0] : GREEN, f ? 4 : 2, 255); text(c[1], x + 18, y + 6, 30, INK); text(c[2], x + 20, y + 44, 17, [90, 90, 80]); text(L.filter((e) => e.c === c[0]).length + '語', x + 322, y + 40, 17, [90, 90, 80], 2); });
+      else KROW.forEach((k, i) => { const x = 44 + (i % 5) * 152, y = 122 + Math.floor(i / 5) * 140, f = d.foc === 1 && d.g === i, n = L.filter((e) => dRow(e) === i).length; panel(x, y, 140, 124, 14, n ? (f ? YEL : WHITE) : [150, 150, 140], f ? [160, 110, 0] : GREEN, f ? 4 : 2, n ? 255 : 150); text(k, x + 70, y + 12, 60, n ? INK : [110, 110, 100], 1); text(n + '語', x + 70, y + 88, 20, [90, 90, 80], 1); });
+      return;
+    }
+    if (d.view === 'list') {
+      const ids = d.ids, per = 7, pg = Math.floor(d.sel / per), np = Math.ceil(ids.length / per), ttl = d.tab === 0 ? DCAT[d.g][1] : KROW[d.g] + ' の行';
+      quizFrame(ttl, '', np > 1 ? (pg + 1) + ' / ' + np + ' ページ' : '', '▲ ▼ えらぶ    決定: くわしく    ◀ ▶ ページ    戻る');
+      ids.slice(pg * per, pg * per + per).forEach((id, r) => {
+        const e = L[id], y = 58 + r * 49, f = pg * per + r === d.sel;
+        panel(24, y, 540, 45, 10, f ? YEL : WHITE, f ? [160, 110, 0] : GREEN, f ? 4 : 2, 255);
+        if (dStar(e)) text('★', 36, y + 9, 22, [214, 150, 0]);
+        text(e.y, 66, y + 1, 15, [90, 90, 80]); text(e.n, 66, y + 15, fitSz(e.n, 25, 160, 16), INK);
+        text(dOne(e, 296, 17), 250, y + 13, 17, [60, 60, 52]);
+      });
+      const e = L[ids[d.sel]]; panel(576, 58, 232, 346, 14, [10, 56, 42], [150, 190, 140], 3, 245);
+      text(e.n, 592, 66, fitSz(e.n, 32, 200, 18), YEL); text(e.y, 592, 104, 16, [200, 222, 200]);
+      let yy = 130; if (e.x && e.x[0]) yy += dTileRow(e.x[0][1], 592, yy, 204) + 8;
+      const f = fitRich(e.d, [18, 17, 16, 15], 188, 404 - 8 - yy); richDraw(f.lines, 592, yy, f.sz, WHITE, 0);
+      return;
+    }
+    const e = L[d.id]; quizFrame(DCAT.find((c) => c[0] === e.c) ? DCAT.find((c) => c[0] === e.c)[1] : '', '', '', '◀ ▶ 前の語・次の語    ▲ ▼ 関連語    決定: 関連語へ    戻る');
+    panel(24, 54, 784, 356, 14, CREAM, GREEN, 3, 255);
+    text(e.y, 44, 60, 18, GREEN); text(e.n, 44, 80, fitSz(e.n, 46, 400, 26), INK); if (dStar(e)) { rrect(44, 138, 150, 24, 10, [214, 150, 0]); text('★ 先に覚える言葉', 119, 140, 16, WHITE, 1); }
+    const f = fitRich(e.d, [26, 24, 22, 20, 18], 430, 216); richDraw(f.lines, 44, 172, f.sz, INK, 0);
+    let y = 62, X = 500, W = 296;
+    (e.x || []).slice(0, 2).forEach((ex) => { const lb = wrapText(ex[0], 16, W).slice(0, 2); lb.forEach((l, i) => text(l, X, y + i * 20, 16, [60, 60, 52])); y += lb.length * 20 + 2; y += dTileRow(ex[1], X, y, W) + 14; });
+    const al = e.a || []; if (al.length) { text('ほかの よびかた', X, y, 18, GREEN); y = dChips(al.slice(0, 8), X, y + 26, W, -1); y += 4; }
+    const rl = (e.r || []).filter((nm) => dFind(nm) != null).slice(0, 8); d.rels = rl;
+    if (rl.length) { text('いっしょに 覚える', X, y, 18, GREEN); dChips(rl, X, y + 26, W, d.rel); }
+  }
+  function dictKey(k) {
+    const d = S.dict, L = D_().list; dirty();
+    if (d.view === 'top') {
+      const n = d.tab === 0 ? 8 : 10, cols = d.tab === 0 ? 2 : 5;
+      if (d.foc === 0) { if (k === 'left' || k === 'right') d.tab = 1 - d.tab; else if (k === 'down' || k === 'ok') { d.foc = 1; d.g = 0; } else if (k === 'back') { S.mode = 'learn'; S.dict = null; } return; }
+      if (k === 'left') d.g = Math.max(0, d.g - 1); else if (k === 'right') d.g = Math.min(n - 1, d.g + 1);
+      else if (k === 'up') { if (d.g < cols) d.foc = 0; else d.g -= cols; } else if (k === 'down') { if (d.g + cols < n) d.g += cols; }
+      else if (k === 'back') d.foc = 0;
+      else if (k === 'ok') { d.ids = dIds(d); if (d.ids.length) { d.view = 'list'; d.sel = 0; } }
+      return;
+    }
+    if (d.view === 'list') {
+      const n = d.ids.length;
+      if (k === 'up') d.sel = (d.sel + n - 1) % n; else if (k === 'down') d.sel = (d.sel + 1) % n;
+      else if (k === 'left') d.sel = Math.max(0, d.sel - 7); else if (k === 'right') d.sel = Math.min(n - 1, d.sel + 7);
+      else if (k === 'ok') { d.view = 'detail'; d.id = d.ids[d.sel]; d.rel = -1; d.hist = []; } else if (k === 'back') d.view = 'top';
+      return;
+    }
+    const n = d.ids.length, at = d.ids.indexOf(d.id), rels = d.rels || [];
+    if (k === 'left' || k === 'right') { if (at >= 0) { d.sel = (at + (k === 'left' ? n - 1 : 1)) % n; d.id = d.ids[d.sel]; d.rel = -1; d.hist = []; } }
+    else if (k === 'up') { if (rels.length) d.rel = d.rel <= 0 ? rels.length - 1 : d.rel - 1; } else if (k === 'down') { if (rels.length) d.rel = d.rel + 1 >= rels.length ? 0 : d.rel + 1; }
+    else if (k === 'ok') { if (d.rel >= 0 && rels[d.rel] != null) { d.hist.push(d.id); d.id = dFind(rels[d.rel]); d.rel = -1; } }
+    else if (k === 'back') { if (d.hist.length) { d.id = d.hist.pop(); d.rel = -1; } else d.view = 'list'; }
+  }
   /* ---- 学習コーナー(地図 → 読み物 → クイズ。しおりと「おぼえた」を覚えておく) ---- */
   const LKEY = 'mj_learn';
   function learnLoad() { try { const v = JSON.parse(localStorage.getItem(LKEY)); if (v && v.done) return v; } catch (e) { /* ignore */ } return { bm: { step: 0, page: 0, read: false }, done: {} }; }
   function learnSave() { try { localStorage.setItem(LKEY, JSON.stringify(S.learn.d)); } catch (e) { /* ignore */ } }
   function startLearn() { const d = learnLoad(); S.mode = 'learn'; S.learn = { d, view: 'map', sel: Math.min(d.bm.step || 0, MJ.Learn.STEPS.length - 1), sub: 0, page: 0, scroll: 0 }; dirty(); }
-  const learnPages = () => { const a = [], b = []; MJ.Learn.STEPS.forEach((st, i) => (st.lv === '入門' || st.lv === '初級' ? a : b).push(i)); return [a, b]; }; // 1ページ目: 入門・初級 / 2ページ目: 中級・上級
+  const learnPages = () => { const a = [], b = []; MJ.Learn.STEPS.forEach((st, i) => (st.lv === '入門' || st.lv === '初級' ? a : b).push(i)); return [a, b, [MJ.Learn.STEPS.length]]; } // 3ページ目は「用語じてん」の入口
+  const pgOf = (pgi, sel) => Math.max(0, pgi.findIndex((p) => p.includes(sel))); // 1ページ目: 入門・初級 / 2ページ目: 中級・上級
   function learnOpen(stepIdx, page) { // 読み物を開く(しおりも、ここに更新)
     const L = S.learn, st = MJ.Learn.STEPS[stepIdx]; L.step = stepIdx; L.page = Math.max(0, Math.min(st.pages.length - 1, page || 0)); L.scroll = 0; L.view = 'read'; L.cache = null;
     L.d.bm = { step: stepIdx, page: L.page, read: true }; learnSave(); dirty();
@@ -1078,10 +1161,10 @@
     }
     if (L.view === 'map') {
       if (k === 'back') { S.mode = 'menu'; S.learn = null; dirty(); return; }
-      const pgi = learnPages(), pi = pgi[0].includes(L.sel) ? 0 : 1, cur = pgi[pi], at = cur.indexOf(L.sel);
+      const pgi = learnPages(), pi = pgOf(pgi, L.sel), cur = pgi[pi], at = cur.indexOf(L.sel);
       if (k === 'up') L.sel = cur[wrap(at - 1, cur.length)]; else if (k === 'down') L.sel = cur[wrap(at + 1, cur.length)];
-      else if (k === 'left' || k === 'right') { const o = pgi[1 - pi]; L.sel = o[Math.min(at, o.length - 1)]; }
-      else if (k === 'ok') { L.view = 'sub'; L.sub = 0; }
+      else if (k === 'left' || k === 'right') { const o = pgi[wrap(pi + (k === 'left' ? -1 : 1), pgi.length)]; L.sel = o[Math.min(at, o.length - 1)]; }
+      else if (k === 'ok') { if (L.sel >= STEPS.length) startDict(); else { L.view = 'sub'; L.sub = 0; } }
     } else if (L.view === 'sub') {
       if (k === 'back') L.view = 'map'; else if (k === 'up') L.sub = wrap(L.sub - 1, 4); else if (k === 'down') L.sub = wrap(L.sub + 1, 4);
       else if (k === 'ok') {
@@ -1131,12 +1214,17 @@
       if (my > 0) text((L.scroll > 0 ? '▲ ' : '') + (L.scroll < my ? '▼ つづき' : ''), SW - 30, 404, 18, GREY, 2);
       return;
     }
-    quizFrame('点数計算の勉強', '', '', L.view === 'sub' ? '' : '▲ ▼ でえらんで 決定ボタン    ◀ ▶ でページを かえる    戻る: ホームへ');
-    const pgi = learnPages(), pi = pgi[0].includes(L.sel) ? 0 : 1, nDone = STEPS.filter((s) => D.done[s.id]).length;
+    quizFrame(L.sel >= MJ.Learn.STEPS.length ? '勉強' : '点数計算の勉強', '', '', L.view === 'sub' ? '' : '▲ ▼ でえらんで 決定ボタン    ◀ ▶ でページを かえる    戻る: ホームへ');
+    const pgi = learnPages(), pi = pgOf(pgi, L.sel), nDone = STEPS.filter((s) => D.done[s.id]).length;
     tFace('greet', 'lm', 10, 2, 44);
     text('おぼえた ' + nDone + ' / ' + STEPS.length, SW - 24, 12, 18, WHITE, 2);
-    ['入門・初級', '中級・上級'].forEach((lb, i) => { const x = 24 + i * 200, on = i === pi; rrect(x, 58, 190, 34, 10, on ? [60, 130, 60] : [50, 70, 60]); text(lb, x + 95, 62, 22, on ? WHITE : [170, 190, 170], 1); });
-    text((pi + 1) + ' / 2 ページ', SW - 24, 62, 20, GREY, 2);
+    ['入門・初級', '中級・上級', '用語じてん'].forEach((lb, i) => { const x = 24 + i * 200, on = i === pi; rrect(x, 58, 190, 34, 10, on ? [60, 130, 60] : [50, 70, 60]); text(lb, x + 95, 62, 22, on ? WHITE : [170, 190, 170], 1); });
+    text((pi + 1) + ' / 3 ページ', SW - 24, 62, 20, GREY, 2);
+    if (pi === 2) { // 用語じてんの入口
+      const sel = L.sel >= STEPS.length && L.view === 'map'; panel(24, 112, SW - 48, 130, 16, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
+      text('麻雀用語じてん', 60, 126, 40, INK); text('わからない言葉を しらべます。ふりがな・牌の絵つき。', 62, 180, 22, [70, 70, 60]); text('★ は、先に覚えたい言葉です。', 62, 208, 20, [140, 100, 0]);
+      text('決定ボタンで ひらく', SW / 2, 270, 24, WHITE, 1); return;
+    }
     pgi[pi].forEach((i, r) => {
       const st = STEPS[i], y = 100 + r * 64, sel = L.sel === i && L.view === 'map', done = !!D.done[st.id], bm = D.bm.step === i;
       panel(24, y, SW - 48, 58, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
@@ -1266,6 +1354,7 @@
       return;
     }
     if (S.mode === 'quiz') { quizKey(k); return; }
+    if (S.mode === 'dict') { dictKey(k); return; }
     if (S.mode === 'learn') { learnKey(k); return; }
     if (S.mode === 'diag') { diagKey(k); return; }
     if (S.mode === 'credits') { if (k === 'ok' || k === 'back') { S.mode = 'settings'; dirty(); } return; }
@@ -1578,6 +1667,7 @@
     S.partialKey = false; S.full = false; S.fullDrawn = true;
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
     if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); if (S.quiz && S.quiz.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog(S.quiz.learn ? 'クイズを やめますか?' : 'ホームに もどりますか?', ['つづける', S.quiz.learn ? 'やめる' : 'ホームにもどる'], S.quiz.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
+    if (S.mode === 'dict') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDict(); return true; }
     if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); if (S.learn && S.learn.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('ホームに もどりますか?', ['つづける', 'ホームにもどる'], S.learn.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
     if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); return true; }
     if (S.mode === 'credits') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawCredits(); return true; }
