@@ -9,3 +9,8 @@
 - タイトルの「CPUの速さ: ふつう/高速/思考」を決定ボタンで切り替え(メニュー(スタート+セレクト長押し)にもあり。保存される)。
 - デバッグ用: `MJ_CPU=fast ./native/app/mj .`(起動時に指定)。
 - Pi版ではCPUの思考の時間上限を0.4倍に縮めてある(`MJ.AI_BUDGET`)。考えている間は画面・入力が止まるため。
+
+## 絵のバージョン(浮世絵版)
+- ふだんは「浮世絵版」の絵(`img/uk/`: CPU32人・あなたの16表情・タイトル)を使います。
+- 起動のとき環境変数 `MJ_STYLE=old` を付けると、前のバージョンの絵(`img/chars`・`img/zunda`・`img/title_art.webp`)に戻ります。 例: `MJ_STYLE=old ./mahjong`
+- 浮世絵版の絵は `python3 tools/cut_ukiyoe.py` で、`tools/ukiyoe/` の元絵から切り出します(顔の大きさ・位置は、このファイルの `SCALE` `SIZE` `UP` `EYE` `YOU_SCALE` で調整)。

@@ -72,8 +72,8 @@
   }
   /* あなた(ずんだもん)の表情: 場面ごとに切りかわる。16枚(img/zunda/01〜16)。 */
   const ZN = { normal: 1, happy: 2, think: 3, fight: 4, call: 5, shock: 6, smug: 7, laugh: 8, focus: 9, relief: 10, grumpy: 11, what: 12, win: 13, lose: 14, dokidoki: 15, point: 16 };
-  /* 絵のバージョン: ふだんは「浮世絵版」(img/uk/…)。いまは MJ_STYLE=uk を付けて起動したときだけ浮世絵版。確認後は、ふだんが浮世絵版で、MJ_STYLE=old で前のバージョンの絵(img/chars, img/zunda, img/title_art.webp)に戻る */
-  const UKIYO = globalThis.__styleEnv === 'uk'; // (確認がすんだら、ここを「!== 'old'」にして、浮世絵版をふだんにする)
+  /* 絵のバージョン: ふだんは「浮世絵版」(img/uk/…)。ふだんは浮世絵版。起動のとき MJ_STYLE=old を付けると、前のバージョンの絵(img/chars, img/zunda, img/title_art.webp)に戻る */
+  const UKIYO = globalThis.__styleEnv !== 'old'; // ふだんは浮世絵版。MJ_STYLE=old で、前のバージョンの絵
   const skin = (p) => (UKIYO && typeof p === 'string' ? p.replace(/^img\/(chars\/face|zunda|title_art)/, 'img/uk/$1') : p);
   const YOU_OLD = globalThis.__youEnv === 'old'; // 起動のとき MJ_YOU=old を付けると、前の「あなた」の絵(img/you)に戻る。 ふだんは ずんだもん
   const youSrc = () => YOU_OLD ? 'img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp' : skin('img/zunda/' + String(ZN[S.mood && S.moodUntil > __now() ? S.mood : 'normal']).padStart(2, '0') + '.webp');
