@@ -111,7 +111,7 @@
   const BAR = [8, 26, 18];
   function barPieces(g, p) {
     const sw = g.seatWindOf(p), parts = [{ s: WIND[sw], c: sw === 0 ? [235, 90, 70] : [120, 160, 230], sz: 20 }, { s: p.name, c: WHITE, sz: 20 }, { s: String(p.score).replace(/\B(?=(\d{3})+(?!\d))/g, ','), c: p.score < 0 ? RED : YEL, sz: 22 }];
-    if (p.riichi) parts.push({ s: 'リーチ中', c: [255, 120, 100], sz: 17 });
+    if (p.riichi) parts.push({ s: 'リーチ中', c: [255, 96, 80], sz: 19, b: 1 });
     return parts;
   }
   const WIND_BG = [[214, 64, 52], [36, 150, 92], [52, 110, 210], [138, 92, 206]]; // 東・南・西・北の色(Edge版と同じく、家ごとに色を分ける)
@@ -122,17 +122,19 @@
     else panel(x, y, w, h, 7, BAR, [190, 190, 182], 2, 215);
     // 家の色の帯(板のはしの太い線)
     if (!rot) rrect(x + 2, y + 2, ST, h - 4, 3, sc); else if (rot === 90) rrect(x + 2, y + 2, w - 4, ST, 3, sc); else rrect(x + 2, y + h - 2 - ST, w - 4, ST, 3, sc);
-    const parts = barPieces(g, p).slice(1).map((q, i) => ({ s: q.s, sz: q.sz, c: act ? (i === 0 ? [27, 27, 18] : i === 1 ? [120, 60, 0] : [200, 30, 30]) : q.c }));
+    const parts = barPieces(g, p).slice(1).map((q, i) => ({ s: q.s, sz: q.sz, b: q.b, c: act ? (i === 0 ? [27, 27, 18] : i === 1 ? [120, 60, 0] : [200, 30, 30]) : q.c }));
     const off = ST + 8;
     { const avail = (rot ? h : w) - off - CH - 10 - 8, tot = parts.reduce((a, q) => a + gfx.measure(q.s, q.sz), 0) + 12 * (parts.length - 1), k = Math.min(1, avail / tot); if (k < 1) parts.forEach((q) => { q.sz = Math.max(10, Math.floor(q.sz * k)); }); } // はみ出すときは、文字を小さくして、板に収める
     if (!rot) {
       const cy0 = y + (h - CH) / 2; rrect(x + off, cy0, CH, CH, 5, bg); text(WIND[sw], x + off + CH / 2, cy0 + 2, 18, WHITE, 1);
-      let cx = x + off + CH + 10; parts.forEach((q) => { text(q.s, cx, y + Math.round((h - q.sz) / 2) + 1, q.sz, q.c); cx += gfx.measure(q.s, q.sz) + 12; }); return;
+      let cx = x + off + CH + 10; parts.forEach((q) => { const ty = y + Math.round((h - q.sz) / 2) + 1; if (q.b) { text(q.s, cx + 1, ty, q.sz, q.c); text(q.s, cx, ty + 1, q.sz, q.c); } text(q.s, cx, ty, q.sz, q.c); cx += gfx.measure(q.s, q.sz) + 12 + (q.b ? 1 : 0); }); return;
     }
+    if (rot) parts.forEach((q) => { if (q.sz > 19) q.sz = 19; }); // 横向きの板(上家・下家)は、字を少し小さくして、カンマが枠からはみ出ないように
     const cxm = x + w / 2, cc = rot === 90 ? y + off + CH / 2 : y + h - off - CH / 2;
     rrect(Math.round(cxm - CH / 2), Math.round(cc - CH / 2), CH, CH, 5, bg); gfx.textRot(WIND[sw], Math.round(cxm), Math.round(cc), 18, 255, 255, 255, rot);
     let cy = y + off + CH + 10;
-    parts.forEach((q) => { const tw = gfx.measure(q.s, q.sz); if (rot === 90) { gfx.textRot(q.s, Math.round(cxm), Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); cy += tw + 12; } else { gfx.textRot(q.s, Math.round(cxm), Math.round(y + h - (cy - y) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); cy += tw + 12; } });
+    parts.forEach((q) => { const tw = gfx.measure(q.s, q.sz), dx = rot === 90 ? 3 : -3, bx = q.b ? 1 : 0; // 文字の下がわ(カンマ)が出るほうと逆に、少しよせる
+      if (rot === 90) { gfx.textRot(q.s, Math.round(cxm) + dx, Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); if (bx) gfx.textRot(q.s, Math.round(cxm) + dx + 1, Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); cy += tw + 12; } else { gfx.textRot(q.s, Math.round(cxm) + dx, Math.round(y + h - (cy - y) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); if (bx) gfx.textRot(q.s, Math.round(cxm) + dx - 1, Math.round(y + h - (cy - y) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); cy += tw + 12; } });
   }
   /* 副露: 席ごとの向きで並べ、鳴いた牌は90度回して、鳴かれた相手の側に置く */
   function meldWH(p, w, h) { let L = 0; for (const m of p.melds) { const n = m.tiles.length, ci = calledIdx(p, m); for (let i = 0; i < n; i++) L += (i === ci ? h : w) + 1; L += 6; } return L; }
@@ -456,7 +458,7 @@
     if (DS.sorted && S.deal && DS.st < SRT_L + SRT_S + SRT_D + 100) L.sort((a, b) => b.y - a.y); // 高く浮いている牌ほど、あとから(上に)描く
     L.forEach((o) => { if (!o.sel && !o.hl) one(o); });
     L.forEach((o) => { if (o.sel || o.hl) one(o); }); // 枠のある牌は、あとから描く(となりの牌に、枠が隠れないように)
-    if (!p.drawn && DS.sorted && hs.length % 3 === 1 && !S.result) { const px = handX(hs.length, true), onSlot = !s && !S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && S.curIdx >= hs.length; if (onSlot) { rrect(px - 5, HY - 13, HW + 10, HH + 10, 6, YEL, 90); rrect(px - 3, HY - 11, HW + 6, HH + 6, 5, YEL); rrect(px, HY - 8, HW, HH, 4, [60, 70, 60]); } else rrect(px, HY, HW, HH, 4, [0, 0, 0], 95); } // 14枚目の場所(まだ引いていない)。カーソルがあれば、そこに残る // まだ引いていない14枚目の場所に、黒い半透明の影(Edge版と同じ)
+    if (!p.drawn && DS.sorted && hs.length % 3 === 1 && !S.result) { const px = handX(hs.length, true), onSlot = !s && !S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && S.curIdx >= hs.length; if (onSlot) { rrect(px - 3, HY - 3, HW + 6, HH + 6, 5, YEL); rrect(px, HY, HW, HH, 4, [60, 70, 60]); } else rrect(px, HY, HW, HH, 4, [0, 0, 0], 95); } // 14枚目の場所(まだ引いていない)。カーソルがあれば、そこに残る // まだ引いていない14枚目の場所に、黒い半透明の影(Edge版と同じ)
     drawMelds(p, 713 - meldWH(p, 31, 40), 398, 31, 40);
     if (s) {
       const bw = b0w(s.btns), tot = s.btns.length * bw + (s.btns.length - 1) * 14; let bx = Math.round(360 - tot / 2); // 雀卓の中央、自牌のすぐ上に、大きく出す
@@ -1478,7 +1480,7 @@
       setMood(r.type !== 'win' ? 'relief' : iWon ? 'win' : iLost ? 'shock' : 'focus'); S.carryMood = iLost ? 'grumpy' : iWon ? 'laugh' : null;
       if (r.type !== 'win') {
         return (async () => {
-          if (!g.fast && !r.abort) { await sleep(900); if (g.stopped) return; S.ryu = { t0: __now() }; NSND.sfx('slam'); dirty(); await sleep(1950); S.ryu = null; dirty(); if (g.stopped) return; } // 最後の牌のあと、ひと呼吸 → 「流局」が左から流れてきて止まる(Edge版と同じ)
+          if (!g.fast && !r.abort) { await sleep(900); if (g.stopped) return; S.ryu = { t0: __now() }; NSND.sfx('slam'); setTimeout(() => { try { NSND.speak(['x:りゅうきょく']); } catch (e) { /* ignore */ } }, 450); dirty(); await sleep(1950); S.ryu = null; dirty(); if (g.stopped) return; } // 最後の牌のあと、ひと呼吸 → 「流局」が左から流れてきて止まる(Edge版と同じ)
           NSND.sfx('drawgame');
           return new Promise((done) => {
             const rd = r.abort || g.fast ? null : { shown: 0, now: -1, sel: 4, pop: -1, reading: true, token: 0, waits: [] };
@@ -1487,8 +1489,8 @@
             S.result = Object.assign({ done }, r, { rd, done: () => { NSND.stopSpeak(); done(); } }); dirty();
             if (rd) (async () => { // 「りゅうきょく」→ 1人ずつ「テンパイ」「ノーテン」
               const tk = ++rd.token, alive = () => S.result && S.result.rd === rd && rd.token === tk && !g.stopped;
-              await sleep(250); if (!alive()) return;
-              let d = 0.8; try { d = NSND.speak(['x:りゅうきょく']) || 0.8; } catch (e) { /* ignore */ } await sleep(d * 1000 + 200);
+              await sleep(700); if (!alive()) return;
+              let d = 0.8;
               for (let i = 0; i < 4; i++) { if (!alive()) return; rd.now = i; rd.shown = i + 1; dirty(); d = 0.9; try { d = NSND.speak([r.tenpai[i] ? 'x:テンパイ' : 'x:ノーテン']) || 0.9; } catch (e) { /* ignore */ } await sleep(d * 1000 + 450); }
               if (!alive()) return; rd.now = -1; rd.reading = false; dirty();
             })();
@@ -1568,7 +1570,7 @@
   }
   const drawBody = function () {
     // カーソルだけが動いたとき: 画面ぜんたいは描きなおさず、手牌のあたりだけ描く(キビキビ動かすため)
-    if (S.partialKey && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.ryu && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
+    if (S.partialKey && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.ryu && !Object.keys(S.bub).length && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
       S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [14, 84, 52]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;

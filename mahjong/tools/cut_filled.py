@@ -21,11 +21,12 @@ def cells(im, ncol, nrow):
         return [(edges[2 * i], edges[2 * i + 1]) for i in range(n)]
     return split(white.mean(0), ncol, im.width), split(white.mean(1), nrow, im.height)
 
+INSET = 3  # 境目の白い線が出ないよう、各キャラの四辺を、内側に この画素数だけ余分に切る
 def cut(path, ncol, nrow, size, save):
     im = Image.open(path); xs, ys = cells(im, ncol, nrow); n = 0
     for (y0, y1) in ys:
         for (x0, x1) in xs:
-            n += 1; save(n, im.crop((x0, y0, x1, y1)).resize((size, size), Image.LANCZOS))
+            n += 1; save(n, im.crop((x0 + INSET, y0 + INSET, x1 - INSET, y1 - INSET)).resize((size, size), Image.LANCZOS))
 
 os.makedirs(os.path.join(O, 'chars', 'face'), exist_ok=True); os.makedirs(os.path.join(O, 'zunda'), exist_ok=True)
 def sc(n, t): t.save(os.path.join(O, 'chars', 'face', '%02d.webp' % n), quality=90); t.transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(O, 'chars', 'face', '%02d_f.webp' % n), quality=90)
