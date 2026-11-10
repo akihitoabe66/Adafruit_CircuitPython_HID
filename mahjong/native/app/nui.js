@@ -881,32 +881,32 @@
       dirty();
     }
   }
-  function quizFrame(title, left, right, hint) { // 緑の帯(上と下)と、クリーム色の紙(参考の画面と同じ作り)
-    fill(0, 0, SW, SH, CREAM); fill(0, 0, SW, 48, GREEN); fill(0, 48, SW, 3, GREEN2); fill(0, SH - 38, SW, 38, GREEN);
-    if (left) text(left, 24, 8, 28, WHITE); if (title) { const sz = gfx.measure(title, 28) > 440 ? 22 : 28; text(title, SW / 2, sz === 28 ? 8 : 12, sz, [255, 200, 40], 1); } if (right) text(right, SW - 24, 14, 18, WHITE, 2);
-    if (hint) text(hint, SW / 2, SH - 29, 15, [220, 235, 215], 1);
+  function quizFrame(title, left, right, hint) { // 暗い背景(ホームと同じ絵を暗くしたもの)の上に、文字を出す
+    gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 165); fill(0, 48, SW, 2, [150, 190, 140], 160);
+    if (left) text(left, 24, 8, 28, WHITE); if (title) { const sz = gfx.measure(title, 28) > 440 ? 22 : 28; text(title, SW / 2, sz === 28 ? 8 : 12, sz, YEL, 1); } if (right) text(right, SW - 24, 14, 18, YEL, 2);
+    if (hint) text(hint, SW / 2, SH - 28, 15, [210, 225, 205], 1);
   }
   function drawQuiz() {
     const q = S.quiz; const p = q.p;
-    if (q.phase === 'gen') { quizFrame(q.title, '', '', ''); text('問題を作っています…', SW / 2, 200, 28, INK, 1); return; }
-    if (q.phase === 'fail') { quizFrame(q.title, '', '', ''); text('問題を作れませんでした', SW / 2, 180, 26, INK, 1); text('決定ボタンで もう一度', SW / 2, 230, 20, [90, 90, 80], 1); return; }
+    if (q.phase === 'gen') { quizFrame(q.title, '', '', ''); text('問題を作っています…', SW / 2, 200, 28, WHITE, 1); return; }
+    if (q.phase === 'fail') { quizFrame(q.title, '', '', ''); text('問題を作れませんでした', SW / 2, 180, 26, WHITE, 1); text('決定ボタンで もう一度', SW / 2, 230, 20, GREY, 1); return; }
     if (q.phase === 'end') {
       const pass = q.ok >= Math.ceil(q.total * 0.8);
-      quizFrame(q.title, '', '', '決定ボタンで すすむ'); text('おつかれさまでした', SW / 2, 80, 34, GREEN, 1); text(q.total + '問中  ' + q.ok + '問  せいかい', SW / 2, 150, 44, INK, 1);
-      text(q.onEnd && q.learn ? (pass ? 'ごうかく! 「おぼえた」に しました' : 'もう一度 読んで、またチャレンジしましょう') : (q.ok >= 8 ? 'すばらしい! 本格派ですね' : q.ok >= 5 ? 'よくできました' : 'またチャレンジしましょう'), SW / 2, 240, 24, QRED, 1); return;
+      quizFrame(q.title, '', '', '決定ボタンで すすむ'); text('おつかれさまでした', SW / 2, 80, 34, YEL, 1); text(q.total + '問中  ' + q.ok + '問  せいかい', SW / 2, 150, 44, WHITE, 1);
+      text(q.onEnd && q.learn ? (pass ? 'ごうかく! 「おぼえた」に しました' : 'もう一度 読んで、またチャレンジしましょう') : (q.ok >= 8 ? 'すばらしい! 本格派ですね' : q.ok >= 5 ? 'よくできました' : 'またチャレンジしましょう'), SW / 2, 240, 24, [255, 190, 150], 1); return;
     }
     if (q.phase === 'res') {
-      const r = q.res.r, col = r === 'ok' ? QRED : r === 'near' ? [230, 150, 30] : [90, 90, 90];
+      const r = q.res.r, col = r === 'ok' ? [255, 110, 90] : r === 'near' ? [255, 200, 70] : [200, 210, 200];
       quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, '▲ ▼ で 解説を動かせます    決定ボタンで 次の問題へ');
-      rrect(36, 62, 120, 44, 12, col); text(r === 'ok' ? '正解' : r === 'near' ? 'おしい' : 'ちがうよ', 96, 70, 28, WHITE, 1);
+      rrect(36, 62, 120, 44, 12, r === 'ok' ? QRED : r === 'near' ? [210, 140, 20] : [100, 110, 100]); text(r === 'ok' ? '正解' : r === 'near' ? 'おしい' : 'ちがうよ', 96, 70, 28, WHITE, 1);
       text(r === 'ok' ? 'よくできました!' : r === 'near' ? 'あと一歩です' : '解説を読んで、覚えましょう', 176, 70, 26, col);
-      panel(24, 132, SW - 48, 258, 14, WHITE, GREEN, 3, 255); rrect(44, 118, 86, 30, 14, GREEN); text('解説', 87, 120, 20, WHITE, 1);
-      const per = 8, vis = q.rlines.slice(q.scroll, q.scroll + per); richDraw(vis, 48, 154, 18, INK, 29);
-      if (q.rlines.length > per) text((q.scroll > 0 ? '▲ ' : '') + (q.scroll + per < q.rlines.length ? '▼ つづき' : ''), SW - 30, 398, 14, [90, 90, 80], 2);
+      panel(24, 132, SW - 48, 258, 14, [6, 28, 18], [140, 190, 130], 3, 235); rrect(44, 118, 86, 30, 14, [60, 130, 60]); text('解説', 87, 120, 20, WHITE, 1);
+      const per = 8, vis = q.rlines.slice(q.scroll, q.scroll + per); richDraw(vis, 48, 154, 18, WHITE, 29);
+      if (q.rlines.length > per) text((q.scroll > 0 ? '▲ ' : '') + (q.scroll + per < q.rlines.length ? '▼ つづき' : ''), SW - 30, 398, 14, GREY, 2);
       return;
     }
     quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, p.kind === 'tile' ? '◀ ▶ で牌をえらんで 決定ボタン(切る牌)' : '◀ ▶ ▲ ▼ で えらんで 決定ボタン');
-    richDraw(q.head, 30, 56, q.hsz, INK, q.hsz + rsz(q.hsz) + 9);
+    richDraw(q.head, 30, 56, q.hsz, WHITE, q.hsz + rsz(q.hsz) + 9);
     if (p.kind === 'choice') q.opts.forEach((o, i) => {
       const x = 30 + (i % 2) * 394, y = 196 + Math.floor(i / 2) * 62, sel = q.idx === i;
       panel(x, y, 378, 54, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 3, 255); rrect(x + 10, y + 10, 34, 34, 17, sel ? [160, 110, 0] : GREEN); text('ABCD'[i], x + 27, y + 12, 24, WHITE, 1);
@@ -914,8 +914,8 @@
     });
     const n = q.disp.length, x0 = Math.round((SW - (n * 48 + (p.win ? 62 : 0))) / 2), HYq = 330;
     q.disp.forEach((h, i) => { const sel = p.kind === 'tile' && q.idx === i, x = x0 + i * 48, y = HYq - (sel ? 12 : 0); if (sel) { rrect(x - 5, y - 5, 54, 68, 7, [160, 110, 0]); rrect(x - 3, y - 3, 50, 64, 6, YEL); } tile(h.t, x, y, 44, 58, h.red); });
-    if (p.win) { const x = x0 + n * 48 + 14; text('上がり牌', x + 22, HYq - 22, 13, GREEN, 1); frame(x - 2, HYq - 2, 48, 62, QRED, 2); tile(p.win.t, x, HYq, 44, 58, p.win.red); }
-    if (p.melds && p.melds.length) { let mx = 30; p.melds.forEach((m) => { (m.tiles || []).forEach((tl) => { tile(tl.t, mx, 396, 20, 26, tl.red); mx += 22; }); mx += 8; }); text('鳴いている牌', mx + 4, 400, 14, [90, 90, 80]); }
+    if (p.win) { const x = x0 + n * 48 + 14; text('上がり牌', x + 22, HYq - 22, 13, YEL, 1); frame(x - 2, HYq - 2, 48, 62, YEL, 2); tile(p.win.t, x, HYq, 44, 58, p.win.red); }
+    if (p.melds && p.melds.length) { let mx = 30; p.melds.forEach((m) => { (m.tiles || []).forEach((tl) => { tile(tl.t, mx, 396, 20, 26, tl.red); mx += 22; }); mx += 8; }); text('鳴いている牌', mx + 4, 400, 14, GREY); }
   }
   /* ---- 学習コーナー(地図 → 読み物 → クイズ。しおりと「おぼえた」を覚えておく) ---- */
   const LKEY = 'mj_learn';
@@ -978,23 +978,23 @@
     if (L.view === 'read') {
       const st = STEPS[L.step], pg = st.pages[L.page], c = learnPage(L);
       quizFrame('ステップ' + (L.step + 1) + '  ' + st.t, '', (L.page + 1) + ' / ' + st.pages.length, L.page < st.pages.length - 1 ? '◀ ▶ でページをめくる    ▲ ▼ で動かす    戻る: 地図へ' : '決定ボタンで クイズに進む    ◀ 前のページ    戻る: 地図へ');
-      text(pg.h, 30, 58, 28, GREEN); fill(30, 94, SW - 60, 3, GREEN);
+      text(pg.h, 30, 58, 28, YEL); fill(30, 94, SW - 60, 3, [140, 190, 130]);
       const my = Math.max(0, c.h - 300); L.scroll = Math.min(L.scroll, my); gfx.clip(0, 102, SW, 300);
       let y = 106 - L.scroll;
       c.items.forEach((o) => {
         if (o.gap) { y += o.gap; return; }
-        if (o.lines) { richDraw(o.lines, 36, y, 19, INK, 36); y += o.h; }
+        if (o.lines) { richDraw(o.lines, 36, y, 19, WHITE, 36); y += o.h; }
         else if (o.hand) { let x = 36; o.hand.forEach((t) => { if (t < 0) { x += 14; return; } tile(t, x, y + 4, 36, 48); x += 38; }); y += o.h; }
       });
       gfx.clip();
-      if (my > 0) text((L.scroll > 0 ? '▲ ' : '') + (L.scroll < my ? '▼ つづき' : ''), SW - 30, 408, 14, [90, 90, 80], 2);
+      if (my > 0) text((L.scroll > 0 ? '▲ ' : '') + (L.scroll < my ? '▼ つづき' : ''), SW - 30, 408, 14, GREY, 2);
       return;
     }
     quizFrame('点数計算の勉強', '', '', L.view === 'sub' ? '' : '▲ ▼ でえらんで 決定ボタン    ◀ ▶ でページを かえる    戻る: ホームへ');
     const pgi = learnPages(), pi = pgi[0].includes(L.sel) ? 0 : 1, nDone = STEPS.filter((s) => D.done[s.id]).length;
     text('おぼえた ' + nDone + ' / ' + STEPS.length, SW - 24, 12, 18, WHITE, 2);
-    ['入門・初級', '中級・上級'].forEach((lb, i) => { const x = 24 + i * 200, on = i === pi; rrect(x, 58, 190, 34, 10, on ? GREEN : [190, 200, 180]); text(lb, x + 95, 62, 22, on ? WHITE : [90, 100, 80], 1); });
-    text((pi + 1) + ' / 2 ページ', SW - 24, 64, 17, [90, 90, 80], 2);
+    ['入門・初級', '中級・上級'].forEach((lb, i) => { const x = 24 + i * 200, on = i === pi; rrect(x, 58, 190, 34, 10, on ? [60, 130, 60] : [50, 70, 60]); text(lb, x + 95, 62, 22, on ? WHITE : [170, 190, 170], 1); });
+    text((pi + 1) + ' / 2 ページ', SW - 24, 64, 17, GREY, 2);
     pgi[pi].forEach((i, r) => {
       const st = STEPS[i], y = 102 + r * 62, sel = L.sel === i && L.view === 'map', done = !!D.done[st.id], bm = D.bm.step === i;
       panel(24, y, SW - 48, 56, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
