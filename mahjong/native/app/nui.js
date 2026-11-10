@@ -1049,86 +1049,71 @@
     if (p.melds && p.melds.length) { let mx = 30; p.melds.forEach((m) => { (m.tiles || []).forEach((tl) => { tile(tl.t, mx, 402, 20, 26, tl.red); mx += 22; }); mx += 8; }); text('鳴いている牌', mx + 4, 404, 18, GREY); }
   }
   /* ---------- 麻雀用語じてん(勉強の中から開く。データは dictdata.js = Edge版の用語辞典) ---------- */
-  const DCAT = [['基本・牌', '牌のよびかた', 'ぱいの なまえ'], ['役', '役', 'やく'], ['点数・符', '点数・符', 'てんすう'], ['待ち・形', '待ちと形', 'まちと かたち'], ['鳴き', '鳴き', 'ポン・チーなど'], ['守備・押し引き', '守りと攻め', 'まもり・せめ'], ['局・ルール', '局とルール', 'きょく・きまり'], ['俗称・スラング', '俗称・ぞくご', 'よびかた いろいろ']];
+  const DCAT = [['基本・牌', '牌の呼び方'], ['役', '役'], ['点数・符', '点数・符'], ['待ち・形', '待ちと形'], ['鳴き', '鳴き'], ['守備・押し引き', '守りと攻め'], ['局・ルール', '局とルール'], ['俗称・スラング', '俗称']];
   const KROW = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ'], KSET = 'あいうえおぁぃぅぇぉ|かきくけこがぎぐげご|さしすせそざじずぜぞ|たちつてとだぢづでど|なにぬねの|はひふへほばびぶべぼぱぴぷぺぽ|まみむめも|やゆよゃゅょ|らりるれろ|わをん'.split('|');
   const STAR = ['萬子', '筒子', '索子', '数牌', '字牌', '風牌', '三元牌', '么九牌', '順子', '刻子', '対子', '雀頭', '面子', 'ポン', 'チー', 'カン', 'リーチ', 'ロン', 'ツモ', '役牌', 'タンヤオ', 'ピンフ', '親', 'ドラ', 'テンパイ', '聴牌', '和了', '満貫', '門前', '副露', '鳴き', '赤ドラ', '一発', '場風', '自風'];
   const hira = (s) => String(s).replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
   const D_ = () => MJ.DictData, dRow = (e) => { const i = KSET.findIndex((t) => t.includes(hira(e.y)[0])); return i < 0 ? 0 : i; };
   let dByName = null; const dFind = (nm) => { if (!dByName) { dByName = {}; D_().list.forEach((e, i) => [e.n].concat(e.a).forEach((t) => { if (t && dByName[t] == null) dByName[t] = i; })); } return dByName[nm]; };
-  const dStar = (e) => STAR.includes(e.n);
-  const dIds = (d) => d.tab === 0 ? D_().list.map((e, i) => i).filter((i) => D_().list[i].c === DCAT[d.g][0]) : D_().list.map((e, i) => i).filter((i) => dRow(D_().list[i]) === d.g).sort((a, b) => hira(D_().list[a].y).localeCompare(hira(D_().list[b].y), 'ja'));
-  const dOne = (e, w, sz) => { const s = String(e.d).split('。')[0]; let t = s; while (t.length > 2 && gfx.measure(t, sz) > w) t = t.slice(0, -1); return t.length < s.length ? t.slice(0, -1) + '…' : t; };
-  function startDict() { S.dict = { view: 'top', foc: 0, tab: 0, g: 0, ids: [], sel: 0, id: 0, rel: -1, hist: [] }; S.mode = 'dict'; dirty(); }
-  function dTiles(str) { // '123m 456p 55z' → 牌の並び(グループごと)
-    return String(str).split(' ').map((grp) => { const m = grp.match(/^(\d+)([mpsz])$/); if (!m) return { sep: grp }; const base = { m: 0, p: 9, s: 18, z: 27 }[m[2]]; return { tiles: m[1].split('').map((c) => ({ t: base + (c === '0' ? 4 : +c - 1), red: c === '0' })) }; });
-  }
-  function dTileRow(str, x, y, availW) {
-    const gs = dTiles(str), n = gs.reduce((a, g) => a + (g.tiles ? g.tiles.length : 0), 0), nsep = gs.length - 1;
-    const tw = Math.max(14, Math.min(30, Math.floor((availW - nsep * 9) / Math.max(1, n)))), th = Math.round(tw * 1.32); let cx = x;
-    gs.forEach((g, gi) => { if (g.sep != null) { text(g.sep, cx + 6, y + Math.round(th / 2) - 10, 18, GREY, 1); cx += 14; return; } g.tiles.forEach((h) => { tile(h.t, cx, y, tw, th, h.red); cx += tw + 1; }); cx += 8; });
+  const dStar = (e) => STAR.includes(e.n), DPER = 10, DM = DCAT.map((c) => c[1]).concat('五十音');
+  const dIdsOf = (m, row) => { const L = D_().list, all = L.map((e, i) => i); return m < 8 ? all.filter((i) => L[i].c === DCAT[m][0]) : all.filter((i) => dRow(L[i]) === row).sort((a, b) => hira(L[a].y).localeCompare(hira(L[b].y), 'ja')); };
+  const dItems = (d) => { const L = D_().list; if (d.m === 8 && d.kana == null) return KROW.map((k, i) => ({ n: k + ' の行', r: dIdsOf(8, i).length + '語', row: i })); return dIdsOf(d.m, d.kana).map((i) => ({ n: L[i].n, r: L[i].y, id: i, star: dStar(L[i]) })); };
+  function startDict() { S.dict = { view: 'main', foc: 0, m: 0, kana: null, sel: 0, id: 0, rel: -1, hist: [], ids: [] }; S.mode = 'dict'; dirty(); }
+  function dTiles(str) { return String(str).split(' ').map((grp) => { const m = grp.match(/^(\d+)([mpsz])$/); if (!m) return { sep: grp }; const base = { m: 0, p: 9, s: 18, z: 27 }[m[2]]; return { tiles: m[1].split('').map((c) => ({ t: base + (c === '0' ? 4 : +c - 1), red: c === '0' })) }; }); }
+  function dTileRow(str, x, y, availW, maxTw) { // 幅に、きっちり入る大きさで、牌を1列に並べる
+    const gs = dTiles(str), width = (tw) => gs.reduce((a, g) => a + (g.sep != null ? 18 : g.tiles.length * (tw + 1)), 0) + (gs.length - 1) * 8;
+    let tw = maxTw || 44; while (tw > 12 && width(tw) > availW) tw--; const th = Math.round(tw * 1.32); let cx = x;
+    gs.forEach((g, gi) => { if (gi) cx += 8; if (g.sep != null) { text(g.sep, cx + 9, y + Math.round(th / 2) - 10, 18, GREY, 1); cx += 18; return; } g.tiles.forEach((h) => { tile(h.t, cx, y, tw, th, h.red); cx += tw + 1; }); });
     return th;
   }
-  function dChips(items, x, y, maxw, selK) { // ことばの札を、並べて、はしで折り返す。 戻り値: つぎの y
-    let cx = x, cy = y; items.forEach((s, k) => { const w = gfx.measure(s, 17) + 18; if (cx + w > x + maxw && cx > x) { cx = x; cy += 30; } const on = k === selK; rrect(cx, cy, w, 26, 12, on ? [255, 214, 58] : GREEN); text(s, cx + w / 2, cy + 3, 17, on ? INK : WHITE, 1); cx += w + 6; }); return cy + 32;
+  function dChips(items, x, y, maxw, selK, right) { // ことばの札を、並べて、はしで折り返す。 戻り値: つぎの y
+    let cx = x, cy = y; items.forEach((s, k) => { const w = gfx.measure(s, 18) + 20; if (cx + w > x + maxw && cx > x) { cx = x; cy += 32; } const on = k === selK; rrect(cx, cy, w, 28, 12, on ? [255, 214, 58] : GREEN); text(s, cx + w / 2, cy + 3, 18, on ? INK : WHITE, 1); cx += w + 6; }); return cy + 34;
+  }
+  function dBtn(x, y, w, h, n, r, on, star) { // 名前+ふりがなだけのボタン(文字が上下に はみ出さない余白つき)
+    panel(x, y, w, h, 12, on ? YEL : WHITE, on ? [160, 110, 0] : GREEN, on ? 4 : 2, 255);
+    text(r, x + w / 2, y + 5, 15, [90, 90, 80], 1); const sz = fitSz(n, 28, w - (star ? 56 : 28), 16); text(n, x + w / 2 + (star ? 12 : 0), y + 23 + Math.round((28 - sz) / 2), sz, INK, 1);
+    if (star) text('★', x + w / 2 - gfx.measure(n, sz) / 2 - 10, y + 26, 20, [214, 150, 0], 1);
   }
   function drawDict() {
     const d = S.dict, L = D_().list;
-    if (d.view === 'top') {
-      quizFrame('麻雀用語じてん', '', '', '◀ ▶ ▲ ▼ えらぶ    決定ボタン    戻る: 勉強へ');
-      ['分類で探す', '五十音で探す'].forEach((lb, i) => { const on = d.tab === i, f = d.foc === 0 && on; panel(90 + i * 350, 58, 300, 40, 12, f ? YEL : on ? [60, 130, 60] : [50, 70, 60], f ? [160, 110, 0] : [120, 160, 110], f ? 4 : 2, 255); text(lb, 240 + i * 350, 64, 24, f ? INK : WHITE, 1); });
-      if (d.tab === 0) DCAT.forEach((c, i) => { const x = 60 + (i % 2) * 372, y = 114 + Math.floor(i / 2) * 80, f = d.foc === 1 && d.g === i; panel(x, y, 340, 70, 14, f ? YEL : WHITE, f ? [160, 110, 0] : GREEN, f ? 4 : 2, 255); text(c[1], x + 18, y + 6, 30, INK); text(c[2], x + 20, y + 44, 17, [90, 90, 80]); text(L.filter((e) => e.c === c[0]).length + '語', x + 322, y + 40, 17, [90, 90, 80], 2); });
-      else KROW.forEach((k, i) => { const x = 44 + (i % 5) * 152, y = 122 + Math.floor(i / 5) * 140, f = d.foc === 1 && d.g === i, n = L.filter((e) => dRow(e) === i).length; panel(x, y, 140, 124, 14, n ? (f ? YEL : WHITE) : [150, 150, 140], f ? [160, 110, 0] : GREEN, f ? 4 : 2, n ? 255 : 150); text(k, x + 70, y + 12, 60, n ? INK : [110, 110, 100], 1); text(n + '語', x + 70, y + 88, 20, [90, 90, 80], 1); });
+    if (d.view === 'main') {
+      const items = dItems(d), np = Math.max(1, Math.ceil(items.length / DPER)), pg = Math.floor(d.sel / DPER);
+      quizFrame('麻雀用語じてん', '', np > 1 && d.foc === 1 ? (pg + 1) + ' / ' + np + ' ページ' : '', d.foc === 0 ? '▲ ▼ 分類をえらぶ    ▶ 決定: 語の一覧へ    戻る: 勉強へ' : '◀ ▶ ▲ ▼ えらぶ    決定: ひらく    ◀(左はし): 分類へ    戻る');
+      DM.forEach((c, i) => { const cur = d.m === i, f = d.foc === 0 && cur; panel(14, 56 + i * 40, 176, 36, 10, f ? YEL : cur ? [60, 130, 60] : [50, 70, 60], f ? [160, 110, 0] : cur ? [150, 200, 140] : [74, 97, 84], f ? 4 : 2, 255); text(c, 102, 56 + i * 40 + (c.length > 6 ? 9 : 7), c.length > 6 ? 17 : 20, f ? INK : cur ? WHITE : [185, 201, 189], 1); });
+      items.slice(pg * DPER, pg * DPER + DPER).forEach((it, i) => dBtn(204 + (i % 2) * 302, 56 + Math.floor(i / 2) * 70, 292, 64, it.n, it.r, d.foc === 1 && pg * DPER + i === d.sel, it.star));
+      if (!items.length) text('この分類は、まだありません', 500, 200, 22, GREY, 1);
       return;
     }
-    if (d.view === 'list') {
-      const ids = d.ids, per = 7, pg = Math.floor(d.sel / per), np = Math.ceil(ids.length / per), ttl = d.tab === 0 ? DCAT[d.g][1] : KROW[d.g] + ' の行';
-      quizFrame(ttl, '', np > 1 ? (pg + 1) + ' / ' + np + ' ページ' : '', '▲ ▼ えらぶ    決定: くわしく    ◀ ▶ ページ    戻る');
-      ids.slice(pg * per, pg * per + per).forEach((id, r) => {
-        const e = L[id], y = 58 + r * 49, f = pg * per + r === d.sel;
-        panel(24, y, 540, 45, 10, f ? YEL : WHITE, f ? [160, 110, 0] : GREEN, f ? 4 : 2, 255);
-        if (dStar(e)) text('★', 36, y + 9, 22, [214, 150, 0]);
-        text(e.y, 66, y + 1, 15, [90, 90, 80]); text(e.n, 66, y + 15, fitSz(e.n, 25, 160, 16), INK);
-        text(dOne(e, 296, 17), 250, y + 13, 17, [60, 60, 52]);
-      });
-      const e = L[ids[d.sel]]; panel(576, 58, 232, 346, 14, [10, 56, 42], [150, 190, 140], 3, 245);
-      text(e.n, 592, 66, fitSz(e.n, 32, 200, 18), YEL); text(e.y, 592, 104, 16, [200, 222, 200]);
-      let yy = 130; if (e.x && e.x[0]) yy += dTileRow(e.x[0][1], 592, yy, 204) + 8;
-      const f = fitRich(e.d, [18, 17, 16, 15], 188, 404 - 8 - yy); richDraw(f.lines, 592, yy, f.sz, WHITE, 0);
-      return;
-    }
-    const e = L[d.id]; quizFrame(DCAT.find((c) => c[0] === e.c) ? DCAT.find((c) => c[0] === e.c)[1] : '', '', '', '◀ ▶ 前の語・次の語    ▲ ▼ 関連語    決定: 関連語へ    戻る');
+    const e = L[d.id], cat = DCAT.find((c) => c[0] === e.c); quizFrame(cat ? cat[1] : '', '', '', '◀ ▶ 前の語・次の語    ▲ ▼ 関連語    決定: 関連語へ    戻る');
     panel(24, 54, 784, 356, 14, CREAM, GREEN, 3, 255);
-    text(e.y, 44, 60, 18, GREEN); text(e.n, 44, 80, fitSz(e.n, 46, 400, 26), INK); if (dStar(e)) { rrect(44, 138, 150, 24, 10, [214, 150, 0]); text('★ 先に覚える言葉', 119, 140, 16, WHITE, 1); }
-    const f = fitRich(e.d, [26, 24, 22, 20, 18], 430, 216); richDraw(f.lines, 44, 172, f.sz, INK, 0);
-    let y = 62, X = 500, W = 296;
-    (e.x || []).slice(0, 2).forEach((ex) => { const lb = wrapText(ex[0], 16, W).slice(0, 2); lb.forEach((l, i) => text(l, X, y + i * 20, 16, [60, 60, 52])); y += lb.length * 20 + 2; y += dTileRow(ex[1], X, y, W) + 14; });
-    const al = e.a || []; if (al.length) { text('ほかの よびかた', X, y, 18, GREEN); y = dChips(al.slice(0, 8), X, y + 26, W, -1); y += 4; }
-    const rl = (e.r || []).filter((nm) => dFind(nm) != null).slice(0, 8); d.rels = rl;
-    if (rl.length) { text('いっしょに 覚える', X, y, 18, GREEN); dChips(rl, X, y + 26, W, d.rel); }
+    text(e.y, 46, 58, 18, GREEN); text(e.n, 44, 80, fitSz(e.n, 46, 400, 26), INK);
+    if (dStar(e)) { rrect(46, 134, 150, 24, 10, [214, 150, 0]); text('★ 先に覚える言葉', 121, 136, 16, WHITE, 1); }
+    const al = e.a || []; if (al.length) { text('ほかの よびかた', 440, 62, 18, GREEN); dChips(al.slice(0, 6), 440, 86, 350, -1); }
+    const rl = (e.r || []).filter((nm) => dFind(nm) != null).slice(0, 6); d.rels = rl; const ex = e.x && e.x[0], bandH = ex ? 96 : 0, relH = rl.length ? 36 : 0;
+    const top = 166, limit = 404 - relH - bandH - (ex ? 6 : 0), f = fitRich(e.d, [24, 22, 20, 18], 736, limit - top); richDraw(f.lines, 44, top, f.sz, INK, 0);
+    if (ex) { const by = 404 - relH - bandH; rrect(40, by, 752, bandH, 10, [226, 222, 198]); text(ex[0], 54, by + 4, 17, [70, 70, 60]); dTileRow(ex[1], 54, by + 28, 724, 46); }
+    if (rl.length) { text('いっしょに 覚える', 46, 410 - relH + 2, 18, GREEN); dChips(rl, 220, 410 - relH - 1, 570, d.rel); }
   }
   function dictKey(k) {
-    const d = S.dict, L = D_().list; dirty();
-    if (d.view === 'top') {
-      const n = d.tab === 0 ? 8 : 10, cols = d.tab === 0 ? 2 : 5;
-      if (d.foc === 0) { if (k === 'left' || k === 'right') d.tab = 1 - d.tab; else if (k === 'down' || k === 'ok') { d.foc = 1; d.g = 0; } else if (k === 'back') { S.mode = 'learn'; S.dict = null; } return; }
-      if (k === 'left') d.g = Math.max(0, d.g - 1); else if (k === 'right') d.g = Math.min(n - 1, d.g + 1);
-      else if (k === 'up') { if (d.g < cols) d.foc = 0; else d.g -= cols; } else if (k === 'down') { if (d.g + cols < n) d.g += cols; }
-      else if (k === 'back') d.foc = 0;
-      else if (k === 'ok') { d.ids = dIds(d); if (d.ids.length) { d.view = 'list'; d.sel = 0; } }
-      return;
-    }
-    if (d.view === 'list') {
-      const n = d.ids.length;
-      if (k === 'up') d.sel = (d.sel + n - 1) % n; else if (k === 'down') d.sel = (d.sel + 1) % n;
-      else if (k === 'left') d.sel = Math.max(0, d.sel - 7); else if (k === 'right') d.sel = Math.min(n - 1, d.sel + 7);
-      else if (k === 'ok') { d.view = 'detail'; d.id = d.ids[d.sel]; d.rel = -1; d.hist = []; } else if (k === 'back') d.view = 'top';
+    const d = S.dict; dirty();
+    if (d.view === 'main') {
+      if (d.foc === 0) {
+        if (k === 'up') { d.m = (d.m + DM.length - 1) % DM.length; d.kana = null; d.sel = 0; } else if (k === 'down') { d.m = (d.m + 1) % DM.length; d.kana = null; d.sel = 0; }
+        else if (k === 'right' || k === 'ok') { if (dItems(d).length) { d.foc = 1; d.sel = 0; } } else if (k === 'back') { S.mode = 'learn'; S.dict = null; }
+        return;
+      }
+      const items = dItems(d), n = items.length;
+      if (k === 'left') { if (d.sel % 2 === 0) d.foc = 0; else d.sel--; } else if (k === 'right') { if (d.sel + 1 < n && d.sel % 2 === 0) d.sel++; }
+      else if (k === 'up') { if (d.sel - 2 >= 0) d.sel -= 2; } else if (k === 'down') { if (d.sel + 2 < n) d.sel += 2; else if (d.sel % 2 === 1 && d.sel + 1 < n) d.sel = n - 1; }
+      else if (k === 'back') { if (d.m === 8 && d.kana != null) { d.kana = null; d.sel = 0; } else d.foc = 0; }
+      else if (k === 'ok') { const it = items[d.sel]; if (!it) return; if (it.row != null) { d.kana = it.row; d.sel = 0; } else { d.ids = items.map((x) => x.id); d.id = it.id; d.rel = -1; d.hist = []; d.view = 'detail'; } }
       return;
     }
     const n = d.ids.length, at = d.ids.indexOf(d.id), rels = d.rels || [];
     if (k === 'left' || k === 'right') { if (at >= 0) { d.sel = (at + (k === 'left' ? n - 1 : 1)) % n; d.id = d.ids[d.sel]; d.rel = -1; d.hist = []; } }
     else if (k === 'up') { if (rels.length) d.rel = d.rel <= 0 ? rels.length - 1 : d.rel - 1; } else if (k === 'down') { if (rels.length) d.rel = d.rel + 1 >= rels.length ? 0 : d.rel + 1; }
     else if (k === 'ok') { if (d.rel >= 0 && rels[d.rel] != null) { d.hist.push(d.id); d.id = dFind(rels[d.rel]); d.rel = -1; } }
-    else if (k === 'back') { if (d.hist.length) { d.id = d.hist.pop(); d.rel = -1; } else d.view = 'list'; }
+    else if (k === 'back') { if (d.hist.length) { d.id = d.hist.pop(); d.rel = -1; } else { d.view = 'main'; d.sel = Math.max(0, at); } }
   }
   /* ---- 学習コーナー(地図 → 読み物 → クイズ。しおりと「おぼえた」を覚えておく) ---- */
   const LKEY = 'mj_learn';
