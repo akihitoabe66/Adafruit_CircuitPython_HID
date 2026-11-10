@@ -188,7 +188,7 @@
   }
   function drawSide(g) {
     const f = S.side ? S.side.idx : -1;
-    sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 768, 10, 16, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
+    sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 765, 11, 15, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
     sbtn(796, 6, 30, 32, [50, 90, 160], [25, 50, 100], [''], f === 3, 13); fill(803, 17, 4, 10, WHITE); fill(807, 14, 3, 16, WHITE); fill(810, 11, 3, 22, WHITE); fill(816, 17, 2, 10, WHITE);
     { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 44, 24, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 70, 16, [200, 215, 200], 1); }
     {
@@ -480,7 +480,7 @@
     if (arrow && sel) text('▶', x + 24, y + (h - (sz - 6)) / 2, sz - 6, BLACK);
     text(label, x + (arrow ? 80 : 66), y + (h - sz) / 2, sz, off ? [150, 156, 150] : BLACK);
   }
-  const HOME_BOTTOM = [{ k: 'exit', label: 'ゲーム終了' }, { k: 'rank', label: '成績・' }];
+  const HOME_BOTTOM = [{ k: 'exit', label: 'ゲーム終了' }, { k: 'rank', label: '成績・' }, { k: 'diag', label: 'あなたの診断' }];
   function brownBtn(x, y, w, h, label, sel, sz) { // Edge版と同じ、茶色の板に金の縁のボタン
     if (sel) rrect(x - 4, y - 4, w + 8, h + 8, 10, pressing() ? [255, 246, 170] : [255, 255, 255]);
     rrect(x, y, w, h, 6, [201, 154, 61]); rrect(x + 2, y + 2, w - 4, h - 4, 4, sel ? [120, 84, 36] : [74, 52, 24]);
@@ -492,7 +492,7 @@
     gfx.image('img/logo.webp', 52, 22, 244, 139, 255);
     rrect(21, 165, 292, 170, 16, [10, 18, 32], 150); // 左の説明: 半透明の黒い囲い(Edge版と同じ)
     const ot = (s, x, y, sz, c) => { [[-1, 1], [1, 1], [0, 2]].forEach((d) => text(s, x + d[0], y + d[1], sz, [0, 0, 0], 0)); text(s, x, y, sz, c, 0); };
-    const HELP = { play: ['麻雀をはじめる', '3人の相手と、麻雀を', 'うちます。つづきから', '始めることもできます。'], quiz: ['麻雀クイズ', '問題に答えて、腕を', 'みがきます。', '(じゅんびちゅう)'], study: ['点数計算の勉強', '上がったときの点数の', '数え方を学びます。', '(じゅんびちゅう)'], settings: ['設定', '音の大きさや、CPUの', '速さ、ボタンの入れ替', 'えを変えます。'], exit: ['ゲーム終了', '遊ぶのをやめます。', '電源を切る前の画面へ', ''], rank: ['成績', 'いまの段位と、これま', 'での成績を見ます。', '対戦成績もここから。'] };
+    const HELP = { play: ['麻雀をはじめる', '3人の相手と、麻雀を', 'うちます。つづきから', '始めることもできます。'], quiz: ['麻雀クイズ', '問題に答えて、腕を', 'みがきます。苦手な問題', 'は、多めに出ます。'], study: ['点数計算の勉強', '役から点数まで、順番', 'に学びます。しおりも', 'つけられます。'], diag: ['あなたの診断', '遊び方やクイズの結果', 'から、いいところと、', '伸ばせるところを見ます。'], settings: ['設定', '音の大きさや、CPUの', '速さ、ボタンの入れ替', 'えを変えます。'], exit: ['ゲーム終了', '遊ぶのをやめます。', '電源を切る前の画面へ', ''], rank: ['成績', 'いまの段位と、これま', 'での成績を見ます。', '対戦成績もここから。'] };
     { const its = homeItems(), key = S.homeBot ? HOME_BOTTOM[S.homeBotIdx].k : (its[S.menuIdx] || its[0]).act, hp = HELP[key] || HELP.play;
       ot(hp[0], 38, 177, hp[0].length > 6 ? 32 : 38, [255, 225, 74]); hp.slice(1).forEach((l, i) => ot(l, 38, 232 + i * 32, 23, WHITE)); }
     const items = homeItems(); const IY = [58, 145, 227, 309];
@@ -500,7 +500,7 @@
     const BW = [[150, 230]];
     HOME_BOTTOM.forEach((b, i) => {
       const row = i >> 1, col = i & 1, lab = b.k === 'rank' ? '成績・' + MJ.Rank.label() : b.k === 'teacher' ? teacherLabel() : b.label, sel = S.homeBot && S.homeBotIdx === i && !S.teachQ && !S.playQ && !S.confirmQ;
-      brownBtn(19 + (col ? BW[row][0] + 12 : 0), 398, BW[row][col], 46, lab, sel, 21);
+      const bxs = [19, 181, 435], bws = [150, 242, 220]; brownBtn(bxs[i], 398, bws[i], 46, lab, sel, 21);
     });
   }
   const swapOn = () => { try { const v = localStorage.getItem('mj_swapab'); return v === null ? true : v === '1'; } catch (e) { return true; } };
@@ -820,7 +820,7 @@
     const lines = []; const tw = Math.round(sz * 0.8), dict = (MJ.Ruby && MJ.Ruby.dict) || {}, re = rubyMatch();
     String(str).split('\n').forEach((para) => {
       let cur = [], w = 0;
-      const push = (tk, ww) => { if (w + ww > maxw && cur.length) { lines.push(cur); cur = []; w = 0; } cur.push(tk); w += ww; };
+      const push = (tk, ww) => { if (w + ww > maxw && cur.length && !(tk.s && tk.s.length === 1 && '。、,.」』)）!?!?…ー'.includes(tk.s))) { lines.push(cur); cur = []; w = 0; } cur.push(tk); w += ww; }; // 「。」などが、行の先頭に1つだけ残らないように
       para.split(/(⟦\d+⟧)/).filter((x) => x !== '').forEach((seg) => {
         const m = /^⟦(\d+)⟧$/.exec(seg); if (m) { push({ tile: +m[1] }, tw + 2); return; }
         let last = 0; if (re) { re.lastIndex = 0; let mm; while ((mm = re.exec(seg))) { const nx = seg[mm.index + mm[0].length]; if (nx === '(' || nx === '(') continue; for (const ch of seg.slice(last, mm.index)) push({ s: ch }, gfx.measure(ch, sz)); const rd = dict[mm[0]]; push({ s: mm[0], r: rd }, Math.max(gfx.measure(mm[0], sz), gfx.measure(rd, rsz(sz)))); last = mm.index + mm[0].length; } }
@@ -850,7 +850,17 @@
       flush(); yy += lineH(sz, ru);
     });
   }
-  const QKINDS = [() => MJ.Drill.genEff, () => MJ.Drill.genDef, () => MJ.Drill.genCall, () => MJ.Drill.genYaku, () => MJ.Drill.genWait, () => MJ.Drill.genPush, () => MJ.Drill.genRiichi, () => MJ.Drill.genKeep];
+  const RCATS = ['eff', 'def', 'call', 'yaku', 'wait', 'push', 'riichi', 'keep'];
+  const catGen = (t) => { const D = MJ.Drill; return ({ eff: [D.genEff], def: [D.genDef], call: [D.genCall], yaku: [D.genYaku], wait: [D.genWait], push: [D.genPush], riichi: [D.genRiichi], keep: [D.genKeep] })[t] || (MJ.Learn && MJ.Learn.TAGGEN[t]); };
+  function weightedGens(tags, boost) { // 苦手な種類ほど、多く出す
+    const ws = MJ.Stats.weights(tags), out = [];
+    tags.forEach((t, i) => { const g = catGen(t); if (!g) return; const w = ws[i] + (boost && boost.includes(t) ? 6 : 0); for (let k = 0; k < w; k++) g.forEach((f) => out.push(f)); });
+    return out;
+  }
+  function startPractice() { // 苦手な種類を、多めに出すクイズ
+    const weak = MJ.Stats.weakest(2, 3), tags = RCATS.concat(weak.filter((t) => !RCATS.includes(t)));
+    startQuiz({ title: weak.length ? '苦手をねらい撃ち' : '麻雀クイズ', gens: () => weightedGens(tags, weak), n: 10 });
+  }
   function startQuiz(opts) { // opts: { title, gens, n, onEnd(ok, n) }
     S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd }); quizNext(); dirty();
   }
@@ -873,6 +883,7 @@
   function quizAnswer(ans) {
     const q = S.quiz, p = q.p; let r = null;
     try { r = p.grade(ans); } catch (e) { print('quiz grade err ' + (e && e.stack || e)); r = { r: 'ng', html: '<p>採点できませんでした。</p>' }; }
+    try { MJ.Stats.quiz(p, r.r === 'ok'); } catch (e) { /* ignore */ }
     q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7);
     { // 解説は、入りきる大きさの字で出す。長いときは、おまけの説明(小さな注)と、うしろの段落を はぶいて、スクロールさせない
       const paras = mark(String(r.html).replace(/<div class="cc-s">[\s\S]*?<\/div>/g, '')).split('\n').filter((x) => x.trim() !== '');
@@ -1017,16 +1028,47 @@
     ['入門・初級', '中級・上級'].forEach((lb, i) => { const x = 24 + i * 200, on = i === pi; rrect(x, 58, 190, 34, 10, on ? [60, 130, 60] : [50, 70, 60]); text(lb, x + 95, 62, 22, on ? WHITE : [170, 190, 170], 1); });
     text((pi + 1) + ' / 2 ページ', SW - 24, 62, 20, GREY, 2);
     pgi[pi].forEach((i, r) => {
-      const st = STEPS[i], y = 102 + r * 62, sel = L.sel === i && L.view === 'map', done = !!D.done[st.id], bm = D.bm.step === i;
-      panel(24, y, SW - 48, 56, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
-      rrect(34, y + 8, 40, 40, 20, done ? GREEN : [160, 170, 150]); text(done ? '✔' : String(i + 1), 54, y + 12, 28, WHITE, 1);
-      text(st.t, 90, y + 1, 28, INK); text(st.sum, 92, y + 33, 18, [80, 80, 70]);
-      rrect(SW - 150, y + 14, 58, 28, 9, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, SW - 121, y + 17, 18, WHITE, 1);
+      const st = STEPS[i], y = 100 + r * 64, sel = L.sel === i && L.view === 'map', done = !!D.done[st.id], bm = D.bm.step === i;
+      panel(24, y, SW - 48, 58, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
+      rrect(34, y + 9, 40, 40, 20, done ? GREEN : [160, 170, 150]); text(done ? '✔' : String(i + 1), 54, y + 13, 28, WHITE, 1);
+      text(st.t, 90, y + 5, 26, INK); text(st.sum, 92, y + 36, 16, [80, 80, 70]);
+      rrect(SW - 150, y + 15, 58, 28, 9, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, SW - 121, y + 17, 18, WHITE, 1);
       if (bm && (D.bm.read || D.bm.next)) { rrect(SW - 84, y + 14, 56, 28, 9, D.bm.read ? QRED : [80, 130, 190]); text(D.bm.read ? 'しおり' : 'つぎ', SW - 56, y + 17, 18, WHITE, 1); }
     });
     if (L.view === 'sub') {
       fill(0, 0, SW, SH, [0, 0, 0], 130); const st = STEPS[L.sel]; panel(190, 110, 452, 240, 14, WHITE, GREEN, 4, 255); text('ステップ' + (L.sel + 1) + '  ' + st.t, SW / 2, 124, 22, GREEN, 1);
       SUBS.forEach((lb, i) => { const y = 164 + i * 44, sel = L.sub === i, lab = i === 2 && D.done[st.id] ? '「おぼえた」を はずす' : i === 0 && D.bm.step === L.sel && D.bm.read ? '読む(しおりの ところから)' : lb; panel(220, y, 392, 38, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [150, 160, 140], sel ? 4 : 2, 255); text(lab, SW / 2, y + 7, 21, INK, 1); });
+    }
+  }
+
+  /* ---------- あなたの診断(いいところ・のばせるところ・学習の記録) ---------- */
+  function startDiag() { S.mode = 'diag'; S.diag = { pg: 0, d: MJ.Stats.diag() }; dirty(); }
+  function diagKey(k) {
+    const D = S.diag;
+    if (k === 'back') { S.mode = 'menu'; S.diag = null; }
+    else if (k === 'left') D.pg = Math.max(0, D.pg - 1); else if (k === 'right') D.pg = Math.min(2, D.pg + 1);
+    else if (k === 'ok' && D.pg > 0) { S.diag = null; startPractice(); }
+    dirty();
+  }
+  function drawDiag() {
+    const D = S.diag, d = D.d, pg = D.pg;
+    quizFrame('あなたの診断', '', '', pg === 0 ? '◀ ▶ でページを かえる    戻る: ホームへ' : '◀ ▶ でページを かえる    決定ボタン: 苦手を練習する    戻る: ホームへ');
+    ['いいところ', 'のばせるところ', '学習の記録'].forEach((lb, i) => { const x = 24 + i * 178, on = i === pg; rrect(x, 56, 170, 34, 10, on ? [60, 130, 60] : [50, 70, 60]); text(lb, x + 85, 60, 21, on ? WHITE : [170, 190, 170], 1); });
+    const body = (items, empty) => {
+      const str = items.length ? items.map((t) => '・' + t).join('\n') : empty, f = fitRich(str, [26, 24, 22, 20, 18], 780, 292);
+      richDraw(f.lines, 26, 100, f.sz, WHITE, 0);
+    };
+    if (pg === 0) body(d.good, d.hands < 6 && d.quizN < 6 ? 'まだ、記録が 少ないです。麻雀を遊んだり、クイズを解くと、あなたの いいところを お知らせします。' : 'いまは、まだ 見つかっていません。もう少し 遊ぶと、いいところが 見つかります。');
+    else if (pg === 1) body(d.weak, 'いまのところ、大きな 苦手は 見つかっていません。すばらしい!');
+    else {
+      const bars = d.bars.slice(0, 6); bars.forEach((b, i) => {
+        const y = 100 + i * 34, col = b.a >= 0.8 ? [90, 200, 120] : b.a >= 0.5 ? [240, 200, 70] : [240, 110, 90];
+        text(b.name, 26, y, 21, WHITE); fill(280, y + 4, 240, 22, [40, 60, 50]); fill(280, y + 4, Math.round(240 * b.a), 22, col); text(Math.round(b.a * 100) + '%  ' + b.n + '問', 534, y, 21, WHITE);
+      });
+      if (!bars.length) text('クイズの記録が まだ ありません。', 26, 110, 24, WHITE);
+      const L = learnLoad(), done = MJ.Learn.STEPS.filter((st) => L.done[st.id]).length, nx = MJ.Learn.STEPS.findIndex((st) => !L.done[st.id]);
+      const notes = d.notes.concat(['点数計算の勉強: ' + done + ' / ' + MJ.Learn.STEPS.length + ' おぼえた' + (nx >= 0 ? '。つぎは ステップ' + (nx + 1) + '「' + MJ.Learn.STEPS[nx].t + '」が おすすめです。' : '。すべて おぼえました!')]);
+      const f = fitRich(notes.join('\n'), [20, 18, 16], 780, 118); richDraw(f.lines, 26, 306, f.sz, [220, 235, 215], 0);
     }
   }
   function drawSlots() {
@@ -1098,6 +1140,7 @@
     }
     if (S.mode === 'quiz') { quizKey(k); return; }
     if (S.mode === 'learn') { learnKey(k); return; }
+    if (S.mode === 'diag') { diagKey(k); return; }
     if (S.mode === 'slots') {
       if (k === 'up' || k === 'down') { if (S.slots.length) S.slotIdx = wrap(S.slotIdx + (k === 'up' ? -1 : 1), S.slots.length); }
       else if (k === 'back') { S.mode = 'menu'; S.slots = []; }
@@ -1148,20 +1191,20 @@
       }
       if (S.menuIdx >= items.length) S.menuIdx = 0;
       if (S.homeBot) { // 下の段: ゲーム終了 / 成績 / 対戦成績 / 麻雀先生
-        if (k === 'left') S.homeBotIdx = 0; else if (k === 'right') { if (S.homeBotIdx === 0) S.homeBotIdx = 1; else S.homeBot = false; } // 右: もとの項目へ(menuIdx は覚えている)
+        if (k === 'left') S.homeBotIdx = Math.max(0, S.homeBotIdx - 1); else if (k === 'right') { if (S.homeBotIdx < HOME_BOTTOM.length - 1) S.homeBotIdx++; else S.homeBot = false; } // 右: もとの項目へ(menuIdx は覚えている)
         else if (k === 'up' || k === 'down') { S.homeBot = false; S.menuIdx = firstOn(items, 0, 1); } // 上でも下でも: 「麻雀をはじめる」へ
         else if (k === 'back') S.mode = 'title';
-        else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; later(() => { if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else toggleTeacher(); }); }
+        else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; later(() => { if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else if (b === 'diag') startDiag(); else toggleTeacher(); }); }
         return;
       }
       if (k === 'up') { const j = firstOn(items, S.menuIdx - 1, -1); S.menuIdx = j < S.menuIdx ? j : firstOn(items, items.length - 1, -1); } // いちばん上から上: いちばん下(設定)へ
       else if (k === 'down') { const j = firstOn(items, S.menuIdx + 1, 1); S.menuIdx = j > S.menuIdx ? j : firstOn(items, 0, 1); } // いちばん下から下: いちばん上へ
-      else if (k === 'left') { S.homeBot = true; S.homeBotIdx = 1; }
+      else if (k === 'left') { S.homeBot = true; S.homeBotIdx = HOME_BOTTOM.length - 1; }
       else if (k === 'back') S.mode = 'title';
       else if (k === 'ok') {
         const it = items[S.menuIdx]; if (!it || it.off) return;
         if (it.act === 'play') later(() => { const l = slotRead(); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else S.teachQ = { idx: teacherOn() ? 1 : 0, snap: null }; });
-        else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => QKINDS.map((f) => f()), n: 10 }));
+        else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => weightedGens(RCATS), n: 10 }));
         else if (it.act === 'study') later(() => startLearn());
         else if (it.act === 'settings') later(() => { S.mode = 'settings'; S.setIdx = 0; });
       }
@@ -1290,7 +1333,7 @@
       });
     },
     showResult(g, r) {
-      S.bub = {}; S.sayQ = []; S.banner = null;
+      S.bub = {}; S.sayQ = []; S.banner = null; try { MJ.Stats.hand(g, r); } catch (e) { /* ignore */ }
       NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
       if (r.type !== 'win') { NSND.sfx('drawgame'); return new Promise((done) => { S.result = Object.assign({ done }, r, { done: () => { NSND.stopSpeak(); done(); } }); dirty(); }); }
       return (async () => { // 上がった人ごとに、役と点数の画面(読み上げつき)。そのあと、4人のじゅんいの画面
@@ -1372,6 +1415,7 @@
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
     if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); return true; }
     if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); return true; }
+    if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
     if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }

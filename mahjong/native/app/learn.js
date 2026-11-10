@@ -8,6 +8,9 @@
   const rnd = (n) => Math.floor(Math.random() * n);
   const pick = (a) => a[rnd(a.length)];
   const shuf = (a) => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = rnd(i + 1); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+  const pickY = (ids) => { // 苦手な役(まちがえた役)ほど、出やすくする
+    const m = (MJ.Stats && MJ.Stats.load().miss) || {}, w = ids.map((k) => 1 + Math.min(4, m[k] || 0)); let r = Math.random() * w.reduce((a, b) => a + b, 0); for (let i = 0; i < ids.length; i++) { r -= w[i]; if (r <= 0) return ids[i]; } return ids[ids.length - 1];
+  };
   const mk = (t) => '⟦' + t + '⟧';
 
   /* 牌の書きかた → 牌の番号の並び(手牌用)。空白は、かたまりの区切り(区切りは -1) */
@@ -68,26 +71,26 @@
   }
   /* この形は何の役? */
   const genYakuHand = (ids) => () => {
-    const withHand = ids.filter((k) => Y[k].hand), k = pick(withHand), y = Y[k];
+    const withHand = ids.filter((k) => Y[k].hand), k = pickY(withHand), y = Y[k];
     const pool = ids.length >= 4 ? ids : ids.concat(Object.keys(Y).filter((x) => !Y[x].yakuman && x !== 'riichi' && x !== 'tsumo' && !ids.includes(x)));
     const opts = pickOpts(k, pool, 4);
-    return { cat: 'learn', kind: 'choice', title: 'この形は、何の役?', sit: '上がりの形(14枚)です。', prompt: 'この手に ついている<b>役</b>は どれですか?', hand: tl(y.hand),
+    return { cat: 'learn', tag: 'ly_hand', yid: k, kind: 'choice', title: 'この形は、何の役?', sit: '上がりの形(14枚)です。', prompt: 'この手に ついている<b>役</b>は どれですか?', hand: tl(y.hand),
       options: opts.map((o) => ({ id: o, html: Y[o].n })),
       grade(id) { return { r: id === k ? 'ok' : 'ng', html: '<p>正解は 「' + y.n + '」(' + hanText(y) + ')。</p><p>' + y.d + '</p>' }; } };
   };
   /* 説明を読んで、役の名前を答える */
   const genYakuDesc = (ids) => () => {
-    const k = pick(ids), y = Y[k];
+    const k = pickY(ids), y = Y[k];
     const opts = pickOpts(k, ids.length >= 4 ? ids : ids.concat(['tanyao', 'pinfu', 'yakuhai', 'toitoi', 'honitsu']), 4);
-    return { cat: 'learn', kind: 'choice', title: 'この説明は、どの役?', sit: '', prompt: y.d.replace(/(役満|役の名前)/g, '$1'), hand: [],
+    return { cat: 'learn', tag: 'ly_desc', yid: k, kind: 'choice', title: 'この説明は、どの役?', sit: '', prompt: y.d.replace(/(役満|役の名前)/g, '$1'), hand: [],
       options: opts.map((o) => ({ id: o, html: Y[o].n })),
       grade(id) { return { r: id === k ? 'ok' : 'ng', html: '<p>正解は 「' + y.n + '」(' + hanText(y) + ')。</p>' + (y.hand ? '<p>こんな形です。</p>' : '') }; } };
   };
   /* この役は何飜? */
   const genYakuHan = (ids) => () => {
-    const k = pick(ids.filter((x) => !Y[x].yakuman)), y = Y[k];
+    const k = pickY(ids.filter((x) => !Y[x].yakuman)), y = Y[k];
     const opts = pickOpts(y.han, [1, 2, 3, 4, 6], 4).sort((a, b) => a - b);
-    return { cat: 'learn', kind: 'choice', title: '「' + y.n + '」は、何飜?', sit: '', prompt: '鳴かずに(門前で)作ったときの<b>飜数</b>は?', hand: y.hand ? tl(y.hand) : [],
+    return { cat: 'learn', tag: 'ly_han', yid: k, kind: 'choice', title: '「' + y.n + '」は、何飜?', sit: '', prompt: '鳴かずに(門前で)作ったときの<b>飜数</b>は?', hand: y.hand ? tl(y.hand) : [],
       options: opts.map((o) => ({ id: String(o), html: o + '飜' })),
       grade(id) { return { r: +id === y.han ? 'ok' : 'ng', html: '<p>正解は <b>' + y.han + '飜</b>。' + (y.kui ? '鳴くと ' + y.kui + '飜に 減ります(食い下がり)。' : y.note ? y.note + 'の役です。' : '鳴いても 同じ飜数です。') + '</p>' }; } };
   };
@@ -98,7 +101,7 @@
     const all = [dora]; while (all.length < 4) { const t = Math.random() < 0.7 ? rnd(27) : 27 + rnd(7); if (!all.includes(t) && t !== ind) all.push(t); }
     const opts = shuf(all);
     const name = (t) => MJ.tileName(t);
-    return { cat: 'learn', kind: 'choice', title: 'ドラは、どれ?', sit: 'ドラ表示牌(めくった牌)は ' + mk(ind) + ' です。', prompt: '<b>ドラ</b>になる牌は どれですか?(ドラは 表示牌の「次の牌」)', hand: [],
+    return { cat: 'learn', tag: 'dora', kind: 'choice', title: 'ドラは、どれ?', sit: 'ドラ表示牌(めくった牌)は ' + mk(ind) + ' です。', prompt: '<b>ドラ</b>になる牌は どれですか?(ドラは 表示牌の「次の牌」)', hand: [],
       options: opts.map((t) => ({ id: String(t), html: mk(t) })),
       grade(id) { return { r: +id === dora ? 'ok' : 'ng', html: '<p>正解は ' + mk(dora) + ' (' + name(dora) + ')。表示牌 ' + mk(ind) + ' の「次の牌」がドラです。</p><p>9の次は1、東→南→西→北→東、白→發→中→白 の順です。</p>' }; } };
   };
@@ -108,21 +111,21 @@
   const genMangan = () => {
     const L = pick(LV), byHan = Math.random() < 0.5;
     const opts = shuf(LV.map((x) => x.ko));
-    return { cat: 'learn', kind: 'choice', title: '子の点数(ロン)は?', sit: '', prompt: byHan ? '<b>子</b>が <b>' + L.h + '</b> の手を ロンで上がったときの点数は?' : '<b>子</b>が <b>' + L.n + '</b> を ロンで上がったときの点数は?', hand: [],
+    return { cat: 'learn', tag: 'tbl', kind: 'choice', title: '子の点数(ロン)は?', sit: '', prompt: byHan ? '<b>子</b>が <b>' + L.h + '</b> の手を ロンで上がったときの点数は?' : '<b>子</b>が <b>' + L.n + '</b> を ロンで上がったときの点数は?', hand: [],
       options: opts.map((o) => ({ id: String(o), html: man(o) })),
       grade(id) { return { r: +id === L.ko ? 'ok' : 'ng', html: '<p>正解は <b>' + man(L.ko) + '</b>。</p><p>' + LV.map((x) => x.n + ' ' + x.ko).join(' / ') + '</p>' }; } };
   };
   const genOya = () => {
     const L = pick(LV), ans = L.ko * 1.5;
     const opts = shuf([ans, L.ko * 2, L.ko, L.ko * 1.25]);
-    return { cat: 'learn', kind: 'choice', title: '親の点数(ロン)は?', sit: '子の' + L.n + 'は ' + man(L.ko) + ' です。', prompt: '<b>親</b>が同じ ' + L.n + ' を ロンで上がると? (親は 子の<b>1.5倍</b>)', hand: [],
+    return { cat: 'learn', tag: 'tbl', kind: 'choice', title: '親の点数(ロン)は?', sit: '子の' + L.n + 'は ' + man(L.ko) + ' です。', prompt: '<b>親</b>が同じ ' + L.n + ' を ロンで上がると? (親は 子の<b>1.5倍</b>)', hand: [],
       options: opts.map((o) => ({ id: String(o), html: man(o) })),
       grade(id) { return { r: +id === ans ? 'ok' : 'ng', html: '<p>正解は <b>' + man(ans) + '</b>。' + man(L.ko) + ' × 1.5 = ' + man(ans) + ' です。</p>' }; } };
   };
   const PT30 = { 1: 1000, 2: 2000, 3: 3900, 4: 7700 };
   const genPt30 = () => {
     const h = 1 + rnd(4), ans = PT30[h], opts = shuf(Object.values(PT30));
-    return { cat: 'learn', kind: 'choice', title: '30符の目安(子・ロン)', sit: '', prompt: '<b>30符</b>の子が <b>' + h + '飜</b> で ロン上がり。点数は?', hand: [],
+    return { cat: 'learn', tag: 'tbl', kind: 'choice', title: '30符の目安(子・ロン)', sit: '', prompt: '<b>30符</b>の子が <b>' + h + '飜</b> で ロン上がり。点数は?', hand: [],
       options: opts.map((o) => ({ id: String(o), html: man(o) })),
       grade(id) { return { r: +id === ans ? 'ok' : 'ng', html: '<p>正解は <b>' + man(ans) + '</b>。</p><p>30符・子・ロン: 1飜 1000 / 2飜 2000 / 3飜 3900 / 4飜 7700</p>' }; } };
   };
@@ -134,7 +137,7 @@
     ['点数は、何で決まる?', ['飜と符', '持ち点と順位', '牌の色', '局の数'], 0, '飜(はん)と符(ふ)で決まります。まずは 飜だけで 大丈夫です。'],
   ].map((q) => () => {
     const ans = q[1][q[2]], opts = shuf(q[1].map((x) => x.replace('points', '点'))), a2 = ans.replace('points', '点');
-    return { cat: 'learn', kind: 'choice', title: 'ちょっと確認', sit: '', prompt: q[0], hand: [], options: opts.map((o) => ({ id: o, html: o })),
+    return { cat: 'learn', tag: 'concept', kind: 'choice', title: 'ちょっと確認', sit: '', prompt: q[0], hand: [], options: opts.map((o) => ({ id: o, html: o })),
       grade(id) { return { r: id === a2 ? 'ok' : 'ng', html: '<p>正解は 「' + a2 + '」。</p><p>' + q[3] + '</p>' }; } };
   });
   const genFixed = () => pick(FIXED)();
@@ -151,8 +154,10 @@
   const EY = ['daisangen', 'suuankou', 'kokushi', 'tsuuiisou', 'ryuuiisou'];
   const yp = (k, extra) => ({ h: Y[k].n + '  ' + hanText(Y[k]), items: [Y[k].d + (extra ? '\n' + extra : ''), Y[k].hand ? { hand: Y[k].hand } : ''] });
 
+  const ALLY = E1.concat(E2);
   MJ.Learn = {
     Y, H, tiles,
+    TAGGEN: { ly_hand: [genYakuHand(ALLY)], ly_desc: [genYakuDesc(ALLY)], ly_han: [genYakuHan(ALLY)], dora: [genDora], tbl: [genMangan, genOya, genPt30], concept: [genFixed], han: [fromScore('何飜?')], fu: [fromScore('何符?')], pts: [fromScore('点数はいくつ?', false)] },
     GOAL: 'ゴール: 自分の手の 点数を、自分で 数えられるように なる',
     STEPS: [
       { id: 'flow', t: '点数が決まる しくみ', lv: '入門', sum: '飜(はん)だけ、まず覚える', n: 3, gens: [genFixed], pages: [
