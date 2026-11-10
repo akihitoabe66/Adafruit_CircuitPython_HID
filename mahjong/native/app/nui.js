@@ -492,7 +492,7 @@
     if (UKIYO) { // 浮世絵版: 藍色の板に金の細い線(和風の、シンプルなボタン)。選んでいるボタンは朱色
       const wb = (i, x, y, w, h, label, sz, badge) => {
         const k = sc(i), W2 = Math.round(w * k), H2 = Math.round(h * k), X = Math.round(x - (W2 - w) / 2), Y = Math.round(y - (H2 - h) / 2), on = i === f, GOLD = [214, 176, 84];
-        const R = Math.min(18, Math.round(H2 * 0.3)), base = on ? [178, 38, 28] : [22, 38, 82]; // 角を丸く
+        const R = Math.max(6, Math.min(10, Math.round(H2 * 0.15))), base = on ? [178, 38, 28] : [22, 38, 82]; // 角を丸く
         rrect(X + 2, Y + 4, W2, H2, R, [0, 0, 0], 110);
         if (on) rrect(X - 4, Y - 4, W2 + 8, H2 + 8, R + 4, pr ? [255, 240, 170] : [255, 252, 235]);
         rrect(X, Y, W2, H2, R, GOLD); rrect(X + 2, Y + 2, W2 - 4, H2 - 4, Math.max(2, R - 2), base);

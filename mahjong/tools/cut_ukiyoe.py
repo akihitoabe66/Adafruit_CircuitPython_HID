@@ -5,7 +5,7 @@
   tools/ukiyoe/title.jpg → img/uk/title_art.webp
 起動のとき MJ_STYLE=old を付けると、前のバージョン(img/chars, img/zunda, img/title_art.webp)に戻る。"""
 import os
-from PIL import Image
+from PIL import Image, ImageFilter
 R = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'); U = os.path.join(R, 'tools', 'ukiyoe'); O = os.path.join(R, 'img', 'uk')
 os.makedirs(os.path.join(O, 'chars', 'face'), exist_ok=True); os.makedirs(os.path.join(O, 'zunda'), exist_ok=True)
 # 枠線の内側(絵のあるところ)。AI生成の一覧は少しずつずれているので、実測した値
@@ -13,15 +13,23 @@ CL, CR = [8, 199, 392, 584, 775, 968, 1159, 1351], [183, 374, 567, 759, 951, 114
 CT, CB = [12, 269, 515, 752], [254, 500, 738, 993]
 M = 2  # 枠線のきわ(左右は、枠線ギリギリ)
 # 目の高さ(各パネルの上から、画素)。 切り出す正方形の中で、目の線が EYE_T(0〜1)の高さに来るよう、上下の位置を決める。 あなた(ずんだもん)の目の線は 0.55 くらい
-EYE_T = 0.52
-EYE = [88, 85, 90, 95, 90, 95, 90, 118,   100, 105, 100, 100, 100, 108, 100, 90,   100, 92, 95, 85, 100, 100, 105, 95,   90, 85, 95, 85, 85, 90, 98, 90]
+EYE_T = 0.55
+EYE = [88, 93, 90, 95, 98, 95, 90, 93,   100, 105, 100, 100, 100, 108, 100, 90,   100, 92, 95, 85, 100, 100, 105, 95,   90, 85, 95, 85, 85, 90, 98, 90]
+import numpy as np
+SCALE = 0.88  # 顔の大きさ(1=パネルの横幅いっぱい)。小さくすると、まわりを足して、顔が小さく見える
+P = 60        # まわりを足す幅(鏡のように折り返す)
 im = Image.open(os.path.join(U, 'sheet_cpu.png')).convert('RGB')
 n = 0
 for r in range(4):
     for c in range(8):
-        n += 1; x0, x1, y0, y1 = CL[c] + M, CR[c] - M, CT[r] + M, CB[r] - M; w = x1 - x0
-        top = max(0, min((y1 - y0) - w, round(EYE[n - 1] - EYE_T * w)))  # 目の線をそろえた、正方形の上のはし
-        sq = im.crop((x0, y0 + top, x1, y0 + top + w)).resize((176, 176), Image.LANCZOS)
+        n += 1; x0, x1, y0, y1 = CL[c] + M, CR[c] - M, CT[r] + M, CB[r] - M; w = x1 - x0; h = y1 - y0
+        src = im.crop((x0, y0, x1, y1)); pad = np.pad(np.array(src), ((P, P), (P, P), (0, 0)), mode='reflect')
+        # 足したところは、折り返しを強くぼかして、ぼんやりした背景にする(模様が、ぎらぎらしないように)
+        pim = Image.fromarray(pad); blur = pim.filter(ImageFilter.GaussianBlur(9)); mask = Image.new('L', pim.size, 0); mask.paste(255, (P, P, P + w, P + h)); mask = mask.filter(ImageFilter.GaussianBlur(1.5))
+        pad = np.array(Image.composite(pim, blur, mask))
+        Wd = round(w / SCALE); left = P + (w - Wd) // 2                       # 窓の大きさ(正方形)と、左のはし(中央そろえ)
+        top = P + round(EYE[n - 1] - EYE_T * Wd); top = max(0, min(h + 2 * P - Wd, top))  # 目の線が、窓の EYE_T の高さに来るように
+        sq = Image.fromarray(pad[top:top + Wd, left:left + Wd]).resize((176, 176), Image.LANCZOS)
         sq.save(os.path.join(O, 'chars', 'face', '%02d.webp' % n), quality=90); sq.transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(O, 'chars', 'face', '%02d_f.webp' % n), quality=90)
 YL, YR = [12, 322, 634, 946], [307, 617, 930, 1243]; YT, YB = [12, 324, 635, 944], [309, 619, 930, 1244]
 im = Image.open(os.path.join(U, 'sheet_you.png')).convert('RGB'); n = 0
