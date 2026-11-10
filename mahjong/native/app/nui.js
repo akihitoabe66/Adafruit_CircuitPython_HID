@@ -915,7 +915,13 @@
   function quizClose() { const q = S.quiz; S.quiz = null; if (q && q.onEnd) q.onEnd(q.ok, q.total, true); else { S.mode = 'menu'; } dirty(); }
   function quizKey(k) {
     const q = S.quiz; if (!q) { S.mode = 'menu'; return; }
-    if (k === 'back') { const o = q.onEnd; S.quiz = null; if (o) o(q.ok, q.total, false); else S.mode = 'menu'; dirty(); return; }
+    if (q.confirm) { // 「ホームにもどりますか?」(つづける / ホームにもどる)
+      if (k === 'left' || k === 'right' || k === 'up' || k === 'down') q.confirm.idx = 1 - q.confirm.idx;
+      else if (k === 'back') q.confirm = null;
+      else if (k === 'ok') { const go = q.confirm.idx === 1; q.confirm = null; if (go) { const o = q.onEnd; S.quiz = null; if (o) o(q.ok, q.total, false); else S.mode = 'menu'; } }
+      dirty(); return;
+    }
+    if (k === 'back') { if (q.phase === 'end') { quizClose(); return; } q.confirm = { idx: 0 }; dirty(); return; }
     if (q.phase === 'gen') return;
     if (q.phase === 'fail') { if (k === 'ok') quizNext(); return; }
     if (q.phase === 'end') { if (k === 'ok') quizClose(); return; }
@@ -1462,7 +1468,7 @@
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
-    if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); return true; }
+    if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); if (S.quiz && S.quiz.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('ホームに もどりますか?', ['つづける', 'ホームにもどる'], S.quiz.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
     if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); return true; }
     if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); return true; }
     if (S.mode === 'credits') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawCredits(); return true; }
