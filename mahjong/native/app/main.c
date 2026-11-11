@@ -172,8 +172,8 @@ static void loading_screen(int done, int total){
   int w, h; SDL_Texture *bg = getimg("img/boot.webp", &w, &h);
   if (bg) { SDL_Rect d = { 0, 0, W, H }; SDL_RenderCopy(ren, bg, NULL, &d); }
   else { SDL_Texture *t = gettext("麻雀ゲーム 起動中", 40, 255, 240, 200, &w, &h); if (t) { SDL_Rect d = { (W - w) / 2, 130, w, h }; SDL_RenderCopy(ren, t, NULL, &d); } }
-  SDL_SetRenderDrawColor(ren, 20, 50, 38, 255); SDL_Rect bar = { (W - 300) / 2, 352, 300, 6 }; SDL_RenderFillRect(ren, &bar);
-  SDL_SetRenderDrawColor(ren, 222, 184, 96, 255); SDL_Rect fg = { (W - 300) / 2, 352, total ? 300 * done / total : 0, 6 }; SDL_RenderFillRect(ren, &fg);
+  SDL_SetRenderDrawColor(ren, 20, 50, 38, 255); SDL_Rect bar = { (W - 300) / 2, 300, 300, 6 }; SDL_RenderFillRect(ren, &bar);
+  SDL_SetRenderDrawColor(ren, 222, 184, 96, 255); SDL_Rect fg = { (W - 300) / 2, 300, total ? 300 * done / total : 0, 6 }; SDL_RenderFillRect(ren, &fg);
   SDL_RenderPresent(ren); }
 static void preload(void){
   static char *list[1200]; int n = 0;
