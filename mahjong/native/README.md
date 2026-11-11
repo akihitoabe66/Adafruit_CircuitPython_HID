@@ -14,3 +14,11 @@
 - ふだんは「浮世絵版」の絵(`img/uk/`: CPU32人・あなたの16表情・タイトル)を使います。
 - 起動のとき環境変数 `MJ_STYLE=old` を付けると、前のバージョンの絵(`img/chars`・`img/zunda`・`img/title_art.webp`)に戻ります。 例: `MJ_STYLE=old ./mahjong`
 - 浮世絵版の絵は `python3 tools/cut_ukiyoe.py` で、`tools/ukiyoe/` の元絵から切り出します(顔の大きさ・位置は、このファイルの `SCALE` `SIZE` `UP` `EYE` `YOU_SCALE` で調整)。
+
+## ビデオ(ゲームの中で再生)
+- 動画(.mp4)とサムネイル(.png)を、SDカードの `~/mjdata/video/` に入れます(git には入れません)。名前は「`01_10分で分かる麻雀ルール.mp4`」と「`01_10分で分かる麻雀ルール.png`」のように、番号_題名を同じにします。
+- ゲームの「勉強」→ 4ページ目「ビデオ」から見ます。動画を増やすと、一覧に自動で出ます。
+- 操作: ◀ 10秒もどす(長押しで30秒ずつ) / ▶ 10秒すすむ(長押しで30秒ずつ) / 決定(A) 一時停止・再生 / 戻る(B) やめる。止めた位置は覚えていて、「つづきから」で続きが見られます。
+- ビルドに FFmpeg の開発ファイルが要ります: `sudo apt install libavcodec-dev libavformat-dev libswscale-dev libswresample-dev libavutil-dev`(無いときは動画なしでビルドされます)。
+- この機械で間に合うかの確認: `./mj .. --vtest 動画.mp4`(「実時間の1倍以上ならOK」)。ハード支援を試すには `MJ_VDEC=h264_v4l2m2m ./start.sh`。映像と音のずれは `MJ_AVOFF=ミリ秒` で調整できます(例: `MJ_AVOFF=-80`)。
+- 間に合わないときは、自動で画質を少し落として(ループフィルタ省略)コマ落ちを減らします。

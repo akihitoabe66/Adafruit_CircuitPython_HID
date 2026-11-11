@@ -1122,7 +1122,7 @@
   function learnLoad() { try { const v = JSON.parse(localStorage.getItem(LKEY)); if (v && v.done) return v; } catch (e) { /* ignore */ } return { bm: { step: 0, page: 0, read: false }, done: {} }; }
   function learnSave() { try { localStorage.setItem(LKEY, JSON.stringify(S.learn.d)); } catch (e) { /* ignore */ } }
   function startLearn() { const d = learnLoad(); S.mode = 'learn'; S.learn = { d, view: 'map', sel: Math.min(d.bm.step || 0, MJ.Learn.STEPS.length - 1), sub: 0, page: 0, scroll: 0 }; dirty(); }
-  const learnPages = () => { const a = [], b = []; MJ.Learn.STEPS.forEach((st, i) => (st.lv === '入門' || st.lv === '初級' ? a : b).push(i)); return [a, b, [MJ.Learn.STEPS.length]]; } // 3ページ目は「用語じてん」の入口
+  const learnPages = () => { const a = [], b = []; MJ.Learn.STEPS.forEach((st, i) => (st.lv === '入門' || st.lv === '初級' ? a : b).push(i)); return [a, b, [MJ.Learn.STEPS.length], [MJ.Learn.STEPS.length + 1]]; } // 3ページ目は「用語じてん」、4ページ目は「ビデオ」の入口
   const pgOf = (pgi, sel) => Math.max(0, pgi.findIndex((p) => p.includes(sel))); // 1ページ目: 入門・初級 / 2ページ目: 中級・上級
   function learnOpen(stepIdx, page) { // 読み物を開く(しおりも、ここに更新)
     const L = S.learn, st = MJ.Learn.STEPS[stepIdx]; L.step = stepIdx; L.page = Math.max(0, Math.min(st.pages.length - 1, page || 0)); L.scroll = 0; L.view = 'read'; L.cache = null;
@@ -1151,7 +1151,7 @@
       const pgi = learnPages(), pi = pgOf(pgi, L.sel), cur = pgi[pi], at = cur.indexOf(L.sel);
       if (k === 'up') L.sel = cur[wrap(at - 1, cur.length)]; else if (k === 'down') L.sel = cur[wrap(at + 1, cur.length)];
       else if (k === 'left' || k === 'right') { const o = pgi[wrap(pi + (k === 'left' ? -1 : 1), pgi.length)]; L.sel = o[Math.min(at, o.length - 1)]; }
-      else if (k === 'ok') { if (L.sel >= STEPS.length) startDict(); else { L.view = 'sub'; L.sub = 0; } }
+      else if (k === 'ok') { if (L.sel === STEPS.length) startDict(); else if (L.sel > STEPS.length) startVideo(); else { L.view = 'sub'; L.sub = 0; } }
     } else if (L.view === 'sub') {
       if (k === 'back') L.view = 'map'; else if (k === 'up') L.sub = wrap(L.sub - 1, 4); else if (k === 'down') L.sub = wrap(L.sub + 1, 4);
       else if (k === 'ok') {
@@ -1205,8 +1205,13 @@
     const pgi = learnPages(), pi = pgOf(pgi, L.sel), nDone = STEPS.filter((s) => D.done[s.id]).length;
     tFace('greet', 'lm', 10, 2, 44);
     text('おぼえた ' + nDone + ' / ' + STEPS.length, SW - 24, 12, 18, WHITE, 2);
-    ['入門・初級', '中級・上級', '用語じてん'].forEach((lb, i) => { const x = 24 + i * 200, on = i === pi; rrect(x, 58, 190, 34, 10, on ? [60, 130, 60] : [50, 70, 60]); text(lb, x + 95, 62, 22, on ? WHITE : [170, 190, 170], 1); });
-    text((pi + 1) + ' / 3 ページ', SW - 24, 62, 20, GREY, 2);
+    ['入門・初級', '中級・上級', '用語じてん', 'ビデオ'].forEach((lb, i) => { const x = 24 + i * 160, on = i === pi; rrect(x, 58, 150, 34, 10, on ? [60, 130, 60] : [50, 70, 60]); text(lb, x + 75, 62, 22, on ? WHITE : [170, 190, 170], 1); });
+    text((pi + 1) + ' / 4 ページ', SW - 24, 62, 20, GREY, 2);
+    if (pi === 3) { // ビデオの入口
+      const sel = L.view === 'map'; panel(24, 112, SW - 48, 130, 16, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
+      text('ビデオ', 60, 126, 40, INK); text('麻雀の しくみを、動画で 見られます。', 62, 180, 22, [70, 70, 60]); text('とちゅうで止めても、つづきから 見られます。', 62, 208, 20, [140, 100, 0]);
+      text('決定ボタンで ひらく', SW / 2, 270, 24, WHITE, 1); return;
+    }
     if (pi === 2) { // 用語じてんの入口
       const sel = L.sel >= STEPS.length && L.view === 'map'; panel(24, 112, SW - 48, 130, 16, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
       text('麻雀用語じてん', 60, 126, 40, INK); text('わからない言葉を しらべます。ふりがな・牌の絵つき。', 62, 180, 22, [70, 70, 60]); text('★ は、先に覚えたい言葉です。', 62, 208, 20, [140, 100, 0]);
@@ -1224,6 +1229,137 @@
       fill(0, 0, SW, SH, [0, 0, 0], 130); const st = STEPS[L.sel]; panel(190, 110, 452, 240, 14, WHITE, GREEN, 4, 255); text('ステップ' + (L.sel + 1) + '  ' + st.t, SW / 2, 124, 22, GREEN, 1);
       SUBS.forEach((lb, i) => { const y = 164 + i * 44, sel = L.sub === i, lab = i === 2 && D.done[st.id] ? '「おぼえた」を はずす' : i === 0 && D.bm.step === L.sel && D.bm.read ? '読む(しおりの ところから)' : lb; panel(220, y, 392, 38, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [150, 160, 140], sel ? 4 : 2, 255); text(lab, SW / 2, y + 7, 21, INK, 1); });
     }
+  }
+
+  /* ---------- ビデオ(SDカードの ~/mjdata/video に入れた動画を、ゲームの中で見る) ---------- */
+  const VTITLES = { 1: '10分で分かる麻雀ルール', 2: '麻雀役解説', 3: '役はこれだけ覚えればOK', 4: 'ポンしていい?', 5: 'ポンしたらあがれない?', 6: 'スジ、習ったのに忘れる', 7: 'どれが通る?', 8: 'どれを捨てる?', 9: '捨てた順番で読む、3から5なら?', 10: '待ちがわからない?', 11: '役なしロン、防ぐ3つのコツ', 12: 'フリテン、そのロン待った', 13: '丸暗記、重要な形5選', 14: 'あがったのに点数が言えない', 15: '7つを整理', 16: '席決め親決め' };
+  const VSTEP = 10, VSTEP_HOLD = 30, VHOLD_MS = 600; // 押す: 10秒 / 長押し: 30秒(3倍)ずつ
+  const vfmt = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); };
+  function vLoad() { try { const v = JSON.parse(localStorage.getItem('mj_video')); if (v && v.pos) return v; } catch (e) { /* ignore */ } return { pos: {}, done: {}, last: '' }; }
+  function vSave() { try { localStorage.setItem('mj_video', JSON.stringify(S.vid.d)); } catch (e) { /* ignore */ } }
+  function vScan() { // フォルダの「番号_題名.mp4」と「番号_題名.png」から、一覧を作る
+    const dir = (globalThis.__dataDir || '.') + '/video', names = (typeof __readdir === 'function' && __readdir(dir)) || [], files = [];
+    names.forEach((nm) => {
+      const m = nm.match(/^(.*)\.(mp4|m4v|mov|mkv|webm)$/i); if (!m) return;
+      const base = m[1], mm = base.match(/^(\d+)[_\-\s　]*(.*)$/), n = mm ? parseInt(mm[1], 10) : 999;
+      files.push({ n, name: nm, title: (mm && mm[2]) || VTITLES[n] || base, path: dir + '/' + nm, png: names.includes(base + '.png') ? dir + '/' + base + '.png' : null });
+    });
+    files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir, files };
+  }
+  const vStatus = (f, d0) => { const d = d0 || S.vid.d; return d.done[f.name] ? 'done' : (d.pos[f.name] || 0) > 3 ? 'cont' : 'new'; };
+  window.__startVideo = () => startVideo(); // 試験用
+  function startVideo() {
+    const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last && vStatus(f, d) === 'cont');
+    S.vid = { view: last >= 0 ? 'home' : 'list', files: sc.files, dir: sc.dir, d, sel: Math.max(0, last), top: 0, hs: 0, last, ask: null }; S.mode = 'video'; vFit(); dirty();
+  }
+  function vFit() { const V = S.vid; V.top = Math.max(0, Math.min(V.top, V.sel)); if (V.sel >= V.top + 9) V.top = V.sel - 8; }
+  function vPlay(i, from) {
+    const V = S.vid, f = V.files[i]; try { NSND.music(''); } catch (e) { /* ignore */ }
+    const r = __vopen(f.path, from || 0); if (!r) { V.view = 'list'; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
+    const now = __now(); V.sel = i; V.view = 'play'; V.p = { f, i, dur: r.dur || 0, ui: now, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now, st: [from || 0, r.dur || 0, 0, 0, 0], sig: '' };
+    V.d.last = f.name; vSave(); dirty();
+  }
+  function vStop(markEnd) { // 動画をとじて、一覧へ
+    const V = S.vid, p = V.p; if (!p) return;
+    const st = __vstate(); const pos = st ? st[0] : p.st[0];
+    if (markEnd || (p.dur > 20 && pos >= p.dur - 15)) { V.d.done[p.f.name] = true; delete V.d.pos[p.f.name]; } else V.d.pos[p.f.name] = Math.floor(pos);
+    vSave(); __vclose(); V.p = null; V.view = 'list'; V.last = V.files.findIndex((f) => f.name === V.d.last && vStatus(f) === 'cont'); vFit(); try { NSND.home(); } catch (e) { /* ignore */ } dirty();
+  }
+  function vTick(now) { // 動画を見ているあいだ、毎コマ呼ばれる
+    const V = S.vid; if (!V || V.view !== 'play' || !V.p) return;
+    const p = V.p, st = __vstate(); if (!st) return; p.st = st; p.dur = st[1] || p.dur; p.paused = !!st[2];
+    if (st[3] && !p.end) { p.end = true; p.ui = now; V.d.done[p.f.name] = true; delete V.d.pos[p.f.name]; vSave(); __vpause(true); }
+    if (now - p.save > 8000) { p.save = now; V.d.pos[p.f.name] = Math.floor(st[0]); vSave(); }
+    const show = p.paused || p.end || now < p.ui + 3500, sig = (show ? 1 : 0) + '|' + Math.floor(st[0]) + '|' + (p.paused ? 1 : 0) + '|' + (now < p.toastT ? p.toast : '') + '|' + (st[4] ? 1 : 0);
+    if (sig !== p.sig) { p.sig = sig; dirty(); }
+  }
+  function vSeek(sign, now) { // ◀ ▶ : 押すと10秒、長押しで30秒ずつ
+    const p = S.vid.p, st = __vstate() || p.st; let step = 0;
+    if (p.hk === (sign < 0 ? 'left' : 'right') && now - p.hkT < 260) { if (now - p.step >= VHOLD_MS) { step = VSTEP_HOLD; p.step = now; } } else { step = VSTEP; p.step = now; }
+    p.hk = sign < 0 ? 'left' : 'right'; p.hkT = now; p.ui = now; if (!step) return;
+    const to = Math.max(0, Math.min((p.dur || 1e9) - 1, st[0] + sign * step)); __vseek(to);
+    if (p.end) { p.end = false; if (!p.userPaused) __vpause(false); }
+    p.toast = (sign < 0 ? '◀◀ ' : '▶▶ ') + step + '秒 ' + (sign < 0 ? 'もどる' : 'すすむ'); p.toastT = now + 1100;
+  }
+  function videoKey(k) {
+    const V = S.vid, now = __now(); dirty();
+    if (V.view === 'play') {
+      const p = V.p;
+      if (k === 'back') { vStop(false); return; }
+      if (k === 'left') vSeek(-1, now); else if (k === 'right') vSeek(1, now);
+      else if (k === 'ok') {
+        p.ui = now;
+        if (p.end) { p.end = false; p.userPaused = false; __vseek(0); __vpause(false); delete V.d.done[p.f.name]; return; }
+        p.userPaused = !p.paused; p.paused = !p.paused; __vpause(p.paused); if (!p.paused) p.ui = now - 2000;
+      } else p.ui = now;
+      return;
+    }
+    if (V.ask) { // 「つづきから / はじめから」
+      if (k === 'up' || k === 'down' || k === 'left' || k === 'right') V.ask.idx = 1 - V.ask.idx; else if (k === 'back') V.ask = null;
+      else if (k === 'ok') { const a = V.ask; V.ask = null; vPlay(a.i, a.idx === 0 ? (V.d.pos[V.files[a.i].name] || 0) : 0); }
+      return;
+    }
+    if (V.view === 'home') {
+      if (k === 'up' || k === 'down') V.hs = 1 - V.hs; else if (k === 'back') { S.mode = 'learn'; S.vid = null; } else if (k === 'ok') { if (V.hs === 0) vPlay(V.last, V.d.pos[V.files[V.last].name] || 0); else V.view = 'list'; }
+      return;
+    }
+    const n = V.files.length; V.err = '';
+    if (k === 'back') { if (V.last >= 0) V.view = 'home'; else { S.mode = 'learn'; S.vid = null; } }
+    else if (!n) return;
+    else if (k === 'up') { V.sel = (V.sel + n - 1) % n; vFit(); } else if (k === 'down') { V.sel = (V.sel + 1) % n; vFit(); }
+    else if (k === 'left') { V.sel = Math.max(0, V.sel - 9); vFit(); } else if (k === 'right') { V.sel = Math.min(n - 1, V.sel + 9); vFit(); }
+    else if (k === 'ok') { const f = V.files[V.sel]; if (vStatus(f) === 'cont') V.ask = { i: V.sel, idx: 0 }; else vPlay(V.sel, 0); }
+  }
+  function vThumb(f, x, y, w, h) { // サムネイル(無ければ、暗い板)
+    rrect(x - 3, y - 3, w + 6, h + 6, 6, [150, 190, 140]);
+    if (f.png) { gfx.image(f.png, x, y, w, h, 255); } else { fill(x, y, w, h, [16, 56, 42]); text('(サムネイルなし)', x + w / 2, y + h / 2 - 12, 20, GREY, 1); }
+  }
+  function drawVideo() {
+    const V = S.vid;
+    if (V.view === 'play') { drawVideoPlay(V); return; }
+    quizFrame('ビデオ', '', '', V.view === 'home' ? '▲ ▼ でえらんで 決定ボタン    戻る: もどる' : '▲ ▼ でえらぶ   ◀ ▶ でページ   決定ボタンで 見る   戻る: もどる');
+    if (V.view === 'home') {
+      const f = V.files[V.last], pos = V.d.pos[f.name] || 0;
+      panel(40, 70, SW - 80, 190, 16, V.hs === 0 ? YEL : WHITE, V.hs === 0 ? [160, 110, 0] : GREEN, V.hs === 0 ? 4 : 2, 255);
+      vThumb(f, 64, 92, 240, 135); text('つづきから 見る', 330, 88, 32, INK); const sz = fitSz(f.title, 26, SW - 40 - 330 - 30, 16); text(f.title, 332, 140, sz, INK);
+      text(vfmt(pos) + ' の ところから', 332, 188, 24, [140, 100, 0]);
+      panel(40, 284, SW - 80, 96, 16, V.hs === 1 ? YEL : WHITE, V.hs === 1 ? [160, 110, 0] : GREEN, V.hs === 1 ? 4 : 2, 255); text('一覧から えらぶ', SW / 2, 312, 34, INK, 1);
+      return;
+    }
+    if (!V.files.length) {
+      panel(60, 90, SW - 120, 240, 16, WHITE, GREEN, 3, 255); text('ビデオが まだ ありません', SW / 2, 114, 32, INK, 1);
+      text('SDカードの「mjdata」フォルダの中の「video」に、', SW / 2, 180, 22, [70, 70, 60], 1); text('動画(.mp4)と サムネイル(.png)を 入れてください。', SW / 2, 214, 22, [70, 70, 60], 1);
+      text('(番号_題名.mp4 と 番号_題名.png)', SW / 2, 262, 19, [110, 110, 100], 1); return;
+    }
+    const n = V.files.length;
+    for (let r = 0; r < 9; r++) {
+      const i = V.top + r; if (i >= n) break; const f = V.files[i], y = 58 + r * 44, on = i === V.sel, ss = vStatus(f);
+      panel(14, y, 350, 40, 10, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255);
+      rrect(24, y + 5, 36, 30, 6, GREEN); text(('0' + f.n).slice(-2), 42, y + 8, 18, WHITE, 1);
+      const bw = ss === 'new' ? 0 : ss === 'done' ? 96 : 66; text(f.title, 68, y + 7 + 0, fitSz(f.title, 21, 286 - bw, 14), INK);
+      if (ss === 'done') { rrect(260, y + 8, 94, 24, 11, [60, 138, 60]); text('✔ 見おわり', 307, y + 10, 15, WHITE, 1); } else if (ss === 'cont') { rrect(290, y + 8, 64, 24, 11, QRED); text('つづき', 322, y + 10, 15, WHITE, 1); }
+    }
+    if (V.top > 0) text('▲', 189, 48, 14, YEL, 1); if (V.top + 9 < n) text('▼', 189, 452, 14, YEL, 1);
+    const f = V.files[V.sel], ss = vStatus(f);
+    panel(384, 58, 430, 244, 12, [16, 56, 42], [150, 190, 140], 3, 255); vThumb(f, 394, 68, 410, 230);
+    panel(384, 316, 430, 100, 12, CREAM, GREEN, 3, 255); text(f.title, 599, 326, fitSz(f.title, 26, 400, 16), INK, 1);
+    text(ss === 'done' ? '✔ 見おわりました' : ss === 'cont' ? 'つづき: ' + vfmt(V.d.pos[f.name]) + ' から' : 'まだ 見ていません', 599, 368, 21, ss === 'cont' ? [200, 60, 40] : [70, 100, 60], 1);
+    if (V.err) { fill(0, 200, SW, 60, [0, 0, 0], 200); text(V.err, SW / 2, 214, 22, YEL, 1); }
+  }
+  function drawVideoPlay(V) {
+    const p = V.p; gfx.clear(0, 0, 0); if (!p.st[4]) text('よみこみ中…', SW / 2, 210, 30, WHITE, 1);
+    const now = __now(), show = p.paused || p.end || now < p.ui + 3500, st = p.st, T = gfx.textTop, F = (x, y, w, h, c, a) => gfx.fillTop(x, y, w, h, c[0], c[1], c[2], a == null ? 255 : a), TT = (s, x, y, sz, c, al) => T(String(s), x, y, sz, c[0], c[1], c[2], al || 0);
+    if (now < p.toastT && !p.end) { F(SW / 2 - 150, 74, 300, 56, [0, 0, 0], 170); TT(p.toast, SW / 2, 84, 30, WHITE, 1); }
+    if (p.end) { F(150, 130, 532, 190, [0, 0, 0], 210); TT('見おわりました', SW / 2, 150, 40, YEL, 1); TT('決定ボタン: もう一度 見る', SW / 2, 226, 26, WHITE, 1); TT('戻る: 一覧へ もどる', SW / 2, 266, 26, WHITE, 1); }
+    if (!show) return;
+    F(0, 0, SW, 46, [0, 0, 0], 255); TT(p.f.title, 20, 8, fitSz(p.f.title, 26, 560, 16), WHITE);
+    if (p.paused && !p.end) { F(SW - 200, 6, 184, 34, [255, 220, 40], 255); TT('一時停止中', SW - 108, 9, 24, [30, 30, 20], 1); }
+    F(0, 384, SW, 84, [0, 0, 0], 255); // 下の帯(動画の字幕に重ならないよう、できるだけ低く)
+    const dur = p.dur || 0, fr = dur > 0 ? Math.max(0, Math.min(1, st[0] / dur)) : 0;
+    F(30, 394, SW - 60, 10, [90, 100, 95]); F(30, 394, Math.round((SW - 60) * fr), 10, [255, 220, 40]); F(30 + Math.round((SW - 60) * fr) - 4, 389, 8, 20, WHITE);
+    TT(vfmt(st[0]) + ' / ' + vfmt(dur), 30, 420, 28, WHITE);
+    TT(p.paused ? '決定: 再生' : '決定: 一時停止', SW - 30, 422, 24, [255, 233, 160], 2);
+    TT('◀ もどす    ▶ すすむ    戻る: やめる', SW / 2 + 10, 424, 20, [210, 225, 205], 1);
   }
 
   /* ---------- あなたの診断(いいところ・のばせるところ・学習の記録) ---------- */
@@ -1406,6 +1542,7 @@
     }
     if (S.mode === 'quiz') { quizKey(k); return; }
     if (S.mode === 'dict') { dictKey(k); return; }
+    if (S.mode === 'video') { videoKey(k); return; }
     if (S.mode === 'learn') { learnKey(k); return; }
     if (S.mode === 'diag') { diagKey(k); return; }
     if (S.mode === 'credits') { if (k === 'ok' || k === 'back') { S.mode = 'settings'; dirty(); } return; }
@@ -1696,6 +1833,7 @@
   let nextAuto = 0, lastSave = 0, nextSide = 0, coachShots = 0;
   window.__frame = function (now) {
     __runTimers(now);
+    if (S.mode === 'video') vTick(now);
     if (__auto && globalThis.__teacherEnv && S.self && !S.side && !S.coach && now > nextSide) { nextSide = now + 3300; window.__key('right'); window.__key('ok'); setTimeout(() => window.__key('ok'), 1500); } // 試験用: 解説の窓を、ときどき開く
     if (__auto && now > nextAuto && !S.coach && !S.side) { nextAuto = now + 90; window.__key('ok'); }
     if (__lsDirty && now - lastSave > 1500) { lastSave = now; __lsDirty = false; try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ } }
@@ -1724,6 +1862,7 @@
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
     if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); if (S.quiz && S.quiz.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog(S.quiz.learn ? 'クイズを やめますか?' : 'ホームに もどりますか?', ['つづける', S.quiz.learn ? 'やめる' : 'ホームにもどる'], S.quiz.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
     if (S.mode === 'dict') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDict(); return true; }
+    if (S.mode === 'video') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawVideo(); if (S.vid && S.vid.ask) { const a = S.vid.ask; S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('つづきから 見ますか?', ['つづきから(' + vfmt(S.vid.d.pos[S.vid.files[a.i].name]) + ')', 'はじめから'], a.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
     if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); if (S.learn && S.learn.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('ホームに もどりますか?', ['つづける', 'ホームにもどる'], S.learn.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
     if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); return true; }
     if (S.mode === 'credits') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawCredits(); return true; }
