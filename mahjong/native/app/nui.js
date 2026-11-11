@@ -397,8 +397,8 @@
     if (S.banner && S.banner.call && S.banner.p) { // ポン・チー・ロンなど: 顔と、色のついた大きな文字(Edge版と同じ)
       const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = 84, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [230, 0, 18] : [196, 139, 255];
       // 鳴いた人の席の側に出す: 対面=中央の上 / 上家=左 / 下家=右(上家と同じ高さ) / 自分=中央の下
-      const FB = 124, tw = gfx.measure(bn.text, sz), bw = FB + 16 + tw, sd = bn.p.seat, by = sd === 2 ? 36 : sd === 0 ? 252 : 144;
-      const bx = sd === 3 ? 76 : sd === 1 ? 636 - bw : Math.round((W - bw) / 2);
+      const FB = 124, tw = gfx.measure(bn.text, sz), bw = FB + 16 + tw, sd = bn.p.seat, by = sd === 2 ? 10 : sd === 0 ? 258 : 144; // 席の側に、はっきり寄せる(上家=左はし / 下家=右はし / 対面=上はし / 自分=下はし)
+      const bx = sd === 3 ? 18 : sd === 1 ? 702 - bw : Math.round((W - bw) / 2);
       face(bn.p, bx, by, FB, FB);
       { const tx = bx + FB + 16, ty = by + Math.round((FB - sz) / 2) + TYADJ; text(bn.text, tx + 5, ty + 7, sz, [0, 0, 0], 0); [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, tx + d[0], ty + d[1], sz, [255, 255, 255])); text(bn.text, tx, ty, sz, col); }
     } else if (S.banner) { // 局のはじまり: 4人の顔(★つき)を席の位置に出し、まん中に「東二局 一本場」
@@ -1286,6 +1286,7 @@
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return d.done[f.name] ? 'done' : (d.pos[f.name] || 0) > 3 ? 'cont' : 'new'; };
   window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); // 試験用
+  window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   function startVideo() {
     const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last && vStatus(f, d) === 'cont');
