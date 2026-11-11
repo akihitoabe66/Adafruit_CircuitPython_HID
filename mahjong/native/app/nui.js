@@ -504,13 +504,11 @@
         const fs = Math.round(sz * k), tw = gfx.measure(label, fs), ty = Y + Math.round((H2 - fs) / 2) - 1;
         if (badge) { const r = Math.round(fs * 0.62), bx = X + Math.round((W2 - tw) / 2) - r * 2 - 8; rrect(bx, ty + Math.round((fs - 2 * r) / 2) + 1, r * 2, r * 2, r, GOLD); text(badge, bx + r, ty + Math.round((fs - 2 * r) / 2) + 1 + Math.round((r * 2 - fs * 0.8) / 2) - 1, Math.round(fs * 0.8), [22, 38, 82], 1); text(label, X + Math.round(W2 / 2) + r + 4, ty, fs, [252, 244, 220], 1); } else text(label, X + Math.round(W2 / 2), ty, fs, [252, 244, 220], 1);
       };
-      wb(0, (SW - 250) / 2, SH - 92, 250, 62, 'はじめる', 34, 'A');
-      wb(1, SW - 128, 10, 116, 34, NSND.on ? 'BGM あり' : 'BGM なし', 17);
-      wb(2, SW - 140, SH - 52, 120, 34, 'ゲーム終了', 17);
+      wb(0, (SW - 250) / 2, SH - 132, 250, 62, 'はじめる', 34, 'A');
+      wb(1, (SW - 190) / 2, SH - 58, 190, 42, 'ゲーム終了', 22); // はじめるの下に、ひとまわり小さく
     } else {
-    img('img/btn_start.webp', (SW - 250) / 2, SH - 100, 250, 78, 0);
-    img(NSND.on ? 'img/bgm_on.webp' : 'img/bgm_off.webp', SW - 120, 10, 108, 37, 1);
-    img('img/btn_exit.webp', SW - 130, SH - 60, 108, 37, 2);
+    img('img/btn_start.webp', (SW - 250) / 2, SH - 140, 250, 78, 0);
+    img('img/btn_exit.webp', (SW - 170) / 2, SH - 56, 170, 40, 1);
     }
   }
   function btnR(x, y, w, h, r, sel, off, label, sz, arrow) {
@@ -898,7 +896,7 @@
   function drawDialog(title, items, idx, note) {
     overlay(190); const h = 70 + items.length * 50; const y0 = Math.round((H - h) / 2);
     panel(150, y0, 420, h, 16, [20, 60, 42], [240, 210, 120], 3);
-    text(title, 360, y0 + 12, 22, YEL, 1);
+    text(title, 360, y0 + 12 + Math.round((22 - fitSz(title, 22, 396, 15)) / 2), fitSz(title, 22, 396, 15), YEL, 1);
     items.forEach((l, i) => button(190, y0 + 48 + i * 50, 340, 40, l, idx === i));
     if (note) text(note, 360, y0 + h + 6, 19, WHITE, 1);
   }
@@ -1403,7 +1401,7 @@
     }
     if (S.confirmQ) {
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') S.confirmQ.idx = 1 - S.confirmQ.idx;
-      else if (k === 'back') S.confirmQ = null; else if (k === 'ok') { const i = S.confirmQ.idx; S.confirmQ = null; if (i === 1) __quit(); }
+      else if (k === 'back') S.confirmQ = null; else if (k === 'ok') { const i = S.confirmQ.idx; S.confirmQ = null; if (i === 0) __quit(); }
       return;
     }
     if (S.mode === 'quiz') { quizKey(k); return; }
@@ -1418,8 +1416,8 @@
       return;
     }
     if (S.mode === 'title') { // タイトル: はじめる / BGM / 終了
-      if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { const m = { 0: { up: 1, left: 1, right: 2, down: 2 }, 1: { down: 0, left: 0, right: 2, up: 2 }, 2: { up: 1, right: 1, left: 0, down: 0 } }; S.titleIdx = m[S.titleIdx][k]; }
-      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 120); else if (S.titleIdx === 1) { S.pressT = __now(); S.pressMs = 120; NSND.toggle(); if (NSND.on) NSND.home(); dirty(); } else later(() => { S.confirmQ = { idx: 0 }; }, 120); }
+      if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { S.titleIdx = 1 - S.titleIdx; }
+      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 120); else later(() => { S.confirmQ = { idx: 0 }; }, 120); }
       return;
     }
     if (S.mode === 'rules') { // 麻雀のルール
@@ -1759,7 +1757,7 @@
     if (S.soundP) drawSound();
     if (S.teachQ) drawTeachQ();
     if (S.playQ) drawDialog('麻雀をはじめます', ['つづきから(' + kyokuText(S.playQ.snap) + ')', 'はじめから'], S.playQ.idx, '');
-    if (S.confirmQ) drawDialog('ゲームを おわりますか?', ['もどる', 'おわる(電源を切れます)'], S.confirmQ.idx, '');
+    if (S.confirmQ) drawDialog('このまま ゲームが 終了しますが よろしいですか?', ['OK(ゲームを おわる)', 'もどる'], S.confirmQ.idx, '');
     gfx.view(0, 0);
     return true;
   };
