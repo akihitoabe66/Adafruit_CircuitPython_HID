@@ -11,6 +11,14 @@
 #include <SDL_image.h>
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
+#ifndef NO_VIDEO
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libswresample/swresample.h>
+#include <libswscale/swscale.h>
+#include <libavutil/opt.h>
+#include <libavutil/channel_layout.h>
+#endif
 #include "quickjs.h"
 #include "shanten.h"
 
@@ -25,14 +33,14 @@ static double nowms(void){ struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t);
 /* ---- 画像・文字のキャッシュ ---- */
 typedef struct { char key[200]; unsigned hs; SDL_Texture *tex; int w, h; } Ent;
 static unsigned hashs(const char *s){ unsigned h = 2166136261u; while (*s) { h ^= (unsigned char)*s++; h *= 16777619u; } return h; }
-#define NIMG 400
+#define NIMG 480
 #define NTXT 1200
 static Ent imgs[NIMG]; static int nimg = 0; static Ent txts[NTXT]; static int ntxt = 0; static int txtnext = 0;
 static SDL_Texture *getimg(const char *path, int *w, int *h){
   unsigned hp = hashs(path);
   for (int i = 0; i < nimg; i++) if (imgs[i].hs == hp && !strcmp(imgs[i].key, path)) { if (w) *w = imgs[i].w; if (h) *h = imgs[i].h; return imgs[i].tex; }
   if (nimg >= NIMG) return NULL;
-  char full[1400]; snprintf(full, sizeof full, "%s/%s", root, path);
+  char full[1400]; if (path[0] == '/') snprintf(full, sizeof full, "%s", path); else snprintf(full, sizeof full, "%s/%s", root, path); /* 「/」から始まる名前は、そのままの場所(ビデオのサムネイル用) */
   if (!strncmp(path, "img/", 4)) { char alt[1400]; snprintf(alt, sizeof alt, "%s/native/img/%s", root, path + 4); FILE *tf = fopen(alt, "rb"); if (tf) { fclose(tf); strcpy(full, alt); } } /* 実機用に小さくした絵(native/img)が、あれば、そちらを使う */
   SDL_Surface *s = IMG_Load(full); if (!s) { fprintf(stderr, "img? %s (%s)\n", full, IMG_GetError()); return NULL; }
   SDL_Texture *t = SDL_CreateTextureFromSurface(ren, s);
@@ -160,6 +168,7 @@ static JSValue j_music(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   JS_FreeCString(c, p); return JS_UNDEFINED; }
 static JSValue j_mvol(JSContext *c, JSValueConst t, int n, JSValueConst *a){ double v = 1; JS_ToFloat64(c, &v, a[0]); if (audio_ok) Mix_VolumeMusic((int)(v * 128)); return JS_UNDEFINED; }
 static JSValue j_readtext(JSContext *c, JSValueConst t, int n, JSValueConst *a){ const char *p = JS_ToCString(c, a[0]); char full[1400]; snprintf(full, sizeof full, "%s/%s", root, p); JS_FreeCString(c, p); FILE *f = fopen(full, "rb"); if (!f) return JS_NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET); char *b = malloc(L + 1); fread(b, 1, L, f); b[L] = 0; fclose(f); JSValue v = JS_NewString(c, b); free(b); return v; }
+#include "video.h"
 
 /* ---- 起動時の読み込み: 画像と効果音を先に読み、「起動中」の画面に進み具合を出す(初回プレイ中の、読み込みによる止まりを避ける) ---- */
 static int cmpstr(const void *a, const void *b){ return strcmp(*(char *const *)a, *(char *const *)b); }
@@ -247,10 +256,12 @@ static void handle_event(SDL_Event *ep){
 }
 
 int main(int argc, char **argv){
-  const char *shots = NULL; int auto_ = 0, maxframes = 0; char *files[64]; int nf = 0;
+  const char *shots = NULL, *vplay = NULL; int auto_ = 0, maxframes = 0; char *files[64]; int nf = 0;
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--shots") && i + 1 < argc) shots = argv[++i];
+    else if (!strcmp(argv[i], "--vplay") && i + 1 < argc) vplay = argv[++i];
     else if (!strcmp(argv[i], "--auto")) auto_ = 1;
+    else if (!strcmp(argv[i], "--vtest") && i + 1 < argc) return vid_test(argv[i + 1]);
     else if (!strcmp(argv[i], "--frames") && i + 1 < argc) maxframes = atoi(argv[++i]);
     else if (i == 1) strncpy(root, argv[i], sizeof root - 1);
   }
@@ -276,7 +287,7 @@ int main(int argc, char **argv){
   reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "shot", j_shot, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);
-  JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1);
+  JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1); reg(g, "__readdir", j_readdir, 1); reg(g, "__vopen", j_vopen, 2); reg(g, "__vstate", j_vstate, 0); reg(g, "__vseek", j_vseek, 1); reg(g, "__vpause", j_vpause, 1); reg(g, "__vclose", j_vclose, 0); JS_SetPropertyStr(ctx, g, "__dataDir", JS_NewString(ctx, datadir));
   reg(g, "print", j_print, 1); reg(g, "__now", j_now, 0); reg(g, "__quit", j_quit, 0); reg(g, "__load", j_load, 0); reg(g, "__save", j_save, 1); reg(g, "__swapab", j_swapab, 1); reg(g, "__shanten", j_shanten, 2); reg(g, "__slotlist", j_slotlist, 0); reg(g, "__slotload", j_slotload, 1); reg(g, "__slotsave", j_slotsave, 2); reg(g, "__slotdel", j_slotdel, 1);
   { if (getenv("MJ_FPS")) JS_SetPropertyStr(ctx, g, "__perfEnv", JS_NewBool(ctx, 1)); }
   { const char *tp = getenv("MJ_TEACHER"); if (tp) JS_SetPropertyStr(ctx, g, "__teacherEnv", JS_NewString(ctx, tp)); }
@@ -289,13 +300,21 @@ int main(int argc, char **argv){
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
   tgt = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, W, H);
   if (!tgt) { fprintf(stderr, "target: %s\n", SDL_GetError()); return 1; }
+  if (vplay) { /* 動画だけの動作テスト(窓は出るが、ゲームは動かさない) */
+    if (!vid_open(vplay, 0)) { printf("open NG\n"); return 1; }
+    double t0 = nowms(); int shown = 0, seeked = 0; extern void vid_dbg(double);
+    while (nowms() - t0 < 8000) { SDL_Event ee; while (SDL_PollEvent(&ee)); static int it = 0; it++; if (vid_update()) shown++; SDL_Delay(2);
+      if (!seeked && nowms() - t0 > 4000) { seeked = 1; j_vseek(ctx, JS_UNDEFINED, 1, (JSValue[]){ JS_NewFloat64(ctx, 120) }); printf("seek -> 120\n"); }
+      if (((int)(nowms() - t0)) % 1000 < 3) { JSValue st = j_vstate(ctx, JS_UNDEFINED, 0, NULL); JSValue p = JS_GetPropertyUint32(ctx, st, 0); double pos; JS_ToFloat64(ctx, &pos, p); printf("t=%.1f pos=%.2f shown=%d drop=%d\n", (nowms() - t0) / 1000, pos, shown, V.dropped); SDL_Delay(5); } }
+    vid_close(); return 0; }
   int frames = 0, shotn = 0, keep = 0; double perf_t0 = nowms(), perf_draw = 0, perf_pres = 0, perf_logic = 0, perf_logicmax = 0; int perf_n = 0, perf_p = 0; int perf = getenv("MJ_PERF") != NULL;
   JSValue gg = JS_GetGlobalObject(ctx);
   while (!quitf) {
-    SDL_Event e; int got = SDL_WaitEventTimeout(&e, keep ? 1 : 8);
+    SDL_Event e; int got = SDL_WaitEventTimeout(&e, (keep || vid_active()) ? 1 : 8);
     while (got) { handle_event(&e); got = SDL_PollEvent(&e); }
     { int both = (jb[8] && jb[9]) || (jb[6] && jb[7]); if (both) { if (!menu_t0) menu_t0 = nowms(); else if (menu_t0 > 0 && nowms() - menu_t0 > 1200) { callkey("menu"); menu_t0 = -1; } } else menu_t0 = 0; } /* スタート+セレクトを長押し: メニュー(終了など) */
     if (held && nowms() >= held_next) { callkey(HELD[held]); held_next = nowms() + 95; }
+    if (vid_update() && keep < 1) keep = 1; /* 動画の新しい絵が来たら、画面に出す */
     double tl0 = nowms(); int need = callframe(); { double d = nowms() - tl0; perf_logic += d; if (d > perf_logicmax) perf_logicmax = d; }
     if (need) {
       double t0 = nowms(); SDL_SetRenderTarget(ren, tgt); ntop = 0;
@@ -303,7 +322,7 @@ int main(int argc, char **argv){
       if (shots && frames % 10 == 0 && shotn < 40) { char p[1600]; snprintf(p, sizeof p, "%s/s%02d.bmp", shots, shotn++); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, W, H, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, p); SDL_FreeSurface(su); }
       SDL_SetRenderTarget(ren, NULL); keep = 3; perf_draw += nowms() - t0; perf_n++;
     }
-    if (keep > 0) { double t0 = nowms(); SDL_RenderClear(ren); SDL_RenderCopy(ren, tgt, NULL, NULL); for (int i = 0; i < ntop; i++) { if (topq[i].kind == 1) { SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); SDL_SetRenderDrawColor(ren, topq[i].r, topq[i].g, topq[i].b, topq[i].a); SDL_RenderFillRect(ren, &topq[i].d); } else { SDL_SetTextureAlphaMod(topq[i].tx, 255); SDL_RenderCopy(ren, topq[i].tx, &topq[i].sr, &topq[i].d); } } SDL_RenderPresent(ren); keep--; perf_pres += nowms() - t0; perf_p++; }
+    if (keep > 0) { double t0 = nowms(); SDL_RenderClear(ren); SDL_RenderCopy(ren, tgt, NULL, NULL); vid_render(); for (int i = 0; i < ntop; i++) { if (topq[i].kind == 1) { SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); SDL_SetRenderDrawColor(ren, topq[i].r, topq[i].g, topq[i].b, topq[i].a); SDL_RenderFillRect(ren, &topq[i].d); } else { SDL_SetTextureAlphaMod(topq[i].tx, 255); SDL_RenderCopy(ren, topq[i].tx, &topq[i].sr, &topq[i].d); } } SDL_RenderPresent(ren); keep--; perf_pres += nowms() - t0; perf_p++; }
     frames++; if (maxframes && frames >= maxframes) break;
     if (perf && nowms() - perf_t0 > 3000) { printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); { long rss = 0; FILE *sf = fopen("/proc/self/statm", "r"); if (sf) { long a; if (fscanf(sf, "%ld %ld", &a, &rss) < 2) rss = 0; fclose(sf); } JSMemoryUsage mu; JS_ComputeMemoryUsage(rt, &mu); printf("perf2: 思考・進行 合計%.0fms 最大%.0fms / JS %ldMB / 全体 %ldMB / 絵%d 文字%d\n", perf_logic, perf_logicmax, (long)(mu.malloc_size / 1048576), rss * 4 / 1024, nimg, ntxt); } fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = perf_logic = perf_logicmax = 0; perf_n = perf_p = 0; }
   }
