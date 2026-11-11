@@ -1382,13 +1382,23 @@
     const H = S.study; dirty();
     if (k === 'up') H.sel = (H.sel + 2) % 3; else if (k === 'down') H.sel = (H.sel + 1) % 3;
     else if (k === 'back') { S.mode = 'menu'; S.study = null; }
-    else if (k === 'ok') { const w = H.sel; if (w === 0) startLearn(); else if (w === 1) startDict(); else startVideo(); }
+    else if (k === 'ok') { const w = H.sel; later(() => { if (w === 0) startLearn(); else if (w === 1) startDict(); else startVideo(); }); } // ボタンが押し込まれてから、開く
+  }
+  function rframe(x, y, w, h, r, th, c) { // 角丸の枠(太さ th)。1行ずつ、外側と内側の角丸のあいだを塗る
+    const ex = (yy, rr, hh) => { const d = yy < rr ? rr - Math.sqrt(Math.max(0, rr * rr - (rr - yy - 0.5) * (rr - yy - 0.5))) : yy >= hh - rr ? rr - Math.sqrt(Math.max(0, rr * rr - (yy - (hh - rr) + 0.5) * (yy - (hh - rr) + 0.5))) : 0; return Math.round(d); };
+    for (let yy = 0; yy < h; yy++) {
+      const xo = ex(yy, r, h);
+      if (yy < th || yy >= h - th) { fill(x + xo, y + yy, w - 2 * xo, 1, c); continue; }
+      const yi = yy - th, hi = h - 2 * th, ri = Math.max(0, r - th), xi = th + ex(yi, ri, hi);
+      fill(x + xo, y + yy, Math.max(1, xi - xo), 1, c); fill(x + w - xi, y + yy, Math.max(1, xi - xo), 1, c);
+    }
   }
   function drawStudy() { // 背景の絵(img/study_bg.webp)に、えらんだ枠と、進み具合の文字を重ねる
     const H = S.study; gfx.clear(14, 40, 30); gfx.image('img/study_bg.webp', 0, 0, SW, SH, 255);
-    const R = [[21, 64, 358, 90], [18, 164, 361, 100], [20, 280, 359, 90]], CX = 609;
-    const e = R[H.sel]; gfx.frame(e[0] - 2, e[1] - 2, e[2] + 4, e[3] + 4, 40, 30, 10, 3); gfx.frame(e[0], e[1], e[2], e[3], 255, 220, 40, 4); // えらんでいる枠(黄色)
-    text('おぼえた ' + H.nDone + ' / ' + H.total, 112, 122, 21, [70, 44, 14]); text(H.vn + '本' + (H.cont ? ' ・ つづきあり' : ''), 112, 332, 21, [244, 214, 176]);
+    const BT = [[17, 63, 366, 94], [17, 163, 366, 107], [17, 278, 366, 91]], pr = pressing() ? 3 : 0; // ボタンの絵。押している間は、少し下へ(押し込まれる)
+    BT.forEach((b, i) => { const dy = H.sel === i ? pr : 0; gfx.image('img/study_btn' + (i + 1) + '.webp', b[0], b[1] + dy + (H.sel === i && !pr ? -1 : 0), b[2], b[3], 255); });
+    const e = BT[H.sel], ey = e[1] + pr, CX = 609; rframe(e[0] - 3, ey - 3, e[2] + 6, e[3] + 6, 8, 2, [40, 30, 10]); rframe(e[0] - 1, ey - 1, e[2] + 2, e[3] + 2, 7, 4, [255, 220, 40]); // えらんでいる枠(黄色・小さな角丸)
+    text('おぼえた ' + H.nDone + ' / ' + H.total, 112, 122 + (H.sel === 0 ? pr : 0), 21, [70, 44, 14]); text(H.vn + '本' + (H.cont ? ' ・ つづきあり' : ''), 112, 332 + (H.sel === 2 ? pr : 0), 21, [244, 214, 176]);
     text('▲ ▼ でえらぶ    決定ボタンで ひらく    戻る: ホームへ', 420, 437, 20, [236, 222, 190], 1);
     if (H.sel === 0) {
       text('点数計算の勉強', CX, 92, 28, YEL, 1); text('役から点数まで、順番に学びます。', CX, 134, 19, WHITE, 1);
