@@ -22,3 +22,8 @@
 - ビルドに FFmpeg の開発ファイルが要ります: `sudo apt install libavcodec-dev libavformat-dev libswscale-dev libswresample-dev libavutil-dev`(無いときは動画なしでビルドされます)。
 - この機械で間に合うかの確認: `./mj .. --vtest 動画.mp4`(「実時間の1倍以上ならOK」)。ハード支援を試すには `MJ_VDEC=h264_v4l2m2m ./start.sh`。映像と音のずれは `MJ_AVOFF=ミリ秒` で調整できます(例: `MJ_AVOFF=-80`)。
 - 間に合わないときは、自動で画質を少し落として(ループフィルタ省略)コマ落ちを減らします。
+
+## 画面の見た目を前に戻す(環境変数)
+- `MJ_LEARN=old ./start.sh`: 点数計算の勉強を、前の(タブで切りかえる)見た目に戻します。麻雀の勉強の入口は、ホームから入る新しい画面のままです。
+- `MJ_STYLE=old`: 浮世絵版の前の絵に戻します。
+- 麻雀の勉強の入口を作る前の状態は、git のタグ `pre-study-b` で戻せます。

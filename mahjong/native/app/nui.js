@@ -550,7 +550,7 @@
   const perfOn = () => { try { return localStorage.getItem('mj_perf') === '1' || !!globalThis.__perfEnv; } catch (e) { return false; } };
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'back', label: 'もどる' },
+    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'back', label: 'もどる' },
   ];
   /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
   const RULE_ROWS = [
@@ -588,15 +588,15 @@
     gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
     text('設定', SW / 2, 8, 30, YEL, 1);
     SETS.forEach((s, i) => {
-      const y = 44 + i * 42, sel = S.setIdx === i; panel(110, y, 612, 38, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
-      text(s.label, 130, y + 5, 24, BLACK);
-      if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 9, 24, 22, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 6, 24, BLACK, 2); }
-      else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 6, 24, BLACK, 1);
-      else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 6, 24, BLACK, 1);
-      else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 6, 24, BLACK, 1);
-      else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 6, 24, BLACK, 1);
-      else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 6, 24, BLACK, 1);
-      else if (s.k === 'rules' || s.k === 'credits') text('▶', 600, y + 5, 24, BLACK, 1);
+      const y = 40 + i * 38, sel = S.setIdx === i; panel(110, y, 612, 35, 9, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
+      text(s.label, 130, y + 4, 24, BLACK);
+      if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 7, 24, 21, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 4, 24, BLACK, 2); }
+      else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
+      else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 4, 24, BLACK, 1);
+      else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 4, 24, BLACK, 1);
+      else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
+      else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 4, 24, BLACK, 1);
+      else if (s.k === 'rules' || s.k === 'credits' || s.k === 'help') text('▶', 600, y + 4, 24, BLACK, 1);
     });
   }
   /* ---------- 対局のはじめの演出: 顔の登場 → 東一局 → 勝負! → サイコロ ---------- */
@@ -1127,7 +1127,8 @@
   function learnLoad() { try { const v = JSON.parse(localStorage.getItem(LKEY)); if (v && v.done) return v; } catch (e) { /* ignore */ } return { bm: { step: 0, page: 0, read: false }, done: {} }; }
   function learnSave() { try { localStorage.setItem(LKEY, JSON.stringify(S.learn.d)); } catch (e) { /* ignore */ } }
   function startLearn() { const d = learnLoad(); S.mode = 'learn'; S.learn = { d, view: 'map', sel: Math.min(d.bm.step || 0, MJ.Learn.STEPS.length - 1), sub: 0, page: 0, scroll: 0 }; dirty(); }
-  const learnPages = () => { const a = [], b = []; MJ.Learn.STEPS.forEach((st, i) => (st.lv === '入門' || st.lv === '初級' ? a : b).push(i)); return [a, b]; } // 3ページ目は「用語じてん」、4ページ目は「ビデオ」の入口
+  const LEARN_OLD = globalThis.__learnEnv === 'old'; // MJ_LEARN=old で、前の(タブの)見た目に戻る
+  const learnPages = () => { const a = [], b = []; if (!LEARN_OLD) return [MJ.Learn.STEPS.map((_, i) => i)]; MJ.Learn.STEPS.forEach((st, i) => (st.lv === '入門' || st.lv === '初級' ? a : b).push(i)); return [a, b]; } // 3ページ目は「用語じてん」、4ページ目は「ビデオ」の入口
   const pgOf = (pgi, sel) => Math.max(0, pgi.findIndex((p) => p.includes(sel))); // 1ページ目: 入門・初級 / 2ページ目: 中級・上級
   function learnOpen(stepIdx, page) { // 読み物を開く(しおりも、ここに更新)
     const L = S.learn, st = MJ.Learn.STEPS[stepIdx]; L.step = stepIdx; L.page = Math.max(0, Math.min(st.pages.length - 1, page || 0)); L.scroll = 0; L.view = 'read'; L.cache = null;
@@ -1188,8 +1189,38 @@
     }
     return (L.cache = best);
   }
+  function drawLearnB(L) { // B案: 左に ステップの一覧、右に えらんだステップの説明と進み具合(MJ_LEARN=old で、前の見た目に戻る)
+    const STEPS = MJ.Learn.STEPS, D = L.d, n = STEPS.length, nDone = STEPS.filter((s) => D.done[s.id]).length;
+    quizFrame('点数計算の勉強', '', 'おぼえた ' + nDone + ' / ' + n, L.view === 'sub' ? '' : '▲ ▼ でえらぶ    決定ボタンで ひらく    戻る: もどる');
+    L.top = Math.max(0, Math.min(L.top || 0, L.sel)); if (L.sel >= L.top + 8) L.top = L.sel - 7;
+    for (let r = 0; r < 8; r++) {
+      const i = L.top + r; if (i >= n) break; const st = STEPS[i], y = 58 + r * 44, on = L.sel === i && L.view === 'map', done = !!D.done[st.id];
+      panel(14, y, 366, 40, 10, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255);
+      rrect(24, y + 5, 36, 30, 6, done ? [60, 138, 60] : GREEN); text(done ? '✔' : String(i + 1), 42, y + 8, 18, WHITE, 1);
+      text(st.t, 68, y + 8, fitSz(st.t, 21, 232, 14), INK);
+      rrect(316, y + 8, 52, 24, 11, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, 342, y + 10, 15, WHITE, 1);
+    }
+    if (L.top > 0) text('▲', 189, 46, 14, YEL, 1); if (L.top + 8 < n) text('▼', 189, 412, 14, YEL, 1);
+    const st = STEPS[L.sel], done = !!D.done[st.id], bm = D.bm.step === L.sel && D.bm.read;
+    rrect(396, 58, 420, 352, 8, [150, 190, 140]); rrect(399, 61, 414, 346, 6, [16, 56, 42]);
+    text('ステップ' + (L.sel + 1) + ' ・ ' + st.lv, 606, 74, 17, [200, 225, 200], 1);
+    const ts = fitSz(st.t, 32, 390, 20); text(st.t, 606, 104, ts, YEL, 1);
+    const ls = richWrap(st.sum, 22, 380); richDraw(ls, 416, 162, 22, WHITE, 0);
+    fill(416, 296, 380, 2, [150, 190, 140]);
+    text(done ? '✔ おぼえました' : 'まだ おぼえていません', 606, 312, 22, done ? [150, 240, 190] : [200, 225, 200], 1);
+    text(bm ? 'しおり: ここまで 読みました' : STEPS[L.sel].pages.length + 'ページの 読み物と、クイズが あります', 606, 350, 17, bm ? [255, 170, 150] : [255, 233, 160], 1);
+    drawLearnSub(L);
+  }
+  function drawLearnSub(L) {
+    const STEPS = MJ.Learn.STEPS, D = L.d;
+    if (L.view === 'sub') {
+      fill(0, 0, SW, SH, [0, 0, 0], 130); const st = STEPS[L.sel]; panel(190, 110, 452, 240, 14, WHITE, GREEN, 4, 255); text('ステップ' + (L.sel + 1) + '  ' + st.t, SW / 2, 124, 22, GREEN, 1);
+      SUBS.forEach((lb, i) => { const y = 164 + i * 44, sel = L.sub === i, lab = i === 2 && D.done[st.id] ? '「おぼえた」を はずす' : i === 0 && D.bm.step === L.sel && D.bm.read ? '読む(しおりの ところから)' : lb; panel(220, y, 392, 38, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [150, 160, 140], sel ? 4 : 2, 255); text(lab, SW / 2, y + 7, 21, INK, 1); });
+    }
+  }
   function drawLearn() {
     const L = S.learn, STEPS = MJ.Learn.STEPS, D = L.d;
+    if (L.view !== 'read' && !LEARN_OLD) { drawLearnB(L); return; }
     if (L.view === 'read') {
       const st = STEPS[L.step], pg = st.pages[L.page], c = learnPage(L);
       quizFrame('ステップ' + (L.step + 1) + '  ' + st.t, '', (L.page + 1) + ' / ' + st.pages.length, L.page < st.pages.length - 1 ? '◀ ▶ でページをめくる    戻る: 地図へ' : '決定ボタンで クイズに進む    ◀ 前のページ    戻る: 地図へ');
@@ -1519,9 +1550,42 @@
     ['開発', 'Akihito Abe'], ['SPECIAL THANKS', 'Myumi'],
     ['音声(あなたの掛け声など)', 'VOICEVOX:ずんだもん'],
     ['音声(CPUの掛け声)', 'Open JTalk(pyopenjtalk)。音響モデル: Mei (MMDAgent Example Characters) CC BY 3.0'],
+    ['ビデオ', '「7人孫爺の健康麻雀教室」(麻雀の勉強の動画・サムネイル)'],
     ['BGM・画像', '制作者が用意(生成)したものです。対戦相手は、歴史上の人物をモチーフにしています。'],
     ['注意', '点数・符の計算や危険度は、学習用の目安です。実際のルール(店・地域・アプリ)によって異なる場合があります。'],
   ];
+  /* ---------- 遊び方(ヘルプ): 設定の中。ボタンの使い方 / 麻雀の遊び方 / 勉強・クイズ・ビデオ ---------- */
+  const HOW_T = ['ボタンの使い方', '麻雀の遊び方', '勉強・クイズ・ビデオ'];
+  function startHow() { S.how = { pg: 0 }; S.mode = 'howto'; dirty(); }
+  function howKey(k) {
+    const H = S.how; dirty();
+    if (k === 'back') { S.mode = 'settings'; S.how = null; } else if (k === 'left') H.pg = Math.max(0, H.pg - 1); else if (k === 'right' || k === 'ok') { if (H.pg < 2) H.pg++; else if (k === 'ok') { S.mode = 'settings'; S.how = null; } }
+  }
+  function howPad(x, y) { // ゲームパッドの絵(十字キー + 決定(A)・戻る(B))
+    rrect(x, y, 330, 176, 40, [52, 56, 60]); rrect(x + 3, y + 3, 324, 170, 38, [78, 84, 90]);
+    fill(x + 38, y + 74, 100, 30, [30, 32, 36]); fill(x + 73, y + 39, 30, 100, [30, 32, 36]); fill(x + 76, y + 77, 24, 24, [52, 56, 60]); // 十字キー
+    text('▲', x + 88, y + 40, 20, WHITE, 1); text('▼', x + 88, y + 114, 20, WHITE, 1); text('◀', x + 50, y + 77, 20, WHITE, 1); text('▶', x + 126, y + 77, 20, WHITE, 1);
+    rrect(x + 176, y + 88, 64, 64, 32, [32, 34, 38]); rrect(x + 180, y + 92, 56, 56, 28, [70, 130, 200]); text('B', x + 208, y + 104, 30, WHITE, 1); // 戻る(内側)
+    rrect(x + 250, y + 50, 64, 64, 32, [32, 34, 38]); rrect(x + 254, y + 54, 56, 56, 28, [214, 70, 56]); text('A', x + 282, y + 66, 30, WHITE, 1); // 決定(外側)
+  }
+  function drawHow() {
+    const H = S.how, pg = H.pg; quizFrame('遊び方', '', (pg + 1) + ' / 3', '◀ ▶ でページを かえる    戻る: 設定へ');
+    text(HOW_T[pg], SW / 2, 56, 30, [255, 233, 160], 1); fill(30, 96, SW - 60, 3, [140, 190, 130]);
+    if (pg === 0) {
+      howPad(24, 130);
+      text('決定ボタン (A)', 408, 112, 24, [255, 140, 120]); text('えらんだものを 決める・牌を 捨てる', 408, 142, 20, WHITE);
+      text('戻るボタン (B)', 408, 190, 24, [140, 190, 255]); text('ひとつ 戻る・やめる', 408, 220, 20, WHITE);
+      text('▲ ▼ ◀ ▶', 408, 268, 24, YEL); text('えらぶ・牌を えらぶ', 408, 298, 20, WHITE);
+      text('スタートとセレクトを 長押し', 408, 346, 22, YEL); text('メニュー(ゲーム終了など)が 出ます', 408, 376, 20, WHITE);
+      text('「設定」で、A と B を', 24, 322, 18, [200, 225, 200]); text('入れかえられます。', 24, 346, 18, [200, 225, 200]);
+    } else if (pg === 1) {
+      const L = [['1', '自分の番になったら、◀ ▶ で 牌を えらびます。', '決定ボタンで、その牌を 捨てます。'], ['2', '他の人が捨てた牌で、「ポン」「チー」「ロン」が', 'できるときは、ボタンが 出ます。えらんで 決定。'], ['3', 'あがりに近づいたら「リーチ」。', 'あがったら「ツモ」(自分で引いて)か「ロン」(人の牌で)。'], ['4', 'わからないときは、麻雀先生に 聞けます。', '右の「解説」で、おすすめの牌に ★ が つきます。']];
+      L.forEach((r, i) => { const y = 116 + i * 78; rrect(30, y + 4, 44, 44, 22, GREEN); text(r[0], 52, y + 8, 30, WHITE, 1); text(r[1], 92, y, 22, WHITE); text(r[2], 92, y + 34, 22, [255, 233, 160]); });
+    } else {
+      const L = [['麻雀クイズ', '問題に答えて、腕を みがきます。'], ['麻雀の勉強', '点数計算・用語じてん・ビデオで、順番に 学べます。'], ['ビデオ', '見ている途中で、決定ボタンで 一時停止。牌も ゆっくり 確かめられます。'], ['あなたの診断', '遊んだ結果から、いいところと 伸ばせるところが わかります。']];
+      L.forEach((r, i) => { const y = 116 + i * 78; panel(30, y, SW - 60, 66, 12, CREAM, GREEN, 3, 255); text(r[0], 52, y + 6, 26, INK); text(r[1], 52, y + 38, 19, [70, 70, 60]); });
+    }
+  }
   function drawCredits() {
     quizFrame('クレジット', '', '', '決定ボタン・戻る で もどる');
     let best = null;
@@ -1603,6 +1667,7 @@
     if (S.mode === 'video') { videoKey(k); return; }
     if (S.mode === 'learn') { learnKey(k); return; }
     if (S.mode === 'diag') { diagKey(k); return; }
+    if (S.mode === 'howto') { howKey(k); return; }
     if (S.mode === 'credits') { if (k === 'ok' || k === 'back') { S.mode = 'settings'; dirty(); } return; }
     if (S.mode === 'slots') {
       if (k === 'up' || k === 'down') { if (S.slots.length) S.slotIdx = wrap(S.slotIdx + (k === 'up' ? -1 : 1), S.slots.length); }
@@ -1641,6 +1706,7 @@
         else if (it.k === 'perf') { try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } }
         else if (it.k === 'rules' && k !== 'left') { S.mode = 'rules'; S.ruleIdx = 0; }
         else if (it.k === 'credits' && k !== 'left') { S.mode = 'credits'; }
+        else if (it.k === 'help' && k !== 'left') startHow();
         else if (it.k === 'back' && k === 'ok') S.mode = 'menu';
       }
       return;
@@ -1924,6 +1990,7 @@
     if (S.mode === 'video') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawVideo(); if (S.vid && S.vid.ask) { const a = S.vid.ask; S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('つづきから 見ますか?', ['つづきから(' + vfmt(S.vid.d.pos[S.vid.files[a.i].name]) + ')', 'はじめから'], a.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
     if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); if (S.learn && S.learn.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('ホームに もどりますか?', ['つづける', 'ホームにもどる'], S.learn.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
     if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); return true; }
+    if (S.mode === 'howto') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawHow(); return true; }
     if (S.mode === 'credits') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawCredits(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
