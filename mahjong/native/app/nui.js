@@ -73,6 +73,7 @@
   /* あなた(ずんだもん)の表情: 場面ごとに切りかわる。16枚(img/zunda/01〜16)。 */
   const ZN = { normal: 1, happy: 2, think: 3, fight: 4, call: 5, shock: 6, smug: 7, laugh: 8, focus: 9, relief: 10, grumpy: 11, what: 12, win: 13, lose: 14, dokidoki: 15, point: 16 };
   /* 絵のバージョン: ふだんは「浮世絵版」(img/uk/…)。ふだんは浮世絵版。起動のとき MJ_STYLE=old を付けると、前のバージョンの絵(img/chars, img/zunda, img/title_art.webp)に戻る */
+  MJ.RankScale = true; // 実機版: ポイントに「相手の強さ」をかける(js/rank.js)
   const UKIYO = globalThis.__styleEnv !== 'old'; // ふだんは浮世絵版。MJ_STYLE=old で、前のバージョンの絵
   const skin = (p) => (UKIYO && typeof p === 'string' ? p.replace(/^img\/(chars\/face|zunda|title_art)/, 'img/uk/$1') : p);
   const YOU_OLD = globalThis.__youEnv === 'old'; // 起動のとき MJ_YOU=old を付けると、前の「あなた」の絵(img/you)に戻る。 ふだんは ずんだもん
@@ -826,7 +827,7 @@
   function drawEnd(f) {
     gfx.clear(14, 84, 52); fill(0, 0, 720, 428, [18, 92, 58], 255); fill(0, 0, 720, 58, [10, 58, 38]); fill(0, 58, 720, 3, [230, 190, 70]);
     text('対局終了', 360, 8, 40, YEL, 1);
-    const MED = [[236, 190, 52], [190, 196, 204], [205, 133, 72], [120, 140, 130]], RH = 62, GAP = 6, Y0 = 72;
+    const MED = [[236, 190, 52], [190, 196, 204], [205, 133, 72], [120, 140, 130]], RH = 58, GAP = 5, Y0 = 70;
     f.results.forEach((o, i) => {
       const y = Y0 + i * (RH + GAP), me = o.p.isHuman, mc = MED[Math.min(3, o.rank - 1)];
       rrect(60, y, 600, RH, 8, [0, 0, 0], 70); rrect(58, y - 2, 600, RH, 8, me ? [255, 236, 130] : [244, 247, 240]);
@@ -838,12 +839,13 @@
     });
     const rk = f.rk, yb = Y0 + 4 * (RH + GAP) + 2;
     if (rk) {
-      rrect(60, yb, 600, 44, 8, [10, 58, 38]);
+      rrect(60, yb, 600, 64, 8, [10, 58, 38]);
       const d = rk.delta, col = d > 0 ? [140, 240, 150] : d < 0 ? [255, 130, 120] : WHITE;
-      text('段位ポイント', 80, yb + 8, 26, WHITE); text((d > 0 ? '+' : '') + d + ' 点', 280, yb + 4, 34, col);
+      text('段位ポイント', 80, yb + 8, 24, WHITE); text((d > 0 ? '+' : '') + d + ' 点', 290, yb + 5, 32, col);
       text(rk.msg ? rk.msg.replace('🎉 ', '') : (rk.name + (rk.next ? '   あと ' + rk.left + ' 点で ' + rk.next : '')), 640, yb + 10, fitSz(rk.msg || rk.name, 22, 330, 14), YEL, 2);
+      if (rk.avg != null) text('相手の強さ ★' + rk.avg.toFixed(1) + (Math.abs(rk.mult - 1) >= 0.05 ? '  →  ポイント ×' + rk.mult.toFixed(2) + (rk.mult > 1 ? '(強い相手ボーナス)' : '(弱い相手)') : '(ふつう)'), 80, yb + 41, 16, [200, 225, 205]);
     }
-    text('決定ボタンで ホームへ', 360, 396, 24, WHITE, 1);
+    text('決定ボタンで ホームへ', 360, 398, 24, WHITE, 1);
   }
 
 
@@ -1227,34 +1229,98 @@
   }
 
   /* ---------- あなたの診断(いいところ・のばせるところ・学習の記録) ---------- */
-  function startDiag() { S.mode = 'diag'; S.diag = { pg: 0, d: MJ.Stats.diag() }; dirty(); }
+  /* ---------- あなたの診断(強さのグラフ・ポイントのグラフ・アドバイス・学習の記録) ---------- */
+  function gLine(x1, y1, x2, y2, th, c, dash) { // 太さ th の線(四角をならべて描く)。 dash: 点線
+    const dx = x2 - x1, dy = y2 - y1, len = Math.max(Math.abs(dx), Math.abs(dy)), h = Math.floor(th / 2), step = Math.max(1, Math.floor(th * 0.7));
+    for (let i = 0; i <= len; i += step) { if (dash && Math.floor(i / 7) % 2) continue; fill(Math.round(x1 + dx * (len ? i / len : 0)) - h, Math.round(y1 + dy * (len ? i / len : 0)) - h, th, th, c); }
+  }
+  function gPoly(pts, c, a) { // 多角形を、横線でぬる
+    let y0 = 1e9, y1 = -1e9; pts.forEach((p) => { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+    for (let y = Math.ceil(y0); y <= Math.floor(y1); y++) { const xs = []; for (let i = 0; i < pts.length; i++) { const A = pts[i], B = pts[(i + 1) % pts.length]; if ((A[1] <= y + 0.5) !== (B[1] <= y + 0.5)) xs.push(A[0] + (y + 0.5 - A[1]) / (B[1] - A[1]) * (B[0] - A[0])); } xs.sort((m, n) => m - n); for (let k = 0; k + 1 < xs.length; k += 2) fill(Math.round(xs[k]), y, Math.max(1, Math.round(xs[k + 1]) - Math.round(xs[k])), 1, c, a); }
+  }
+  function recordDiscard(g, p, h) { // 実戦の記録: 打った牌が 最善に近いか(牌効率) / ほかの人の当たり牌を 持っていて、切らずに すんだか(洞察力)
+    if (g.fast || p.riichi) return; const A = MJ.AI; let effOk = null;
+    try { const an = A.analyze(g, p, { know: 2 }); if (an.evals.length && !an.opps.length) { const me = an.evals.find((e) => e.t === h.t); if (me) { const mx = Math.max.apply(null, an.evals.filter((e) => e.sh === an.minSh).map((e) => e.ukeire.n)); effOk = me.sh === an.minSh && me.ukeire.n >= mx * 0.8; } } } catch (e) { /* ignore */ }
+    const safe = [];
+    try { const mine = new Set(p.hand.map((x) => x.t)); g.players.forEach((q) => { if (q === p || q.hand.length % 3 !== 1) return; const c = MJ.toCounts(q.hand); if (MJ.shanten(c, q.melds.length) !== 0) return; const ws = MJ.waits(c.slice(), q.melds.length); if (ws.length && ws.some((w) => mine.has(w))) safe.push(!ws.includes(h.t)); }); } catch (e) { /* ignore */ }
+    MJ.Stats.discard(effOk, safe);
+  }
+  function startDiag() { S.mode = 'diag'; let rk = { hist: [] }, info = null; try { rk = MJ.Rank.get(); info = MJ.Rank.info(); } catch (e) { /* ignore */ } S.diag = { pg: 0, d: MJ.Stats.diag(), sg: MJ.Stats.strength(), rk, info }; dirty(); }
   function diagKey(k) {
     const D = S.diag;
     if (k === 'back') { S.mode = 'menu'; S.diag = null; }
-    else if (k === 'left') D.pg = Math.max(0, D.pg - 1); else if (k === 'right') D.pg = Math.min(2, D.pg + 1);
-    else if (k === 'ok' && D.pg > 0) { S.diag = null; startPractice(); }
+    else if (k === 'left') D.pg = Math.max(0, D.pg - 1); else if (k === 'right') D.pg = Math.min(3, D.pg + 1);
+    else if (k === 'ok' && D.pg >= 2) { S.diag = null; startPractice(); }
     dirty();
   }
+  function diagTabs(pg, hint) { // 下の、ページの札
+    ['強さ', 'ポイント', 'アドバイス', '学習の記録'].forEach((t, i) => { const x = 14 + i * 130, on = i === pg; panel(x, 428, 122, 32, 9, on ? [60, 130, 60] : [50, 70, 60], on ? [150, 200, 140] : [74, 97, 84], 2, 255); text(t, x + 61, 428 + Math.round((32 - 18) / 2) - 1, 18, on ? WHITE : [185, 201, 189], 1); });
+    text(hint, 806, 428 + 8, 16, [210, 225, 205], 2);
+  }
   function drawDiag() {
-    const D = S.diag, d = D.d, pg = D.pg;
-    quizFrame('あなたの診断', '', '', pg === 0 ? '◀ ▶ でページを かえる    戻る: ホームへ' : '◀ ▶ でページを かえる    決定ボタン: 苦手を練習する    戻る: ホームへ');
-    ['いいところ', 'のばせるところ', '学習の記録'].forEach((lb, i) => { const x = 24 + i * 178, on = i === pg; rrect(x, 56, 170, 34, 10, on ? [60, 130, 60] : [50, 70, 60]); text(lb, x + 85, 60, 21, on ? WHITE : [170, 190, 170], 1); });
-    const body = (items, empty) => {
-      const str = items.length ? items.map((t) => '・' + t).join('\n') : empty, f = fitRich(str, [26, 24, 22, 20, 18], 780, 292);
-      richDraw(f.lines, 26, 100, f.sz, WHITE, 0);
-    };
-    if (pg === 0) body(d.good, d.hands < 6 && d.quizN < 6 ? 'まだ、記録が 少ないです。麻雀を遊んだり、クイズを解くと、あなたの いいところを お知らせします。' : 'いまは、まだ 見つかっていません。もう少し 遊ぶと、いいところが 見つかります。');
-    else if (pg === 1) body(d.weak, 'いまのところ、大きな 苦手は 見つかっていません。すばらしい!');
-    else {
+    const D = S.diag, d = D.d, pg = D.pg, sg = D.sg;
+    quizFrame('あなたの診断', '', '', '');
+    if (pg === 0) { // 強さ(レーダーチャート)
+      const ax = sg.ax, have = ax.filter((a) => a.v != null), cx0 = 440, cy0 = 256, R = 104, pt = (i, v, r) => { const an = -Math.PI / 2 + i * Math.PI / 3, rr = (r == null ? R : r) * v / 100; return [cx0 + Math.cos(an) * rr, cy0 + Math.sin(an) * rr]; };
+      panel(22, 56, 196, 54, 12, CREAM, [160, 110, 0], 3, 255); text('総合', 36, 74, 17, INK);
+      if (sg.total != null) { text(String(sg.total), 120, 64, 34, sg.total < 60 ? [190, 60, 40] : INK, 1); text('点', 160, 74, 17, INK); } else text('--', 120, 64, 34, [120, 120, 110], 1);
+      ax.forEach((a, i) => { const y = 118 + i * 46; panel(22, y, 196, 38, 12, CREAM, GREEN, 2, 255); text(a.name, 38, y + 9, 20, a.v == null ? [130, 130, 120] : INK); text(a.v == null ? '--' : a.v + '点', 204, y + 9, 20, a.v == null ? [130, 130, 120] : a.v < 60 ? [190, 60, 40] : INK, 2); });
+      gPoly([0, 1, 2, 3, 4, 5].map((i) => pt(i, 100)), [13, 51, 38], 255);
+      [25, 50, 75, 100].forEach((lv) => { const P = [0, 1, 2, 3, 4, 5].map((i) => pt(i, lv)); for (let i = 0; i < 6; i++) gLine(P[i][0], P[i][1], P[(i + 1) % 6][0], P[(i + 1) % 6][1], 1, [102, 170, 136]); });
+      for (let i = 0; i < 6; i++) { const e = pt(i, 100); gLine(cx0, cy0, e[0], e[1], 1, [102, 170, 136]); }
+      { const P = [0, 1, 2, 3, 4, 5].map((i) => pt(i, 60)); for (let i = 0; i < 6; i++) gLine(P[i][0], P[i][1], P[(i + 1) % 6][0], P[(i + 1) % 6][1], 2, YEL, true); } // 60点の線(点線)
+      if (have.length >= 3) { const P = ax.map((a, i) => pt(i, a.v == null ? 0 : a.v)); gPoly(P, [255, 120, 90], 120); for (let i = 0; i < 6; i++) gLine(P[i][0], P[i][1], P[(i + 1) % 6][0], P[(i + 1) % 6][1], 3, [255, 122, 90]); P.forEach((q, i) => { if (ax[i].v != null) rrect(Math.round(q[0]) - 4, Math.round(q[1]) - 4, 9, 9, 4, [255, 122, 90]); }); }
+      else { fill(cx0 - 100, cy0 - 18, 200, 36, [0, 0, 0], 150); text('データを ためています', cx0, cy0 - 12, 21, WHITE, 1); }
+      ax.forEach((a, i) => { const q = pt(i, 100, R + 26); text(a.name, Math.round(q[0]), Math.round(q[1]) - 11, 19, a.v == null ? [150, 165, 155] : WHITE, 1); });
+      const best = have.slice().sort((x, y) => y.v - x.v)[0], worst = have.slice().sort((x, y) => x.v - y.v)[0], tip = { '攻撃力': '役づくりを 意識しましょう。', '守備力': '危ない牌を 見分けましょう。', '洞察力': '待ちや 押し引きの クイズが おすすめです。', '牌効率': '牌効率の クイズが おすすめです。', '計算力': 'クイズで 練習しましょう!', '打点力': 'ドラや 役を ねらってみましょう。' };
+      const say = have.length >= 3 ? (best.name + 'が 得意です。\nいちばん のばせるのは「' + worst.name + '」。' + tip[worst.name]) : 'まだ 記録が すくないです。麻雀を遊んだり、クイズを解くと、強さが 見えてきます。';
+      tFace(sg.total == null ? 'advice' : sg.total >= 80 ? 'cheer' : sg.total >= 60 ? 'ok' : 'advice', 'dg0' + (sg.total || 0), 716, 52, 72);
+      const f = fitRich(say, [18, 17, 16], 186, 170), bh = f.h + 26; panel(606, 132, 212, bh, 12, CREAM, GREEN, 3, 255); richDraw(f.lines, 618, 144, f.sz, INK, 0);
+      const ly = 132 + bh + 14; gLine(612, ly + 10, 636, ly + 10, 2, YEL, true); text('60点 = ふつう', 644, ly + 1, 15, [255, 233, 160]); text('80点 = じょうず(めざす線)', 612, ly + 24, 15, [255, 233, 160]);
+      diagTabs(0, '◀ ▶ ページ   戻る: ホームへ'); return;
+    }
+    if (pg === 1) { // ポイントのうつりかわり
+      const hist = (D.rk && D.rk.hist) || [], info = D.info, n = hist.length;
+      text('ポイントのうつりかわり', 62, 58, 19, WHITE); text(n ? '(さいきん ' + n + '回)' : '', 270, 62, 14, [200, 220, 205]);
+      if (info) { // 段位
+        panel(612, 56, 206, 122, 12, CREAM, [160, 110, 0], 3, 255); text('いまの 段位', 626, 64, 15, [90, 90, 80]); text(info.name, 626, 82, 30, INK);
+        fill(626, 122, 178, 12, [210, 210, 200]); fill(626, 122, Math.round(178 * Math.max(0.03, Math.min(1, info.prog))), 12, [214, 150, 0]); text(info.next ? info.next + 'まで あと ' + info.left + ' pt' : 'いちばん上です', 626, 142, 15, [90, 90, 80]);
+      }
+      if (!n) { text('まだ 記録が ありません。', 300, 190, 24, WHITE, 1); text('東風戦・東南戦を 最後まで 遊ぶと、ここに 出ます。', 300, 228, 18, [200, 220, 205], 1); diagTabs(1, '◀ ▶ ページ   戻る: ホームへ'); return; }
+      const cum = []; let acc = 0; hist.forEach((h) => { acc += h.p; cum.push(acc); });
+      const X0 = 62, Y0 = 108, W = 520, Hh = 262, all = hist.map((h) => h.p).concat(cum, 0), ymin = Math.floor(Math.min.apply(null, all) / 40) * 40, ymax = Math.max(ymin + 80, Math.ceil(Math.max.apply(null, all) / 40) * 40), Y = (v) => Math.round(Y0 + (ymax - v) / (ymax - ymin) * Hh);
+      for (let v = ymin; v <= ymax; v += 40) { fill(X0, Y(v), W, v === 0 ? 2 : 1, v === 0 ? [150, 180, 170] : [58, 90, 74]); text(String(v), X0 - 6, Y(v) - 8, 13, [200, 220, 205], 2); }
+      const slot = W / Math.max(n, 12), bw = Math.max(4, Math.floor(slot * 0.7));
+      hist.forEach((h, i) => { const x = Math.round(X0 + i * slot + (slot - bw) / 2), y1 = Y(Math.max(h.p, 0)), y2 = Y(Math.min(h.p, 0)); fill(x, y1, bw, Math.max(1, y2 - y1), h.p >= 0 ? [72, 192, 140] : [224, 96, 94]); if (n <= 18 && h.o != null) text('★' + h.o, x + Math.round(bw / 2), h.p >= 0 ? y1 - 15 : y2 + 2, 12, [255, 233, 160], 1); });
+      cum.forEach((c, i) => { const x = Math.round(X0 + i * slot + slot / 2), y = Y(c); if (i) gLine(Math.round(X0 + (i - 1) * slot + slot / 2), Y(cum[i - 1]), x, y, 3, [255, 122, 160]); });
+      if (n <= 18) cum.forEach((c, i) => rrect(Math.round(X0 + i * slot + slot / 2) - 4, Y(c) - 4, 9, 9, 4, [255, 122, 160]));
+      [0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i).forEach((i) => text((i + 1) + '回目', Math.round(X0 + i * slot + slot / 2), Y0 + Hh + 8, 14, [200, 220, 205], 1));
+      fill(62, 84, 14, 10, [72, 192, 140]); text('その回の ポイント', 80, 80, 14, [200, 220, 205]); gLine(214, 89, 232, 89, 3, [255, 122, 160]); text('合計', 238, 80, 14, [200, 220, 205]); text('★ = その回の 相手の強さ', 290, 80, 14, [255, 233, 160]);
+      const avgR = (a) => a.length ? a.reduce((s, h) => s + h.r, 0) / a.length : 0, renda = (a) => a.length ? a.filter((h) => h.r <= 2).length / a.length : 0, prev = hist.slice(0, -1), sgn = (v, f) => (v >= 0 ? '+' : '') + f(v);
+      const blocks = [['ポイント合計', (acc >= 0 ? '+' : '') + acc, '前回より ' + sgn(hist[n - 1].p, String)], ['平均じゅんい', avgR(hist).toFixed(2) + '位', prev.length ? '前回より ' + sgn(avgR(hist) - avgR(prev), (v) => v.toFixed(2)) : ''], ['連対率(1・2位)', (renda(hist) * 100).toFixed(1) + ' %', prev.length ? '前回より ' + sgn((renda(hist) - renda(prev)) * 100, (v) => v.toFixed(1)) + '%' : '']];
+      blocks.forEach((b, i) => { const y = 186 + i * 80; text(b[0], 614, y, 15, [200, 220, 205]); text(b[1], 614, y + 20, 30, WHITE); text(b[2], 614, y + 58, 14, [150, 240, 190]); });
+      diagTabs(1, '◀ ▶ ページ   戻る: ホームへ'); return;
+    }
+    if (pg === 2) { // アドバイス
+      const tot = sg.total; tFace(tot != null && tot >= 60 ? 'ok' : 'advice', 'dg2', 22, 56, 76);
+      panel(112, 58, 706, 46, 12, CREAM, GREEN, 3, 255); text('あなたの 麻雀を 見ました。いいところと、のばせるところを お知らせします。', 128, 58 + Math.round((46 - 19) / 2) - 1, fitSz('あなたの 麻雀を 見ました。いいところと、のばせるところを お知らせします。', 19, 676, 14), INK);
+      const sec = (y, ttl, col, items, empty, avail) => { const f = fitRich(items.length ? items.slice(0, 3).map((t) => '・' + t).join('\n') : empty, [20, 19, 18, 17, 16], 668, avail - 62), h = f.h + 62; panel(112, y, 706, h, 12, CREAM, col, 3, 255); text(ttl, 130, y + 10, 21, col); richDraw(f.lines, 130, y + 42, f.sz, INK, 0); return h; };
+      const h1 = sec(112, '★ いいところ', [44, 90, 26], d.good, d.hands < 6 && d.quizN < 6 ? 'まだ、記録が すくないです。遊んだり、クイズを解くと、お知らせします。' : 'いまは、まだ 見つかっていません。', 150);
+      sec(112 + h1 + 10, '▲ のばせるところ', [160, 82, 26], d.weak, 'いまのところ、大きな 苦手は 見つかっていません。すばらしい!', 416 - (112 + h1 + 10));
+      diagTabs(2, '決定: 苦手を 練習   戻る: ホームへ'); return;
+    }
+    // 学習の記録
+    {
       const bars = d.bars.slice(0, 6); bars.forEach((b, i) => {
-        const y = 100 + i * 34, col = b.a >= 0.8 ? [90, 200, 120] : b.a >= 0.5 ? [240, 200, 70] : [240, 110, 90];
+        const y = 66 + i * 36, col = b.a >= 0.8 ? [90, 200, 120] : b.a >= 0.5 ? [240, 200, 70] : [240, 110, 90];
         text(b.name, 26, y, 21, WHITE); fill(280, y + 4, 240, 22, [40, 60, 50]); fill(280, y + 4, Math.round(240 * b.a), 22, col); text(Math.round(b.a * 100) + '%  ' + b.n + '問', 534, y, 21, WHITE);
       });
-      if (!bars.length) text('クイズの記録が まだ ありません。', 26, 110, 24, WHITE);
+      if (!bars.length) text('クイズの記録が まだ ありません。', 26, 76, 24, WHITE);
       const L = learnLoad(), done = MJ.Learn.STEPS.filter((st) => L.done[st.id]).length, nx = MJ.Learn.STEPS.findIndex((st) => !L.done[st.id]);
       const notes = d.notes.concat(['点数計算の勉強: ' + done + ' / ' + MJ.Learn.STEPS.length + ' おぼえた' + (nx >= 0 ? '。つぎは ステップ' + (nx + 1) + '「' + MJ.Learn.STEPS[nx].t + '」が おすすめです。' : '。すべて おぼえました!')]);
-      const f = fitRich(notes.join('\n'), [20, 18, 16], 780, 118); richDraw(f.lines, 26, 306, f.sz, [220, 235, 215], 0);
+      const f = fitRich(notes.join('\n'), [22, 20, 18, 16], 780, 124); richDraw(f.lines, 26, 292, f.sz, [220, 235, 215], 0);
     }
+    diagTabs(3, '決定: 苦手を 練習   戻る: ホームへ');
   }
 
   /* ---------- クレジット(設定から) ---------- */
@@ -1476,7 +1542,7 @@
       else if (k === 'back' && s.rm) { s.rm = false; }
       else if (k === 'back' && s.row === 0) { openMenu(); }
       else if (k === 'ok') {
-        if (s.row === 0) { const live = myTiles(s.p), h = live[s.idx] || tiles[s.idx]; if (h && allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.curIdx = s.idx; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
+        if (s.row === 0) { const live = myTiles(s.p), h = live[s.idx] || tiles[s.idx]; if (h && allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.curIdx = s.idx; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; try { recordDiscard(S.game, s.p, h); } catch (e) { /* ignore */ } s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
         else {
           const b = s.btns[s.idx];
           if (b.act === 'riichi') { s.rm = !s.rm; s.row = 0; const okI = tiles.findIndex((h) => allowed(s, h)); if (s.rm) { const d = tiles.indexOf(s.p.drawn); s.idx = d >= 0 && allowed(s, tiles[d]) ? d : Math.max(0, okI); } else s.idx = tiles.length - 1; }
@@ -1595,6 +1661,11 @@
     gameEnd(g, f) { NSND.sfx('end'); try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { S.rankScr = { rk, done }; dirty(); } }); }); },
   };
 
+  const AI_T = [0, 1, 2, 3, 3, 4, 4, 5, 5, 5, 5];
+  function liftChars(chars) { // 段位が上がると、★の低いキャラも、最低でも その段位の「★の最低値」まで強くなる
+    let dan = 0; try { dan = MJ.Rank.get().dan; } catch (e) { /* ignore */ }
+    return chars.map((c) => { const L = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; return L === c.level ? c : Object.assign({}, c, { level: L, ai: AI_T[Math.min(10, L)] }); });
+  }
   function pickChars() {
     let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (!ok || !ok.length || ok.includes(c.id))); const out = [];
     while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
@@ -1613,7 +1684,7 @@
   async function startGame(sn) {
     S.mode = 'game'; dirty();
     const chars = sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
-    const g = new MJ.Game({ chars: chars.length === 3 ? chars : pickChars(), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined });
+    const g = new MJ.Game({ chars: liftChars(chars.length === 3 ? chars : pickChars()), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined });
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; }
     g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
     S.game = g;

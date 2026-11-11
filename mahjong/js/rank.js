@@ -12,8 +12,13 @@
   const DAN = [['無段', 0], ['初段', 100], ['二段', 250], ['三段', 450], ['四段', 700], ['五段', 1000], ['六段', 1350], ['七段', 1750], ['八段', 2150], ['九段', 2550], ['十段', 2950], ['名人', 3400]];
   const PTS = { south: [30, 15, 5, -10], east: [15, 8, 3, -5] }; // 東風戦は、東南戦の半分
   const DEMOTE_FROM = 3, DEMOTE_GAP = 40; // 三段以上は、入口から40点下回ると降段
+  /* 実機版(MJ.RankScale = true のとき): ポイントに「相手の強さ」をかける。 基準の強さ=1+0.8×段位。 相手3人の★の平均が高いほど、勝ち(1・2位)は増え、負け(4位)は減りかたが小さい。
+     段位が上がると、★の低いキャラも、最低でも FLOOR(段位) まで強くなる(MJ.effLevel) */
+  const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+  MJ.effFloor = (dan) => Math.min(6, 1 + Math.floor(dan / 2));
+  MJ.effLevel = (lv, dan) => Math.max(lv, MJ.effFloor(dan));
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
-  const base = () => ({ pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '', dan: 0, maxdan: 0, v: 2, qc: 0, qday: '', qpt: 0, st: {} });
+  const base = () => ({ hist: [], pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '', dan: 0, maxdan: 0, v: 2, qc: 0, qday: '', qpt: 0, st: {} });
   const idxOf = (pt) => { let k = 0; DAN.forEach((d, i) => { if (pt >= d[1]) k = i; }); return k; };
   /* 点を足して、昇段・降段を決める。{ before, after } は段位の番号 */
   const addPt = (s, delta) => {
@@ -46,7 +51,12 @@
       if (!game || game.length === 'single') return null;
       const me = final.results.find((r) => r.p.seat === 0);
       if (!me) return null;
-      const s = R.get(), tbl = PTS[game.length === 'east' ? 'east' : 'south'], delta = tbl[me.rank - 1] || 0;
+      const s = R.get(), tbl = PTS[game.length === 'east' ? 'east' : 'south']; let delta = tbl[me.rank - 1] || 0, avg = null, mult = 1;
+      if (MJ.RankScale === true) {
+        const lv = final.results.filter((r) => r.p.seat !== 0 && r.p.char).map((r) => r.p.char.level || 1); avg = lv.length ? lv.reduce((a, b) => a + b, 0) / lv.length : null;
+        if (avg != null) { const d = avg - (1 + 0.8 * s.dan); mult = me.rank <= 2 ? clampN(1 + 0.15 * d, 0.5, 2) : me.rank === 4 ? clampN(1 - 0.15 * d, 0.5, 2) : 1; delta = Math.round(delta * mult); }
+      }
+      s.hist = (s.hist || []).concat({ p: delta, r: me.rank, o: avg == null ? null : Math.round(avg * 10) / 10 }).slice(-30);
       const ch = addPt(s, delta); s.games++; s.ranks[me.rank - 1]++;
       final.results.forEach((r) => {
         if (r.p.seat === 0 || !r.p.char || !r.p.char.id) return;
@@ -55,7 +65,7 @@
       });
       save(RK, s);
       const f = R.info();
-      return { delta, pt: s.pt, name: f.name, next: f.next, left: f.left, from: ch.before, to: ch.after, promoted: ch.after > ch.before, demoted: ch.after < ch.before, msg: msgOf(ch), dan: ch.after > ch.before ? DAN[ch.after][0] : null };
+      return { delta, avg, mult, pt: s.pt, name: f.name, next: f.next, left: f.left, from: ch.before, to: ch.after, promoted: ch.after > ch.before, demoted: ch.after < ch.before, msg: msgOf(ch), dan: ch.after > ch.before ? DAN[ch.after][0] : null };
     },
     /* 相手の解放: これまでに到達した最高の段位までの人が使える(降段しても、出てきた人は使えたまま) */
     unlocked(id) { return MJ.unlockDan(id) <= R.get().maxdan; },
