@@ -333,8 +333,8 @@
   const cached = (i, key, fn) => { const c = S.lay[i]; if (!c || c.key !== key) { gfx.layerBegin(i); fn(); gfx.layerEnd(); S.lay[i] = { key }; } gfx.layer(i); };
   function drawTable(g) {
     if (!g.doraInd || !g.players[0].hand) return; // 始まる前は、まだ描くものがない
-    gfx.clear(14, 84, 52);
-    fill(140, 8, 440, 300, [10, 66, 40]); // 卓の中ほど
+    gfx.clear(24, 78, 58);
+    fill(140, 8, 440, 300, [18, 60, 44]); // 卓の中ほど
     if (g.blank) return;
     const P = g.players;
     if (S.fly && __now() >= S.fly.t0 + S.fly.dur) S.fly = null; // 着いたら、その同じコマから、河の絵に入れる(ちらつき防止)
@@ -396,7 +396,7 @@
       face(bn.p, bx, by, FB, FB);
       { const tx = bx + FB + 16, ty = by + Math.round((FB - sz) / 2) + TYADJ; text(bn.text, tx + 5, ty + 7, sz, [0, 0, 0], 0); [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, tx + d[0], ty + d[1], sz, [255, 255, 255])); text(bn.text, tx, ty, sz, col); }
     } else if (S.banner) { // 局のはじまり: 4人の顔(★つき)を席の位置に出し、まん中に「東二局 一本場」
-      fill(0, 0, W, H, [16, 66, 50]); fill(30, 30, W - 60, H - 60, [22, 84, 62]); fill(90, 70, W - 180, H - 140, [28, 100, 72]); // 緑のしずかな背景(サイコロの画面と同じ)
+      fill(0, 0, W, H, [22, 62, 48]); fill(30, 30, W - 60, H - 60, [28, 76, 58]); fill(90, 70, W - 180, H - 140, [34, 90, 68]); // 緑のしずかな背景(サイコロの画面と同じ)
       const P4 = g.players, FS = 84, SEATS = [{ s: 0, x: 318, y: 292, pc: 360, py: 386, cx: 284, cy: 292 }, { s: 1, x: 590, y: 128, pc: 632, py: 218, cx: 680, cy: 130 }, { s: 2, x: 318, y: 16, pc: 360, py: 106, cx: 284, cy: 18 }, { s: 3, x: 46, y: 128, pc: 88, py: 218, cx: 8, cy: 130 }];
       SEATS.forEach((o) => { const p = P4[o.s]; face(p, o.x, o.y, FS, FS); plate(o.pc, o.py, p.name, p.char && p.char.level ? p.char.level : 0);
         const sw = g.seatWindOf(p); rrect(o.cx, o.cy, 28, 28, 5, [255, 255, 255]); rrect(o.cx + 2, o.cy + 2, 24, 24, 4, WIND_BG[sw]); text(WIND[sw], o.cx + 14, o.cy + 3, 20, WHITE, 1); });
@@ -479,7 +479,7 @@
     }
   }
   function drawTitle() {
-    gfx.clear(14, 84, 52);
+    gfx.clear(24, 78, 58);
     gfx.image(skin('img/title_art.webp'), 0, 0, SW, SH, 255); // タイトルの文字は、絵に入っている
     const f = S.titleIdx, pr = pressing();
     const sc = (i) => { // 選んでいるボタンは少し大きく。押すと「ぎゅっと縮んで、ぽんと跳ねる」
@@ -524,7 +524,7 @@
     text(label, x + w / 2, y + (h - (sz || 18)) / 2, sz || 18, sel ? [255, 245, 200] : [243, 227, 176], 1);
   }
   function drawHome() {
-    gfx.clear(14, 84, 52);
+    gfx.clear(24, 78, 58);
     gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255);
     if (UKIYO) gfx.image('img/uk/logo.webp', 40, 0, 262, 159, 255); else gfx.image('img/logo.webp', 52, 22, 244, 139, 255); // 浮世絵版: タイトルの絵から切り抜いた、ぼかし楕円のロゴ
     rrect(21, 165, 292, 170, 16, [10, 18, 32], 150); // 左の説明: 半透明の黒い囲い(Edge版と同じ)
@@ -563,7 +563,7 @@
     { k: 'start', label: '持ち点', vals: [[25000, '25,000点'], [30000, '30,000点'], [35000, '35,000点']], note: 'はじめの持ち点です。' },
   ];
   function drawRules() {
-    gfx.clear(14, 84, 52); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
+    gfx.clear(24, 78, 58); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
     text('麻雀のルール', SW / 2, 6, 28, YEL, 1);
     const n = RULE_ROWS.length + 2, i0 = S.ruleIdx || 0, VIS = 9, top = Math.max(0, Math.min(n - VIS, i0 - 4));
     for (let v = 0; v < VIS; v++) {
@@ -580,7 +580,7 @@
     text('変えたルールは、次の対局から使われます', SW / 2, 438, 19, [205, 224, 212], 1);
   }
   function drawSettings() {
-    gfx.clear(14, 84, 52); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
+    gfx.clear(24, 78, 58); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
     text('設定', SW / 2, 8, 30, YEL, 1);
     SETS.forEach((s, i) => {
       const y = 44 + i * 42, sel = S.setIdx === i; panel(110, y, 612, 38, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
@@ -823,7 +823,7 @@
     });
   }
   function drawEnd(f) {
-    gfx.clear(14, 84, 52); fill(0, 0, 720, 428, [18, 92, 58], 255); fill(0, 0, 720, 58, [10, 58, 38]); fill(0, 58, 720, 3, [230, 190, 70]);
+    gfx.clear(24, 78, 58); fill(0, 0, 720, 428, [28, 84, 62], 255); fill(0, 0, 720, 58, [10, 58, 38]); fill(0, 58, 720, 3, [230, 190, 70]);
     text('対局終了', 360, 8, 40, YEL, 1);
     const MED = [[236, 190, 52], [190, 196, 204], [205, 133, 72], [120, 140, 130]], RH = 58, GAP = 5, Y0 = 70;
     f.results.forEach((o, i) => {
@@ -1338,7 +1338,7 @@
     let y = 56; best.items.forEach((it) => { text(it.h, 30, y, best.sz - 4, YEL); y += Math.round((best.sz - 4) * 1.4); richDraw(it.lines, 30, y, best.sz, WHITE, 0); y += richH(it.lines, best.sz) + 6; });
   }
   function drawSlots() {
-    gfx.clear(14, 84, 52); text('セーブデータをえらぶ', 360, 18, 28, YEL, 1);
+    gfx.clear(24, 78, 58); text('セーブデータをえらぶ', 360, 18, 28, YEL, 1);
     if (!S.slots.length) text('セーブデータがありません', 360, 180, 20, WHITE, 1);
     S.slots.forEach((q, i) => { const sn = q.v.snap, y = 62 + i * 56; panel(80, y, 560, 48, 10, S.slotIdx === i ? YEL : WHITE, [120, 120, 120], 1, 235);
       text((i === 0 ? '最新  ' : (i + 1) + '番目  ') + kyokuText(sn), 94, y + 3, 22, BLACK); text('持ち点 ' + sn.scores.join(' / '), 94, y + 29, 17, [60, 60, 60]); });
@@ -1718,7 +1718,7 @@
   const drawBody = function () {
     // カーソルだけが動いたとき: 画面ぜんたいは描きなおさず、手牌のあたりだけ描く(キビキビ動かすため)
     if (S.partialKey && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.ryu && !Object.keys(S.bub).length && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
-      S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [14, 84, 52]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
+      S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [24, 78, 58]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;
     if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
@@ -1731,8 +1731,8 @@
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
     if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
     gfx.view(S.vx, S.vy);
-    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(14, 84, 52); drawSlots(); }
-    else if (S.game) { gfx.clear(14, 84, 52); drawTable(S.game); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
+    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(24, 78, 58); drawSlots(); }
+    else if (S.game) { gfx.clear(24, 78, 58); drawTable(S.game); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
     if (S.rankP) drawRankP();
     if (S.result) { drawResult(S.result); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
     if (__auto && globalThis.__shotDir && (S.react || (S.self && S.self.btns.length)) && S.shotR < 6) { gfx.shot(__shotDir + '/act' + (++S.shotR) + '.bmp'); }
