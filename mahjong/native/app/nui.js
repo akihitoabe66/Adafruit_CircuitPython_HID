@@ -1259,7 +1259,7 @@
     if (!f.path || typeof __vopen !== 'function') { V.err = f.path ? 'この画面では 再生できません(実機で 見られます)' : 'この動画は まだ 入っていません(mjdata/video に入れてください)'; dirty(); return; }
     try { NSND.music(''); } catch (e) { /* ignore */ }
     const r = __vopen(f.path, from || 0); if (!r) { V.view = 'list'; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
-    const now = __now(); V.sel = i; V.view = 'play'; V.p = { f, i, dur: r.dur || 0, ui: now, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now, st: [from || 0, r.dur || 0, 0, 0, 0], sig: '' };
+    const now = __now(); V.sel = i; V.view = 'play'; V.p = { f, i, dur: r.dur || 0, ui: now + 2500, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now, st: [from || 0, r.dur || 0, 0, 0, 0], sig: '' };
     V.d.last = f.name; vSave(); dirty();
   }
   function vStop(markEnd) { // 動画をとじて、一覧へ
@@ -1360,9 +1360,12 @@
     F(0, 384, SW, 84, [0, 0, 0], 255); // 下の帯(動画の字幕に重ならないよう、できるだけ低く)
     const dur = p.dur || 0, fr = dur > 0 ? Math.max(0, Math.min(1, st[0] / dur)) : 0;
     F(30, 394, SW - 60, 10, [90, 100, 95]); F(30, 394, Math.round((SW - 60) * fr), 10, [255, 220, 40]); F(30 + Math.round((SW - 60) * fr) - 4, 389, 8, 20, WHITE);
-    TT(vfmt(st[0]) + ' / ' + vfmt(dur), 30, 420, 28, WHITE);
-    TT(p.paused ? '決定: 再生' : '決定: 一時停止', SW - 30, 422, 24, [255, 233, 160], 2);
-    TT('◀ もどす    ▶ すすむ    戻る: やめる', SW / 2 + 10, 424, 20, [210, 225, 205], 1);
+    TT(vfmt(st[0]) + ' / ' + vfmt(dur), 30, 424, 26, WHITE);
+    const hot = now < p.toastT ? (p.toast.indexOf('◀') === 0 ? 1 : 2) : 0, ic = (x, w, on) => F(x, 414, w, 44, on ? [255, 220, 40] : [60, 70, 66]), ink = (on) => on ? [30, 30, 20] : WHITE; // 下の帯の、ボタンの印(◀◀ / 一時停止・再生 / ▶▶)
+    ic(250, 120, hot === 1); TT('◀◀', 296, 420, 28, ink(hot === 1), 1); TT('10', 346, 428, 18, ink(hot === 1), 1);
+    ic(386, 60, false); if (p.paused) TT('▶', 416, 420, 28, WHITE, 1); else { F(405, 424, 8, 24, WHITE); F(419, 424, 8, 24, WHITE); }
+    ic(462, 120, hot === 2); TT('10', 490, 428, 18, ink(hot === 2), 1); TT('▶▶', 538, 420, 28, ink(hot === 2), 1);
+    TT('戻る: やめる', SW - 30, 428, 20, [210, 225, 205], 2);
   }
 
   /* ---------- あなたの診断(いいところ・のばせるところ・学習の記録) ---------- */
