@@ -314,7 +314,7 @@ int main(int argc, char **argv){
     double t0 = nowms(); int shown = 0, seeked = 0; extern void vid_dbg(double);
     while (nowms() - t0 < 8000) { SDL_Event ee; while (SDL_PollEvent(&ee)); static int it = 0; it++; if (vid_update()) shown++; SDL_Delay(2);
       if (!seeked && nowms() - t0 > 4000) { seeked = 1; j_vseek(ctx, JS_UNDEFINED, 1, (JSValue[]){ JS_NewFloat64(ctx, 120) }); printf("seek -> 120\n"); }
-      if (((int)(nowms() - t0)) % 1000 < 3) { JSValue st = j_vstate(ctx, JS_UNDEFINED, 0, NULL); JSValue p = JS_GetPropertyUint32(ctx, st, 0); double pos; JS_ToFloat64(ctx, &pos, p); printf("t=%.1f pos=%.2f shown=%d drop=%d\n", (nowms() - t0) / 1000, pos, shown, V.dropped); SDL_Delay(5); } }
+      if (((int)(nowms() - t0)) % 1000 < 3) { JSValue st = j_vstate(ctx, JS_UNDEFINED, 0, NULL); JSValue p = JS_GetPropertyUint32(ctx, st, 0); double pos; JS_ToFloat64(ctx, &pos, p); printf("t=%.1f pos=%.2f shown=%d drop=%d under=%d\n", (nowms() - t0) / 1000, pos, shown, V.dropped, V.under); SDL_Delay(5); } }
     vid_close(); return 0; }
   int frames = 0, shotn = 0, keep = 0; double perf_t0 = nowms(), perf_draw = 0, perf_pres = 0, perf_logic = 0, perf_logicmax = 0; int perf_n = 0, perf_p = 0; int perf = getenv("MJ_PERF") != NULL;
   JSValue gg = JS_GetGlobalObject(ctx);

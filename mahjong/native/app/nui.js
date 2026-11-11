@@ -1280,7 +1280,7 @@
     dirs.forEach((dd) => rdir(dd).forEach((nm) => {
       if (seen[nm]) return; const m = nm.match(/^(.*)\.(mp4|m4v|mov|mkv|webm)$/i); if (!m) return;
       const base = m[1], mm = base.match(/^(\d+)[_\-\s　]*(.*)$/), n = mm ? parseInt(mm[1], 10) : 999;
-      seen[nm] = 1; have[n] = 1; files.push({ n, name: nm, title: (mm && mm[2]) || VTITLES[n] || base, path: dd + '/' + nm, png: VTITLES[n] ? 'img/video/' + ('0' + n).slice(-2) + '.webp' : null });
+      seen[nm] = 1; have[n] = 1; files.push({ n, name: nm, title: VTITLES[n] || (mm && mm[2]) || base, /* 題名は、番号からゲームの中の名前を使う(SDカードのbootの区画は、日本語のファイル名が文字化けするため) */ path: dd + '/' + nm, png: VTITLES[n] ? 'img/video/' + ('0' + n).slice(-2) + '.webp' : null });
     }));
     Object.keys(VTITLES).forEach((k) => { if (!have[k]) files.push({ n: +k, name: 'v' + k, title: VTITLES[k], path: null, png: 'img/video/' + ('0' + k).slice(-2) + '.webp' }); }); // 動画ファイルが まだ無くても、一覧(サムネイル)には出す
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };

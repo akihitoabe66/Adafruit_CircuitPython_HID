@@ -15,6 +15,7 @@ static JSValue j_vclose(JSContext *c, JSValueConst t, int n, JSValueConst *a) { 
 static int vid_test(const char *p) { fprintf(stderr, "この版は動画なしでビルドされています(FFmpegが見つかりませんでした)\n"); return 1; }
 #else
 typedef struct { Uint8 *d[3]; int ls[3]; double pts; } VF;
+typedef struct { AVPacket **p; int cap, r, w, n; } PQ; /* 読み込んだ(まだ解読していない)パケットの待ち行列 */
 static struct {
   int open, paused, eof, stop, seekreq, showfirst, hasaudio, hasframe, slow, dropped;
   double seekto, discard, base, dur, wall0, wallpos;
@@ -23,8 +24,13 @@ static struct {
   SwrContext *swr; int sw_rate, sw_fmt, sw_ch; struct SwsContext *sws;
   int w, h, nq, qr, qw, qn; VF *q; Uint8 *qmem;
   Sint16 *ab; int acap, ar, aw, an, rate; Sint16 *tmp; int tmpcap;
-  SDL_mutex *mu; SDL_Thread *th; SDL_Texture *tex;
+  SDL_mutex *mu; SDL_Thread *th, *thv, *tha; SDL_Texture *tex;
+  PQ vpq, apq; volatile int gen; int abuf_fill, under;
 } V;
+/* 解読は、映像と音を別々のスレッドでやる(映像が間に合わなくても、音は、とぎれさせない) */
+static void pq_flush(PQ *q) { while (q->n > 0) { av_packet_free(&q->p[q->r]); q->r = (q->r + 1) % q->cap; q->n--; } q->r = q->w = 0; }
+static int pq_push(PQ *q, AVPacket *pk) { for (;;) { SDL_LockMutex(V.mu); if (q->n < q->cap) { q->p[q->w] = pk; q->w = (q->w + 1) % q->cap; q->n++; SDL_UnlockMutex(V.mu); return 1; } SDL_UnlockMutex(V.mu); if (V.stop || V.seekreq) return 0; SDL_Delay(2); } }
+static AVPacket *pq_pop(PQ *q, int *g) { SDL_LockMutex(V.mu); AVPacket *pk = NULL; if (q->n > 0) { pk = q->p[q->r]; q->r = (q->r + 1) % q->cap; q->n--; } *g = V.gen; SDL_UnlockMutex(V.mu); return pk; }
 
 static double vclock_l(void) { /* 今の再生位置(秒)。ロック中に呼ぶ */
   if (V.paused) return V.pauseclk;
@@ -37,18 +43,19 @@ static void vhook(void *u, Uint8 *st, int len) { /* 音を出す側(別スレッ
   memset(st, 0, len);
   if (!V.open || V.paused || V.seekreq) return;
   SDL_LockMutex(V.mu);
+  if (V.abuf_fill) { if (V.an >= V.rate / 4 || (V.eof && V.apq.n == 0)) V.abuf_fill = 0; else { SDL_UnlockMutex(V.mu); return; } } /* 音が足りなくなったら、少したまるまで 待つ(細かい音切れを、さける) */
   int need = len / 4, n = need < V.an ? need : V.an, first = V.acap - V.ar < n ? V.acap - V.ar : n;
   memcpy(st, V.ab + V.ar * 2, first * 4); if (n > first) memcpy(st + first * 4, V.ab, (n - first) * 4);
-  V.ar = (V.ar + n) % V.acap; V.an -= n; V.consumed += n; if (n > 0) { V.hookt = nowms(); V.hooklen = (double)need / V.rate; }
+  V.ar = (V.ar + n) % V.acap; V.an -= n; V.consumed += n; if (n > 0) { V.hookt = nowms(); V.hooklen = (double)need / V.rate; } if (n < need && !V.eof) { V.abuf_fill = 1; V.under++; }
   SDL_UnlockMutex(V.mu);
 }
 static double vts(int64_t ts, AVRational tb, double start) { return ts == AV_NOPTS_VALUE ? -1 : ts * av_q2d(tb) - start; }
 
-static void vpush_video(AVFrame *fr) {
+static void vpush_video(AVFrame *fr, int mygen) {
   double pts = vts(fr->best_effort_timestamp, V.vtb, V.vstart); if (pts < 0) pts = 0;
   if (pts < V.discard - 0.001) return; /* シークした先より前の絵は捨てる */
-  while (!V.stop && !V.seekreq) { SDL_LockMutex(V.mu); int full = V.qn >= V.nq; SDL_UnlockMutex(V.mu); if (!full) break; SDL_Delay(3); }
-  if (V.stop || V.seekreq) return;
+  while (!V.stop && V.gen == mygen) { SDL_LockMutex(V.mu); int full = V.qn >= V.nq; SDL_UnlockMutex(V.mu); if (!full) break; SDL_Delay(3); }
+  if (V.stop || V.gen != mygen) return;
   VF *f = &V.q[V.qw];
   if (fr->format == AV_PIX_FMT_YUV420P || fr->format == AV_PIX_FMT_YUVJ420P) {
     for (int p = 0; p < 3; p++) { int hh = p ? (V.h + 1) / 2 : V.h; for (int y = 0; y < hh; y++) memcpy(f->d[p] + y * f->ls[p], fr->data[p] + y * fr->linesize[p], f->ls[p]); }
@@ -56,7 +63,7 @@ static void vpush_video(AVFrame *fr) {
     V.sws = sws_getCachedContext(V.sws, fr->width, fr->height, fr->format, V.w, V.h, AV_PIX_FMT_YUV420P, SWS_FAST_BILINEAR, NULL, NULL, NULL);
     if (!V.sws) return; sws_scale(V.sws, (const uint8_t *const *)fr->data, fr->linesize, 0, fr->height, f->d, f->ls);
   }
-  f->pts = pts; SDL_LockMutex(V.mu); V.qw = (V.qw + 1) % V.nq; V.qn++; SDL_UnlockMutex(V.mu);
+  f->pts = pts; SDL_LockMutex(V.mu); if (V.gen == mygen) { V.qw = (V.qw + 1) % V.nq; V.qn++; } SDL_UnlockMutex(V.mu);
 }
 static int vswr_make(AVFrame *fr) {
 #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(59, 24, 100)
@@ -74,7 +81,7 @@ static int vswr_make(AVFrame *fr) {
   if (swr_init(V.swr) < 0) { swr_free(&V.swr); V.swr = NULL; return 0; }
   V.sw_rate = fr->sample_rate; V.sw_fmt = fr->format; V.sw_ch = ch; return 1;
 }
-static void vpush_audio(AVFrame *fr) {
+static void vpush_audio(AVFrame *fr, int mygen) {
   double pts = vts(fr->best_effort_timestamp, V.atb, V.astart);
   if (!vswr_make(fr)) return;
   int cap = swr_get_out_samples(V.swr, fr->nb_samples) + 64;
@@ -84,40 +91,59 @@ static void vpush_audio(AVFrame *fr) {
   int skip = 0;
   if (pts >= 0 && V.discard > 0) { double end = pts + (double)got / V.rate; if (end <= V.discard) return; if (pts < V.discard) skip = (int)((V.discard - pts) * V.rate); if (skip >= got) return; }
   int off = skip;
-  while (off < got && !V.stop && !V.seekreq) {
-    SDL_LockMutex(V.mu); int space = V.acap - V.an, m = got - off < space ? got - off : space;
+  while (off < got && !V.stop && V.gen == mygen) {
+    SDL_LockMutex(V.mu); int space = V.acap - V.an, m = got - off < space ? got - off : space; if (V.gen != mygen) { SDL_UnlockMutex(V.mu); break; }
     if (m > 0) { int first = V.acap - V.aw < m ? V.acap - V.aw : m; memcpy(V.ab + V.aw * 2, V.tmp + off * 2, first * 4); if (m > first) memcpy(V.ab, V.tmp + (off + first) * 2, (m - first) * 4); V.aw = (V.aw + m) % V.acap; V.an += m; }
     SDL_UnlockMutex(V.mu); off += m > 0 ? m : 0; if (m <= 0) SDL_Delay(5);
   }
 }
-static int vthread(void *u) {
-  AVPacket *pk = av_packet_alloc(); AVFrame *fr = av_frame_alloc();
+static int vthread(void *u) { /* 読み込み(パケットを、映像用・音用の待ち行列に分ける)。シークも、ここ */
+  AVPacket *pk = av_packet_alloc();
   while (!V.stop) {
     if (V.seekreq) {
       SDL_LockMutex(V.mu); double t = V.seekto; V.seekreq = 0; SDL_UnlockMutex(V.mu);
       int64_t ts = (int64_t)(t * AV_TIME_BASE);
       if (av_seek_frame(V.fc, -1, ts, AVSEEK_FLAG_BACKWARD) < 0) av_seek_frame(V.fc, -1, ts, AVSEEK_FLAG_ANY);
-      avcodec_flush_buffers(V.vc); if (V.ac) avcodec_flush_buffers(V.ac);
-      swr_free(&V.swr); V.swr = NULL;
-      SDL_LockMutex(V.mu); V.qr = V.qw = V.qn = 0; V.ar = V.aw = V.an = 0; V.consumed = 0; V.hookt = 0; V.base = t; V.wallpos = 0; V.wall0 = nowms(); V.discard = t; V.eof = 0; V.showfirst = 1; SDL_UnlockMutex(V.mu);
+      SDL_LockMutex(V.mu); pq_flush(&V.vpq); pq_flush(&V.apq); V.gen++; V.qr = V.qw = V.qn = 0; V.ar = V.aw = V.an = 0; V.consumed = 0; V.hookt = 0; V.base = t; V.wallpos = 0; V.wall0 = nowms(); V.discard = t; V.eof = 0; V.showfirst = 1; V.abuf_fill = 1; SDL_UnlockMutex(V.mu);
       if (V.seekreq) continue;
     }
     if (V.eof) { SDL_Delay(10); continue; }
     int r = av_read_frame(V.fc, pk);
     if (r < 0) { V.eof = 1; continue; }
-    AVCodecContext *cx = pk->stream_index == V.vs ? V.vc : (pk->stream_index == V.as && V.ac) ? V.ac : NULL;
-    if (cx) {
-      if (cx == V.vc && V.slow) V.vc->skip_loop_filter = AVDISCARD_ALL; /* 間に合わないときは、画質を少し落として速くする */
-      if (avcodec_send_packet(cx, pk) >= 0) while (!V.stop && !V.seekreq && avcodec_receive_frame(cx, fr) >= 0) { if (cx == V.vc) vpush_video(fr); else vpush_audio(fr); av_frame_unref(fr); }
-    }
-    av_packet_unref(pk);
+    AVPacket *c = av_packet_alloc(); av_packet_move_ref(c, pk); int ok = 0;
+    if (c->stream_index == V.vs) ok = pq_push(&V.vpq, c); else if (c->stream_index == V.as && V.ac) ok = pq_push(&V.apq, c);
+    if (!ok) av_packet_free(&c);
   }
-  av_frame_free(&fr); av_packet_free(&pk); return 0;
+  av_packet_free(&pk); return 0;
+}
+static int vdec_thread(void *u) { /* 映像の解読(優先度は低め。間に合わないときは、絵を捨てる) */
+  AVFrame *fr = av_frame_alloc(); int mygen = V.gen; SDL_SetThreadPriority(SDL_THREAD_PRIORITY_LOW);
+  while (!V.stop) {
+    int pg; AVPacket *pk = pq_pop(&V.vpq, &pg); if (!pk) { SDL_Delay(2); continue; }
+    if (pg != mygen) { avcodec_flush_buffers(V.vc); mygen = pg; }
+    if (V.slow) V.vc->skip_loop_filter = AVDISCARD_ALL; /* 間に合わないときは、画質を少し落として速くする */
+    if (V.slow >= 2) V.vc->skip_frame = AVDISCARD_NONREF;
+    { static int slow_ms = -1; if (slow_ms < 0) slow_ms = getenv("MJ_VSLOW") ? atoi(getenv("MJ_VSLOW")) : 0; if (slow_ms) SDL_Delay(slow_ms); } /* 試験用: 映像の解読を、わざと遅くする */
+    if (avcodec_send_packet(V.vc, pk) >= 0) while (!V.stop && V.gen == mygen && avcodec_receive_frame(V.vc, fr) >= 0) { vpush_video(fr, mygen); av_frame_unref(fr); }
+    av_packet_free(&pk);
+  }
+  av_frame_free(&fr); return 0;
+}
+static int adec_thread(void *u) { /* 音の解読 */
+  AVFrame *fr = av_frame_alloc(); int mygen = V.gen;
+  while (!V.stop) {
+    int pg; AVPacket *pk = pq_pop(&V.apq, &pg); if (!pk) { SDL_Delay(2); continue; }
+    if (pg != mygen) { avcodec_flush_buffers(V.ac); swr_free(&V.swr); V.swr = NULL; mygen = pg; }
+    if (avcodec_send_packet(V.ac, pk) >= 0) while (!V.stop && V.gen == mygen && avcodec_receive_frame(V.ac, fr) >= 0) { vpush_audio(fr, mygen); av_frame_unref(fr); }
+    av_packet_free(&pk);
+  }
+  av_frame_free(&fr); return 0;
 }
 static void vid_close(void) {
   if (!V.open) return;
   V.open = 0; V.stop = 1; if (audio_ok) Mix_HookMusic(NULL, NULL);
-  if (V.th) SDL_WaitThread(V.th, NULL);
+  if (V.th) SDL_WaitThread(V.th, NULL); if (V.thv) SDL_WaitThread(V.thv, NULL); if (V.tha) SDL_WaitThread(V.tha, NULL);
+  if (V.vpq.p) { pq_flush(&V.vpq); free(V.vpq.p); } if (V.apq.p) { pq_flush(&V.apq); free(V.apq.p); }
   if (V.tex) SDL_DestroyTexture(V.tex);
   if (V.vc) avcodec_free_context(&V.vc);
   if (V.ac) avcodec_free_context(&V.ac);
@@ -164,7 +190,8 @@ static int vid_open(const char *path, double start) {
   V.avoff = getenv("MJ_AVOFF") ? atof(getenv("MJ_AVOFF")) / 1000.0 : 0; V.hooklen = 0.09; V.mu = SDL_CreateMutex(); V.wall0 = nowms(); V.base = start > 0 ? start : 0; V.discard = V.base; V.showfirst = 1;
   if (start > 0.5) { V.seekto = start; V.seekreq = 1; }
   if (V.hasaudio) { Mix_HaltMusic(); Mix_VolumeMusic(128); Mix_HookMusic(vhook, NULL); }
-  V.open = 1; V.th = SDL_CreateThread(vthread, "vdec", NULL);
+  V.vpq.cap = 160; V.vpq.p = calloc(V.vpq.cap, sizeof(AVPacket *)); V.apq.cap = 600; V.apq.p = calloc(V.apq.cap, sizeof(AVPacket *)); V.abuf_fill = 1;
+  V.open = 1; V.th = SDL_CreateThread(vthread, "vdemux", NULL); V.thv = SDL_CreateThread(vdec_thread, "vdec", NULL); if (V.hasaudio) V.tha = SDL_CreateThread(adec_thread, "adec", NULL);
   return 1;
 }
 static int vid_active(void) { return V.open; }
@@ -175,7 +202,7 @@ static int vid_update(void) { /* 出す絵があれば、テクスチャに入�
     if (V.showfirst) { show = 1; V.showfirst = 0; }
     else if (!V.paused) { while (V.qn > 1 && V.q[(V.qr + 1) % V.nq].pts <= clk) { V.qr = (V.qr + 1) % V.nq; V.qn--; V.dropped++; } if (V.q[V.qr].pts <= clk + 0.003) show = 1; }
   }
-  if (V.dropped > 8 && !V.slow) V.slow = 1;
+  if (V.dropped > 8 && V.slow < 1) V.slow = 1; if (V.dropped > 80 && V.slow < 2) V.slow = 2;
   SDL_UnlockMutex(V.mu);
   if (!show) return 0;
   VF *f = &V.q[V.qr]; double tu0 = nowms(); SDL_UpdateYUVTexture(V.tex, NULL, f->d[0], f->ls[0], f->d[1], f->ls[1], f->d[2], f->ls[2]); V.hasframe = 1; if (getenv("MJ_VDBG")) fprintf(stderr, "upload %.1fms\n", nowms() - tu0);
@@ -193,7 +220,7 @@ static JSValue j_vopen(JSContext *c, JSValueConst t, int n, JSValueConst *a) { /
 }
 static JSValue j_vstate(JSContext *c, JSValueConst t, int n, JSValueConst *a) { /* [位置秒, 長さ秒, 一時停止, 終わった, 絵が出ている] */
   if (!V.open) return JS_NULL;
-  SDL_LockMutex(V.mu); double pos = vclock_l(); int ended = V.eof && !V.seekreq && (V.hasaudio ? V.an == 0 : V.qn == 0); SDL_UnlockMutex(V.mu);
+  SDL_LockMutex(V.mu); double pos = vclock_l(); int ended = V.eof && !V.seekreq && V.vpq.n == 0 && V.apq.n == 0 && (V.hasaudio ? V.an == 0 : V.qn == 0); SDL_UnlockMutex(V.mu);
   if (pos < 0) pos = 0; if (V.dur > 0 && pos > V.dur) pos = V.dur;
   JSValue r = JS_NewArray(c); JS_SetPropertyUint32(c, r, 0, JS_NewFloat64(c, pos)); JS_SetPropertyUint32(c, r, 1, JS_NewFloat64(c, V.dur)); JS_SetPropertyUint32(c, r, 2, JS_NewInt32(c, V.paused)); JS_SetPropertyUint32(c, r, 3, JS_NewInt32(c, ended)); JS_SetPropertyUint32(c, r, 4, JS_NewInt32(c, V.hasframe)); return r;
 }
