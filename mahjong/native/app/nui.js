@@ -81,7 +81,7 @@
   function setMood(m, ms) { S.mood = m; S.moodUntil = __now() + (ms || 60000); dirty(); }
   const TYADJ = 0; // 宣言の文字を、顔の中心に合わせるための微調整
   /* 顔の向き: 右向きの人は下家(右の席)で、左向きの人は上家(左の席)で、左右反転する(正面向きと対面は、そのまま)。番号はキャラクターの番号 */
-  const FACE_R = new Set([1, 2, 3, 11, 23, 25, 26, 27, 29, 30]), FACE_L = new Set([4, 5, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 24, 28, 31, 32]); // 6・19は正面向き(10は、まだ指定なし)
+  const FACE_R = new Set([1, 2, 3, 10, 11, 23, 25, 26, 27, 29, 30]), FACE_L = new Set([4, 5, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 24, 28, 31, 32]); // 6・19は正面向き
   const faceFlip = (ch, seat) => !!ch && ((seat === 1 && FACE_R.has(ch.id)) || (seat === 3 && FACE_L.has(ch.id)));
   function face(p, x, y, w, h) {
     const ch = p.char; const src = skin(p.isHuman ? youSrc() : (MJ.faceSrc ? MJ.faceSrc(ch, faceFlip(ch, p.seat)) : ch.face));
