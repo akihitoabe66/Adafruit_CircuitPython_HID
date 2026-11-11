@@ -16,7 +16,9 @@
 - 浮世絵版の絵は `python3 tools/cut_ukiyoe.py` で、`tools/ukiyoe/` の元絵から切り出します(顔の大きさ・位置は、このファイルの `SCALE` `SIZE` `UP` `EYE` `YOU_SCALE` で調整)。
 
 ## ビデオ(ゲームの中で再生)
-- 動画(.mp4)とサムネイル(.png)を、SDカードの `~/mjdata/video/` に入れます(git には入れません)。名前は「`01_10分で分かる麻雀ルール.mp4`」と「`01_10分で分かる麻雀ルール.png`」のように、番号_題名を同じにします。
+- 動画(.mp4)は、次のどれかの場所に入れます(git には入れません)。サムネイルは、ゲームの中に入っているので、動画だけで足ります。
+  - ラズパイの `~/mjdata/video/`
+  - SDカードの boot の区画(Windows/Macから見えるところ)の `mjdata/video/` か `mjdata/` 直下(`/boot/firmware/mjdata` または `/boot/mjdata`)名前は「`01_10分で分かる麻雀ルール.mp4`」と「`01_10分で分かる麻雀ルール.png`」のように、番号_題名を同じにします。
 - ゲームの「勉強」→ 4ページ目「ビデオ」から見ます。動画を増やすと、一覧に自動で出ます。
 - 操作: ◀ 10秒もどす(長押しで30秒ずつ) / ▶ 10秒すすむ(長押しで30秒ずつ) / 決定(A) 一時停止・再生 / 戻る(B) やめる。止めた位置は覚えていて、「つづきから」で続きが見られます。
 - ビルドに FFmpeg の開発ファイルが要ります: `sudo apt install libavcodec-dev libavformat-dev libswscale-dev libswresample-dev libavutil-dev`(無いときは動画なしでビルドされます)。

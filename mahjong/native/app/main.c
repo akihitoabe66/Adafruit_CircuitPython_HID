@@ -290,6 +290,11 @@ int main(int argc, char **argv){
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1); reg(g, "__readdir", j_readdir, 1); reg(g, "__vopen", j_vopen, 2); reg(g, "__vstate", j_vstate, 0); reg(g, "__vseek", j_vseek, 1); reg(g, "__vpause", j_vpause, 1); reg(g, "__vclose", j_vclose, 0); JS_SetPropertyStr(ctx, g, "__dataDir", JS_NewString(ctx, datadir));
+  { /* 動画の置き場所: ~/mjdata/video、SDカードのbootの mjdata(Windowsからも見えるところ)。それぞれ、直下も探す */
+    static const char *bases[] = { "/boot/firmware/mjdata", "/boot/mjdata", NULL }; JSValue arr = JS_NewArray(ctx); int k = 0; char b[1400];
+    snprintf(b, sizeof b, "%s/video", datadir); JS_SetPropertyUint32(ctx, arr, k++, JS_NewString(ctx, b)); JS_SetPropertyUint32(ctx, arr, k++, JS_NewString(ctx, datadir));
+    for (int i = 0; bases[i]; i++) { snprintf(b, sizeof b, "%s/video", bases[i]); JS_SetPropertyUint32(ctx, arr, k++, JS_NewString(ctx, b)); JS_SetPropertyUint32(ctx, arr, k++, JS_NewString(ctx, bases[i])); }
+    JS_SetPropertyStr(ctx, g, "__videoDirs", arr); }
   reg(g, "print", j_print, 1); reg(g, "__now", j_now, 0); reg(g, "__quit", j_quit, 0); reg(g, "__load", j_load, 0); reg(g, "__save", j_save, 1); reg(g, "__swapab", j_swapab, 1); reg(g, "__shanten", j_shanten, 2); reg(g, "__slotlist", j_slotlist, 0); reg(g, "__slotload", j_slotload, 1); reg(g, "__slotsave", j_slotsave, 2); reg(g, "__slotdel", j_slotdel, 1);
   { if (getenv("MJ_FPS")) JS_SetPropertyStr(ctx, g, "__perfEnv", JS_NewBool(ctx, 1)); }
   { const char *tp = getenv("MJ_TEACHER"); if (tp) JS_SetPropertyStr(ctx, g, "__teacherEnv", JS_NewString(ctx, tp)); }

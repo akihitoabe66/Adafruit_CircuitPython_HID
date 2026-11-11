@@ -1274,15 +1274,16 @@
   const vfmt = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); };
   function vLoad() { try { const v = JSON.parse(localStorage.getItem('mj_video')); if (v && v.pos) return v; } catch (e) { /* ignore */ } return { pos: {}, done: {}, last: '' }; }
   function vSave() { try { localStorage.setItem('mj_video', JSON.stringify(S.vid.d)); } catch (e) { /* ignore */ } }
-  function vScan() { // フォルダの「番号_題名.mp4」と「番号_題名.png」から、一覧を作る
-    const dir = (globalThis.__dataDir || '.') + '/video', names = (typeof __readdir === 'function' && __readdir(dir)) || [], files = [], have = {};
-    names.forEach((nm) => {
-      const m = nm.match(/^(.*)\.(mp4|m4v|mov|mkv|webm)$/i); if (!m) return;
+  function vScan() { // 動画の置き場所(いくつか探す)の「番号_題名.mp4」から、一覧を作る。サムネイルは、ゲームの中に入っている
+    const dirs = globalThis.__videoDirs || [(globalThis.__dataDir || '.') + '/video'], files = [], have = {}, seen = {};
+    const rdir = (d) => (typeof __readdir === 'function' && __readdir(d)) || [];
+    dirs.forEach((dd) => rdir(dd).forEach((nm) => {
+      if (seen[nm]) return; const m = nm.match(/^(.*)\.(mp4|m4v|mov|mkv|webm)$/i); if (!m) return;
       const base = m[1], mm = base.match(/^(\d+)[_\-\s　]*(.*)$/), n = mm ? parseInt(mm[1], 10) : 999;
-      have[n] = 1; files.push({ n, name: nm, title: (mm && mm[2]) || VTITLES[n] || base, path: dir + '/' + nm, png: VTITLES[n] ? 'img/video/' + ('0' + n).slice(-2) + '.webp' : names.includes(base + '.png') ? dir + '/' + base + '.png' : null });
-    });
+      seen[nm] = 1; have[n] = 1; files.push({ n, name: nm, title: (mm && mm[2]) || VTITLES[n] || base, path: dd + '/' + nm, png: VTITLES[n] ? 'img/video/' + ('0' + n).slice(-2) + '.webp' : null });
+    }));
     Object.keys(VTITLES).forEach((k) => { if (!have[k]) files.push({ n: +k, name: 'v' + k, title: VTITLES[k], path: null, png: 'img/video/' + ('0' + k).slice(-2) + '.webp' }); }); // 動画ファイルが まだ無くても、一覧(サムネイル)には出す
-    files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir, files };
+    files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return d.done[f.name] ? 'done' : (d.pos[f.name] || 0) > 3 ? 'cont' : 'new'; };
   window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); // 試験用
@@ -1431,10 +1432,13 @@
   }
   function drawStudy() { // 背景の絵(img/study_bg.webp)に、えらんだ枠と、進み具合の文字を重ねる
     const H = S.study; gfx.clear(14, 40, 30); gfx.image('img/study_bg.webp', 0, 0, SW, SH, 255);
-    const BT = [[17, 63, 366, 94], [17, 163, 366, 107], [17, 278, 366, 91]], pr = pressing() ? 3 : 0; // ボタンの絵。押している間は、少し下へ(押し込まれる)
-    BT.forEach((b, i) => { const dy = H.sel === i ? pr : 0; gfx.image('img/study_btn' + (i + 1) + '.webp', b[0], b[1] + dy + (H.sel === i && !pr ? -1 : 0), b[2], b[3], 255); });
-    const e = BT[H.sel], ey = e[1] + pr, CX = 609; rframe(e[0] - 3, ey - 3, e[2] + 6, e[3] + 6, 8, 2, [40, 30, 10]); rframe(e[0] - 1, ey - 1, e[2] + 2, e[3] + 2, 7, 4, [255, 220, 40]); // えらんでいる枠(黄色・小さな角丸)
-    text('おぼえた ' + H.nDone + ' / ' + H.total, 112, 122 + (H.sel === 0 ? pr : 0), 21, [70, 44, 14]); text(H.vn + '本' + (H.cont ? ' ・ つづきあり' : ''), 112, 332 + (H.sel === 2 ? pr : 0), 21, [244, 214, 176]);
+    const BT = [[17, 63, 366, 94], [17, 163, 366, 107], [17, 278, 366, 91]], pr = pressing() ? 3 : 0, CX = 609; // ボタンの絵。選んでいるものは一回り大きく(押している間は、もとの大きさで、少し沈む)
+    const SC = 1.07, sc = pr ? 1 : SC, tx = (x, y, i) => { const b = BT[i]; return [Math.round(b[0] + b[2] / 2 + (x - (b[0] + b[2] / 2)) * (H.sel === i ? sc : 1)), Math.round(b[1] + b[3] / 2 + (y - (b[1] + b[3] / 2)) * (H.sel === i ? sc : 1)) + (H.sel === i ? pr : 0)]; };
+    const fr = (i) => { const b = BT[i], w = Math.round(b[2] * sc), h = Math.round(b[3] * sc); return [Math.round(b[0] + (b[2] - w) / 2), Math.round(b[1] + (b[3] - h) / 2) + pr, w, h]; };
+    const sel = H.sel, ord = [0, 1, 2].filter((i) => i !== sel).concat([sel]); // えらんだものを、いちばん上に描く
+    ord.forEach((i) => { const r = i === sel ? fr(i) : BT[i]; gfx.image('img/study_btn' + (i + 1) + '.webp', r[0], r[1], r[2], r[3], 255); });
+    const e = fr(sel); rframe(e[0] - 3, e[1] - 3, e[2] + 6, e[3] + 6, 8, 2, [40, 30, 10]); rframe(e[0] - 1, e[1] - 1, e[2] + 2, e[3] + 2, 7, 4, [255, 220, 40]); // えらんでいる枠(黄色・小さな角丸)
+    { const p0 = tx(112, 122, 0), p2 = tx(112, 332, 2); text('おぼえた ' + H.nDone + ' / ' + H.total, p0[0], p0[1], Math.round(21 * (sel === 0 ? sc : 1)), [70, 44, 14]); text(H.vn + '本' + (H.cont ? ' ・ つづきあり' : ''), p2[0], p2[1], Math.round(21 * (sel === 2 ? sc : 1)), [244, 214, 176]); }
     text('▲ ▼ でえらぶ    決定ボタンで ひらく    戻る: ホームへ', 420, 437, 20, [236, 222, 190], 1);
     if (H.sel === 0) {
       text('点数計算の勉強', CX, 92, 28, YEL, 1); text('役から点数まで、順番に学びます。', CX, 134, 19, WHITE, 1);
