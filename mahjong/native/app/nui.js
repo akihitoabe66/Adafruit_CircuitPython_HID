@@ -3,6 +3,7 @@
 (function () {
   const MJ = window.MJ; const W = 720, H = 428, SW = 832, SH = 468; // W,H=卓の大きさ / SW,SH=画面全体(右に操作の列)
   const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, pressT: -9999, locked: false, lay: [], teachQ: null, homeBot: false, homeBotIdx: 0, playQ: null, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  window.__S = S; // 試験用(説明ページ用の画面を撮るのに使う)
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const dirty = () => { S.dirty = true; S.full = true; }; // full: 画面ぜんたいを描きなおす(カーソルだけのときは、手牌のところだけ描く)
   const openMenu = () => { S.menuP = { idx: 0 }; MJ.paused = true; dirty(); }; // ゲーム中のメニュー(対局を止める)
@@ -1555,11 +1556,18 @@
     ['注意', '点数・符の計算や危険度は、学習用の目安です。実際のルール(店・地域・アプリ)によって異なる場合があります。'],
   ];
   /* ---------- 遊び方(ヘルプ): 設定の中。ボタンの使い方 / 麻雀の遊び方 / 勉強・クイズ・ビデオ ---------- */
-  const HOW_T = ['ボタンの使い方', '麻雀の遊び方', '勉強・クイズ・ビデオ'];
+  const HOWP = [ // 実際の画面(img/help/pN.webp)に、矢印と番号を重ねた絵と、2行の説明
+    { t: 'ボタンの使い方' },
+    { t: '牌を えらんで 捨てる', img: 'img/help/p1.webp', c: ['① ◀ ▶ で、捨てる牌を えらびます', '② 決定ボタンで、えらんだ牌を 捨てます'] },
+    { t: 'ポン・チー・ロン', img: 'img/help/p2.webp', c: ['① 他の人の牌で できるときは、「ポン」などが 出ます', '② ◀ ▶ で えらんで 決定(しないときは「見送る」)'] },
+    { t: 'リーチ・ツモ', img: 'img/help/p3.webp', c: ['① 「リーチ」: あと1枚で あがれる ときに えらびます', '② 「ツモ」: あがる形に なったら えらびます'] },
+    { t: '麻雀先生に 聞く', img: 'img/help/p4.webp', c: ['① 右の「解説」で、くわしい 説明が 見られます', '② 麻雀先生「あり」だと、おすすめの牌に ★ が つきます'] },
+    { t: '勉強・クイズ・ビデオ', img: 'img/help/p5.webp', c: ['① 点数計算  ② 用語じてん  ③ ビデオ', '▲ ▼ で えらんで 決定ボタン'] },
+  ];
   function startHow() { S.how = { pg: 0 }; S.mode = 'howto'; dirty(); }
   function howKey(k) {
     const H = S.how; dirty();
-    if (k === 'back') { S.mode = 'settings'; S.how = null; } else if (k === 'left') H.pg = Math.max(0, H.pg - 1); else if (k === 'right' || k === 'ok') { if (H.pg < 2) H.pg++; else if (k === 'ok') { S.mode = 'settings'; S.how = null; } }
+    if (k === 'back') { S.mode = 'settings'; S.how = null; } else if (k === 'left') H.pg = Math.max(0, H.pg - 1); else if (k === 'right' || k === 'ok') { if (H.pg < HOWP.length - 1) H.pg++; else if (k === 'ok') { S.mode = 'settings'; S.how = null; } }
   }
   function howPad(x, y) { // ゲームパッドの絵(十字キー + 決定(A)・戻る(B))
     rrect(x, y, 330, 176, 40, [52, 56, 60]); rrect(x + 3, y + 3, 324, 170, 38, [78, 84, 90]);
@@ -1569,8 +1577,8 @@
     rrect(x + 250, y + 50, 64, 64, 32, [32, 34, 38]); rrect(x + 254, y + 54, 56, 56, 28, [214, 70, 56]); text('A', x + 282, y + 66, 30, WHITE, 1); // 決定(外側)
   }
   function drawHow() {
-    const H = S.how, pg = H.pg; quizFrame('遊び方', '', (pg + 1) + ' / 3', '◀ ▶ でページを かえる    戻る: 設定へ');
-    text(HOW_T[pg], SW / 2, 56, 30, [255, 233, 160], 1); fill(30, 96, SW - 60, 3, [140, 190, 130]);
+    const H = S.how, pg = H.pg, P = HOWP[pg]; quizFrame('遊び方', '', (pg + 1) + ' / ' + HOWP.length, '');
+    text(P.t, SW / 2, 54, 28, [255, 233, 160], 1); fill(30, 90, SW - 60, 3, [140, 190, 130]);
     if (pg === 0) {
       howPad(24, 130);
       text('決定ボタン (A)', 408, 112, 24, [255, 140, 120]); text('えらんだものを 決める・牌を 捨てる', 408, 142, 20, WHITE);
@@ -1578,13 +1586,12 @@
       text('▲ ▼ ◀ ▶', 408, 268, 24, YEL); text('えらぶ・牌を えらぶ', 408, 298, 20, WHITE);
       text('スタートとセレクトを 長押し', 408, 346, 22, YEL); text('メニュー(ゲーム終了など)が 出ます', 408, 376, 20, WHITE);
       text('「設定」で、A と B を', 24, 322, 18, [200, 225, 200]); text('入れかえられます。', 24, 346, 18, [200, 225, 200]);
-    } else if (pg === 1) {
-      const L = [['1', '自分の番になったら、◀ ▶ で 牌を えらびます。', '決定ボタンで、その牌を 捨てます。'], ['2', '他の人が捨てた牌で、「ポン」「チー」「ロン」が', 'できるときは、ボタンが 出ます。えらんで 決定。'], ['3', 'あがりに近づいたら「リーチ」。', 'あがったら「ツモ」(自分で引いて)か「ロン」(人の牌で)。'], ['4', 'わからないときは、麻雀先生に 聞けます。', '右の「解説」で、おすすめの牌に ★ が つきます。']];
-      L.forEach((r, i) => { const y = 116 + i * 78; rrect(30, y + 4, 44, 44, 22, GREEN); text(r[0], 52, y + 8, 30, WHITE, 1); text(r[1], 92, y, 22, WHITE); text(r[2], 92, y + 34, 22, [255, 233, 160]); });
-    } else {
-      const L = [['麻雀クイズ', '問題に答えて、腕を みがきます。'], ['麻雀の勉強', '点数計算・用語じてん・ビデオで、順番に 学べます。'], ['ビデオ', '見ている途中で、決定ボタンで 一時停止。牌も ゆっくり 確かめられます。'], ['あなたの診断', '遊んだ結果から、いいところと 伸ばせるところが わかります。']];
-      L.forEach((r, i) => { const y = 116 + i * 78; panel(30, y, SW - 60, 66, 12, CREAM, GREEN, 3, 255); text(r[0], 52, y + 6, 26, INK); text(r[1], 52, y + 38, 19, [70, 70, 60]); });
+      text('◀ ▶ でページを かえる    戻る: 設定へ', SW / 2, 439, 20, [210, 225, 205], 1);
+      return;
     }
+    rrect(164, 94, 504, 287, 6, [150, 190, 140]); gfx.image(P.img, 168, 98, 496, 279, 255); // 実際の画面(矢印つき)
+    P.c.forEach((l, i) => text(l, SW / 2, 382 + i * 30, 23, i ? [255, 233, 160] : WHITE, 1));
+    text('◀ ▶ ページ    戻る: 設定へ', SW / 2, 446, 15, [210, 225, 205], 1);
   }
   function drawCredits() {
     quizFrame('クレジット', '', '', '決定ボタン・戻る で もどる');
