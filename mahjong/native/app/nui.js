@@ -1886,6 +1886,7 @@
     showResult(g, r) {
       S.bub = {}; S.sayQ = []; S.banner = null; try { MJ.Stats.hand(g, r); } catch (e) { /* ignore */ }
       NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
+      if (r.type === 'win' && !r.wins.some((w) => w.winner.isHuman) && !(r.delta[0] < 0) && r.wins.some((w) => !w.tsumo)) NSND.resultCpuRon(); // CPUが、別のCPUからロン(自分は関係ない)
       const iWon = r.type === 'win' && r.wins.some((w) => w.winner.isHuman), iLost = r.type === 'win' && !iWon && r.delta && r.delta[0] < 0;
       setMood(r.type !== 'win' ? 'relief' : iWon ? 'win' : iLost ? 'shock' : 'focus'); S.carryMood = iLost ? 'grumpy' : iWon ? 'laugh' : null;
       if (r.type !== 'win') {

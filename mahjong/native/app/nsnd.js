@@ -29,6 +29,7 @@
       const pool = finalHand && Math.random() < 0.6 && fin.length ? fin : cand;
       last = pool[Math.floor(Math.random() * pool.length)]; cur = ''; A.music(last);
     },
+    resultCpuRon() { if (Math.random() < 0.5) { cur = ''; A.music('audio/result_cpu.mp3'); } }, /* CPU同士の「ロン」(人は関係ない): 半分の確率で、この曲。残りは、今までどおり対局の曲のまま */
     result(kind) { const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm') return; /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ cur = ''; A.music('audio/' + n + '.mp3'); },
     toggle() { A.on = !A.on; if (!A.on) { snd.music(''); cur = ''; } return A.on; },
     sfx(name, v) { if (SFX.indexOf(name) >= 0) snd.play('audio/sfx/' + name + '.wav', (v == null ? V.sfx : v)); },
