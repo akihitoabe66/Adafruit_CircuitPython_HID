@@ -37,7 +37,7 @@
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
   const COMMON_RULES = { length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: true, doubleRon: true, sanchahou: true, kuikae: false, kazoe: true, flower: false, start: 25000 }; // 全国的な(一般的な)ルール。ただし赤ドラは、はじめはなし
   try { if (localStorage.getItem('mj_rules_ver') !== '3') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '3'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
-  const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz' }, { label: '点数計算の勉強', act: 'study' }, { label: '設定', act: 'settings' }];
+  const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz' }, { label: '麻雀の勉強', act: 'study' }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
   const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'back', 'ok']; // 隠しコマンド(タイトル): 5件のセーブから選べる
 
@@ -372,13 +372,15 @@
     drawHand(g);
     // 吹き出し
     const now = __now();
-    const BUB = { 0: [250, 276], 1: [336, 150], 2: [404, 40], 3: [70, 172] }, BW = 300;
+    const BW = 360, BH = 110, FSZ = 94, BUB = { 0: [250, 246], 1: [336, 150], 2: [360, 40], 3: [70, 172] }; // 吹き出しは、いつも同じ大きさ(顔も、いつも同じ大きさ)
     const calling = (S.banner && S.banner.call) || S.ryu; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; } if (calling) continue;
-      const pos = BUB[k] || [300, 200]; let bsz = 20, lines = wrapText(b.text, bsz, BW - 92); if (lines.length > 4) { bsz = 18; lines = wrapText(b.text, bsz, BW - 92).slice(0, 4); } const lh = bsz + 6, h = Math.max(78, 34 + lines.length * lh);
-      rrect(pos[0] + 2, pos[1] + 3, BW, h, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, h, 10, [240, 243, 238]);
-      if (b.p) { face(b.p, pos[0] + 8, pos[1] + 8, 58, 58); } // 話している人の顔
-      text(b.name, pos[0] + 76, pos[1] + 6, 17, [80, 90, 86]); lines.forEach((l, i) => text(l, pos[0] + 76, pos[1] + 28 + i * lh, bsz, [30, 34, 32])); }
+      const pos = BUB[k] || [300, 200], tw = BW - FSZ - 34; let bsz = 20, lines = wrapText(b.text, bsz, tw);
+      for (const z of [20, 19, 18, 17, 16]) { bsz = z; lines = wrapText(b.text, z, tw); if (lines.length <= 3) break; } lines = lines.slice(0, 3);
+      const lh = bsz + 5, ty0 = pos[1] + 30 + Math.round((72 - lines.length * lh) / 2) + 0; // 3行より少ないときは、まん中によせる
+      rrect(pos[0] + 2, pos[1] + 3, BW, BH, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, BH, 10, [240, 243, 238]);
+      if (b.p) { face(b.p, pos[0] + 8, pos[1] + 8, FSZ, FSZ); } // 話している人の顔
+      text(b.name, pos[0] + FSZ + 20, pos[1] + 8, 17, [80, 90, 86]); lines.forEach((l, i) => text(l, pos[0] + FSZ + 20, ty0 + i * lh, bsz, [30, 34, 32])); }
     drawFly(); drawTeacher(g);
     if (S.ryu) { // 「流局」: 黒い帯に大きな白文字が、左から流れてきて止まる。少し置いて、すっと消える
       const t = __now() - S.ryu.t0, k = Math.min(1, t / 380), e = 1 - (1 - k) * (1 - k), out = t > 1600 ? Math.min(1, (t - 1600) / 350) : 0, a = Math.round(200 * (1 - out));
@@ -529,7 +531,7 @@
     if (UKIYO) gfx.image('img/uk/logo.webp', 40, 0, 262, 159, 255); else gfx.image('img/logo.webp', 52, 22, 244, 139, 255); // 浮世絵版: タイトルの絵から切り抜いた、ぼかし楕円のロゴ
     rrect(21, 165, 292, 170, 16, [10, 18, 32], 150); // 左の説明: 半透明の黒い囲い(Edge版と同じ)
     const ot = (s, x, y, sz, c) => { [[-1, 1], [1, 1], [0, 2]].forEach((d) => text(s, x + d[0], y + d[1], sz, [0, 0, 0], 0)); text(s, x, y, sz, c, 0); };
-    const HELP = { play: ['麻雀をはじめる', '3人の相手と、麻雀を', 'うちます。つづきから', '始めることもできます。'], quiz: ['麻雀クイズ', '問題に答えて、腕を', 'みがきます。苦手な問題', 'は、多めに出ます。'], study: ['点数計算の勉強', '役から点数まで、順番', 'に学びます。しおりも', 'つけられます。'], diag: ['あなたの診断', '遊び方やクイズの結果', 'から、いいところと、', '伸ばせるところを見ます。'], settings: ['設定', '音の大きさや、CPUの', '速さ、ボタンの入れ替', 'えを変えます。'], exit: ['ゲーム終了', '遊ぶのをやめます。', '電源を切る前の画面へ', ''], rank: ['成績', 'いまの段位と、これま', 'での成績を見ます。', '対戦成績もここから。'] };
+    const HELP = { play: ['麻雀をはじめる', '3人の相手と、麻雀を', 'うちます。つづきから', '始めることもできます。'], quiz: ['麻雀クイズ', '問題に答えて、腕を', 'みがきます。苦手な問題', 'は、多めに出ます。'], study: ['麻雀の勉強', '点数計算・用語じてん', '・ビデオで、順番に', '学べます。'], diag: ['あなたの診断', '遊び方やクイズの結果', 'から、いいところと、', '伸ばせるところを見ます。'], settings: ['設定', '音の大きさや、CPUの', '速さ、ボタンの入れ替', 'えを変えます。'], exit: ['ゲーム終了', '遊ぶのをやめます。', '電源を切る前の画面へ', ''], rank: ['成績', 'いまの段位と、これま', 'での成績を見ます。', '対戦成績もここから。'] };
     { const its = homeItems(), key = S.homeBot ? HOME_BOTTOM[S.homeBotIdx].k : (its[S.menuIdx] || its[0]).act, hp = HELP[key] || HELP.play;
       ot(hp[0], 38, 177, 32, [255, 225, 74]); hp.slice(1).forEach((l, i) => ot(l, 38, 232 + i * 32, 23, WHITE)); }
     const items = homeItems(); const IY = [58, 145, 227, 309];
@@ -1249,6 +1251,7 @@
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return d.done[f.name] ? 'done' : (d.pos[f.name] || 0) > 3 ? 'cont' : 'new'; };
   window.__startVideo = () => startVideo(); // 試験用
+  window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   function startVideo() {
     const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last && vStatus(f, d) === 'cont');
     S.vid = { view: last >= 0 ? 'home' : 'list', files: sc.files, dir: sc.dir, d, sel: Math.max(0, last), top: 0, hs: 0, last, ask: null }; S.mode = 'video'; vFit(); dirty();
