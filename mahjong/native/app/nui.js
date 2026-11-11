@@ -1238,12 +1238,13 @@
   function vLoad() { try { const v = JSON.parse(localStorage.getItem('mj_video')); if (v && v.pos) return v; } catch (e) { /* ignore */ } return { pos: {}, done: {}, last: '' }; }
   function vSave() { try { localStorage.setItem('mj_video', JSON.stringify(S.vid.d)); } catch (e) { /* ignore */ } }
   function vScan() { // フォルダの「番号_題名.mp4」と「番号_題名.png」から、一覧を作る
-    const dir = (globalThis.__dataDir || '.') + '/video', names = (typeof __readdir === 'function' && __readdir(dir)) || [], files = [];
+    const dir = (globalThis.__dataDir || '.') + '/video', names = (typeof __readdir === 'function' && __readdir(dir)) || [], files = [], have = {};
     names.forEach((nm) => {
       const m = nm.match(/^(.*)\.(mp4|m4v|mov|mkv|webm)$/i); if (!m) return;
       const base = m[1], mm = base.match(/^(\d+)[_\-\s　]*(.*)$/), n = mm ? parseInt(mm[1], 10) : 999;
-      files.push({ n, name: nm, title: (mm && mm[2]) || VTITLES[n] || base, path: dir + '/' + nm, png: names.includes(base + '.png') ? dir + '/' + base + '.png' : null });
+      have[n] = 1; files.push({ n, name: nm, title: (mm && mm[2]) || VTITLES[n] || base, path: dir + '/' + nm, png: VTITLES[n] ? 'img/video/' + ('0' + n).slice(-2) + '.webp' : names.includes(base + '.png') ? dir + '/' + base + '.png' : null });
     });
+    Object.keys(VTITLES).forEach((k) => { if (!have[k]) files.push({ n: +k, name: 'v' + k, title: VTITLES[k], path: null, png: 'img/video/' + ('0' + k).slice(-2) + '.webp' }); }); // 動画ファイルが まだ無くても、一覧(サムネイル)には出す
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir, files };
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return d.done[f.name] ? 'done' : (d.pos[f.name] || 0) > 3 ? 'cont' : 'new'; };
@@ -1252,9 +1253,11 @@
     const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last && vStatus(f, d) === 'cont');
     S.vid = { view: last >= 0 ? 'home' : 'list', files: sc.files, dir: sc.dir, d, sel: Math.max(0, last), top: 0, hs: 0, last, ask: null }; S.mode = 'video'; vFit(); dirty();
   }
-  function vFit() { const V = S.vid; V.top = Math.max(0, Math.min(V.top, V.sel)); if (V.sel >= V.top + 9) V.top = V.sel - 8; }
+  function vFit() { const V = S.vid; V.top = Math.max(0, Math.min(V.top, V.sel)); if (V.sel >= V.top + 8) V.top = V.sel - 7; }
   function vPlay(i, from) {
-    const V = S.vid, f = V.files[i]; try { NSND.music(''); } catch (e) { /* ignore */ }
+    const V = S.vid, f = V.files[i];
+    if (!f.path || typeof __vopen !== 'function') { V.err = f.path ? 'この画面では 再生できません(実機で 見られます)' : 'この動画は まだ 入っていません(mjdata/video に入れてください)'; dirty(); return; }
+    try { NSND.music(''); } catch (e) { /* ignore */ }
     const r = __vopen(f.path, from || 0); if (!r) { V.view = 'list'; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
     const now = __now(); V.sel = i; V.view = 'play'; V.p = { f, i, dur: r.dur || 0, ui: now, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now, st: [from || 0, r.dur || 0, 0, 0, 0], sig: '' };
     V.d.last = f.name; vSave(); dirty();
@@ -1307,8 +1310,8 @@
     if (k === 'back') { if (V.last >= 0) V.view = 'home'; else { S.mode = 'learn'; S.vid = null; } }
     else if (!n) return;
     else if (k === 'up') { V.sel = (V.sel + n - 1) % n; vFit(); } else if (k === 'down') { V.sel = (V.sel + 1) % n; vFit(); }
-    else if (k === 'left') { V.sel = Math.max(0, V.sel - 9); vFit(); } else if (k === 'right') { V.sel = Math.min(n - 1, V.sel + 9); vFit(); }
-    else if (k === 'ok') { const f = V.files[V.sel]; if (vStatus(f) === 'cont') V.ask = { i: V.sel, idx: 0 }; else vPlay(V.sel, 0); }
+    else if (k === 'left') { V.sel = Math.max(0, V.sel - 8); vFit(); } else if (k === 'right') { V.sel = Math.min(n - 1, V.sel + 8); vFit(); }
+    else if (k === 'ok') { const f = V.files[V.sel]; if (f.path && vStatus(f) === 'cont') V.ask = { i: V.sel, idx: 0 }; else vPlay(V.sel, 0); }
   }
   function vThumb(f, x, y, w, h) { // サムネイル(無ければ、暗い板)
     rrect(x - 3, y - 3, w + 6, h + 6, 6, [150, 190, 140]);
@@ -1332,18 +1335,18 @@
       text('(番号_題名.mp4 と 番号_題名.png)', SW / 2, 262, 19, [110, 110, 100], 1); return;
     }
     const n = V.files.length;
-    for (let r = 0; r < 9; r++) {
+    for (let r = 0; r < 8; r++) {
       const i = V.top + r; if (i >= n) break; const f = V.files[i], y = 58 + r * 44, on = i === V.sel, ss = vStatus(f);
       panel(14, y, 350, 40, 10, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255);
       rrect(24, y + 5, 36, 30, 6, GREEN); text(('0' + f.n).slice(-2), 42, y + 8, 18, WHITE, 1);
-      const bw = ss === 'new' ? 0 : ss === 'done' ? 96 : 66; text(f.title, 68, y + 7 + 0, fitSz(f.title, 21, 286 - bw, 14), INK);
-      if (ss === 'done') { rrect(260, y + 8, 94, 24, 11, [60, 138, 60]); text('✔ 見おわり', 307, y + 10, 15, WHITE, 1); } else if (ss === 'cont') { rrect(290, y + 8, 64, 24, 11, QRED); text('つづき', 322, y + 10, 15, WHITE, 1); }
+      const bw = !f.path ? 60 : ss === 'new' ? 0 : ss === 'done' ? 96 : 66; text(f.title, 68, y + 7 + 0, fitSz(f.title, 21, 286 - bw, 14), INK);
+      if (!f.path) { rrect(300, y + 8, 54, 24, 11, [140, 140, 130]); text('なし', 327, y + 10, 15, WHITE, 1); } else if (ss === 'done') { rrect(260, y + 8, 94, 24, 11, [60, 138, 60]); text('✔ 見おわり', 307, y + 10, 15, WHITE, 1); } else if (ss === 'cont') { rrect(290, y + 8, 64, 24, 11, QRED); text('つづき', 322, y + 10, 15, WHITE, 1); }
     }
-    if (V.top > 0) text('▲', 189, 48, 14, YEL, 1); if (V.top + 9 < n) text('▼', 189, 452, 14, YEL, 1);
+    if (V.top > 0) text('▲', 189, 48, 14, YEL, 1); if (V.top + 8 < n) text('▼', 189, 412, 14, YEL, 1);
     const f = V.files[V.sel], ss = vStatus(f);
     panel(384, 58, 430, 244, 12, [16, 56, 42], [150, 190, 140], 3, 255); vThumb(f, 394, 68, 410, 230);
     panel(384, 316, 430, 100, 12, CREAM, GREEN, 3, 255); text(f.title, 599, 326, fitSz(f.title, 26, 400, 16), INK, 1);
-    text(ss === 'done' ? '✔ 見おわりました' : ss === 'cont' ? 'つづき: ' + vfmt(V.d.pos[f.name]) + ' から' : 'まだ 見ていません', 599, 368, 21, ss === 'cont' ? [200, 60, 40] : [70, 100, 60], 1);
+    text(!f.path ? '(動画ファイルが まだ ありません)' : ss === 'done' ? '✔ 見おわりました' : ss === 'cont' ? 'つづき: ' + vfmt(V.d.pos[f.name]) + ' から' : 'まだ 見ていません', 599, 368, 21, ss === 'cont' ? [200, 60, 40] : [70, 100, 60], 1);
     if (V.err) { fill(0, 200, SW, 60, [0, 0, 0], 200); text(V.err, SW / 2, 214, 22, YEL, 1); }
   }
   function drawVideoPlay(V) {
