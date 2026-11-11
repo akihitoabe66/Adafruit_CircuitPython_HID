@@ -156,6 +156,7 @@ static void vid_close(void) {
 }
 static AVCodecContext *vopen_codec(AVStream *st, const char *envname) {
   const AVCodec *dec = NULL; const char *nm = envname ? getenv(envname) : NULL;
+  if ((!nm || !*nm) && envname && st->codecpar->codec_id == AV_CODEC_ID_H264) nm = "h264_v4l2m2m"; /* ふだんは、まずハードウェア解読を試す(使えなければ、自動で、ふつうの解読に)。 MJ_VDEC=h264 で、ふつうの解読に固定 */
   if (nm && *nm) dec = avcodec_find_decoder_by_name(nm);
   for (int pass = 0; pass < 2; pass++) {
     if (!dec) dec = avcodec_find_decoder(st->codecpar->codec_id); if (!dec) return NULL;
