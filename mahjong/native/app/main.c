@@ -7,6 +7,8 @@
 #include <time.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <sys/resource.h>
+#include <sys/syscall.h>
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
@@ -257,6 +259,13 @@ static void handle_event(SDL_Event *ep){
   else if (e.type == SDL_JOYBUTTONDOWN) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 1; { int b = e.jbutton.button; if (b >= 6 && b <= 9) return; /* スタート・セレクトは、長押しのメニュー専用 */ callkey((swapab ? (b == 0 || b == 2) : (b == 1 || b == 3)) ? "back" : "ok"); } }
 }
 
+static double stall_ms = 150; /* これより長く止まった(JSの処理・絵を描く)ときは、~/mjdata/stall.log に、何をしていたかを書く(MJ_STALL=ミリ秒で変更。0で書かない) */
+static void stall_log(const char *kind, double ms){
+  if (stall_ms <= 0 || ms < stall_ms) return; char cx[400] = "?";
+  JSValue g = JS_GetGlobalObject(ctx), f = JS_GetPropertyStr(ctx, g, "__ctx"); if (JS_IsFunction(ctx, f)) { JSValue r = JS_Call(ctx, f, g, 0, NULL); const char *s = JS_ToCString(ctx, r); if (s) { snprintf(cx, sizeof cx, "%s", s); JS_FreeCString(ctx, s); } JS_FreeValue(ctx, r); } JS_FreeValue(ctx, f); JS_FreeValue(ctx, g);
+  fprintf(stderr, "stall: %s %.0fms %s\n", kind, ms, cx);
+  char p[1500]; snprintf(p, sizeof p, "%s/stall.log", datadir); FILE *fp = fopen(p, "a"); if (fp) { time_t t = time(NULL); struct tm *tm = localtime(&t); fprintf(fp, "%02d:%02d:%02d %s %.0fms %s\n", tm->tm_hour, tm->tm_min, tm->tm_sec, kind, ms, cx); fclose(fp); }
+}
 int main(int argc, char **argv){
   const char *shots = NULL, *vplay = NULL; int auto_ = 0, maxframes = 0; char *files[64]; int nf = 0;
   for (int i = 1; i < argc; i++) {
@@ -267,11 +276,14 @@ int main(int argc, char **argv){
     else if (!strcmp(argv[i], "--frames") && i + 1 < argc) maxframes = atoi(argv[++i]);
     else if (i == 1) strncpy(root, argv[i], sizeof root - 1);
   }
+  { const char *sv = getenv("MJ_STALL"); if (sv) stall_ms = atof(sv); }
   const char *fp = getenv("MJ_FONT"); if (!fp) fp = findfont(); if (!fp) { fprintf(stderr, "日本語フォントがありません: sudo apt install fonts-ipafont-gothic\n"); return 1; }
   strncpy(fontpath, fp, sizeof fontpath - 1);
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_EVENTS) < 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }
   IMG_Init(IMG_INIT_WEBP | IMG_INIT_PNG); TTF_Init();
   if (!getenv("MJ_NOSOUND")) { if (SDL_InitSubSystem(SDL_INIT_AUDIO) == 0 && Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, getenv("MJ_ABUF") ? atoi(getenv("MJ_ABUF")) : 4096) == 0) { int mf = Mix_Init(MIX_INIT_MP3); Mix_AllocateChannels(16); audio_ok = 1; int fr, nc; Uint16 fm; Mix_QuerySpec(&fr, &fm, &nc); printf("audio: ok (driver=%s, %dHz, ch=%d, mp3=%s)\n", SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver() : "?", fr, nc, (mf & MIX_INIT_MP3) ? "ok" : "NG"); } else fprintf(stderr, "audio? %s\n", SDL_GetError()); }
+  { /* ゲーム本体(JS・絵)の優先度を、少し下げる: 重い処理で止まっても、BGMの音(別スレッド)が、先に動けるように。 MJ_NICE=0 で、やめる */
+    int nv = getenv("MJ_NICE") ? atoi(getenv("MJ_NICE")) : 6; if (nv > 0) setpriority(PRIO_PROCESS, (id_t)syscall(SYS_gettid), nv); }
   int windowed = getenv("MJ_WINDOWED") != NULL, ww = 1080, wh = 642; if (windowed && sscanf(getenv("MJ_WINDOWED"), "%dx%d", &ww, &wh) != 2) { ww = 1080; wh = 642; } /* MJ_WINDOWED=832x468 など、窓の大きさも指定できる */
   win = SDL_CreateWindow("シンプル操作 AI本格麻雀", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowed ? ww : 0, windowed ? wh : 0, windowed ? SDL_WINDOW_RESIZABLE : SDL_WINDOW_FULLSCREEN_DESKTOP);
   if (!win) { fprintf(stderr, "window: %s\n", SDL_GetError()); return 1; }
@@ -324,12 +336,12 @@ int main(int argc, char **argv){
     { int both = (jb[8] && jb[9]) || (jb[6] && jb[7]); if (both) { if (!menu_t0) menu_t0 = nowms(); else if (menu_t0 > 0 && nowms() - menu_t0 > 1200) { callkey("menu"); menu_t0 = -1; } } else menu_t0 = 0; } /* スタート+セレクトを長押し: メニュー(終了など) */
     if (held && nowms() >= held_next) { callkey(HELD[held]); held_next = nowms() + 95; }
     if (vid_update() && keep < 1) keep = 1; /* 動画の新しい絵が来たら、画面に出す */
-    double tl0 = nowms(); int need = callframe(); { double d = nowms() - tl0; perf_logic += d; if (d > perf_logicmax) perf_logicmax = d; }
+    double tl0 = nowms(); int need = callframe(); { double d = nowms() - tl0; perf_logic += d; if (d > perf_logicmax) perf_logicmax = d; stall_log("logic", d); }
     if (need) {
       double t0 = nowms(); SDL_SetRenderTarget(ren, tgt); ntop = 0;
       JSValue f = JS_GetPropertyStr(ctx, gg, "__draw"); JSValue r = JS_Call(ctx, f, gg, 0, NULL); if (JS_IsException(r)) dump_err(ctx); JS_FreeValue(ctx, r); JS_FreeValue(ctx, f); jobs();
       if (shots && frames % 10 == 0 && shotn < 40) { char p[1600]; snprintf(p, sizeof p, "%s/s%02d.bmp", shots, shotn++); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, W, H, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, p); SDL_FreeSurface(su); }
-      SDL_SetRenderTarget(ren, NULL); keep = 3; perf_draw += nowms() - t0; perf_n++;
+      SDL_SetRenderTarget(ren, NULL); keep = 3; perf_draw += nowms() - t0; perf_n++; stall_log("draw", nowms() - t0);
     }
     if (keep > 0) { double t0 = nowms(); SDL_RenderClear(ren); SDL_RenderCopy(ren, tgt, NULL, NULL); vid_render(); for (int i = 0; i < ntop; i++) { if (topq[i].kind == 1) { SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); SDL_SetRenderDrawColor(ren, topq[i].r, topq[i].g, topq[i].b, topq[i].a); SDL_RenderFillRect(ren, &topq[i].d); } else { SDL_SetTextureAlphaMod(topq[i].tx, 255); SDL_RenderCopy(ren, topq[i].tx, &topq[i].sr, &topq[i].d); } } { static double st0 = 0; static int dn[16]; if (!st0) st0 = nowms(); const char *sp = getenv("MJ_SNAP"), *sl = getenv("MJ_SNAPS"); if (sp && sl) { char b[256]; strncpy(b, sl, 255); b[255] = 0; int ti = 0; for (char *t = strtok(b, ","); t && ti < 16; t = strtok(NULL, ","), ti++) if (!dn[ti] && nowms() - st0 >= atoi(t)) { dn[ti] = 1; char fn[1600]; snprintf(fn, sizeof fn, "%s_%s.bmp", sp, t); int ow, oh; SDL_GetRendererOutputSize(ren, &ow, &oh); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, ow, oh, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, fn); SDL_FreeSurface(su); } } } if (snappath[0]) { int ow, oh; SDL_GetRendererOutputSize(ren, &ow, &oh); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, ow, oh, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, snappath); SDL_FreeSurface(su); snappath[0] = 0; } SDL_RenderPresent(ren); keep--; perf_pres += nowms() - t0; perf_p++; }
     frames++; if (maxframes && frames >= maxframes) break;
