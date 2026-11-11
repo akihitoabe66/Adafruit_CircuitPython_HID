@@ -18,6 +18,7 @@
   /* ---------- セーブ(手動・最新から5件) ---------- */
   const wrap = (i, n) => (i + n) % n;
   const pressing = () => __now() - S.pressT < (S.pressMs || 170);
+  const postQ = []; const afterPresent = (fn) => { postQ.push(fn); }; // 今の絵が画面に出てから(次のコマの はじめに)実行する
   const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 170; S.locked = true; dirty(); setTimeout(() => { S.pressT = -9999; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 40); }, S.pressMs); }; // 押している間のあと、いちど「もとの形にもどった絵」を描いてから、次の画面へ(描くのがおそい機械でも、へこんだ絵のまま、つぎの画面にならないように) // 押したボタンが光ってから、次へ
   const NSLOT = 5;
   function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
@@ -668,9 +669,9 @@
     const P = g.players, counting = d.settled && now >= cStart && now < revealAt, done = d.settled && now >= revealAt;
     if (done && !d.revealT) { d.revealT = now; NSND.sfx('start', 0.8); NSND.sfx('slam', 0.8); }
     const rt = d.revealT ? now - d.revealT : -1; // 親が決まってからの経過(ミリ秒): 〜1500 親を見せる / 〜2900「東一局」/ 〜4100「勝負!」
-    if (rt > 1500 && !d.v1) { d.v1 = 1; NSND.sfx('slam'); try { const dur = NSND.readKyoku(g); d.T2 = Math.max(2900, 1500 + Math.round((dur || 0) * 1000) + 350); } catch (e) { /* ignore */ } } // 「勝負!」は、局の読み上げが おわってから
+    if (rt > 1500 && !d.v1) { d.v1 = 1; afterPresent(() => { NSND.sfx('slam'); try { const dur = NSND.readKyoku(g); d.T2 = Math.max(2900, 1500 + Math.round((dur || 0) * 1000) + 350); } catch (e) { /* ignore */ } }); } // 声は、文字が画面に出たあとに(描くのが遅い実機で、声だけ先に出ないように) // 「勝負!」は、局の読み上げが おわってから
     const T2 = d.T2 || 2900;
-    if (rt > T2 && !d.v2) { d.v2 = 1; NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }
+    if (rt > T2 && !d.v2) { d.v2 = 1; afterPresent(() => { NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }); }
     if (rt > T2 + 1200 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); }
     const step = counting ? Math.floor((now - cStart) / cStep) + 1 : 0, hiSeat = counting ? (step - 1) % 4 : -1;
     if (counting && d._lastStep !== step) { d._lastStep = step; NSND.sfx('select', 0.5); }
@@ -1970,6 +1971,7 @@
   let nextAuto = 0, lastSave = 0, nextSide = 0, coachShots = 0;
   window.__frame = function (now) {
     __runTimers(now);
+    while (postQ.length) { const f = postQ.shift(); try { f(); } catch (e) { /* ignore */ } }
     if (S.mode === 'video') vTick(now);
     if (__auto && globalThis.__teacherEnv && S.self && !S.side && !S.coach && now > nextSide) { nextSide = now + 3300; window.__key('right'); window.__key('ok'); setTimeout(() => window.__key('ok'), 1500); } // 試験用: 解説の窓を、ときどき開く
     if (__auto && now > nextAuto && !S.coach && !S.side) { nextAuto = now + 90; window.__key('ok'); }

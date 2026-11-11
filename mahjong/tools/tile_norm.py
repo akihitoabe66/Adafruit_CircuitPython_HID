@@ -9,8 +9,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TARGET = np.array([245, 237, 223], np.float32)   # 白い面の、そろえる色
 FLAT = 0.85                                      # 面の濃淡のムラを、ならす強さ
 RAD = 1.3                                        # シャープネスの半径
-DEFAULT = 0.9                                    # シャープネスの強さ(ふつう)
-SHARP = {'2': 1.6, '3': 1.6, '4': 1.6, '5': 1.6, '6': 1.6, '7': 1.6}   # 三萬〜八萬は、少し強め
+DEFAULT = 0.0                                    # シャープネスの強さ(0=かけない)
+SHARP = {}   # 牌ごとに変えるときは、ここに書く(ファイル名 → 強さ)
 
 def process(a, amount):
     rgb = a[:, :, :3].astype(np.float32); hsv = cv2.cvtColor(a[:, :, :3], cv2.COLOR_RGB2HSV)
