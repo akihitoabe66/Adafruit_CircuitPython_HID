@@ -1384,27 +1384,25 @@
     else if (k === 'back') { S.mode = 'menu'; S.study = null; }
     else if (k === 'ok') { const w = H.sel; if (w === 0) startLearn(); else if (w === 1) startDict(); else startVideo(); }
   }
-  function drawStudy() {
-    const H = S.study; quizFrame('麻雀の勉強', '', '', '▲ ▼ でえらぶ    決定ボタンで ひらく    戻る: ホームへ');
-    const rows = [['点', [44, 90, 26], '点数計算', 'おぼえた ' + H.nDone + ' / ' + H.total], ['辞', [214, 150, 42], '用語じてん', 'わからない言葉を しらべる'], ['▶', [226, 62, 42], 'ビデオ', H.vn + '本' + (H.cont ? ' ・ つづきあり' : '')]];
-    rows.forEach((r, i) => {
-      const y = 60 + i * 108, on = H.sel === i; panel(16, y, 366, 96, 12, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 4 : 3, 255);
-      rrect(30, y + 16, 62, 64, 10, r[1]); text(r[0], 61, y + 28, 32, WHITE, 1); text(r[2], 106, y + 12, 30, INK); text(r[3], 108, y + 56, 18, [70, 70, 60]);
-    });
-    rrect(398, 60, 418, 312, 8, [150, 190, 140]); rrect(401, 63, 412, 306, 6, [16, 56, 42]);
+  function drawStudy() { // 背景の絵(img/study_bg.webp)に、えらんだ枠と、進み具合の文字を重ねる
+    const H = S.study; gfx.clear(14, 40, 30); gfx.image('img/study_bg.webp', 0, 0, SW, SH, 255);
+    const R = [[21, 64, 358, 90], [18, 164, 361, 100], [20, 280, 359, 90]], CX = 609;
+    const e = R[H.sel]; gfx.frame(e[0] - 2, e[1] - 2, e[2] + 4, e[3] + 4, 40, 30, 10, 3); gfx.frame(e[0], e[1], e[2], e[3], 255, 220, 40, 4); // えらんでいる枠(黄色)
+    text('おぼえた ' + H.nDone + ' / ' + H.total, 112, 122, 21, [70, 44, 14]); text(H.vn + '本' + (H.cont ? ' ・ つづきあり' : ''), 112, 332, 21, [244, 214, 176]);
+    text('▲ ▼ でえらぶ    決定ボタンで ひらく    戻る: ホームへ', 420, 437, 20, [236, 222, 190], 1);
     if (H.sel === 0) {
-      text('点数計算の勉強', 607, 76, 28, YEL, 1); text('役から点数まで、順番に学びます。', 607, 118, 19, WHITE, 1);
-      const bw = 340, bx = 437; fill(bx, 166, bw, 16, [60, 80, 70]); fill(bx, 166, Math.round(bw * H.nDone / H.total), 16, YEL); text('おぼえた ' + H.nDone + ' / ' + H.total, 607, 190, 24, WHITE, 1);
-      fill(420, 236, 376, 2, [150, 190, 140]); text(H.nDone >= H.total ? 'ぜんぶ おぼえました' : 'つぎは', 607, 250, 18, [200, 225, 200], 1);
-      if (H.nDone < H.total && H.nxStep) { text('ステップ' + (H.nx + 1) + '  ' + H.nxStep.t, 607, 280, fitSz('ステップ' + (H.nx + 1) + '  ' + H.nxStep.t, 24, 380, 16), WHITE, 1); text(H.nxStep.sum, 607, 322, 17, [255, 233, 160], 1); }
+      text('点数計算の勉強', CX, 92, 28, YEL, 1); text('役から点数まで、順番に学びます。', CX, 134, 19, WHITE, 1);
+      const bw = 340, bx = 439; fill(bx, 176, bw, 16, [20, 50, 36]); fill(bx, 176, Math.round(bw * H.nDone / H.total), 16, YEL); text('おぼえた ' + H.nDone + ' / ' + H.total, CX, 200, 24, WHITE, 1);
+      fill(437, 242, 344, 2, [150, 190, 140]); text(H.nDone >= H.total ? 'ぜんぶ おぼえました' : 'つぎは', CX, 252, 18, [200, 225, 200], 1);
+      if (H.nDone < H.total && H.nxStep) { const t = 'ステップ' + (H.nx + 1) + '  ' + H.nxStep.t; text(t, CX, 280, fitSz(t, 24, 350, 16), WHITE, 1); text(H.nxStep.sum, CX, 318, 17, [255, 233, 160], 1); }
     } else if (H.sel === 1) {
-      text('麻雀用語じてん', 607, 76, 28, YEL, 1); panel(450, 120, 314, 110, 12, [255, 251, 230], [160, 110, 0], 3, 255);
-      text('たんやお', 607, 128, 15, [100, 100, 90], 1); text('★ タンヤオ', 607, 150, 40, INK, 1); text('1・9・字牌を 使わない役', 607, 198, 17, [90, 90, 80], 1);
-      text('わからない言葉を しらべます。', 607, 256, 20, WHITE, 1); text('ふりがな・牌の絵つき。', 607, 286, 20, WHITE, 1); text('★ は、先に覚えたい言葉です。', 607, 322, 17, [255, 233, 160], 1);
+      text('麻雀用語じてん', CX, 92, 28, YEL, 1); panel(450, 130, 318, 106, 12, [255, 251, 230], [160, 110, 0], 3, 255);
+      text('たんやお', CX, 138, 15, [100, 100, 90], 1); text('★ タンヤオ', CX, 158, 38, INK, 1); text('1・9・字牌を 使わない役', CX, 205, 17, [90, 90, 80], 1);
+      text('わからない言葉を しらべます。', CX, 256, 20, WHITE, 1); text('ふりがな・牌の絵つき。', CX, 284, 20, WHITE, 1); text('★ は、先に覚えたい言葉です。', CX, 318, 17, [255, 233, 160], 1);
     } else {
-      const f = H.vf; if (f && f.png) { gfx.image(f.png, 411, 72, 394, 222, 255); } else fill(411, 72, 394, 222, [16, 56, 42]);
-      panel(398, 308, 418, 64, 8, CREAM, GREEN, 3, 255); text(f ? f.title : 'ビデオ', 607, 313, fitSz(f ? f.title : 'ビデオ', 24, 390, 15), INK, 1);
-      text(H.cont ? 'つづき: ' + vfmt(H.vpos) + ' から' : H.vhave ? '動画 ' + H.vhave + '本 入っています' : '動画ファイルは まだ ありません', 607, 342, 18, H.cont ? QRED : [70, 100, 60], 1);
+      const f = H.vf; if (f && f.png) gfx.image(f.png, 439, 90, 340, 191, 255); else fill(439, 90, 340, 191, [16, 56, 42]);
+      const tt = f ? f.title : 'ビデオ'; text(tt, CX, 288, fitSz(tt, 24, 370, 15), WHITE, 1);
+      text(H.cont ? 'つづき: ' + vfmt(H.vpos) + ' から' : H.vhave ? '動画 ' + H.vhave + '本 入っています' : '動画ファイルは まだ ありません', CX, 322, 18, H.cont ? [255, 170, 150] : [200, 225, 200], 1);
     }
   }
 
