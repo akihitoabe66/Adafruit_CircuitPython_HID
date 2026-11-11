@@ -376,7 +376,7 @@
     drawHand(g);
     // 吹き出し
     const now = __now();
-    const BW = 360, BH = 110, FSZ = 94, BUB = { 0: [250, 246], 1: [336, 150], 2: [360, 40], 3: [70, 172] }; // 吹き出しは、いつも同じ大きさ(顔も、いつも同じ大きさ)
+    const BW = 360, BH = 110, FSZ = 94, BUB = { 0: [250, 150], 1: [336, 150], 2: [360, 40], 3: [70, 150] }; // 上家・下家は、同じ高さ(麻雀先生の帯(y268〜)に かさならない高さ) // 吹き出しは、いつも同じ大きさ(顔も、いつも同じ大きさ)
     const calling = (S.banner && S.banner.call) || S.ryu; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; } if (calling) continue;
       const pos = BUB[k] || [300, 200], tw = BW - FSZ - 34; let bsz = 20, lines = wrapText(b.text, bsz, tw);
