@@ -21,7 +21,7 @@
   const postQ = []; const afterPresent = (fn) => { postQ.push(fn); }; // 今の絵が画面に出てから(次のコマの はじめに)実行する
   /* 「もどる」ボタン(画面の左上): 戻る(B)だけで出入りしていた画面に、見える「もどる」を足す。 ▲ で、このボタンへ / 決定で戻る / ▼ で元の場所へ */
   const BACKM = new Set(['diag', 'study', 'learn', 'dict', 'video', 'howto', 'stats', 'slots']);
-  function drawBack() { const on = !!S.bbf; panel(12, 8, 122, 30, 6, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255); text('◀ もどる', 73, 12, 19, INK, 1); }
+  function drawBack() { const on = !!S.bbf, bw = 3; rrect(12, 11, 124, 36, 12, on ? [160, 110, 0] : GREEN, 255); rrect(12 + bw, 11 + bw, 124 - 2 * bw, 36 - 2 * bw, 12 - bw, on ? YEL : CREAM, 255); text('◀ もどる', 74, 19, 19, INK, 1); }
   const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 170; S.locked = true; dirty(); setTimeout(() => { S.pressT = -9999; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 40); }, S.pressMs); }; // 押している間のあと、いちど「もとの形にもどった絵」を描いてから、次の画面へ(描くのがおそい機械でも、へこんだ絵のまま、つぎの画面にならないように) // 押したボタンが光ってから、次へ
   const NSLOT = 5;
   function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
