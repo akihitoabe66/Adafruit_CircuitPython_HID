@@ -1648,7 +1648,11 @@
     try { const mine = new Set(p.hand.map((x) => x.t)); g.players.forEach((q) => { if (q === p || q.hand.length % 3 !== 1) return; const c = MJ.toCounts(q.hand); if (MJ.shanten(c, q.melds.length) !== 0) return; const ws = MJ.waits(c.slice(), q.melds.length); if (ws.length && ws.some((w) => mine.has(w))) safe.push(!ws.includes(h.t)); }); } catch (e) { /* ignore */ }
     MJ.Stats.discard(effOk, safe);
   }
-  function startDiag() { S.mode = 'diag'; let rk = { hist: [] }, info = null; try { rk = MJ.Rank.get(); info = MJ.Rank.info(); } catch (e) { /* ignore */ } S.diag = { pg: 0, d: MJ.Stats.diag(), sg: MJ.Stats.strength(), rk, info }; dirty(); }
+  function startDiag() { S.mode = 'diag'; let rk = { hist: [] }, info = null; try { rk = MJ.Rank.get(); info = MJ.Rank.info(); } catch (e) { /* ignore */ } S.diag = { pg: 0, d: MJ.Stats.diag(), sg: MJ.Stats.strength(), rk, info }; dirty(); diagWarm(); }
+  function diagWarm() { // 入ったあと、各項目の説明の文字を、画面に出さずに 先に用意しておく(はじめてカーソルを動かしたときの、重さを なくす)
+    if (typeof gfx.dry !== 'function') return;
+    [0, 1, 2, 3, 4, 5, 6].forEach((f, k) => setTimeout(() => { const D = S.diag; if (!D || S.mode !== 'diag' || D.pg !== 0) return; const keep = D.fi; try { gfx.dry(1); D.fi = f; drawDiag(); } catch (e) { /* ignore */ } try { gfx.dry(0); } catch (e) { /* ignore */ } D.fi = keep; }, 600 + k * 250));
+  }
   function diagKey(k) {
     const D = S.diag;
     if (k === 'back') { S.mode = 'menu'; S.diag = null; }
@@ -1682,7 +1686,7 @@
       tFace(sg.total == null ? 'advice' : sg.total >= 80 ? 'cheer' : sg.total >= 60 ? 'ok' : 'advice', 'dg0' + (sg.total || 0), 716, 52, 72);
       const DEX = ['総合: 下の6つの力の平均です。\n60点で「ふつうに打てる」、80点以上で「じょうず」です。', '攻撃力: 対局で、上がれた割合です。\n上がる局が多いほど、高くなります。', '守備力: 他の人に振り込まなかった割合です。\n振り込みが少ないほど、高くなります。', '洞察力: 危ない牌を避けられたか、と、待ちや押し引きのクイズの正解率です。\n相手の手を読む力です。', '牌効率: 上がりに近づく牌を切れたか、と、何を切るかのクイズの正解率です。\n手を早く完成させる力です。', '計算力: 点数計算のクイズの正解率です。\n飜と符から、点数を出す力です。', '打点力: 上がったときの、平均の点数です。\n大きな手で上がれるほど、高くなります。'];
       const exp = FI >= 0 ? DEX[FI] + (FI >= 1 && ax[FI - 1].v == null ? '\n(まだ データが たりません)' : '') : null;
-      const f = fitRich(exp || say, [18, 17, 16], 186, 190), bh = f.h + 26; panel(606, 132, 212, bh, 12, CREAM, GREEN, 3, 255); richDraw(f.lines, 618, 144, f.sz, INK, 0);
+      const ck = exp || say, f = (D.fc = D.fc || {})[ck] || (D.fc[ck] = fitRich(ck, [18, 17, 16], 186, 190)), bh = f.h + 26; panel(606, 132, 212, bh, 12, CREAM, GREEN, 3, 255); richDraw(f.lines, 618, 144, f.sz, INK, 0);
       const ly = 132 + bh + 14; gLine(612, ly + 10, 636, ly + 10, 2, YEL, true); text('60点 = ふつう', 644, ly + 1, 15, [255, 233, 160]); text('80点 = じょうず(めざす線)', 612, ly + 24, 15, [255, 233, 160]);
       diagTabs(0, '◀▶ ページ  ▲ 説明  戻る: ホームへ'); return;
     }
