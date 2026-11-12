@@ -171,14 +171,15 @@
     }
   }
   function drawRiver(g, p) {
+    const fr = []; // 枠は、牌を全部描いたあとに、上から描く(次の牌が重なって、枠の片側が消えないように)
     p.discards.forEach((d, i) => {
       if (S.fly && S.fly.d === d && __now() < S.fly.t0 + S.fly.dur) return; // 飛んでいる間は、河には描かない
       const q = riverPos(p.seat, i, p);
       const isLast = g.lastDiscard && g.lastDiscard.d === d && !(g.turn === 0 && !S.react && g.lastDiscard.by !== 0); // 自分の番になったら、直前の捨て牌の枠は消す
-      if (isLast) rrect(q.x - 2, q.y - 2, q.bw + 4, q.bh + 4, 3, YEL); else if (d.riichi) rrect(q.x - 1, q.y - 1, q.bw + 2, q.bh + 2, 3, RED);
       tileR(d.tile.t, q.x, q.y, RW, RH, d.tile.red, d.called, q.rot);
-      if (isLast && d.riichi) frame(q.x, q.y, q.bw, q.bh, RED, 1);
+      if (isLast || d.riichi) fr.push([q, isLast, !!d.riichi]);
     });
+    fr.forEach(([q, isLast, rc]) => { if (isLast) frame(q.x - 2, q.y - 2, q.bw + 4, q.bh + 4, YEL, 2); if (rc) frame(q.x - 1, q.y - 1, q.bw + 2, q.bh + 2, RED, isLast ? 1 : 2); });
   }
   /* ---------- 麻雀先生(バランス型) ---------- */
   function teacherAdvice(g, p, opts) {
@@ -368,6 +369,7 @@
     text('残り', 234, 228, 18, WHITE); text(String(g.live.length), 280, 220, 34, YEL); text('枚', 334, 230, 18, WHITE);
     { const WX = 356, WY = 188, WS = 128 / 219; gfx.image('img/wall.webp', WX, WY, 128, Math.round(88 * WS), 255); // 王牌の絵の上に、ドラ表示牌を重ねる
       (g.doraInd || []).slice(0, 5).forEach((d, k) => { if (d) tile(d.t, WX + Math.round((3.4 + (4 - k) * 30.1) * WS), WY + Math.round(4.4 * WS), Math.round(29.2 * WS), Math.round(39.4 * WS), d.red); }); }
+    [[0, 322, 249, 72, 10, 'c0'], [2, 322, 167, 72, 10, 'c180'], [1, 484, 177, 10, 72, 'c90'], [3, 222, 177, 10, 72, 'c90']].forEach((r) => { if (P[r[0]].riichi) gfx.image('img/tenbo_' + r[5] + '.webp', r[1], r[2], r[3], r[4], 255); }); // リーチ棒: 中央の板の縁の内側に、立てた人の方向で
     }
     });
     if (DS.wall) cached(3, 'w' + g.dealer + ':' + DS.sr + ':' + DS.half, () => drawWall(DS.sr, DS.half, g.dealer)); // 配牌の山
