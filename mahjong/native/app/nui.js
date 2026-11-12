@@ -1789,6 +1789,7 @@
       if (rd.reading) { if (k === 'ok') { rd.token++; rd.reading = false; rd.shown = 4; rd.now = -1; NSND.stopSpeak(); dirty(); } return; }
       if (rd.pop >= 0) { if (k === 'ok' || k === 'back') { rd.pop = -1; dirty(); } return; }
       if (k === 'left') rd.sel = Math.max(0, rd.sel - 1); else if (k === 'right') rd.sel = Math.min(4, rd.sel + 1);
+      else if (k === 'up') { if (rd.sel === 4) rd.sel = 3; } else if (k === 'down') { if (rd.sel < 4) rd.sel = 4; } // 「次へ」から上 = 右はしの人 / 4人のどれからでも、下 = 「次へ」
       else if (k === 'ok') { if (rd.sel < 4) rd.pop = rd.sel; else { S.result = null; r.done(); } }
       dirty(); return;
     }
