@@ -673,6 +673,7 @@
     if (part !== 'face') {
       if (dealer) { const pu = 0.5 + 0.5 * Math.sin(rv / 140); rrect(x - 16, y - 16, fs + 32, fs + 32, 12, [255, 190, 30], Math.round(70 + 110 * pu)); rrect(x - 10, y - 10, fs + 20, fs + 20, 9, [255, 230, 90], Math.round(150 + 105 * pu)); rrect(x - 4, y - 4, fs + 8, fs + 8, 6, [255, 255, 255]); }
       else if (hi) { rrect(x - 8, y - 8, fs + 16, fs + 16, 8, [255, 120, 40]); rrect(x - 5, y - 5, fs + 10, fs + 10, 6, [255, 230, 80]); }
+      else { rframe(x - 5, y - 5, fs + 10, fs + 10, 9, 2, [30, 30, 30]); rframe(x - 3, y - 3, fs + 6, fs + 6, 8, 4, [255, 255, 255]); } // 顔の縁(白+外に細い黒。角は、小さな丸み)。 顔の絵は、これより上に重なる
       fill(x, y, fs, fs, [90, 110, 100]);
       if (dealer) dealerPlate(DPOS[s][0] + 40, DPOS[s][1] + 100, p.name, rv); else plate(DPOS[s][0] + 40, DPOS[s][1] + 96, p.name, p.char && p.char.level ? p.char.level : 0);
       if (wind) { const wi = ['東', '南', '西', '北'].indexOf(wind); rrect(x - 46, y + 6, 38, 38, 6, [255, 255, 255]); rrect(x - 44, y + 8, 34, 34, 5, WIND_BG[wi]); text(wind, x - 27, y + 11, 28, WHITE, 1); }
