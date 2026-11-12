@@ -24,7 +24,7 @@
 #include "quickjs.h"
 #include "shanten.h"
 
-static SDL_Texture *tgt = NULL; static SDL_Texture *lay[6]; static SDL_Rect curview = { 0, 0, 832, 468 };
+static SDL_Texture *tgt = NULL; static SDL_Texture *lay[20];  /* 画面の絵のキャッシュ(0〜3は対局の卓、4〜19は 動かないページ用) */ static SDL_Rect curview = { 0, 0, 832, 468 };
 static SDL_Window *win; static SDL_Renderer *ren; static JSContext *ctx; static JSRuntime *rt;
 static char root[1024] = "."; static int quitf = 0; static TTF_Font *fonts[200]; static int fsz[200]; static int nfonts = 0;
 static char fontpath[1024];
@@ -129,9 +129,9 @@ static JSValue j_measure(JSContext *c, JSValueConst t, int n, JSValueConst *a){ 
 static JSValue j_clip(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (n < 4) { SDL_RenderSetClipRect(ren, NULL); return JS_UNDEFINED; } SDL_Rect r = { ai(c,a[0]), ai(c,a[1]), ai(c,a[2]), ai(c,a[3]) }; SDL_RenderSetClipRect(ren, &r); return JS_UNDEFINED; }
 static JSValue j_view(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_Rect r = { ai(c,a[0]), ai(c,a[1]), W - ai(c,a[0]), H - ai(c,a[1]) }; curview = r; SDL_RenderSetViewport(ren, &r); return JS_UNDEFINED; }
 /* 描いた絵を、1枚の絵(層)にためておき、あとは貼るだけにする(動かない部分の描き直しを省く) */
-static JSValue j_layerbegin(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int i = ai(c,a[0]); if (i < 0 || i >= 6) return JS_UNDEFINED; if (!lay[i]) { lay[i] = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, W, H); SDL_SetTextureBlendMode(lay[i], SDL_BLENDMODE_BLEND); } SDL_SetRenderTarget(ren, lay[i]); SDL_RenderSetViewport(ren, NULL); SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE); SDL_SetRenderDrawColor(ren, 0, 0, 0, 0); SDL_RenderClear(ren); SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); return JS_UNDEFINED; }
+static JSValue j_layerbegin(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int i = ai(c,a[0]); if (i < 0 || i >= 20) return JS_UNDEFINED; if (!lay[i]) { lay[i] = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, W, H); SDL_SetTextureBlendMode(lay[i], SDL_BLENDMODE_BLEND); } SDL_SetRenderTarget(ren, lay[i]); SDL_RenderSetViewport(ren, NULL); SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE); SDL_SetRenderDrawColor(ren, 0, 0, 0, 0); SDL_RenderClear(ren); SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); return JS_UNDEFINED; }
 static JSValue j_layerend(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_SetRenderTarget(ren, tgt); SDL_RenderSetViewport(ren, &curview); return JS_UNDEFINED; }
-static JSValue j_layer(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int i = ai(c,a[0]); if (i < 0 || i >= 6 || !lay[i]) return JS_UNDEFINED; SDL_Rect d = { 0, 0, W, H }; SDL_RenderCopy(ren, lay[i], NULL, &d); return JS_UNDEFINED; } /* 描く原点を動かす(画面の外側は切れる) */
+static JSValue j_layer(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int i = ai(c,a[0]); if (i < 0 || i >= 20 || !lay[i]) return JS_UNDEFINED; SDL_Rect d = { 0, 0, W, H }; SDL_RenderCopy(ren, lay[i], NULL, &d); return JS_UNDEFINED; } /* 描く原点を動かす(画面の外側は切れる) */
 static JSValue j_clear(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; SDL_SetRenderDrawColor(ren, ai(c,a[0]), ai(c,a[1]), ai(c,a[2]), 255); SDL_RenderClear(ren); return JS_UNDEFINED; }
 static JSValue j_present(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_RenderPresent(ren); return JS_UNDEFINED; }
 static char snappath[1600]; /* 試験用: gfx.snap(パス) で、次に画面に出す絵(顔・文字も入った完成形)を保存する */

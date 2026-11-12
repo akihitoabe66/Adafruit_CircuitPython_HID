@@ -353,7 +353,8 @@
     d.seq = S.drawSeq; d.last = { n: ns[0], ns, fly, sorted, lift, st: t - DEAL_LIFT, wall: true, sr: tiles >> 1, half: tiles & 1 };
     return d.last;
   }
-  const cached = (i, key, fn) => { const c = S.lay[i]; if (!c || c.key !== key) { gfx.layerBegin(i); fn(); gfx.layerEnd(); S.lay[i] = { key }; } gfx.layer(i); };
+  const lay = (i, key, fn) => { const c = S.lay[i]; if (!c || c.key !== key) { gfx.layerBegin(i); fn(); gfx.layerEnd(); S.lay[i] = { key }; } }; // 絵を、画面に出さずに、キャッシュの面に描いておく(先に用意するとき)
+  const cached = (i, key, fn) => { lay(i, key, fn); gfx.layer(i); };
   function drawTable(g) {
     if (!g.doraInd || !g.players[0].hand) return; // 始まる前は、まだ描くものがない
     gfx.clear(32, 74, 60);
@@ -1587,9 +1588,9 @@
     const sc = vScan(), vd = vLoad(); let vi = sc.files.findIndex((f) => f.name === vd.last && (vd.pos[f.name] || 0) >= 30 && !vd.done[f.name]); const cont = vi >= 0; if (vi < 0) vi = Math.max(0, sc.files.findIndex((f) => f.path && !vd.done[f.name])); if (vi < 0 || !sc.files[vi]) vi = 0;
     S.study = { sel: sel || 0, nDone, total: ST.length, nx, nxStep: ST[nx], vf: sc.files[vi], cont, vpos: cont ? vd.pos[sc.files[vi].name] : 0, vn: sc.files.length, vhave: sc.files.filter((f) => f.path).length }; S.mode = 'study'; dirty(); studyWarm();
   }
-  function studyWarm() { // 勉強の入口: 選んだときに出る右の説明の文字を、あらかじめ(画面には出さずに)用意しておく。はじめて選んだときの重さを、なくすため
-    if (typeof gfx.dry !== 'function') return;
-    [1, 2, 0].forEach((w, k) => setTimeout(() => { const H = S.study; if (!H || S.mode !== 'study') return; const keep = H.sel; try { gfx.dry(1); H.sel = w; drawStudy(); } catch (e) { /* ignore */ } try { gfx.dry(0); } catch (e) { /* ignore */ } H.sel = keep; }, 700 + k * 350));
+  function studyWarm() { // 入ったあと、3つの項目を選んだときの画面を、画面に出さずに 先に描いておく(はじめて選んだときの重さを、なくすため)
+    if (typeof gfx.layerBegin !== 'function') return;
+    [1, 2, 0, -1].forEach((w, k) => setTimeout(() => { const H = S.study; if (!H || S.mode !== 'study') return; try { lay(6 + w + 1, studyKey_(H, w), () => drawStudyBody(w)); } catch (e) { /* ignore */ } }, 500 + k * 400));
   }
   function studyKey(k) {
     const H = S.study; dirty();
@@ -1606,8 +1607,15 @@
       fill(x + xo, y + yy, Math.max(1, xi - xo), 1, c); fill(x + w - xi, y + yy, Math.max(1, xi - xo), 1, c);
     }
   }
-  function drawStudy() { // 背景の絵(img/study_bg.webp)に、えらんだ枠と、進み具合の文字を重ねる
-    const H = S.study, hs = S.bbf ? -1 : H.sel; gfx.clear(14, 40, 30); gfx.image('img/study_bg.webp', 0, 0, SW, SH, 255); // 「もどる」に合わせているときは、3つのボタンの 枠も 拡大も 出さない
+  const studyKey_ = (H, hs) => 'st' + hs + (hs < 0 ? 's' + H.sel : '') + ':' + H.nDone + ':' + H.total + ':' + H.vn + ':' + (H.cont ? 1 : 0) + ':' + (H.nxStep ? H.nxStep.id : '');
+  function drawStudy() { // 動かないページ: 選んでいる項目ごとの絵を、いちど描いたら 使い回す(押している間の動きだけ、そのつど描く)
+    const H = S.study, hs = S.bbf ? -1 : H.sel;
+    if (pressing() || typeof gfx.layerBegin !== 'function') { drawStudyBody(hs); return; }
+    cached(6 + hs + 1, studyKey_(H, hs), () => drawStudyBody(hs));
+  }
+  function drawStudyBody(hs0) { const H = S.study, keep = H.sel; try { drawStudyBody0(hs0); } finally { H.sel = keep; } }
+  function drawStudyBody0(hs0) { // 背景の絵(img/study_bg.webp)に、えらんだ枠と、進み具合の文字を重ねる
+    const H = S.study, hs = hs0 == null ? (S.bbf ? -1 : H.sel) : hs0, selSave = H.sel; if (hs >= 0) H.sel = hs; gfx.clear(14, 40, 30); gfx.image('img/study_bg.webp', 0, 0, SW, SH, 255); // 「もどる」に合わせているときは、3つのボタンの 枠も 拡大も 出さない
     const BT = [[17, 63, 366, 94], [17, 163, 366, 107], [17, 278, 366, 91]], pr = pressing() ? 3 : 0, CX = 609; // ボタンの絵。選んでいるものは一回り大きく(押している間は、もとの大きさで、少し沈む)
     const SC = 1.07, sc = pr ? 1 : SC, tx = (x, y, i) => { const b = BT[i]; return [Math.round(b[0] + b[2] / 2 + (x - (b[0] + b[2] / 2)) * (hs === i ? sc : 1)), Math.round(b[1] + b[3] / 2 + (y - (b[1] + b[3] / 2)) * (hs === i ? sc : 1)) + (hs === i ? pr : 0)]; };
     const fr = (i) => { const b = BT[i], w = Math.round(b[2] * sc), h = Math.round(b[3] * sc); return [Math.round(b[0] + (b[2] - w) / 2), Math.round(b[1] + (b[3] - h) / 2) + pr, w, h]; };
@@ -1650,9 +1658,9 @@
     MJ.Stats.discard(effOk, safe);
   }
   function startDiag() { S.mode = 'diag'; let rk = { hist: [] }, info = null; try { rk = MJ.Rank.get(); info = MJ.Rank.info(); } catch (e) { /* ignore */ } S.diag = { pg: 0, d: MJ.Stats.diag(), sg: MJ.Stats.strength(), rk, info }; dirty(); diagWarm(); }
-  function diagWarm() { // 入ったあと、各項目の説明の文字を、画面に出さずに 先に用意しておく(はじめてカーソルを動かしたときの、重さを なくす)
-    if (typeof gfx.dry !== 'function') return;
-    [0, 1, 2, 3, 4, 5, 6].forEach((f, k) => setTimeout(() => { const D = S.diag; if (!D || S.mode !== 'diag' || D.pg !== 0) return; const keep = D.fi; try { gfx.dry(1); D.fi = f; drawDiag(); } catch (e) { /* ignore */ } try { gfx.dry(0); } catch (e) { /* ignore */ } D.fi = keep; }, 600 + k * 250));
+  function diagWarm() { // 入ったあと、「強さ」の各項目を選んだときの画面を、画面に出さずに 先に描いておく
+    if (typeof gfx.layerBegin !== 'function') return;
+    [0, 1, 2, 3, 4, 5, 6, -1].forEach((f, k) => setTimeout(() => { const D = S.diag; if (!D || S.mode !== 'diag' || D.pg !== 0) return; const keep = D.fi; try { D.fi = f; lay(diagSlot(D), 'dg0:' + f, drawDiagBody); } catch (e) { /* ignore */ } D.fi = keep; }, 600 + k * 300));
   }
   function diagKey(k) {
     const D = S.diag;
@@ -1667,7 +1675,12 @@
     ['強さ', 'ポイント', 'アドバイス', '学習の記録'].forEach((t, i) => { const x = 14 + i * 130, on = i === pg; panel(x, 428, 122, 32, 9, on ? [60, 130, 60] : [50, 70, 60], on ? [150, 200, 140] : [74, 97, 84], 2, 255); text(t, x + 61, 428 + Math.round((32 - 18) / 2) - 1, 18, on ? WHITE : [185, 201, 189], 1); });
     text(hint, 806, 428 + 8, 16, [210, 225, 205], 2);
   }
+  const diagSlot = (D) => 10 + (D.pg === 0 ? (D.fi == null ? -1 : D.fi) + 1 : 7 + D.pg); // 診断は、ページ(と、強さの画面では 選んだ項目)ごとに、絵を使い回す: 強さ 8通り + 3ページ
   function drawDiag() {
+    const D = S.diag; if (typeof gfx.layerBegin !== 'function') { drawDiagBody(); return; }
+    cached(diagSlot(D), 'dg' + D.pg + ':' + (D.pg === 0 ? (D.fi == null ? -1 : D.fi) : 0), drawDiagBody);
+  }
+  function drawDiagBody() {
     const D = S.diag, d = D.d, pg = D.pg, sg = D.sg;
     quizFrame('あなたの診断', '', '', '');
     if (pg === 0) { // 強さ(レーダーチャート)
