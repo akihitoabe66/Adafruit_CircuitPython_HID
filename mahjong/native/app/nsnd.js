@@ -13,24 +13,25 @@
   try { const t = __readtext('audio/yk/manifest.json'); yk = t ? JSON.parse(t) : {}; } catch (e) { yk = {}; }
   const A = (window.NSND = {
     on: true,
-    music(p) { if (!A.on) { snd.music(''); cur = ''; return; } if (cur === p) return; cur = p; snd.musicVol(V.bgm); snd.music(p, true); },
+    scale: 1, bv() { return V.bgm * A.scale; }, /* 画面ごとのBGMの大きさ(結果の画面は、はじめから少し小さく。声のたびに上げ下げしない) */
+    music(p) { if (!A.on) { snd.music(''); cur = ''; return; } if (cur === p) return; cur = p; snd.musicVol(A.bv(), 0); snd.music(p, true); },
     getLevel(k) { return lvlOf(k); },
-    setLevel(k, l) { l = Math.max(0, Math.min(10, l)); try { localStorage.setItem('mj_vol_' + k, String(l)); } catch (e) { /* ignore */ } applyLvl(k); if (k === 'bgm') snd.musicVol(V.bgm); },
-    home() { A.music(HOME); },
+    setLevel(k, l) { l = Math.max(0, Math.min(10, l)); try { localStorage.setItem('mj_vol_' + k, String(l)); } catch (e) { /* ignore */ } applyLvl(k); if (k === 'bgm') snd.musicVol(A.bv(), 200); },
+    home() { A.scale = 1; A.music(HOME); },
     game(g) {
       // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」から選ぶ
       const isGameTrack = GAME.indexOf(cur) >= 0 || LATE.indexOf(cur) >= 0 || FINAL.indexOf(cur) >= 0;
       const finalHand = !!g && g.kyoku % 4 === 3;
       if (isGameTrack && !(finalHand && FINAL.indexOf(cur) < 0 && !A._finalDone)) return; // いま対局の曲が流れているなら、局ごとに曲を替えない(曲の読み込みで、音が途切れるため)
-      if (!finalHand) A._finalDone = false;
+      A.scale = 1; if (!finalHand) A._finalDone = false;
       if (finalHand) A._finalDone = true;
       const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []).filter((x) => x !== last);
       const fin = FINAL.filter((x) => x !== last);
       const pool = finalHand && Math.random() < 0.6 && fin.length ? fin : cand;
       last = pool[Math.floor(Math.random() * pool.length)]; cur = ''; A.music(last);
     },
-    resultCpuRon() { cur = ''; A.music('audio/result_cpu.mp3'); }, /* CPU同士の「ロン」(人は関係ない): かならず、この曲に切りかえる */
-    result(kind) { const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm') return; /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ cur = ''; A.music('audio/' + n + '.mp3'); },
+    resultCpuRon() { A.scale = 0.65; cur = ''; A.music('audio/result_cpu.mp3'); }, /* CPU同士の「ロン」(人は関係ない): かならず、この曲に切りかえる */
+    result(kind) { const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm') return; /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ A.scale = 0.65; cur = ''; A.music('audio/' + n + '.mp3'); },
     toggle() { A.on = !A.on; if (!A.on) { snd.music(''); cur = ''; } return A.on; },
     sfx(name, v) { if (SFX.indexOf(name) >= 0) snd.play('audio/sfx/' + name + '.wav', (v == null ? V.sfx : v)); },
     call(p, text) {
@@ -52,7 +53,7 @@
         const p = 'audio/yk/' + yk[k]; const len = snd.len(p); if (!len) return;
         setTimeout(() => { if (id === token) snd.play(p, V.read); }, t * 1000); t += len + 0.07;
       });
-      snd.musicVol(V.bgm * 0.2); clearTimeout(duckT); duckT = setTimeout(() => snd.musicVol(V.bgm), t * 1000 + 300);
+      /* 声のたびに、BGMの音量を 上げ下げしない(新しい声は はっきり聞こえる。音量の切りかえで、BGMがガサガサするのを防ぐ) */
       if (cb) setTimeout(cb, t * 1000);
       return t; // 読み上げにかかる秒数
     },

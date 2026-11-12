@@ -308,7 +308,9 @@ static void bgms_hook(void *u, Uint8 *st, int len) { /* 音を出す側(別ス�
   SDL_LockMutex(B.mu); int need = len / 4, n = need < B.n ? need : B.n, first = B.cap - B.rd < n ? B.cap - B.rd : n;
   memcpy(st, B.buf + B.rd * 2, first * 4); if (n > first) memcpy(st + first * 4, B.buf, (n - first) * 4); B.rd = (B.rd + n) % B.cap; B.n -= n; if (n < need) B.underruns++;
   SDL_UnlockMutex(B.mu);
-  if (g_vvol < 128) { Sint16 *sp = (Sint16 *)st; int vv = g_vvol; for (int i = 0; i < n * 2; i++) sp[i] = (Sint16)((sp[i] * vv) >> 7); }
+  { float cur = g_vcur, tg = g_vtgt, stp = g_vstep; Sint16 *sp = (Sint16 *)st; /* 音量を、1つずつ なめらかに目標へ(段差のノイズを出さない) */
+    if (cur != tg || cur < 0.999f) for (int i = 0; i < n; i++) { if (cur != tg) { if (tg > cur) { cur += stp; if (cur > tg) cur = tg; } else { cur -= stp; if (cur < tg) cur = tg; } } int gn = (int)(cur * 128); sp[2 * i] = (Sint16)((sp[2 * i] * gn) >> 7); sp[2 * i + 1] = (Sint16)((sp[2 * i + 1] * gn) >> 7); }
+    g_vcur = cur; }
 }
 static void bgms_close(void) {
   if (!B.on && !B.fc) return;

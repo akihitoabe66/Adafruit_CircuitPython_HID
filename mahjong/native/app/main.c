@@ -165,7 +165,7 @@ static JSValue j_save(JSContext *c, JSValueConst t, int n, JSValueConst *a){ cha
 /* ---- 音(SDL_mixer): 効果音・声は短い音をキャッシュ、BGMはストリーム ---- */
 typedef struct { char key[200]; Mix_Chunk *ch; double len; } Snd;
 #define NSND 400
-static Snd snds[NSND]; static int nsnd = 0; static Mix_Music *bgm = NULL; static int audio_ok = 0; static double mvol = 1.0; static volatile int g_vvol = 128; /* 動画の音量(0〜128)。Mix_HookMusic の音には Mix_VolumeMusic が効かないので、自分でかける */
+static Snd snds[NSND]; static int nsnd = 0; static Mix_Music *bgm = NULL; static int audio_ok = 0; static double mvol = 1.0; static volatile int g_vvol = 128; static volatile float g_vtgt = 1.0f, g_vcur = 1.0f, g_vstep = 0.0f; /* BGMの音量: 目標と今の値(なめらかに変える。クリックノイズを出さない) */ /* 動画の音量(0〜128)。Mix_HookMusic の音には Mix_VolumeMusic が効かないので、自分でかける */
 static Snd *getsnd(const char *path){
   for (int i = 0; i < nsnd; i++) if (!strcmp(snds[i].key, path)) return snds[i].ch ? &snds[i] : NULL;
   if (nsnd >= NSND) return NULL;
@@ -194,7 +194,7 @@ static JSValue j_music(JSContext *c, JSValueConst t, int n, JSValueConst *a){
     if (!bgm) fprintf(stderr, "bgm? %s (%s)\n", full, Mix_GetError()); else { Mix_PlayMusic(bgm, loop ? -1 : 1); bgm_want = 1; bgm_loop = loop; snprintf(bgm_path, sizeof bgm_path, "%s", p); } }
   JS_FreeCString(c, p); return JS_UNDEFINED; }
 static JSValue j_musicinfo(JSContext *c, JSValueConst t, int n, JSValueConst *a){ JSValue arr = JS_NewArray(c); JS_SetPropertyUint32(c, arr, 0, JS_NewInt32(c, audio_ok && bgm_want ? (bgm_want == 2 ? (bgms_active() ? 1 : 0) : (Mix_PlayingMusic() ? 1 : 0)) : -1)); JS_SetPropertyUint32(c, arr, 1, JS_NewInt32(c, bgm_restarts)); JS_SetPropertyUint32(c, arr, 2, JS_NewInt32(c, (int)bgm_load_max)); JS_SetPropertyUint32(c, arr, 3, JS_NewInt32(c, bgm_want == 2 ? bgms_underruns() : 0)); JS_SetPropertyUint32(c, arr, 4, JS_NewInt32(c, bgm_want == 2 ? bgms_ms() : -1)); return arr; }
-static JSValue j_mvol(JSContext *c, JSValueConst t, int n, JSValueConst *a){ double v = 1; JS_ToFloat64(c, &v, a[0]); if (v < 0) v = 0; if (v > 1) v = 1; g_vvol = (int)(v * 128); if (audio_ok) Mix_VolumeMusic((int)(v * 128)); return JS_UNDEFINED; }
+static JSValue j_mvol(JSContext *c, JSValueConst t, int n, JSValueConst *a){ double v = 1; JS_ToFloat64(c, &v, a[0]); if (v < 0) v = 0; if (v > 1) v = 1; g_vvol = (int)(v * 128); { double ms = n > 1 ? ({ double q = 0; JS_ToFloat64(c, &q, a[1]); q; }) : 0; g_vtgt = (float)v; if (ms > 5) { g_vstep = (float)(fabs(v - g_vcur) / (44.1 * ms)); if (g_vstep <= 0) g_vstep = 1.0f; } else { g_vcur = (float)v; g_vstep = 0; } } if (audio_ok) Mix_VolumeMusic((int)(v * 128)); return JS_UNDEFINED; }
 static JSValue j_readtext(JSContext *c, JSValueConst t, int n, JSValueConst *a){ const char *p = JS_ToCString(c, a[0]); char full[1400]; snprintf(full, sizeof full, "%s/%s", root, p); JS_FreeCString(c, p); FILE *f = fopen(full, "rb"); if (!f) return JS_NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET); char *b = malloc(L + 1); fread(b, 1, L, f); b[L] = 0; fclose(f); JSValue v = JS_NewString(c, b); free(b); return v; }
 #include "video.h"
 
