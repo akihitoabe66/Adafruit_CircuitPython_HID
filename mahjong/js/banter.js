@@ -345,6 +345,10 @@
       const set = L[p.char.id];
       if (!set) return false;
       let pool = set[kind] || ((kind === 'genbutsu' || kind === 'avoid') && MJ.BanterGEN ? MJ.BanterGEN[MJ.isFemaleChar(p.char) ? 'f' : 'm'][kind] : null); // 現物切り・一発回避は、どのキャラも同じ言い回し(男性・女性で口調だけ分ける)
+      if (MJ.BanterEXTRA && kind !== 'genbutsu' && kind !== 'avoid') { // 誰にでも使えることば(banter4.js)を、約35%の確率で混ぜる。そのキャラに、その種類のセリフが無いときは、これを使う
+        const ex = MJ.BanterEXTRA[MJ.isFemaleChar(p.char) ? 'f' : 'm'][kind];
+        if (ex && ex.length && (!pool || !pool.length || Math.random() < 0.35)) pool = ex;
+      }
       if (!pool || !pool.length) return false;
       // 掛け合い(他の人の名前を使うセリフ)を少し混ぜる
       if ((kind === 'idle' || kind === 'taunt') && Math.random() < 0.22) pool = MJ.isFemaleChar(p.char) ? MIX_F : MIX_M;
