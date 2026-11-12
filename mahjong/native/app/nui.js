@@ -38,6 +38,16 @@
   const kyokuText = (sn) => ['東', '南', '西', '北'][Math.min(3, Math.floor(sn.kyoku / 4))] + ['一', '二', '三', '四'][sn.kyoku % 4] + '局' + (sn.honba ? ' ' + sn.honba + '本場' : '') + (sn.mid ? '・途中から' : '');
   const teacherOn = () => { try { return localStorage.getItem('mj_teacher') === '1'; } catch (e) { return false; } };
   const teacherLabel = () => '麻雀先生: ' + (teacherOn() ? 'あり' : 'なし');
+  const dmarkOn = () => { try { return localStorage.getItem('mj_dmark') !== '0'; } catch (e) { return true; } }; // 麻雀先生の「安全牌の印」(現物・スジ…)。ふだんは、あり
+  const DTAG = (tag) => (/^現物/.test(tag) ? '現物' : /^全見え/.test(tag) ? '全見え' : /^字牌/.test(tag) ? '字牌' : /^スジ/.test(tag) ? 'スジ' : /^半スジ/.test(tag) ? '半スジ' : /^カベ/.test(tag) ? 'カベ' : /^ワンチャンス/.test(tag) ? 'ワンC' : '無スジ');
+  const DCOL = { safe: [[44, 150, 88], [255, 255, 255]], ok: [[60, 120, 200], [255, 255, 255]], warn: [[236, 184, 40], [28, 28, 24]], danger: [[214, 62, 52], [255, 255, 255]] };
+  function dangerMarks(g, p) { // リーチをかけた人がいるとき、手牌の牌ごとの安全さ(現物・スジ・無スジ…)。同じ番の間は、1回だけ計算
+    if (!teacherOn() || !dmarkOn() || g.fast || S.deal) return null;
+    const rii = g.players.filter((q) => q !== p && q.riichi); if (!rii.length) return null;
+    const key = g.seq + ':' + p.hand.map((h) => h.id).join(',') + ':' + rii.length; if (S._dm && S._dm.key === key) return S._dm.map;
+    let map = null; try { const A = MJ.AI, vis = A.visible(g, p); map = {}; [...new Set(p.hand.map((h) => h.t))].forEach((t) => { const per = rii.map((q) => A.danger1(g, vis, t, q, A.safeSet(g, q), 2)); const w = per.reduce((m, x) => (x.score > m.score ? x : m), per[0]), sc = per.reduce((a, x) => a + x.score, 0), r = MJ.Coach.rate(sc); map[t] = { tag: DTAG(w.tag), cls: r.cls }; }); } catch (e) { map = null; }
+    S._dm = { key, map }; return map;
+  }
   const toggleTeacher = () => { try { localStorage.setItem('mj_teacher', teacherOn() ? '0' : '1'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; };
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
   const COMMON_RULES = { length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: true, doubleRon: true, sanchahou: true, kuikae: false, kazoe: true, flower: false, start: 25000 }; // 全国的な(一般的な)ルール。ただし赤ドラは、はじめはなし
@@ -456,7 +466,7 @@
     const gapAt = p.drawn ? hs.length - 1 : -1; const DS = dealState(), shown = Math.min(hs.length, DS.n);
     let order = hs; if (!DS.sorted && S.deal && S.deal.perm) order = S.deal.perm.filter((j) => j < hs.length).map((j) => hs[j]); // 配られている間は、並び替える前の順で見せる
     S._hl = S.react ? reactHL(S.react, g) : null;
-    const L = [];
+    const L = [], DM = S.self ? dangerMarks(g, p) : null;
     order.forEach((h, i) => {
       if (i >= shown) return;
       let x = handX(i, i === gapAt), y = HY - (DS.lift || 0), rot = 0, fl = false;
@@ -482,6 +492,7 @@
       if (o.rot === 90) tileR(h.t, x + (HW - HH) / 2, y + (HH - HW) / 2, HW, HH, h.red, false, 90);
       else if (o.rot === 180 || o.flip) tileR(h.t, x, y, HW, HH, h.red, false, 180); else tile(h.t, x, y, HW, HH, h.red, o.dim && !o.hl); // 配られている間は、ときどき逆さの牌がまじる(並べかえると、そろう)
       if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, y - 20, 16, YEL, 1);
+      if (DM && DM[h.t] && !o.rot && !o.flip) { const m = DM[h.t], c = DCOL[m.cls] || DCOL.warn, w = Math.max(30, gfx.measure(m.tag, 13) + 10); rrect(x - 1, y - 14, w, 17, 6, [255, 255, 255]); rrect(x, y - 13, w - 2, 15, 5, c[0]); text(m.tag, x + (w - 2) / 2, y - 13, 13, c[1], 1); } // 麻雀先生の印: 牌の左上に
     };
     (DS.fly && DS.fly[0] || []).forEach((f) => { drawBlock(f, (handX(f.from, false) + handX(f.from + f.cnt - 1, false) + HW) / 2, HY + HH / 2); }); // 山から取った牌が、となりあわせのまま飛んでくる
     if (DS.sorted && S.deal && DS.st < SRT_L + SRT_S + SRT_D + 100) L.sort((a, b) => b.y - a.y); // 高く浮いている牌ほど、あとから(上に)描く
@@ -616,7 +627,7 @@
       if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 7, 24, 21, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 4, 24, BLACK, 2); }
       else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 4, 24, BLACK, 1);
-      else if (s.k === 'teacher') text(teacherOn() ? 'あり' : 'なし', 520, y + 4, 24, BLACK, 1);
+      else if (s.k === 'teacher') text(teacherOn() ? (dmarkOn() ? 'あり(安全牌の印つき)' : 'あり') : 'なし', 520, y + 4, teacherOn() && dmarkOn() ? 20 : 24, BLACK, 1);
       else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'rules' || s.k === 'credits' || s.k === 'help') text('▶', 600, y + 4, 24, BLACK, 1);
@@ -1855,7 +1866,8 @@
         if (it.k === 'bgm' || it.k === 'sfx' || it.k === 'voice') { if (k !== 'ok') NSND.setLevel(it.k, NSND.getLevel(it.k) + d); if (it.k === 'sfx') NSND.sfx('discard'); }
         else if (it.k === 'bgmon') { NSND.toggle(); if (NSND.on) NSND.home(); }
         else if (it.k === 'speed') MJ.cycleCpuSpeed();
-        else if (it.k === 'teacher') toggleTeacher();
+        else if (it.k === 'teacher') { // なし → あり(印つき) → あり(印なし) → なし
+          const t = teacherOn(), d = dmarkOn(); const nx = !t ? [1, 1] : d ? [1, 0] : [0, 1]; try { localStorage.setItem('mj_teacher', nx[0] ? '1' : '0'); localStorage.setItem('mj_dmark', nx[1] ? '1' : '0'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; S._dm = null; }
         else if (it.k === 'swap') { try { localStorage.setItem('mj_swapab', swapOn() ? '0' : '1'); } catch (e) { /* ignore */ } __swapab(swapOn() ? 1 : 0); }
         else if (it.k === 'perf') { try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } }
         else if (it.k === 'rules' && k !== 'left') { S.mode = 'rules'; S.ruleIdx = 0; }
