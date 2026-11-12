@@ -51,7 +51,8 @@
         if (this.handCount > 0 && this.ui && !this.resumeMid) { this.blankTable(); if (this.ui.kyokuSlam) { await this.ui.kyokuSlam(this); if (this.stopped) return null; } } // 次の局の配牌まで、前の局の牌を見せない。局の名前は、サイコロの前に出す
         const r = await this.playHand();
         this.cp = null; // 局が終わったら、途中の記憶は消す
-        if (this.stopped) return null;
+        const doneStop = this.stopped && r && r.after; // 結果の画面でホームへ戻った: 局は終わっているので、結果(点数・記録)は、ふつうに残す
+        if (this.stopped && !doneStop) return null;
         this.handCount++;
         if (this.ui) this.logHand(r);
         let renchan;
@@ -66,6 +67,7 @@
         if (this.length === 'east' && this.kyoku >= 4) end = true;
         if (this.length === 'south' && this.kyoku >= 8) end = true;
         this.roundWind = Math.min(1, Math.floor(this.kyoku / 4));
+        if (doneStop) { if (end) { if (MJ.Rank) MJ.Rank.clearSave(); if (this.ui && this.ui.clearSaves) this.ui.clearSaves(); } else if (this.ui && this.ui.askSave) await this.ui.askSave(this); return null; } // 終わった対局は、つづきを消す / そうでなければ、次の局のはじめを、自動セーブ
         if (!end && this.ui && this.ui.askSave) { await this.ui.askSave(this); if (this.stopped) return null; } // 局の結果のあと: 「セーブして次の局へ」(ネイティブ版だけが持つ画面)
         if (end) {
           if (this.ui && MJ.Rank) MJ.Rank.clearSave(); // 終わった対局には、戻れない

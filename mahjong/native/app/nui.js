@@ -1995,6 +1995,7 @@
         await new Promise((done) => { S.rankP = { r, done: () => { S.rankP = null; done(); } }; dirty(); });
       })();
     },
+    clearSaves() { try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } },
     askSave(g) { // 局が終わるたびに、質問なしで、自動で保存する(次の局の画面が出ている間に、すみっこに小さく知らせる)
       let ok = false; try { ok = slotWrite(g.snapshot()); } catch (e) { /* ignore */ }
       S.saveNote = { text: ok ? 'セーブしました' : 'セーブできませんでした', t0: __now(), until: __now() + 4200 }; dirty(); setTimeout(dirty, 4300);
