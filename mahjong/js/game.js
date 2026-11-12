@@ -48,8 +48,9 @@
       for (;;) {
         if (this.ui && MJ.Rank) MJ.Rank.write(this); // 局のはじめごとに、自動セーブ
         if (this.ui && MJ.sdFlush) MJ.sdFlush(); // 1局の区切り: SDカードへ(変更があるときだけ・20秒に1回まで)
-        if (this.handCount > 0 && this.ui) { this.blankTable(); if (this.ui.kyokuSlam) { await this.ui.kyokuSlam(this); if (this.stopped) return null; } } // 次の局の配牌まで、前の局の牌を見せない。局の名前は、サイコロの前に出す
+        if (this.handCount > 0 && this.ui && !this.resumeMid) { this.blankTable(); if (this.ui.kyokuSlam) { await this.ui.kyokuSlam(this); if (this.stopped) return null; } } // 次の局の配牌まで、前の局の牌を見せない。局の名前は、サイコロの前に出す
         const r = await this.playHand();
+        this.cp = null; // 局が終わったら、途中の記憶は消す
         if (this.stopped) return null;
         this.handCount++;
         if (this.ui) this.logHand(r);
@@ -78,6 +79,39 @@
 
     /* 続きから始めるための、最小限の状態(局・本場・点数・相手) */
     snapshot() { return { v: 1, length: this.length, chars: this.players.slice(1).map((p) => p.char.id), dealer: this.dealer, kyoku: this.kyoku, honba: this.honba, kyotaku: this.kyotaku, roundWind: this.roundWind, handCount: this.handCount, scores: this.players.map((p) => p.score) }; }
+
+    /* 局の途中の記憶(番のはじまりの状態)。牌は番号(id)だけで持つ */
+    capture(cur, drawMode) {
+      const id = (t) => (t ? t.id : null), ids = (a) => (a || []).map(id);
+      return {
+        snap: this.snapshot(), cur, drawMode, live: ids(this.live), dead: ids(this.dead), rinCount: this.rinCount, kans: this.kans, seq: this.seq, doraInd: ids(this.doraInd),
+        lastDiscard: this.lastDiscard ? { by: this.lastDiscard.by, seq: this.lastDiscard.d.seq } : null,
+        discardLog: this.discardLog.map((x) => ({ seq: x.seq, tile: x.tile.id, by: x.by })),
+        players: this.players.map((p) => ({
+          hand: ids(p.hand), flowers: ids(p.flowers), drawn: id(p.drawn), melds: p.melds.map((m) => ({ kind: m.kind, t: m.t, tiles: ids(m.tiles), from: m.from, called: id(m.called) })),
+          discards: p.discards.map((d) => ({ tile: d.tile.id, riichi: !!d.riichi, called: !!d.called, seq: d.seq })),
+          riichi: !!p.riichi, riichiPending: !!p.riichiPending, riichiSeq: p.riichiSeq, ippatsu: !!p.ippatsu, tempFuriten: !!p.tempFuriten, riichiFuriten: !!p.riichiFuriten, kuikae: (p.kuikae || []).slice(), score: p.score,
+        })),
+      };
+    }
+    restoreMid(c) {
+      const reg = {}, mk = (i) => (i == null ? null : reg[i] || (reg[i] = i >= 136 ? { id: i, t: 34 + (i - 136), red: false, flower: true } : { id: i, t: i >> 2, red: MJ.isRedId(i) })), mkA = (a) => (a || []).map(mk);
+      this.blank = false; this.live = mkA(c.live); this.dead = mkA(c.dead); this.rin = this.dead.slice(0, 4); this.rinCount = c.rinCount || 0;
+      this.doraAll = [4, 6, 8, 10, 12].map((i) => this.dead[i]); this.uraAll = [5, 7, 9, 11, 13].map((i) => this.dead[i]);
+      this.doraInd = mkA(c.doraInd); this.kans = c.kans || 0; this.seq = c.seq || 0; this.humanReview = null; this.humanLog = []; this.lastFlowers = null;
+      this.discardLog = c.discardLog.map((x) => ({ seq: x.seq, tile: mk(x.tile), by: x.by }));
+      this.lastDiscard = null;
+      this.players.forEach((p, i) => {
+        const q = c.players[i];
+        p.hand = mkA(q.hand); p.flowers = mkA(q.flowers); p.drawn = mk(q.drawn);
+        p.melds = q.melds.map((m) => ({ kind: m.kind, t: m.t, tiles: mkA(m.tiles), from: m.from, called: mk(m.called) }));
+        p.discards = q.discards.map((d) => ({ tile: mk(d.tile), riichi: d.riichi, called: d.called, seq: d.seq }));
+        p.discardTypes = new Set(p.discards.map((d) => d.tile.t));
+        p.riichi = q.riichi; p.riichiPending = q.riichiPending; p.riichiSeq = q.riichiSeq; p.ippatsu = q.ippatsu; p.tempFuriten = q.tempFuriten; p.riichiFuriten = q.riichiFuriten; p.kuikae = q.kuikae || []; p.score = q.score; p.lastSay = '';
+        this.sortHand(p);
+      });
+      if (c.lastDiscard) { const pl = this.players[c.lastDiscard.by], d = pl && pl.discards.find((x) => x.seq === c.lastDiscard.seq); if (d) this.lastDiscard = { tile: d.tile, by: c.lastDiscard.by, d }; }
+    }
 
     /* 局と局のあいだ: 前の局の手牌・河・副露・ドラ表示牌を、卓から消す(次の配牌までの間に、前の局の牌が見えて紛らわしいため) */
     blankTable() {
@@ -273,6 +307,13 @@
     /* ---------- 1局 ---------- */
     async playHand() {
       if (this.ui && MJ.perf) MJ.perf._handAt = performance.now(); // 配牌から、手牌が画面に見えるまでを測る
+      let cur = this.dealer;
+      let drawMode = 'normal'; // normal | none (鳴き後) | rinshan
+      const mid = this.resumeMid; this.resumeMid = null;
+      if (mid) { // 局の途中から、つづける: 山・手牌・河などを、もとにもどす(配牌や、局のはじまりの演出は、とばす)
+        this.restoreMid(mid); cur = mid.cur; drawMode = mid.drawMode; this.resumed = false; this.turn = cur; this.sync();
+        if (this.ui && this.ui.padHand) this.ui.padHand();
+      } else {
       this.setupHand();
       this.turn = -1; // 配牌のあいだは、だれの番でもない(前の局の最後の人が光ったままにならないように)
       if (this.ui) await this.ui.handStart(this);
@@ -283,10 +324,10 @@
       this.resumed = false; // 「つづきから」の印は、最初の1局だけ。2局目以降は、ふつうに配牌のアニメを見せる
       if (this.stopped) return { type: 'draw', dealerTenpai: false };
       if (this.ui && this.ui.padHand) this.ui.padHand(); // コントローラーのカーソルを、手牌に
-      let cur = this.dealer;
-      let drawMode = 'normal'; // normal | none (鳴き後) | rinshan
+      }
       for (;;) {
         if (this.stopped) return { type: 'draw', dealerTenpai: false };
+        if (this.ui) this.cp = this.capture(cur, drawMode); // 番のはじまりごとに、いまの状態を記憶(途中でホームへ戻っても、ここからつづけられる)
         const p = this.players[cur];
         this.turn = cur;
         let rinshan = false;
