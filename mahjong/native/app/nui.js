@@ -808,6 +808,17 @@
       text('決定・もどる で とじる', SW / 2, 312, 18, GREY, 1);
     }
   }
+  function drawResSay() { // 結果画面の上(見出しの右)に、上がった人・放銃した人のひとこと(小さな吹き出し)。 交代で出る
+    const R = S.resSay; if (!R || !R.lines.length) return; const t = __now() - R.t0;
+    for (let i = 0; i < R.lines.length; i++) {
+      const st = 700 + i * 3800; if (t < st || t >= st + 3500) continue; const l = R.lines[i], bx = 456, by = 14, bw = 330, bh = 62;
+      rrect(bx + 2, by + 3, bw, bh, 9, [0, 0, 0], 70); rrect(bx, by, bw, bh, 9, [240, 243, 238]);
+      face(l.p, bx + 6, by + 6, 50, 50); rframe(bx + 4, by + 4, 54, 54, 6, 2, [255, 255, 255]);
+      let sz = 20, ls = wrapText(l.text, sz, bw - 76); if (ls.length > 2) { sz = 17; ls = wrapText(l.text, sz, bw - 76); } if (ls.length > 2) { sz = 15; ls = wrapText(l.text, sz, bw - 76).slice(0, 2); }
+      text(l.p.name, bx + 64, by + 3, 14, [80, 90, 86]); ls.forEach((x, k) => text(x, bx + 64, by + 19 + k * (sz + 3), sz, [30, 34, 32]));
+      return;
+    }
+  }
   function drawResult(r) {
     const g = S.game; stage(); rrect(40, 12, 752, 444, 8, [10, 38, 30]);
     if (r.type === 'win') {
@@ -816,8 +827,8 @@
       text(w.winner.name, 120, 28, 30, WHITE); { const nw = gfx.measure(w.winner.name, 30); rrect(120 + nw + 14, 30, 84, 34, 10, w.tsumo ? [60, 130, 200] : [210, 60, 50]); text(w.tsumo ? 'ツモ' : 'ロン', 120 + nw + 56, 35, 22, WHITE, 1);
         const sw = g ? g.seatWindOf(w.winner) : 0, lab = WIND[sw] + '家' + (sw === 0 ? '(親)' : ''), lx = 120 + nw + 112, lw = gfx.measure(lab, 22) + 24;
         rrect(lx, 30, lw, 34, 10, [255, 255, 255]); rrect(lx + 2, 32, lw - 4, 30, 8, WIND_BG[sw]); text(lab, lx + lw / 2, 35, 22, WHITE, 1); }
-      if (r.total > 1) text((r.idx + 1) + ' / ' + r.total + ' 人目の上がり', 760, 34, 20, GREY, 2);
-      if (res.limit) text(res.limit, 760, 62, 30, [255, 120, 90], 2);
+      if (r.total > 1) text((r.idx + 1) + ' / ' + r.total + ' 人目の上がり', 770, 84, 18, GREY, 2);
+      if (res.limit) text(res.limit, 770, 100, 30, [255, 120, 90], 2);
       // 手牌(大きく、中央ぞろえ)
       const tw = 36, th = 48, gap = 14, melds = v.melds.reduce((a, m) => a + m.tiles.length * 30 + 10, 0), total = v.concealed.length * (tw + 1) + gap + (w.winTile ? tw : 0) + (melds ? 16 + melds : 0);
       let x = Math.round((SW - total) / 2); const y0 = 78;
@@ -1909,6 +1920,7 @@
     },
     showResult(g, r) {
       S.bub = {}; S.sayQ = []; S.banner = null; try { MJ.Stats.hand(g, r); } catch (e) { /* ignore */ }
+      S.resSay = { lines: [], t0: __now() }; try { if (MJ.Banter && MJ.Banter.afterWin && !g.fast) { S.resSay.lines = MJ.Banter.afterWin(g, r); S.resSay.lines.forEach((l, i) => { const st = 700 + i * 3800; setTimeout(dirty, st); setTimeout(dirty, st + 3500); }); } } catch (e) { /* ignore */ } // 上がったあとの、煽り・悔しがり
       NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
       if (r.type === 'win' && !r.wins.some((w) => w.winner.isHuman) && !(r.delta[0] < 0) && r.wins.some((w) => !w.tsumo)) NSND.resultCpuRon(); // CPUが、別のCPUからロン(自分は関係ない)
       const iWon = r.type === 'win' && r.wins.some((w) => w.winner.isHuman), iLost = r.type === 'win' && !iWon && r.delta && r.delta[0] < 0;
@@ -2032,7 +2044,7 @@
     if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); }
     else if (S.game) { gfx.clear(32, 74, 60); drawTable(S.game); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
     if (S.rankP) drawRankP();
-    if (S.result) { drawResult(S.result); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
+    if (S.result) { drawResult(S.result); drawResSay(); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
     if (__auto && globalThis.__shotDir && (S.react || (S.self && S.self.btns.length)) && S.shotR < 6) { gfx.shot(__shotDir + '/act' + (++S.shotR) + '.bmp'); }
     if (S.end) { drawEnd(S.end); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/end.bmp'); }
     if (S.coach && __auto && globalThis.__shotDir && coachShots < 6 && S.coach.cards && S.coach.cards.length) { gfx.view(0, 0); gfx.shot(__shotDir + '/coach' + (++coachShots) + '.bmp'); }
