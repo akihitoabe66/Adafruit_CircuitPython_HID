@@ -63,8 +63,8 @@
       const num = (n) => { const k = [], man = Math.floor(n / 10000), th = Math.floor((n % 10000) / 1000), hu = Math.floor((n % 1000) / 100); if (man) k.push('m:' + man); if (th) k.push('k:' + th); if (hu) k.push('h:' + hu); return k; };
       res.wins.forEach((w) => {
         const r = w.res;
-        // 「桃太郎 の ツモ」: 上がった人の名前 + の + ツモ/ロン(あなたも)
-        if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name, '+', 'x:の', '+');
+        // 「桃太郎 ツモ!」: 上がった人の名前 + ツモ/ロン(あなたも)。「の」は入れない(声が、つなぎ言葉として合わないため)
+        if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name);
         keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null);
         r.yaku.forEach((y) => {
           if (w.tsumo && y.n === '門前清自摸和') return; // 「ツモ」は、いま言ったので、くりかえさない
