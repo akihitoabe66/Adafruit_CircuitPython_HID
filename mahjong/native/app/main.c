@@ -312,7 +312,7 @@ int main(int argc, char **argv){
   { const char *tp = getenv("MJ_TEACHER"); if (tp) JS_SetPropertyStr(ctx, g, "__teacherEnv", JS_NewString(ctx, tp)); }
   { const char *cp = getenv("MJ_CPU"); if (cp) JS_SetPropertyStr(ctx, g, "__cpuEnv", JS_NewString(ctx, cp)); }
   { const char *sy = getenv("MJ_STYLE"); if (sy) JS_SetPropertyStr(ctx, g, "__styleEnv", JS_NewString(ctx, sy)); } /* MJ_STYLE=old で、前のバージョン(浮世絵版の前)の絵に戻す */
-  { const char *cl = getenv("MJ_CALL"); if (cl) JS_SetPropertyStr(ctx, g, "__callEnv", JS_NewString(ctx, cl)); } /* MJ_CALL=new で、ポン・チー・ロンの宣言を、セリフと同じ見た目・位置にする */
+  { const char *cl = getenv("MJ_CALL"); if (cl) JS_SetPropertyStr(ctx, g, "__callEnv", JS_NewString(ctx, cl)); } /* MJ_CALL=old で、ポン・チー・ロンの宣言を、前の見た目に戻す */
   { const char *lo = getenv("MJ_LEARN"); if (lo) JS_SetPropertyStr(ctx, g, "__learnEnv", JS_NewString(ctx, lo)); } /* MJ_LEARN=old で、点数計算の勉強を、前の(タブの)見た目に戻す */
   { const char *yo = getenv("MJ_YOU"); if (yo) JS_SetPropertyStr(ctx, g, "__youEnv", JS_NewString(ctx, yo)); } /* MJ_YOU=old で、前の「あなた」の絵に戻す */
   JS_SetPropertyStr(ctx, g, "__auto", JS_NewBool(ctx, auto_)); if (shots) JS_SetPropertyStr(ctx, g, "__shotDir", JS_NewString(ctx, shots));

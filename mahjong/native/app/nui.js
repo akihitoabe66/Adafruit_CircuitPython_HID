@@ -82,7 +82,7 @@
   const youSrc = () => YOU_OLD ? 'img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp' : skin('img/zunda/' + String(ZN[S.mood && S.moodUntil > __now() ? S.mood : 'normal']).padStart(2, '0') + '.webp');
   function setMood(m, ms) { S.mood = m; S.moodUntil = __now() + (ms || 60000); dirty(); }
   const BW = 360, BH = 110, FSZ = 94, BUBP = { 0: [250, 150], 1: [336, 150], 2: [360, 40], 3: [70, 150] }; // セリフの吹き出し(と、ポン・チー・ロンなどの宣言)の大きさ・顔の大きさ・席ごとの位置
-  const CALL_V = globalThis.__callEnv === 'new2' ? 2 : globalThis.__callEnv === 'new3' ? 3 : globalThis.__callEnv === 'new4' ? 4 : 0; // 宣言の見た目の試験: 2=顔に角丸の縁+白ぶち文字+影 / 3=影を、さらに濃く
+  const CALL_V = globalThis.__callEnv === 'old' ? 0 : globalThis.__callEnv === 'new2' ? 2 : globalThis.__callEnv === 'new3' ? 3 : 4; // ふだんは 4(影3枚+太字+太いふち)。 MJ_CALL=old で、前の見た目に戻る // 宣言の見た目の試験: 2=顔に角丸の縁+白ぶち文字+影 / 3=影を、さらに濃く
   const CALL_NEW = globalThis.__callEnv === 'new'; // 宣言(ポン・チー・ロン・リーチ)を、セリフと同じ見た目・位置にする(試験中)
   const TYADJ = 0; // 宣言の文字を、顔の中心に合わせるための微調整
   /* 顔の向き: 右向きの人は下家(右の席)で、左向きの人は上家(左の席)で、左右反転する(正面向きと対面は、そのまま)。番号はキャラクターの番号 */
