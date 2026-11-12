@@ -746,7 +746,7 @@
   }
   /* ---------- 対戦成績の画面 ---------- */
   /* ---------- 雀士列伝: 出会った相手の顔と紹介。まだの人は黒いシルエット。段位が足りない人は鍵つき ---------- */
-  const metLoad = () => { try { const a = JSON.parse(localStorage.getItem('mj_met') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+  const metLoad = () => { let a = []; try { a = JSON.parse(localStorage.getItem('mj_met') || '[]'); if (!Array.isArray(a)) a = []; } catch (e) { a = []; } try { Object.keys(MJ.Rank.get().opp || {}).forEach((k) => { if (!a.includes(+k)) a.push(+k); }); } catch (e) { /* ignore */ } return a; }; // 出会った人 = 列伝に記録した人 + 対戦成績に記録がある人(列伝を入れる前に対戦した人も、含める)
   const metMark = (ids) => { const a = metLoad(); let ch = false; (ids || []).forEach((i) => { if (i > 0 && !a.includes(i)) { a.push(i); ch = true; } }); if (ch) { try { localStorage.setItem('mj_met', JSON.stringify(a)); } catch (e) { /* ignore */ } } };
   const rosList = () => MJ.CHARS.slice().sort((a, b) => MJ.unlockDan(a.id) - MJ.unlockDan(b.id) || a.id - b.id);
   const ROS_PER = 12;
