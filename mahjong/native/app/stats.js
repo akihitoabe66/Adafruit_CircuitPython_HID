@@ -56,7 +56,7 @@
         { name: '守備力', v: dr == null ? null : lin(1 - dr, [[0.75, 0], [0.86, 60], [0.95, 100]]) },
         { name: '洞察力', v: mix(safe, quiz(['wait', 'push', 'riichi'])) },
         { name: '牌効率', v: mix(eff, quiz(['eff', 'keep', 'call'])) },
-        { name: '計算力', v: (() => { const q = quiz(['han', 'fu', 'pts']); return q ? q.v : null; })() },
+        { name: '計算力', v: (() => { const q = quiz(['han', 'fu', 'pts', 'tbl', 'dora', 'ly_hand', 'ly_desc', 'ly_han', 'concept']); return q ? q.v : null; })() },
         { name: '打点力', v: pts },
       ].map((a) => ({ name: a.name, v: a.v == null ? null : Math.round(Math.max(0, Math.min(100, a.v))) }));
       const have = ax.filter((a) => a.v != null);
