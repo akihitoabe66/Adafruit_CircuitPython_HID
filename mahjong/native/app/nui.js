@@ -58,6 +58,7 @@
   try { if (localStorage.getItem('mj_rules_ver') !== '3') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '3'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
   const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz' }, { label: '麻雀の勉強', act: 'study' }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
+  const PERFSEQ = ['down', 'down', 'up', 'up', 'right', 'left', 'right', 'left', 'back', 'ok']; // 隠しコマンド(ホーム): 画面の左上に、遅れの診断を出す/消す
   const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'back', 'ok']; // 隠しコマンド(タイトル): 5件のセーブから選べる
 
   /* ---------- 描く道具 ---------- */
@@ -1938,6 +1939,9 @@
         if (k === HIDDEN[S.hidN]) S.hidN++; else S.hidN = k === HIDDEN[0] ? 1 : 0;
         if (S.hidN >= HIDDEN.length) { S.hidN = 0; S.slots = slotRead(); S.slotIdx = 0; S.mode = 'slots'; return; }
         if (S.hidN === HIDDEN.length - 1) return; // 最後の1つ手前の「戻る」は、何も起こさない
+        if (!S.hidP || nw - (S.hidT2 || 0) > 2500) S.hidP = 0; S.hidT2 = nw; if (k === PERFSEQ[S.hidP]) S.hidP++; else S.hidP = k === PERFSEQ[0] ? 1 : 0;
+        if (S.hidP >= PERFSEQ.length) { S.hidP = 0; try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } perf.flash = __now() + 3000; dirty(); return; }
+        if (S.hidP === PERFSEQ.length - 1) return;
       }
       if (S.menuIdx >= items.length) S.menuIdx = 0;
       if (S.homeBot) { // 下の段: ゲーム終了 / 成績 / 対戦成績 / 麻雀先生
@@ -2256,13 +2260,28 @@
     gfx.view(0, 0);
     return true;
   };
+  const perfCtx = () => { // いま どの画面で なにをしていたか(遅れの記録に添える)
+    let t = S.mode || '?'; const g = S.game;
+    if (S.mode === 'game' && g) t += ' 番' + g.turn + (S.self ? ' 自分' : '') + (S.react ? ' 鳴き' : '') + (S.banner ? ' 演出' : '') + (S.result ? ' 結果' : '') + (S.intro ? ' 開始' : '') + (S.dice ? ' サイコロ' : '') + (S.deal ? ' 配牌' : '') + (S.coach ? ' 解説' : '');
+    else if (S.mode === 'diag' && S.diag) t += ' p' + S.diag.pg + ' f' + S.diag.fi; else if (S.mode === 'study' && S.study) t += ' sel' + S.study.sel;
+    else if (S.mode === 'learn' && S.learn) t += ' ' + S.learn.view + ' sel' + S.learn.sel; else if (S.mode === 'video' && S.vid) t += ' ' + S.vid.view + ' sel' + S.vid.sel; else if (S.mode === 'dict' && S.dict) t += ' ' + S.dict.view + ' foc' + S.dict.foc;
+    else if (S.mode === 'stats') t += S.ros ? ' 対戦相手' : ' 成績'; else if (S.mode === 'quiz' && S.quiz) t += ' ' + S.quiz.phase;
+    if (S.rankScr) t += ' 段位'; if (S.cert) t += ' 認定証'; if (S.reveal) t += ' 登場'; if (S.rankP) t += ' 順位'; if (S.end) t += ' 終局'; if (S.menuP) t += ' メニュー';
+    return t;
+  };
   window.__draw = function () {
     S.drawSeq = (S.drawSeq || 0) + 1;
-    const t0 = __now(); const r = drawBody(); const dt = __now() - t0; perf.n++; perf.ms += dt;
-    if (t0 - perf.t0 >= 1000) { perf.shown = '描 ' + perf.n + '回/秒  ' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; }
-    if (perfOn()) { gfx.view(0, 0); fill(0, 0, 150, 18, [0, 0, 0], 170); text(perf.shown, 4, 2, 13, [120, 255, 160]); }
+    const t0 = __now(); const r = drawBody(); const dt = __now() - t0; perf.n++; perf.ms += dt; if (dt > (perf.mx || 0)) perf.mx = dt;
+    if (dt >= 80) { (perf.slow = perf.slow || []).unshift(Math.round(dt) + 'ms  ' + perfCtx()); perf.slow.length = Math.min(perf.slow.length, 4); }
+    if (t0 - perf.t0 >= 1000) { perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; }
+    if (perfOn() || (perf.flash || 0) > t0) { // 遅れの診断(写真に とれるように、左上に 大きめに)
+      gfx.view(0, 0); const sl = perf.slow || [], h = 24 + 18 * (1 + sl.length);
+      fill(0, 0, 520, h, [0, 0, 0], 200); text('遅れの診断: ' + (perfOn() ? 'オン' : 'オフ'), 6, 3, 16, YEL); text(perf.shown || '(計測中)', 6, 22, 16, [120, 255, 160]);
+      sl.forEach((x, i) => text('遅れ ' + x, 6, 40 + i * 18, 15, [255, 170, 150]));
+    }
     return r;
   };
+
   NSND.home();
   print('ネイティブ版 準備できました');
 })();
