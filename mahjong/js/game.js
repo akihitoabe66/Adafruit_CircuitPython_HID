@@ -24,6 +24,8 @@
       this.kyotaku = 0;
       this.roundWind = 0;
       this.handCount = 0;
+      this.winCnt = [0, 0, 0, 0]; // 対局中に上がった回数(焼き鳥の判定に使う)
+      this.yaki = null;
       this.log = [];
       this.stopped = false;
     }
@@ -71,8 +73,13 @@
         if (!end && this.ui && this.ui.askSave) { await this.ui.askSave(this); if (this.stopped) return null; } // 局の結果のあと: 「セーブして次の局へ」(ネイティブ版だけが持つ画面)
         if (end) {
           if (this.ui && MJ.Rank) MJ.Rank.clearSave(); // 終わった対局には、戻れない
+          this.yaki = null;
+          if (MJ.RULES.yakitori) { // 焼き鳥: 一度も上がれなかった人は、上がった人に1000点ずつ払う(全員が上がれなかったときは、なし)
+            const yk = this.players.filter((p) => !this.winCnt[p.seat]), ok = this.players.filter((p) => this.winCnt[p.seat]);
+            if (yk.length && ok.length) { const d = [0, 0, 0, 0]; yk.forEach((a) => ok.forEach((b) => { d[a.seat] -= 1000; d[b.seat] += 1000; })); this.players.forEach((p) => { p.score += d[p.seat]; }); this.yaki = { seats: yk.map((p) => p.seat), delta: d }; }
+          }
           const order = this.players.slice().sort((a, b) => b.score - a.score || a.seat - b.seat);
-          const final = { order, results: order.map((p, i) => ({ p, rank: i + 1 })) };
+          const final = { order, results: order.map((p, i) => ({ p, rank: i + 1 })), yaki: this.yaki };
           if (this.ui) await this.ui.gameEnd(this, final);
           return final;
         }
@@ -80,7 +87,7 @@
     }
 
     /* 続きから始めるための、最小限の状態(局・本場・点数・相手) */
-    snapshot() { return { v: 1, length: this.length, chars: this.players.slice(1).map((p) => p.char.id), dealer: this.dealer, kyoku: this.kyoku, honba: this.honba, kyotaku: this.kyotaku, roundWind: this.roundWind, handCount: this.handCount, scores: this.players.map((p) => p.score) }; }
+    snapshot() { return { v: 1, length: this.length, chars: this.players.slice(1).map((p) => p.char.id), dealer: this.dealer, kyoku: this.kyoku, honba: this.honba, kyotaku: this.kyotaku, roundWind: this.roundWind, handCount: this.handCount, scores: this.players.map((p) => p.score), wc: this.winCnt.slice() }; }
 
     /* 局の途中の記憶(番のはじまりの状態)。牌は番号(id)だけで持つ */
     capture(cur, drawMode) {
@@ -655,6 +662,7 @@
     }
 
     finishWin(wins, delta, extra = {}) {
+      wins.forEach((w) => { this.winCnt[w.winner.seat]++; });
       const before = this.players.map((p) => p.score);
       this.players.forEach((p, i) => { p.score += delta[i]; });
       { let mi = 0; delta.forEach((d, i) => { if (d < delta[mi]) mi = i; }); this.lastLoser = delta[mi] < 0 ? this.players[mi] : null; } // いちばん点を取られた人(セリフで名前を呼ぶ相手に使う)

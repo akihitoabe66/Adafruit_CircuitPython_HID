@@ -50,7 +50,7 @@
   }
   const toggleTeacher = () => { try { localStorage.setItem('mj_teacher', teacherOn() ? '0' : '1'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; };
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
-  const COMMON_RULES = { length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: true, doubleRon: true, sanchahou: true, kuikae: false, kazoe: true, flower: false, start: 25000 }; // 全国的な(一般的な)ルール。ただし赤ドラは、はじめはなし
+  const COMMON_RULES = { yakitori: false, length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: true, doubleRon: true, sanchahou: true, kuikae: false, kazoe: true, flower: false, start: 25000 }; // 全国的な(一般的な)ルール。ただし赤ドラは、はじめはなし
   try { if (localStorage.getItem('mj_rules_ver') !== '3') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '3'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
   const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz' }, { label: '麻雀の勉強', act: 'study' }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
@@ -139,14 +139,14 @@
   const WIND_BG = [[214, 64, 52], [36, 150, 92], [52, 110, 210], [138, 92, 206]]; // 東・南・西・北の色(Edge版と同じく、家ごとに色を分ける)
   const SEAT_C = [[229, 57, 53], [58, 138, 238], [47, 191, 106], [165, 107, 255]]; // 家ごとの色(あなた=赤・下家=青・対面=緑・上家=紫。Edge版と同じ)
   function drawBar(g, p, x, y, w, h, rot) {
-    const act = g.turn === p.seat, sw = g.seatWindOf(p), CH = 24, ST = 8, bg = WIND_BG[sw], sc = SEAT_C[p.seat];
+    const act = g.turn === p.seat, sw = g.seatWindOf(p), CH = 24, ST = 8, bg = WIND_BG[sw], sc = SEAT_C[p.seat], YK = !!(MJ.RULES.yakitori && g.winCnt && !g.winCnt[p.seat]); // 焼き鳥: まだ上がっていない人には、「やきとり」の牌
     if (act) { rrect(x - 8, y - 8, w + 16, h + 16, 11, [255, 210, 60], 80); rrect(x - 4, y - 4, w + 8, h + 8, 9, [255, 255, 255]); panel(x, y, w, h, 7, [255, 214, 58], [255, 255, 255], 2); } // いま番の人: 黄色い板に白い縁・金色の光(Edge版と同じ)
     else panel(x, y, w, h, 7, BAR, [190, 190, 182], 2, 215);
     // 家の色の帯(板のはしの太い線)
     if (!rot) rrect(x + 2, y + 2, ST, h - 4, 3, sc); else if (rot === 90) rrect(x + 2, y + 2, w - 4, ST, 3, sc); else rrect(x + 2, y + h - 2 - ST, w - 4, ST, 3, sc);
     const parts = barPieces(g, p).slice(1).map((q, i) => ({ s: q.s, sz: q.sz, b: q.b, c: act ? (i === 0 ? [27, 27, 18] : i === 1 ? [120, 60, 0] : [200, 30, 30]) : q.c }));
     const off = ST + 8;
-    { const avail = (rot ? h : w) - off - CH - 10 - 8, tot = parts.reduce((a, q) => a + gfx.measure(q.s, q.sz), 0) + 12 * (parts.length - 1), k = Math.min(1, avail / tot); if (k < 1) parts.forEach((q) => { q.sz = Math.max(10, Math.floor(q.sz * k)); }); } // はみ出すときは、文字を小さくして、板に収める
+    { const avail = (rot ? h : w) - off - CH - 10 - 8 - (YK ? 24 : 0), tot = parts.reduce((a, q) => a + gfx.measure(q.s, q.sz), 0) + 12 * (parts.length - 1), k = Math.min(1, avail / tot); if (k < 1) parts.forEach((q) => { q.sz = Math.max(10, Math.floor(q.sz * k)); }); } // はみ出すときは、文字を小さくして、板に収める
     if (!rot) {
       const cy0 = y + (h - CH) / 2; rrect(x + off, cy0, CH, CH, 5, bg); text(WIND[sw], x + off + CH / 2, cy0 + 2, 18, WHITE, 1);
       let cx = x + off + CH + 10; parts.forEach((q) => { const ty = y + Math.round((h - q.sz) / 2) + 1; if (q.b) { text(q.s, cx + 1, ty, q.sz, q.c); text(q.s, cx, ty + 1, q.sz, q.c); } text(q.s, cx, ty, q.sz, q.c); cx += gfx.measure(q.s, q.sz) + 12 + (q.b ? 1 : 0); }); return;
@@ -157,6 +157,7 @@
     let cy = y + off + CH + 10;
     parts.forEach((q) => { const tw = gfx.measure(q.s, q.sz), dx = rot === 90 ? 3 : -3, bx = q.b ? 1 : 0; // 文字の下がわ(カンマ)が出るほうと逆に、少しよせる
       if (rot === 90) { gfx.textRot(q.s, Math.round(cxm) + dx, Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); if (bx) gfx.textRot(q.s, Math.round(cxm) + dx + 1, Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); cy += tw + 12; } else { gfx.textRot(q.s, Math.round(cxm) + dx, Math.round(y + h - (cy - y) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); if (bx) gfx.textRot(q.s, Math.round(cxm) + dx - 1, Math.round(y + h - (cy - y) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); cy += tw + 12; } });
+    if (YK) { if (!rot) gfx.image('img/yakitori.webp', x + w - 26, y + Math.max(1, Math.round((h - 22) / 2)), 16, 22, 255); else gfx.image('img/yakitori.webp', x + Math.round((w - 16) / 2), y + h - 28, 16, 22, 255); }
   }
   /* 副露: 席ごとの向きで並べ、鳴いた牌は90度回して、鳴かれた相手の側に置く */
   function meldWH(p, w, h) { let L = 0; for (const m of p.melds) { const n = m.tiles.length, ci = calledIdx(p, m); for (let i = 0; i < n; i++) L += (i === ci ? h : w) + 1; L += 6; } return L; }
@@ -364,7 +365,7 @@
     // 河(変わったときだけ描き直し、あとは1枚の絵を貼る)
     const rkey = P.map((p) => p.discards.length + ':' + p.discards.map((d) => (d.called ? 1 : 0)).join('') + ':' + p.discards.indexOf(g.lastDiscard && g.lastDiscard.d)).join('|') + (g.turn === 0 && !S.react ? 't' : 'o') + (S.fly ? 'f' : '');
     cached(0, rkey, () => P.forEach((p) => drawRiver(g, p)));
-    const okey = [S.deal ? 'd' : '-', g.turn, P.map((p) => (p.flowers || []).length).join(''), g.live.length, g.kyotaku, g.kyokuLabel(), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
+    const okey = [S.deal ? 'd' : '-', g.turn, P.map((p) => (p.flowers || []).length).join(''), g.live.length, g.kyotaku, g.kyokuLabel(), (MJ.RULES.yakitori ? (g.winCnt || []).join('') : ''), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
     cached(1, okey, () => {
     // 副露
     drawMelds(P[2], 520, 34, 16, 22); drawMelds(P[3], 3, 312 - meldWH(P[3], 16, 22), 16, 22); drawMelds(P[1], 694, 312 - meldWH(P[1], 16, 22), 16, 22);
@@ -492,7 +493,7 @@
       if (o.rot === 90) tileR(h.t, x + (HW - HH) / 2, y + (HH - HW) / 2, HW, HH, h.red, false, 90);
       else if (o.rot === 180 || o.flip) tileR(h.t, x, y, HW, HH, h.red, false, 180); else tile(h.t, x, y, HW, HH, h.red, o.dim && !o.hl); // 配られている間は、ときどき逆さの牌がまじる(並べかえると、そろう)
       if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, y - 20, 16, YEL, 1);
-      if (DM && DM[h.t] && !o.rot && !o.flip) { const m = DM[h.t], c = DCOL[m.cls] || DCOL.warn, w = Math.max(30, gfx.measure(m.tag, 13) + 10); rrect(x - 1, y - 14, w, 17, 6, [255, 255, 255]); rrect(x, y - 13, w - 2, 15, 5, c[0]); text(m.tag, x + (w - 2) / 2, y - 13, 13, c[1], 1); } // 麻雀先生の印: 牌の左上に
+      if (DM && DM[h.t] && !o.rot && !o.flip) { const m = DM[h.t], c = DCOL[m.cls] || DCOL.warn, w = Math.max(30, gfx.measure(m.tag, 13) + 10); const cx = x + Math.round((HW - w) / 2); rrect(cx - 1, y - 14, w, 17, 6, [255, 255, 255]); rrect(cx, y - 13, w - 2, 15, 5, c[0]); text(m.tag, cx + (w - 2) / 2, y - 13, 13, c[1], 1); } // 麻雀先生の印: 牌の左上に
     };
     (DS.fly && DS.fly[0] || []).forEach((f) => { drawBlock(f, (handX(f.from, false) + handX(f.from + f.cnt - 1, false) + HW) / 2, HY + HH / 2); }); // 山から取った牌が、となりあわせのまま飛んでくる
     if (DS.sorted && S.deal && DS.st < SRT_L + SRT_S + SRT_D + 100) L.sort((a, b) => b.y - a.y); // 高く浮いている牌ほど、あとから(上に)描く
@@ -588,6 +589,7 @@
   ];
   /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
   const RULE_ROWS = [
+    { k: 'yakitori', label: '焼き鳥', vals: [[false, 'なし'], [true, 'あり']], note: '最後まで一度も上がれなかった人は、上がった人に1000点ずつ払います(あなたも)。' },
     { k: 'length', label: '対局の長さ', vals: [['east', '東風戦(東1〜4局)'], ['south', '東南戦(東1〜南4局)'], ['single', '一局だけ']], note: '一局だけは、練習向きです。' },
     { k: 'kuitan', label: '喰いタン', vals: [[true, 'あり'], [false, 'なし']], note: 'ありだと、鳴いた手でも、2〜8だけの手(タンヤオ)で上がれます。' },
     { k: 'aka', label: '赤ドラ', vals: [[3, 'あり(赤5を3枚)'], [0, 'なし']], note: '赤い5は、持っているだけで1飜(点が増えます)。' },
@@ -773,7 +775,7 @@
       }
     }
     const c = L[R.sel], st = state(c); panel(540, 62, 268, 352, 14, [6, 28, 18], [140, 190, 130], 3, 255);
-    if (st === 2) { rrect(599, 76, 152, 152, 8, WHITE); gfx.image(skin(c.face), 600, 77, 150, 150, 255); text(c.short || c.name, 674, 236, 24, YEL, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', 674, 268, 16, WHITE, 1); text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), 674, 292, 16, WHITE, 1); const f = fitRich(c.desc || '', [17, 16, 15], 236, 96); richDraw(f.lines, 556, 322, f.sz, [230, 240, 225], 0); }
+    if (st === 2) { rrect(599, 76, 152, 152, 8, WHITE); gfx.image(skin(c.face), 600, 77, 150, 150, 255); text(c.short || c.name, 674, 236, 24, YEL, 1); { const el = MJ.effLevel ? MJ.effLevel(c.level, MJ.Rank.get().dan || 0) : c.level; text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', 674, 262, 16, WHITE, 1); if (el > c.level) text('いまの段位では  ' + MJ.starStr(el) + '(' + MJ.LEVEL_JP[el] + ')', 674, 306, 16, YEL, 1); } text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), 674, 284, 16, WHITE, 1); const f = fitRich(c.desc || '', [16, 15, 14], 236, 76); richDraw(f.lines, 556, 332, f.sz, [230, 240, 225], 0); }
     else { gfx.image('img/sil/' + ('0' + c.id).slice(-2) + '.webp', 600, 77, 150, 150, 255); frame(599, 76, 152, 152, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', 646, 120, 56, 78, 255); text('？？？？', 674, 236, 24, YEL, 1); const m = st === 0 ? MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'になると、登場します。' : 'まだ 出会っていません。\n最後まで 対局すると、出会えます。'; const f = fitRich(m, [18, 17, 16], 236, 96); richDraw(f.lines, 556, 290, f.sz, [230, 240, 225], 0); }
     text('◀ ▶ ▲ ▼ で えらぶ    戻る: もどる', SW / 2, SH - 29, 17, [210, 225, 205], 1);
   }
@@ -953,6 +955,7 @@
       rrect(60, y, 600, RH, 8, [0, 0, 0], 70); rrect(58, y - 2, 600, RH, 8, me ? [255, 236, 130] : [244, 247, 240]);
       if (o.rank !== 1) { rrect(58, y - 2, 12, RH, 6, mc); rrect(64, y - 2, 6, RH, 0, me ? [255, 236, 130] : [244, 247, 240]); } // 左の色の帯: 1位は、なし(「1位」の文字が金色なので、それで分かる)
       text(o.rank + '位', 80, y + 8, 38, o.rank === 1 ? [190, 130, 0] : BLACK);
+      if (f.yaki) { const dv = f.yaki.delta[o.p.seat], isY = f.yaki.seats.includes(o.p.seat); if (isY) gfx.image('img/yakitori.webp', 136, y + 3, 22, 30, 255); if (dv) text((dv > 0 ? '+' : '') + dv, 152, y + 39, 13, dv > 0 ? [20, 130, 60] : [200, 40, 30], 1); } // 焼き鳥: 一度も上がれなかった人の印と、やりとりした点数
       face(o.p, 170, y + 1, RH - 6, RH - 6);
       text(o.p.name, 246, y + 10, fitSz(o.p.name, 34, 250, 20), BLACK);
       text(String(o.p.score), 640, y + 8, 42, BLACK, 2);
@@ -2121,7 +2124,7 @@
     S.mode = 'game'; dirty();
     const chars = sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
     const g = new MJ.Game({ chars: liftChars(chars.length === 3 ? chars : pickChars()), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined });
-    if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; if (sn.mid) g.resumeMid = sn.mid; }
+    if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; if (sn.mid) g.resumeMid = sn.mid; }
     g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
     S.game = g;
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
