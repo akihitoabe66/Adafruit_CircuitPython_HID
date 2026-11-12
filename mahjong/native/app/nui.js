@@ -400,7 +400,7 @@
     // 演出: 札の文字が、少し大きいところから縮んで止まる
     if (S.banner && S.banner.call && S.banner.p && CALL_V) { // 宣言(試験): 顔(セリフと同じ大きさ・角丸の白い縁)と、白ぶちの大きな文字+影。吹き出しの背景は、なし
       const bn = S.banner, pos = BUBP[bn.p.seat] || [250, 150], sd = bn.p.seat, k = 1, sz = 76, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [230, 0, 18] : [196, 139, 255];
-      const tw = gfx.measure(bn.text, CALL_V === 4 && gfx.bold ? -sz : sz), gw = FSZ + 16 + tw, gx = sd === 1 ? pos[0] + BW - gw : sd === 3 ? pos[0] : pos[0] + Math.round((BW - gw) / 2), gy = pos[1] + 8;
+      const gx = pos[0] + 8, gy = pos[1] + 8; // 顔の位置は、セリフの顔と、まったく同じ(吹き出しの左上から8px)
       face(bn.p, gx, gy, FSZ, FSZ); rframe(gx - 3, gy - 3, FSZ + 6, FSZ + 6, 8, 4, [255, 255, 255]); rframe(gx - 5, gy - 5, FSZ + 10, FSZ + 10, 9, 2, [30, 30, 30]); // 顔の縁(白+外に細い黒。角は、小さな丸み)
       const tx = gx + FSZ + 16, ty = gy + Math.round((FSZ - sz) / 2) + TYADJ, sh = CALL_V >= 3 ? [[8, 10, [30, 56, 46]], [6, 8, [14, 30, 24]], [4, 5, [0, 0, 0]]] : [[5, 6, [6, 20, 14]]], fz = CALL_V === 4 && gfx.bold ? -sz : sz, ol = CALL_V === 4 ? 5 : 4; // 4=太字(ボールド)+ふちも少し太く
       sh.forEach((o) => text(bn.text, tx + o[0], ty + o[1], fz, o[2], 0)); // 影(CALL_V===3 は、ぼかしのように3枚かさねて、濃く)
