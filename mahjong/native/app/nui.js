@@ -1357,7 +1357,7 @@
   function drawLearnB(L) { // B案: 左に ステップの一覧、右に えらんだステップの説明と進み具合(MJ_LEARN=old で、前の見た目に戻る)
     const STEPS = MJ.Learn.STEPS, D = L.d, n = STEPS.length, nDone = STEPS.filter((s) => D.done[s.id]).length;
     quizFrame('点数計算の勉強', '', 'おぼえた ' + nDone + ' / ' + n, L.view === 'sub' ? '' : '▲ ▼ でえらぶ    決定ボタンで ひらく    戻る: もどる');
-    L.top = Math.max(0, Math.min(L.top || 0, L.sel)); if (L.sel >= L.top + 8) L.top = L.sel - 7;
+    L.top = n <= 8 ? 0 : Math.max(0, Math.min(L.sel - 5, n - 8)); // ビデオと同じ: カーソルは6番目で止まり、一覧のほうが動く
     for (let r = 0; r < 8; r++) {
       const i = L.top + r; if (i >= n) break; const st = STEPS[i], y = 58 + r * 44, on = L.sel === i && L.view === 'map' && !S.bbf, done = !!D.done[st.id];
       panel(14, y, 366, 40, 10, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255);
@@ -1365,6 +1365,7 @@
       text(st.t, 68, y + 8, fitSz(st.t, 21, 232, 14), INK);
       rrect(316, y + 8, 52, 24, 11, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, 342, y + 10, 15, WHITE, 1);
     }
+    if (L.top + 8 < n) { fill(10, 58 + 6 * 44 - 2, 374, 44, [8, 24, 18], 90); fill(10, 58 + 7 * 44 - 2, 374, 46, [8, 24, 18], 150); } // 下の2本を、うすく: まだ つづきが あると分かるように
     if (L.top > 0) text('▲', 189, 46, 14, YEL, 1); if (L.top + 8 < n) text('▼', 189, 412, 14, YEL, 1);
     const st = STEPS[L.sel], done = !!D.done[st.id], bm = D.bm.step === L.sel && D.bm.read;
     rrect(396, 58, 420, 352, 8, [150, 190, 140]); rrect(399, 61, 414, 346, 6, [16, 56, 42]);
