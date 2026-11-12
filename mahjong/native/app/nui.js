@@ -21,7 +21,7 @@
   const postQ = []; const afterPresent = (fn) => { postQ.push(fn); }; // 今の絵が画面に出てから(次のコマの はじめに)実行する
   /* 「もどる」ボタン(画面の左上): 戻る(B)だけで出入りしていた画面に、見える「もどる」を足す。 ▲ で、このボタンへ / 決定で戻る / ▼ で元の場所へ */
   const BACKM = new Set(['diag', 'study', 'learn', 'dict', 'video', 'howto', 'stats', 'slots']);
-  function drawBack() { const on = !!S.bbf, bw = 3; rrect(12, 11, 124, 36, 12, on ? [160, 110, 0] : GREEN, 255); rrect(12 + bw, 11 + bw, 124 - 2 * bw, 36 - 2 * bw, 12 - bw, on ? YEL : CREAM, 255); text('◀ もどる', 74, 19, 19, INK, 1); }
+  function drawBack(x) { x = x === undefined ? 12 : x; const on = !!S.bbf, bw = 3; rrect(x, 11, 124, 36, 12, on ? [160, 110, 0] : GREEN, 255); rrect(x + bw, 11 + bw, 124 - 2 * bw, 36 - 2 * bw, 12 - bw, on ? YEL : CREAM, 255); text('◀ もどる', x + 62, 19, 19, INK, 1); }
   const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 170; S.locked = true; dirty(); setTimeout(() => { S.pressT = -9999; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 40); }, S.pressMs); }; // 押している間のあと、いちど「もとの形にもどった絵」を描いてから、次の画面へ(描くのがおそい機械でも、へこんだ絵のまま、つぎの画面にならないように) // 押したボタンが光ってから、次へ
   const NSLOT = 5;
   function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
@@ -1318,7 +1318,7 @@
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return d.done[f.name] ? 'done' : (d.pos[f.name] || 0) > 3 ? 'cont' : 'new'; };
-  window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); // 試験用
+  window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
@@ -2035,20 +2035,20 @@
       S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [32, 74, 60]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;
-    if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); drawBack(); return true; }
+    if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); drawBack(38); return true; }
     if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); if (S.quiz && S.quiz.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog(S.quiz.learn ? 'クイズを やめますか?' : 'ホームに もどりますか?', ['つづける', S.quiz.learn ? 'やめる' : 'ホームにもどる'], S.quiz.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
-    if (S.mode === 'dict') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDict(); if (S.dict && S.dict.view === 'main') drawBack(); return true; }
-    if (S.mode === 'study') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawStudy(); drawBack(); return true; }
+    if (S.mode === 'dict') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDict(); if (S.dict && S.dict.view === 'main') drawBack(14); return true; }
+    if (S.mode === 'study') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawStudy(); drawBack(9); return true; }
     if (S.mode === 'video') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawVideo(); if (S.vid && S.vid.view !== 'play' && !S.vid.ask) drawBack(); if (S.vid && S.vid.ask) { const a = S.vid.ask; S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('つづきから 見ますか?', ['つづきから(' + vfmt(S.vid.d.pos[S.vid.files[a.i].name]) + ')', 'はじめから'], a.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
-    if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); if (S.learn && !S.learn.confirm && S.learn.view !== 'sub') drawBack(); if (S.learn && S.learn.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('ホームに もどりますか?', ['つづける', 'ホームにもどる'], S.learn.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
-    if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); drawBack(); return true; }
-    if (S.mode === 'howto') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawHow(); drawBack(); return true; }
+    if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); if (S.learn && !S.learn.confirm && S.learn.view !== 'sub') drawBack(16); if (S.learn && S.learn.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('ホームに もどりますか?', ['つづける', 'ホームにもどる'], S.learn.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
+    if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); drawBack(22); return true; }
+    if (S.mode === 'howto') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawHow(); drawBack(24); return true; }
     if (S.mode === 'credits') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawCredits(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
     if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
     gfx.view(S.vx, S.vy);
-    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); drawBack(); }
+    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); drawBack(80); }
     else if (S.game) { gfx.clear(32, 74, 60); drawTable(S.game); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
     if (S.rankP) drawRankP();
     if (S.result) { drawResult(S.result); drawResSay(); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
