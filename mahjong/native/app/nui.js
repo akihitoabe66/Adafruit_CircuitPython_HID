@@ -955,9 +955,12 @@
       rrect(60, y, 600, RH, 8, [0, 0, 0], 70); rrect(58, y - 2, 600, RH, 8, me ? [255, 236, 130] : [244, 247, 240]);
       if (o.rank !== 1) { rrect(58, y - 2, 12, RH, 6, mc); rrect(64, y - 2, 6, RH, 0, me ? [255, 236, 130] : [244, 247, 240]); } // 左の色の帯: 1位は、なし(「1位」の文字が金色なので、それで分かる)
       text(o.rank + '位', 80, y + 8, 38, o.rank === 1 ? [190, 130, 0] : BLACK);
-      if (f.yaki) { const dv = f.yaki.delta[o.p.seat], isY = f.yaki.seats.includes(o.p.seat); if (isY) gfx.image('img/yakitori.webp', 143, y + 4, 18, 25, 255); if (dv) text((dv > 0 ? '+' : '') + dv, 152, y + 36, 12, dv > 0 ? [20, 130, 60] : [200, 40, 30], 1); } // 焼き鳥: 一度も上がれなかった人の印と、やりとりした点数
+      const yk = f.yaki ? f.yaki.delta[o.p.seat] : 0, isY = !!(f.yaki && f.yaki.seats.includes(o.p.seat)), YT = true; // 焼き鳥: 点数のすぐ左に、右の端をそろえた帯(YT=falseで、牌と数字だけの せまい帯)
+      const PR = 526, PW = isY ? (YT ? 150 : 104) : yk ? 86 : 0, nmW = PW ? PR - PW - 12 - 246 : 250;
+      if (PW) { const x0 = PR - PW, sg = (yk > 0 ? '+' : '−') + Math.abs(yk), col = yk > 0 ? [20, 130, 60] : [200, 40, 30]; rrect(x0, y + 13, PW, 32, 16, isY ? [200, 150, 60] : [120, 180, 140]); rrect(x0 + 2, y + 15, PW - 4, 28, 14, isY ? [255, 255, 255] : [225, 245, 230]);
+        if (isY) { gfx.image('img/yakitori.webp', x0 + 9, y + 16, 17, 24, 255); if (YT) text('やきとり', x0 + 33, y + 21, 15, [120, 60, 0]); text(sg, PR - 10, y + 19, 17, col, 2); } else text(sg, x0 + PW / 2, y + 19, 18, col, 1); }
       face(o.p, 170, y + 1, RH - 6, RH - 6);
-      text(o.p.name, 246, y + 10, fitSz(o.p.name, 34, 250, 20), BLACK);
+      { const yk0 = f.yaki ? f.yaki.delta[o.p.seat] : 0, isY0 = !!(f.yaki && f.yaki.seats.includes(o.p.seat)), pw0 = isY0 ? 150 : yk0 ? 86 : 0, mw = pw0 ? 526 - pw0 - 12 - 246 : 250, nz = fitSz(o.p.name, 34, mw, 18); text(o.p.name, 246, y + 10 + Math.round((34 - nz) / 2), nz, BLACK); }
       text(String(o.p.score), 640, y + 8, 42, BLACK, 2);
     });
     const rk = f.rk, yb = Y0 + 4 * (RH + GAP) + 2;
