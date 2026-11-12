@@ -2280,7 +2280,7 @@
       gfx.view(0, 0); const sl = perf.slow || [], h = 24 + 18 * (2 + sl.length);
       fill(0, 0, 520, h, [0, 0, 0], 200); text('遅れの診断: ' + (perfOn() ? 'オン' : 'オフ'), 6, 3, 16, YEL); text(perf.shown || '(計測中)', 6, 22, 16, [120, 255, 160]);
       sl.forEach((x, i) => text('遅れ ' + x, 6, 40 + i * 18, 15, [255, 170, 150]));
-      try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi) { const ok = mi[0] !== 0; text('BGM ' + (mi[0] < 0 ? '(なし)' : ok ? '再生中' : '止まっている!') + '  自動で鳴らしなおした ' + mi[1] + '回  曲の読み込み 最大' + mi[2] + 'ms', 6, 40 + sl.length * 18, 15, ok ? [150, 220, 255] : [255, 120, 120]); } } catch (e) { /* ignore */ }
+      try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi) { const ok = mi[0] !== 0; text('BGM ' + (mi[0] < 0 ? '(なし)' : ok ? '再生中' : '止まっている!') + (mi[4] >= 0 ? '  先読み ' + mi[4] + 'ms ぶん / 足りなかった ' + mi[3] + '回' : '') + '  曲の読み込み 最大' + mi[2] + 'ms', 6, 40 + sl.length * 18, 15, ok ? [150, 220, 255] : [255, 120, 120]); } } catch (e) { /* ignore */ }
     }
     return r;
   };
