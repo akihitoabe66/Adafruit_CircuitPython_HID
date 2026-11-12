@@ -212,7 +212,7 @@
   }
   function drawSide(g) {
     const f = S.side ? S.side.idx : -1;
-    sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 765, 11, 15, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
+    sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 765, 11, 15, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 12 + i * 5, 10, 2, WHITE));
     sbtn(796, 6, 30, 32, [50, 90, 160], [25, 50, 100], [''], f === 3, 13); fill(803, 17, 4, 10, WHITE); fill(807, 14, 3, 16, WHITE); fill(810, 11, 3, 22, WHITE); fill(816, 17, 2, 10, WHITE);
     { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 44, 24, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 70, 16, [200, 215, 200], 1); }
     {
@@ -1324,15 +1324,14 @@
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   function startVideo() {
     const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last && vStatus(f, d) === 'cont');
-    S.vid = { view: last >= 0 ? 'home' : 'list', files: sc.files, dir: sc.dir, d, sel: Math.max(0, last), top: 0, hs: 0, last, ask: null }; S.mode = 'video'; vFit(); dirty();
+    S.vid = { view: 'list', files: sc.files, dir: sc.dir, d, sel: Math.max(0, last), top: 0, hs: 0, last, ask: null }; S.mode = 'video'; vFit(); dirty();
   }
   function vFit() { const V = S.vid, n = V.files.length; V.top = n <= 8 ? 0 : Math.max(0, Math.min(V.sel - 5, n - 8)); } // カーソルは6番目で止まり、そこからは一覧のほうが動く(最後の8本のところだけ、カーソルが下へ進む)
   function vPlay(i, from) {
     const V = S.vid, f = V.files[i];
     if (!f.path || typeof __vopen !== 'function') { V.err = f.path ? 'この画面では 再生できません(実機で 見られます)' : 'この動画は まだ 入っていません(mjdata/video に入れてください)'; dirty(); return; }
-    try { NSND.music(''); } catch (e) { /* ignore */ }
+    try { NSND.music(''); snd.musicVol(vVol()); } catch (e) { /* ignore */ }
     const r = __vopen(f.path, from || 0); if (!r) { V.view = 'list'; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
-    try { snd.musicVol(vVol()); } catch (e) { /* ignore */ }
     const now = __now(); V.sel = i; V.view = 'play'; V.p = { f, i, dur: r.dur || 0, ui: now + 2500, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now, st: [from || 0, r.dur || 0, 0, 0, 0], sig: '' };
     V.d.last = f.name; vSave(); dirty();
   }
@@ -1383,7 +1382,7 @@
       return;
     }
     const n = V.files.length; V.err = '';
-    if (k === 'back') { if (V.last >= 0) V.view = 'home'; else { startStudy(2); S.vid = null; } }
+    if (k === 'back') { startStudy(2); S.vid = null; }
     else if (!n) return;
     else if (k === 'up') { if (V.sel === 0) S.bbf = true; else { V.sel--; vFit(); } } else if (k === 'down') { V.sel = (V.sel + 1) % n; vFit(); }
     else if (k === 'left') { V.sel = Math.max(0, V.sel - 8); vFit(); } else if (k === 'right') { V.sel = Math.min(n - 1, V.sel + 8); vFit(); }

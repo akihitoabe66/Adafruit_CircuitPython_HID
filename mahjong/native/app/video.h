@@ -46,6 +46,7 @@ static void vhook(void *u, Uint8 *st, int len) { /* 音を出す側(別スレッ
   if (V.abuf_fill) { if (V.an >= V.rate / 4 || (V.eof && V.apq.n == 0)) V.abuf_fill = 0; else { SDL_UnlockMutex(V.mu); return; } } /* 音が足りなくなったら、少したまるまで 待つ(細かい音切れを、さける) */
   int need = len / 4, n = need < V.an ? need : V.an, first = V.acap - V.ar < n ? V.acap - V.ar : n;
   memcpy(st, V.ab + V.ar * 2, first * 4); if (n > first) memcpy(st + first * 4, V.ab, (n - first) * 4);
+  if (g_vvol < 128) { int vv = g_vvol; Sint16 *sp = (Sint16 *)st; for (int i = 0; i < n * 2; i++) sp[i] = (Sint16)((sp[i] * vv) >> 7); } /* 音量 */
   V.ar = (V.ar + n) % V.acap; V.an -= n; V.consumed += n; if (n > 0) { V.hookt = nowms(); V.hooklen = (double)need / V.rate; } if (n < need && !V.eof) { V.abuf_fill = 1; V.under++; }
   SDL_UnlockMutex(V.mu);
 }
