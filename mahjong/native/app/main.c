@@ -62,10 +62,10 @@ static SDL_Texture *getsil(const char *path, int *w, int *h){
   Ent *e = &imgs[nimg++]; e->hs = hp; strncpy(e->key, key, 199); e->tex = t; e->w = s->w; e->h = s->h; SDL_FreeSurface(s);
   if (w) *w = e->w; if (h) *h = e->h; return t;
 }
-static TTF_Font *getfont(int sz){
+static TTF_Font *getfont(int sz){ /* sz がマイナスのときは、太字(字の大きさ = -sz) */
   for (int i = 0; i < nfonts; i++) if (fsz[i] == sz) return fonts[i];
   if (nfonts >= 64) return fonts[0];
-  TTF_Font *f = TTF_OpenFont(fontpath, sz); if (!f) { fprintf(stderr, "font? %s\n", TTF_GetError()); return NULL; }
+  TTF_Font *f = TTF_OpenFont(fontpath, sz < 0 ? -sz : sz); if (f && sz < 0) TTF_SetFontStyle(f, TTF_STYLE_BOLD); if (!f) { fprintf(stderr, "font? %s\n", TTF_GetError()); return NULL; }
   fonts[nfonts] = f; fsz[nfonts++] = sz; return f;
 }
 static SDL_Texture *gettext(const char *s, int sz, int r, int g, int b, int *w, int *h){
@@ -104,14 +104,14 @@ static JSValue j_texttop(JSContext *c, JSValueConst t, int n, JSValueConst *a){ 
   const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0, al = n > 7 ? ai(c,a[7]) : 0; SDL_Texture *tx = (s && *s) ? gettext(s, ai(c,a[3]), ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), &w, &h) : NULL; JS_FreeCString(c, s);
   if (!tx || ntop >= 160) return JS_NewInt32(c, 0);
   int x = ai(c,a[1]); if (al == 1) x -= w / 2; else if (al == 2) x -= w;
-  TTF_Font *ft = getfont(ai(c,a[3])); int dyn = ft ? (int)(ai(c,a[3]) * 0.86) - TTF_FontAscent(ft) : 0;
+  TTF_Font *ft = getfont(ai(c,a[3])); int dyn = ft ? (int)(abs(ai(c,a[3])) * 0.86) - TTF_FontAscent(ft) : 0;
   TopImg *q = &topq[ntop++]; q->kind = 2; q->tx = tx; q->d.x = x + curview.x; q->d.y = ai(c,a[2]) + dyn + curview.y; q->d.w = w; q->d.h = h; q->sr.x = 0; q->sr.y = 0; q->sr.w = w; q->sr.h = h; return JS_NewInt32(c, w); }
 static JSValue j_text(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0; int al = n > 7 ? ai(c,a[7]) : 0;
   SDL_Texture *tx = (s && *s) ? gettext(s, ai(c,a[3]), ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), &w, &h) : NULL; JS_FreeCString(c, s);
   if (!tx) return JS_NewInt32(c, 0);
   int x = ai(c,a[1]); if (al == 1) x -= w / 2; else if (al == 2) x -= w;
-  TTF_Font *ft = getfont(ai(c,a[3])); int dyn = ft ? (int)(ai(c,a[3]) * 0.86) - TTF_FontAscent(ft) : 0; /* 漢字の字面の上端を y に合わせる(フォントごとの行の高さの違いで、下に寄らないように) */
+  TTF_Font *ft = getfont(ai(c,a[3])); int dyn = ft ? (int)(abs(ai(c,a[3])) * 0.86) - TTF_FontAscent(ft) : 0; /* 漢字の字面の上端を y に合わせる(フォントごとの行の高さの違いで、下に寄らないように) */
   SDL_Rect d = { x, ai(c,a[2]) + dyn, w, h }; SDL_SetTextureAlphaMod(tx, 255); SDL_RenderCopy(ren, tx, NULL, &d); return JS_NewInt32(c, w); }
 static JSValue j_imagerot(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 回して描く: (x,y)は、回したあとの外枠の左上。w,hは、回す前の大きさ */
   const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getimg(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE;

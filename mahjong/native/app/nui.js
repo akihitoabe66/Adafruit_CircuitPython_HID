@@ -82,7 +82,7 @@
   const youSrc = () => YOU_OLD ? 'img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp' : skin('img/zunda/' + String(ZN[S.mood && S.moodUntil > __now() ? S.mood : 'normal']).padStart(2, '0') + '.webp');
   function setMood(m, ms) { S.mood = m; S.moodUntil = __now() + (ms || 60000); dirty(); }
   const BW = 360, BH = 110, FSZ = 94, BUBP = { 0: [250, 150], 1: [336, 150], 2: [360, 40], 3: [70, 150] }; // セリフの吹き出し(と、ポン・チー・ロンなどの宣言)の大きさ・顔の大きさ・席ごとの位置
-  const CALL_V = globalThis.__callEnv === 'new2' ? 2 : globalThis.__callEnv === 'new3' ? 3 : 0; // 宣言の見た目の試験: 2=顔に角丸の縁+白ぶち文字+影 / 3=影を、さらに濃く
+  const CALL_V = globalThis.__callEnv === 'new2' ? 2 : globalThis.__callEnv === 'new3' ? 3 : globalThis.__callEnv === 'new4' ? 4 : 0; // 宣言の見た目の試験: 2=顔に角丸の縁+白ぶち文字+影 / 3=影を、さらに濃く
   const CALL_NEW = globalThis.__callEnv === 'new'; // 宣言(ポン・チー・ロン・リーチ)を、セリフと同じ見た目・位置にする(試験中)
   const TYADJ = 0; // 宣言の文字を、顔の中心に合わせるための微調整
   /* 顔の向き: 右向きの人は下家(右の席)で、左向きの人は上家(左の席)で、左右反転する(正面向きと対面は、そのまま)。番号はキャラクターの番号 */
@@ -400,11 +400,11 @@
     // 演出: 札の文字が、少し大きいところから縮んで止まる
     if (S.banner && S.banner.call && S.banner.p && CALL_V) { // 宣言(試験): 顔(セリフと同じ大きさ・角丸の白い縁)と、白ぶちの大きな文字+影。吹き出しの背景は、なし
       const bn = S.banner, pos = BUBP[bn.p.seat] || [250, 150], sd = bn.p.seat, k = Math.min(1, (__now() - bn.t0) / 160), sz = k < 0.5 ? 84 : 76, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [230, 0, 18] : [196, 139, 255];
-      const tw = gfx.measure(bn.text, sz), gw = FSZ + 16 + tw, gx = sd === 1 ? pos[0] + BW - gw : sd === 3 ? pos[0] : pos[0] + Math.round((BW - gw) / 2), gy = pos[1] + 8;
+      const tw = gfx.measure(bn.text, CALL_V === 4 ? -sz : sz), gw = FSZ + 16 + tw, gx = sd === 1 ? pos[0] + BW - gw : sd === 3 ? pos[0] : pos[0] + Math.round((BW - gw) / 2), gy = pos[1] + 8;
       face(bn.p, gx, gy, FSZ, FSZ); rframe(gx - 3, gy - 3, FSZ + 6, FSZ + 6, 8, 4, [255, 255, 255]); rframe(gx - 5, gy - 5, FSZ + 10, FSZ + 10, 9, 2, [30, 30, 30]); // 顔の縁(白+外に細い黒。角は、小さな丸み)
-      const tx = gx + FSZ + 16, ty = gy + Math.round((FSZ - sz) / 2) + TYADJ, sh = CALL_V === 3 ? [[8, 10, [30, 56, 46]], [6, 8, [14, 30, 24]], [4, 5, [0, 0, 0]]] : [[5, 6, [6, 20, 14]]];
-      sh.forEach((o) => text(bn.text, tx + o[0], ty + o[1], sz, o[2], 0)); // 影(CALL_V===3 は、ぼかしのように3枚かさねて、濃く)
-      [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, tx + d[0], ty + d[1], sz, [255, 255, 255])); text(bn.text, tx, ty, sz, col);
+      const tx = gx + FSZ + 16, ty = gy + Math.round((FSZ - sz) / 2) + TYADJ, sh = CALL_V >= 3 ? [[8, 10, [30, 56, 46]], [6, 8, [14, 30, 24]], [4, 5, [0, 0, 0]]] : [[5, 6, [6, 20, 14]]], fz = CALL_V === 4 ? -sz : sz, ol = CALL_V === 4 ? 5 : 4; // 4=太字(ボールド)+ふちも少し太く
+      sh.forEach((o) => text(bn.text, tx + o[0], ty + o[1], fz, o[2], 0)); // 影(CALL_V===3 は、ぼかしのように3枚かさねて、濃く)
+      [[-ol, 0], [ol, 0], [0, -ol], [0, ol], [-ol + 1, -ol + 1], [ol - 1, -ol + 1], [-ol + 1, ol - 1], [ol - 1, ol - 1]].forEach((d) => text(bn.text, tx + d[0], ty + d[1], fz, [255, 255, 255])); text(bn.text, tx, ty, fz, col);
     } else if (S.banner && S.banner.call && S.banner.p && CALL_NEW) { // 宣言: セリフと同じ吹き出し・同じ位置に、色のついた大きな文字
       const bn = S.banner, pos = BUBP[bn.p.seat] || [250, 150], k = Math.min(1, (__now() - bn.t0) / 160), sz = k < 0.5 ? 72 : 64, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [230, 0, 18] : [150, 80, 220];
       rrect(pos[0] + 2, pos[1] + 3, BW, BH, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, BH, 10, [240, 243, 238]);
