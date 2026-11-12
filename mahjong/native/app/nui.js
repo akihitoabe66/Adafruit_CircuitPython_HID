@@ -1317,13 +1317,13 @@
     Object.keys(VTITLES).forEach((k) => { if (!have[k]) files.push({ n: +k, name: 'v' + k, title: VTITLES[k], path: null, png: 'img/video/' + ('0' + k).slice(-2) + '.webp' }); }); // 動画ファイルが まだ無くても、一覧(サムネイル)には出す
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
   }
-  const vStatus = (f, d0) => { const d = d0 || S.vid.d; return d.done[f.name] ? 'done' : (d.pos[f.name] || 0) > 3 ? 'cont' : 'new'; };
+  const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
   window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   function startVideo() {
-    const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last && vStatus(f, d) === 'cont');
+    const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last);
     S.vid = { view: 'list', files: sc.files, dir: sc.dir, d, sel: Math.max(0, last), top: 0, hs: 0, last, ask: null }; S.mode = 'video'; vFit(); dirty();
   }
   function vFit() { const V = S.vid, n = V.files.length; V.top = n <= 8 ? 0 : Math.max(0, Math.min(V.sel - 5, n - 8)); } // カーソルは6番目で止まり、そこからは一覧のほうが動く(最後の8本のところだけ、カーソルが下へ進む)
@@ -1333,14 +1333,14 @@
     try { NSND.music(''); snd.musicVol(vVol()); } catch (e) { /* ignore */ }
     const r = __vopen(f.path, from || 0); if (!r) { V.view = 'list'; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
     const now = __now(); V.sel = i; V.view = 'play'; V.p = { f, i, dur: r.dur || 0, ui: now + 2500, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now, st: [from || 0, r.dur || 0, 0, 0, 0], sig: '' };
-    V.d.last = f.name; vSave(); dirty();
+    V.d.last = f.name; (V.d.dur = V.d.dur || {})[f.name] = r.dur || 0; vSave(); dirty();
   }
   const vVol = () => { const v = S.vid && S.vid.d && S.vid.d.vol; return typeof v === 'number' ? v : 0.55; }; // 動画の音量(0〜1)。BGMとは別に、おぼえておく
   function vStop(markEnd) { // 動画をとじて、一覧へ
     const V = S.vid, p = V.p; if (!p) return;
     const st = __vstate(); const pos = st ? st[0] : p.st[0];
     if (markEnd || (p.dur > 20 && pos >= p.dur - 15)) { V.d.done[p.f.name] = true; delete V.d.pos[p.f.name]; } else V.d.pos[p.f.name] = Math.floor(pos);
-    vSave(); __vclose(); V.p = null; V.view = 'list'; V.last = V.files.findIndex((f) => f.name === V.d.last && vStatus(f) === 'cont'); vFit(); try { NSND.home(); } catch (e) { /* ignore */ } dirty();
+    vSave(); __vclose(); V.p = null; V.view = 'list'; V.last = V.files.findIndex((f) => f.name === V.d.last); vFit(); try { NSND.home(); } catch (e) { /* ignore */ } dirty();
   }
   function vTick(now) { // 動画を見ているあいだ、毎コマ呼ばれる
     const V = S.vid; if (!V || V.view !== 'play' || !V.p) return;
@@ -1414,15 +1414,18 @@
       const i = V.top + r; if (i >= n) break; const f = V.files[i], y = 58 + r * 44, on = i === V.sel, ss = vStatus(f);
       panel(14, y, 350, 40, 10, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255);
       rrect(24, y + 5, 36, 30, 6, GREEN); text(('0' + f.n).slice(-2), 42, y + 8, 18, WHITE, 1);
-      const bw = !f.path ? 60 : ss === 'new' ? 0 : ss === 'done' ? 96 : 66; text(f.title, 68, y + 7 + 0, fitSz(f.title, 21, 286 - bw, 14), INK);
-      if (!f.path) { rrect(300, y + 8, 54, 24, 11, [140, 140, 130]); text('なし', 327, y + 10, 15, WHITE, 1); } else if (ss === 'done') { rrect(260, y + 8, 94, 24, 11, [60, 138, 60]); text('✔ 見おわり', 307, y + 10, 15, WHITE, 1); } else if (ss === 'cont') { rrect(290, y + 8, 64, 24, 11, QRED); text('つづき', 322, y + 10, 15, WHITE, 1); }
+      const isLast = i === V.last, ps = V.d.pos[f.name] || 0, dd = (V.d.dur && V.d.dur[f.name]) || Math.max(ps * 2, 600), bw = !f.path ? 60 : isLast ? 106 : ss === 'cont' ? 66 : 0; text(f.title, 68, y + 7 + 0, fitSz(f.title, 21, 286 - bw, 14), INK);
+      if (!f.path) { rrect(300, y + 8, 54, 24, 11, [140, 140, 130]); text('なし', 327, y + 10, 15, WHITE, 1); }
+      else if (isLast) { const lb = '前回' + (ss === 'cont' ? ' ' + vfmt(ps) : ''); rrect(248, y + 8, 106, 24, 11, QRED); text(lb, 301, y + 10, 15, WHITE, 1); } // 前回見た1本だけ、赤い札
+      else if (ss === 'cont') { rrect(300, y + 16, 54, 8, 4, [210, 205, 185]); rrect(300, y + 16, Math.max(8, Math.round(54 * Math.min(1, ps / dd))), 8, 4, [90, 150, 100]); } // 途中まで見たものは、進み棒
+      if (isLast) { fill(2, y + 10, 3, 20, YEL); fill(5, y + 12, 3, 16, YEL); fill(8, y + 14, 3, 12, YEL); } // 左の ▶ 印(前回の場所)
     }
     if (V.top > 0) text('▲', 189, 48, 14, YEL, 1); if (V.top + 8 < n) text('▼', 189, 412, 14, YEL, 1);
     if (V.top + 8 < n) { fill(10, 58 + 6 * 44 - 2, 358, 44, [8, 24, 18], 90); fill(10, 58 + 7 * 44 - 2, 358, 46, [8, 24, 18], 150); } // 下の2本を、うすく: まだ つづきが あると分かるように
     const f = V.files[V.sel], ss = vStatus(f);
     panel(384, 58, 430, 244, 12, [16, 56, 42], [150, 190, 140], 3, 255); vThumb(f, 394, 68, 410, 230);
     panel(384, 316, 430, 100, 12, CREAM, GREEN, 3, 255); text(f.title, 599, 326, fitSz(f.title, 26, 400, 16), INK, 1);
-    text(!f.path ? '(動画ファイルが まだ ありません)' : ss === 'done' ? '✔ 見おわりました' : ss === 'cont' ? 'つづき: ' + vfmt(V.d.pos[f.name]) + ' から' : 'まだ 見ていません', 599, 368, 21, ss === 'cont' ? [200, 60, 40] : [70, 100, 60], 1);
+    text(!f.path ? '(動画ファイルが まだ ありません)' : ss === 'done' ? 'もう一度 見られます' : ss === 'cont' ? 'つづき: ' + vfmt(V.d.pos[f.name]) + ' から' : 'まだ 見ていません', 599, 368, 21, ss === 'cont' ? [200, 60, 40] : [70, 100, 60], 1);
     if (V.err) { fill(0, 200, SW, 60, [0, 0, 0], 200); text(V.err, SW / 2, 214, 22, YEL, 1); }
   }
   function drawVideoPlay(V) {
@@ -1448,7 +1451,7 @@
   function startStudy(sel) {
     const d = learnLoad(), ST = MJ.Learn.STEPS, nDone = ST.filter((s) => d.done[s.id]).length;
     let nx = ST.findIndex((s) => !d.done[s.id]); if (nx < 0) nx = 0; if (d.bm && d.bm.read && !d.done[ST[d.bm.step] && ST[d.bm.step].id]) nx = d.bm.step;
-    const sc = vScan(), vd = vLoad(); let vi = sc.files.findIndex((f) => f.name === vd.last && (vd.pos[f.name] || 0) > 3 && !vd.done[f.name]); const cont = vi >= 0; if (vi < 0) vi = Math.max(0, sc.files.findIndex((f) => f.path && !vd.done[f.name])); if (vi < 0 || !sc.files[vi]) vi = 0;
+    const sc = vScan(), vd = vLoad(); let vi = sc.files.findIndex((f) => f.name === vd.last && (vd.pos[f.name] || 0) >= 30 && !vd.done[f.name]); const cont = vi >= 0; if (vi < 0) vi = Math.max(0, sc.files.findIndex((f) => f.path && !vd.done[f.name])); if (vi < 0 || !sc.files[vi]) vi = 0;
     S.study = { sel: sel || 0, nDone, total: ST.length, nx, nxStep: ST[nx], vf: sc.files[vi], cont, vpos: cont ? vd.pos[sc.files[vi].name] : 0, vn: sc.files.length, vhave: sc.files.filter((f) => f.path).length }; S.mode = 'study'; dirty();
   }
   function studyKey(k) {
