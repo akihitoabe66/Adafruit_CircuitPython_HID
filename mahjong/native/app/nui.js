@@ -1007,7 +1007,7 @@
       if (!p) { q.phase = 'fail'; dirty(); return; }
       q.p = p; q.n++; q.phase = 'ask'; q.idx = 0;
       q.disp = (p.hand || []).slice().sort((a, b) => a.t - b.t);
-      q.rv = qRiverInfo(p); { const hs = mark(p.sit || '') + (p.sit ? '\n' : '') + mark(p.prompt || ''), f = q.rv ? fitRich(hs, [26, 24, 22, 20, 18], 770, 110) : fitRich(hs, [30, 28, 26, 24, 22, 20, 18], 770, p.kind === 'choice' ? 140 : 262); q.hsz = f.sz; q.head = f.lines; q.hh = f.h; }
+      q.rv = qRiverInfo(p); { const hs = mark(p.sit || '') + (p.sit ? '\n' : '') + mark(String(p.prompt || '').replace(/<span class="cc-s">[\s\S]*?<\/span>/g, '').replace(/(<br\s*\/?>\s*)+$/, '')), f = q.rv ? fitRich(hs, [26, 24, 22, 20, 18], 770, 110) : fitRich(hs, [30, 28, 26, 24, 22, 20, 18], 770, p.kind === 'choice' ? 140 : 262); q.hsz = f.sz; q.head = f.lines; q.hh = f.h; }
       q.opts = (p.options || []).slice(0, 4).map((o) => { const f = fitRich(mark(o.html), [28, 26, 24, 22, 20, 18], 290, 50); return { id: o.id, lines: f.lines, sz: f.sz, h: f.h }; });
       dirty();
     }, 60);
@@ -1100,7 +1100,8 @@
     if (p.kind === 'choice') q.opts.forEach((o, i) => {
       const x = 30 + (i % 2) * 394, y = 202 + Math.floor(i / 2) * 62, sel = q.idx === i;
       panel(x, y, 378, 54, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 3, 255); rrect(x + 10, y + 10, 34, 34, 17, sel ? [160, 110, 0] : GREEN); text('ABCD'[i], x + 27, y + 12, 24, WHITE, 1);
-      richDraw(o.lines, x + 44 + 167, y + Math.round((54 - o.h) / 2), o.sz, INK, 0, true);
+      const sub = p.cat === 'push' ? ({ push: '手を進める牌を切って 勝負', mawashi: '安全寄りに 受けつつ 進める', fold: '手を崩して 安全牌だけ 切る' })[o.id] : null; // 押し引き: 3つの選びかたの意味を、小さく添える
+      richDraw(o.lines, x + 44 + 167, y + (sub ? 3 : Math.round((54 - o.h) / 2)), o.sz, INK, 0, true); if (sub) text(sub, x + 44 + 167, y + 32, 15, [90, 90, 80], 1);
     });
     const n = q.disp.length, x0 = Math.round((SW - (n * 48 + (p.win ? 62 : 0))) / 2), HYq = 342;
     q.disp.forEach((h, i) => { const sel = p.kind === 'tile' && q.idx === i, x = x0 + i * 48, y = HYq - (sel ? 12 : 0); if (sel) { rrect(x - 5, y - 5, 54, 68, 7, [160, 110, 0]); rrect(x - 3, y - 3, 50, 64, 6, YEL); } tile(h.t, x, y, 44, 58, h.red); });
