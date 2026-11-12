@@ -750,34 +750,56 @@
   const metMark = (ids) => { const a = metLoad(); let ch = false; (ids || []).forEach((i) => { if (i > 0 && !a.includes(i)) { a.push(i); ch = true; } }); if (ch) { try { localStorage.setItem('mj_met', JSON.stringify(a)); } catch (e) { /* ignore */ } } };
   const rosList = () => MJ.CHARS.slice().sort((a, b) => MJ.unlockDan(a.id) - MJ.unlockDan(b.id) || a.id - b.id);
   const ROS_PER = 12;
+  function rosLeave() { // 対戦相手の画面を出る: 段位の画面から入ったときは、段位の画面へ。成績から入ったときは、成績へ
+    if (S.rosFrom) { S.rosFrom = null; S.ros = null; S.mode = S.statsPrev || 'menu'; } else S.ros = null; dirty();
+  }
+  function rosDanOpen() { // 「あなたの段位」: 段位の画面を開く(段位の画面から入っていたら、そこへもどる)
+    if (S.rankScr) { rosLeave(); return; }
+    S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'stats'; dirty(); } }; dirty();
+  }
   function rosKey(k) {
     const R = S.ros, L = rosList(), n = L.length, pages = Math.ceil(n / ROS_PER), pg = Math.floor(R.sel / ROS_PER), i = R.sel % ROS_PER, c = i % 4, r = Math.floor(i / 4);
-    if (k === 'back') { S.ros = null; dirty(); return; }
-    if (k === 'left') { if (c > 0) R.sel--; else if (pg > 0) R.sel = Math.min(n - 1, (pg - 1) * ROS_PER + r * 4 + 3); else S.ros = null; }
+    if (k === 'back') { rosLeave(); return; }
+    if (R.dan) { // 右上の「あなたの段位」に合わせているとき
+      if (k === 'ok') rosDanOpen(); else if (k === 'down') R.dan = false; else if (k === 'up') S.bbf = true;
+      dirty(); return;
+    }
+    if (k === 'left') { if (c > 0) R.sel--; else if (pg > 0) R.sel = Math.min(n - 1, (pg - 1) * ROS_PER + r * 4 + 3); else { rosLeave(); return; } }
     else if (k === 'right') { if (c < 3 && R.sel + 1 < n) R.sel++; else if (pg < pages - 1) R.sel = Math.min(n - 1, (pg + 1) * ROS_PER + r * 4); }
-    else if (k === 'up') { if (r > 0) R.sel -= 4; else S.bbf = true; }
+    else if (k === 'up') { if (r > 0) R.sel -= 4; else R.dan = true; }
     else if (k === 'down') { if (r < 2 && R.sel + 4 < n) R.sel += 4; }
     dirty();
   }
   function drawRoster() {
-    const R = S.ros, L = rosList(), n = L.length, pages = Math.ceil(n / ROS_PER), pg = Math.floor(R.sel / ROS_PER), met = metLoad(), mx = MJ.Rank.get().maxdan || 0;
-    gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 165); fill(0, 48, SW, 2, [150, 190, 140], 160);
-    text('雀士列伝', SW / 2, 8, 28, YEL, 1); text(met.filter((id) => L.some((c) => c.id === id)).length + ' / ' + n + '人と 出会いました', SW - 24, 14, 18, YEL, 2); text((pg + 1) + ' / ' + pages + ' ページ', SW - 24, 36, 14, [200, 220, 205], 2);
+    const R = S.ros, L = rosList(), n = L.length, pages = Math.ceil(n / ROS_PER), pg = Math.floor(R.sel / ROS_PER), met = metLoad(), mx = MJ.Rank.get().maxdan || 0, dan = MJ.Rank.get().dan || 0;
+    gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 165); fill(0, 50, SW, 2, [150, 190, 140], 160);
+    text('対戦相手を 見る', SW / 2 - 60, 10, 28, YEL, 1);
+    { const on = !!R.dan; rrect(560, 8, 252, 40, 12, on ? [160, 110, 0] : GREEN); rrect(563, 11, 246, 34, 10, on ? YEL : CREAM); text('あなたの段位', 576, 19, 16, INK); text(MJ.DAN_NAME(dan), 700, 12, 26, [190, 60, 40], 1); text('▶', 790, 19, 18, [90, 90, 80], 1); }
     const state = (c) => (met.includes(c.id) ? 2 : MJ.unlockDan(c.id) > mx ? 0 : 1); // 2=出会った / 1=まだ(登場はしている) / 0=まだ登場しない(鍵)
+    const X0 = 24, DX = 112, Z = 84, pad = (k) => ('0' + k).slice(-2);
     for (let k = 0; k < ROS_PER; k++) {
-      const idx = pg * ROS_PER + k; if (idx >= n) break; const c = L[idx], st = state(c), sel = idx === R.sel, x = 28 + (k % 4) * 124, y = 62 + Math.floor(k / 4) * 120, z = 84;
-      if (sel) { rrect(x - 8, y - 8, z + 16, z + 40, 10, [160, 110, 0]); rrect(x - 5, y - 5, z + 10, z + 34, 8, YEL); }
-      if (st === 2) { rrect(x - 3, y - 3, z + 6, z + 6, 8, [255, 255, 255]); frame(x - 5, y - 5, z + 10, z + 10, [30, 30, 30], 1); gfx.image(skin(c.face), x, y, z, z, 255); text((c.short || c.name).slice(0, 7), x + z / 2, y + z + 6, 15, sel ? INK : WHITE, 1); }
+      const idx = pg * ROS_PER + k; if (idx >= n) break; const c = L[idx], st = state(c), sel = idx === R.sel && !R.dan, x = X0 + (k % 4) * DX, y = 64 + Math.floor(k / 4) * 116;
+      if (sel) { rrect(x - 8, y - 8, Z + 16, Z + 40, 10, [160, 110, 0]); rrect(x - 5, y - 5, Z + 10, Z + 34, 8, YEL); }
+      if (st === 2) { rrect(x - 3, y - 3, Z + 6, Z + 6, 8, [255, 255, 255]); frame(x - 5, y - 5, Z + 10, Z + 10, [30, 30, 30], 1); gfx.image(skin(c.face), x, y, Z, Z, 255); text((c.short || c.name).slice(0, 7), x + Z / 2, y + Z + 6, 15, sel ? INK : WHITE, 1); }
       else {
-        gfx.image('img/sil/' + ('0' + c.id).slice(-2) + '.webp', x, y, z, z, 255); frame(x - 1, y - 1, z + 2, z + 2, [30, 40, 50], 2);
-        if (st === 0) { fill(x, y, z, z, [0, 0, 0], 90); gfx.image('img/lock.webp', x + z / 2 - 16, y + z / 2 - 22, 32, 44, 255); text(MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'で登場', x + z / 2, y + z + 6, 14, sel ? INK : [255, 214, 120], 1); }
-        else { text('？？？？', x + z / 2, y + z + 6, 15, sel ? INK : [200, 210, 220], 1); }
+        gfx.image('img/sil/' + pad(c.id) + '.webp', x, y, Z, Z, 255); frame(x - 1, y - 1, Z + 2, Z + 2, [30, 40, 50], 2);
+        if (st === 0) { fill(x, y, Z, Z, [0, 0, 0], 90); gfx.image('img/lock.webp', x + Z / 2 - 16, y + Z / 2 - 22, 32, 44, 255); text(MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'で登場', x + Z / 2, y + Z + 6, 14, sel ? INK : [255, 214, 120], 1); }
+        else text('？？？？', x + Z / 2, y + Z + 6, 15, sel ? INK : [200, 210, 220], 1);
       }
     }
-    const c = L[R.sel], st = state(c); panel(540, 62, 268, 352, 14, [6, 28, 18], [140, 190, 130], 3, 255);
-    if (st === 2) { rrect(599, 76, 152, 152, 8, WHITE); gfx.image(skin(c.face), 600, 77, 150, 150, 255); text(c.short || c.name, 674, 236, 24, YEL, 1); { const el = MJ.effLevel ? MJ.effLevel(c.level, MJ.Rank.get().dan || 0) : c.level; text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', 674, 262, 16, WHITE, 1); if (el > c.level) text('いまの段位では  ' + MJ.starStr(el) + '(' + MJ.LEVEL_JP[el] + ')', 674, 306, 16, YEL, 1); } text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), 674, 284, 16, WHITE, 1); const f = fitRich(c.desc || '', [16, 15, 14], 236, 76); richDraw(f.lines, 556, 332, f.sz, [230, 240, 225], 0); }
-    else { gfx.image('img/sil/' + ('0' + c.id).slice(-2) + '.webp', 600, 77, 150, 150, 255); frame(599, 76, 152, 152, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', 646, 120, 56, 78, 255); text('？？？？', 674, 236, 24, YEL, 1); const m = st === 0 ? MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'になると、登場します。' : 'まだ 出会っていません。\n最後まで 対局すると、出会えます。'; const f = fitRich(m, [18, 17, 16], 236, 96); richDraw(f.lines, 556, 290, f.sz, [230, 240, 225], 0); }
-    text('◀ ▶ ▲ ▼ で えらぶ    戻る: もどる', SW / 2, SH - 29, 17, [210, 225, 205], 1);
+    if (pg < pages - 1) { // 次のページの1列目を、左半分くっきり・右半分は透明になっていく絵で見せる(先に まだ人がいると 分かるように)+ 半透明の矢印
+      const nx = X0 + 4 * DX;
+      for (let r = 0; r < 3; r++) { const idx = (pg + 1) * ROS_PER + r * 4; if (idx >= n) break; const c = L[idx], st = state(c), y = 64 + r * 116; gfx.image('img/peek/' + (st === 2 ? 'f' : 's') + pad(c.id) + '.webp', nx, y, Z, Z, 255); if (st === 0) gfx.image('img/lock.webp', nx + 10, y + Z / 2 - 22, 32, 44, 150); }
+      gPoly([[528, 196], [528, 244], [552, 220]], YEL, 200);
+    }
+    if (pg > 0) gPoly([[14, 198], [14, 242], [0, 220]], YEL, 200);
+    const c = L[R.sel], st = state(c), px = 612, py = 64, pw = 200; panel(px, py, pw, 348, 14, [6, 28, 18], [140, 190, 130], 3, 255);
+    if (R.dan) { text('あなたの段位', px + pw / 2, py + 18, 18, YEL, 1); text(MJ.DAN_NAME(dan), px + pw / 2, py + 52, 46, WHITE, 1); const nx2 = (() => { try { return MJ.Rank.newIds(dan, dan + 1).length; } catch (e) { return 0; } })(); if (dan < 11) { text(MJ.DAN_NAME(dan + 1) + 'に なると', px + pw / 2, py + 130, 17, WHITE, 1); text(nx2 ? 'あと ' + nx2 + '人 登場します' : 'つよく なります', px + pw / 2, py + 156, 18, [255, 214, 120], 1); } text('決定ボタンで 段位の画面へ', px + pw / 2, py + 300, 15, [200, 215, 205], 1); }
+    else if (st === 2) { rrect(px + 43, py + 13, 114, 114, 8, WHITE); gfx.image(skin(c.face), px + 44, py + 14, 112, 112, 255); text(c.short || c.name, px + pw / 2, py + 134, fitSz(c.short || c.name, 22, 180, 14), YEL, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', px + pw / 2, py + 166, 14, WHITE, 1); const el = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; if (el > c.level) text('いまの段位では ' + MJ.starStr(el), px + pw / 2, py + 186, 14, YEL, 1); text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), px + pw / 2, py + (el > c.level ? 206 : 188), 14, WHITE, 1); const f = fitRich(c.desc || '', [15, 14, 13], 176, 104); richDraw(f.lines, px + 12, py + 232, f.sz, [230, 240, 225], 0); }
+    else { gfx.image('img/sil/' + pad(c.id) + '.webp', px + 44, py + 14, 112, 112, 255); frame(px + 43, py + 13, 114, 114, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', px + 77, py + 45, 46, 64, 255); text('？？？？', px + pw / 2, py + 134, 22, YEL, 1); const m = st === 0 ? MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'になると、\n登場します。' : 'まだ 出会っていません。\n4局以上 最後まで 対局すると、\n出会えます。'; const f = fitRich(m, [15, 14, 13], 176, 120); richDraw(f.lines, px + 12, py + 176, f.sz, [230, 240, 225], 0); }
+    for (let k = 0; k < pages; k++) { const cx = 190 + k * 26; rrect(cx - 7, 424, 14, 14, 7, k === pg ? YEL : [80, 100, 90]); }
+    text('出会った ' + met.filter((id) => L.some((x) => x.id === id)).length + ' / ' + n + '人', 24, 423, 16, YEL); text((pg + 1) + ' / ' + pages, 280, 423, 16, [200, 220, 205]);
+    text('◀ ▶ ▲ ▼ で えらぶ    戻る: もどる', SW / 2 + 80, SH - 28, 15, [210, 225, 205], 1);
   }
   function drawStats() {
     if (S.ros) { drawRoster(); return; }
@@ -793,7 +815,7 @@
     if (!cur.length) text('まだ、対戦の記録がありません。', 600, 120, 18, WHITE, 1);
     cur.forEach((x, i) => { const y = 70 + i * 92; fill(560, y, 252, 84, [235, 235, 225], 235); gfx.image(skin(x.c.face), 566, y + 6, 72, 72, 255); text(x.c.short || x.c.name, 646, y + 8, 18, BLACK); text('対戦 ' + x.o.n + '回', 646, y + 34, 15, [70, 70, 70]); text('勝ち ' + x.o.w + '  勝率 ' + Math.round(x.o.w / x.o.n * 100) + '%', 646, y + 56, 15, [20, 90, 50]); });
     text('◀ ' + (pg + 1) + ' / ' + pages + ' ▶', 686, 352, 16, WHITE, 1);
-    rrect(300, 392, 232, 38, 12, [40, 100, 70]); text('▼ 雀士列伝を 見る', 416, 398, 20, WHITE, 1);
+    rrect(300, 392, 232, 38, 12, [40, 100, 70]); text('▼ 対戦相手を 見る', 416, 398, 20, WHITE, 1);
   }
   /* ---------- 段位の画面(背景の絵の座標は、絵のピクセル 1404x768) ---------- */
   /* ---------- 昇段のおいわい: 認定証(あなたの絵・判子つき)→ 新しい雀士の登場 ---------- */
@@ -841,7 +863,7 @@
     const bx = Math.round(531 * K), by = Math.round(506 * K) + 6, bw = Math.round(350 * K), bh = Math.round(46 * K);
     fill(bx, by, bw, bh, [26, 18, 10]); fill(bx, by, Math.round(bw * Math.max(f.prog > 0 ? 0.04 : 0, f.prog)), bh, [235, 200, 110]);
     if (f.next) at(706, 529, 26, (f.s.pt - f.base) + ' / ' + (f.next_pt - f.base), DK);
-    { const bl = ['対戦成績', '◀ もどる'], bwid = [150, 150]; let bx2 = SW / 2 - 160; const idx = S.rankScr.idx || 0; bl.forEach((l, i) => { brownBtn(bx2, SH - 52, bwid[i], 38, l, idx === i, 18); bx2 += bwid[i] + 20; }); }
+    { const bl = ['対戦成績', '対戦相手を見る', '◀ もどる'], bwid = [150, 200, 150]; let bx2 = Math.round(SW / 2 - (bwid.reduce((a, b) => a + b, 0) + 20 * (bwid.length - 1)) / 2); const idx = S.rankScr.idx || 0; bl.forEach((l, i) => { brownBtn(bx2, SH - 52, bwid[i], 38, l, idx === i, 18); bx2 += bwid[i] + 20; }); }
     if (rk) at(702, 625, 28, (rk.delta > 0 ? '+' : '') + rk.delta + '点' + (rk.msg ? '  ' + rk.msg : ''), CR);
     if (__auto && globalThis.__shotDir && !S._rkShot) { S._rkShot = 1; gfx.shot(__shotDir + '/rank.bmp'); }
   }
@@ -1428,7 +1450,7 @@
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
-  window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
+  window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
@@ -1778,7 +1800,7 @@
     NSND.sfx(k === 'ok' ? 'ok' : k === 'back' ? 'click' : 'select', 0.5);
     if (S.cert) { certKey(k); return; }
     if (S.reveal) { revealKey(k); return; }
-    if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = 1 - (r.idx || 0); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 1)) { S.rankScr = null; r.done(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; } return; }
+    if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = wrap((r.idx || 0) + (k === 'left' ? -1 : 1), 3); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 2)) { S.rankScr = null; r.done(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; if ((r.idx || 0) === 1) { S.ros = { sel: 0 }; S.rosFrom = 'rank'; } } return; }
     if (k === 'menu' && !S.menuP) { openMenu(); return; } // スタート+セレクト長押し
     if (S.menuP) {
       const items = menuItems();
