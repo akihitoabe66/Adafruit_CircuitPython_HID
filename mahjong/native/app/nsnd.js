@@ -64,8 +64,7 @@
       res.wins.forEach((w) => {
         const r = w.res;
         // 「桃太郎 ツモ!」: 上がった人の名前 + ツモ/ロン(あなたも)。「の」は入れない(声が、つなぎ言葉として合わないため)
-        if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name);
-        keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null);
+        if (w.winner.isHuman) { if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name); keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null); } // CPUが上がったときは、その人の声で「ツモ/ロン」と言ったばかり。ずんだもんの「〇〇 ツモ」を重ねない
         r.yaku.forEach((y) => {
           if (w.tsumo && y.n === '門前清自摸和') return; // 「ツモ」は、いま言ったので、くりかえさない
           if (y.n === 'ドラ' || y.n === '赤ドラ' || y.n === '裏ドラ') keys.push('y:' + (y.n === 'ドラ' ? 'ドラ' : y.n === '赤ドラ' ? 'アカドラ' : 'ウラドラ'), 'n:' + Math.min(13, y.h));

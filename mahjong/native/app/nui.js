@@ -1035,7 +1035,7 @@
     try { r = p.grade(ans); } catch (e) { print('quiz grade err ' + (e && e.stack || e)); r = { r: 'ng', html: '<p>採点できませんでした。</p>' }; }
     try { MJ.Stats.quiz(p, r.r === 'ok'); } catch (e) { /* ignore */ }
     q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7); q.wrongRun = r.r === 'ng' ? (q.wrongRun || 0) + 1 : 0; r.alt = r.r === 'ng' && q.wrongRun % 2 === 0; // つづけて まちがえたとき、2回目は「ちがうよ」(同じ声ばかりにならないように)
-    setTimeout(() => { try { NSND.speak(NSND.nanoda(['q:' + (r.r === 'ok' ? '正解' : r.r === 'near' ? 'おしい' : r.alt ? 'ちがうよ' : '不正解')])); } catch (e) { /* ignore */ } }, 500); // 答え合わせの声
+    setTimeout(() => { try { { const kk = ['q:' + (r.r === 'ok' ? '正解' : r.r === 'near' ? 'おしい' : r.alt ? 'ちがうよ' : '不正解')]; NSND.speak(r.r === 'ok' ? NSND.nanoda(kk) : kk); } } catch (e) { /* ignore */ } }, 500); // 答え合わせの声(「なのだ」は、正解のときだけ)
     { // 解説は、入りきる大きさの字で出す。長いときは、おまけの説明(小さな注)と、うしろの段落を はぶいて、スクロールさせない
       const paras = mark(String(r.html).replace(/<div class="cc-s">[\s\S]*?<\/div>/g, '')).split('\n').filter((x) => x.trim() !== '');
       let f = null; while (paras.length) { f = fitRich(paras.join('\n'), [28, 26, 24, 22, 20], 730, 236); if (f.h <= 236 || paras.length <= 1) break; paras.pop(); }
@@ -1250,7 +1250,7 @@
     for (let r = 0; r < 8; r++) {
       const i = L.top + r; if (i >= n) break; const st = STEPS[i], y = 58 + r * 44, on = L.sel === i && L.view === 'map', done = !!D.done[st.id];
       panel(14, y, 366, 40, 10, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255);
-      rrect(24, y + 5, 36, 30, 6, done ? [60, 138, 60] : GREEN); text(done ? '✔' : String(i + 1), 42, y + 8, 18, WHITE, 1);
+      rrect(24, y + 5, 36, 30, 6, done ? [60, 138, 60] : GREEN); text(done ? '合' : String(i + 1), 42, y + 8, 18, WHITE, 1);
       text(st.t, 68, y + 8, fitSz(st.t, 21, 232, 14), INK);
       rrect(316, y + 8, 52, 24, 11, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, 342, y + 10, 15, WHITE, 1);
     }
@@ -1261,7 +1261,7 @@
     const ts = fitSz(st.t, 32, 390, 20); text(st.t, 606, 104, ts, YEL, 1);
     const ls = richWrap(st.sum, 22, 380); richDraw(ls, 416, 162, 22, WHITE, 0);
     fill(416, 296, 380, 2, [150, 190, 140]);
-    text(done ? '✔ おぼえました' : 'まだ おぼえていません', 606, 312, 22, done ? [150, 240, 190] : [200, 225, 200], 1);
+    text(done ? '合格! おぼえました' : 'まだ おぼえていません', 606, 312, 22, done ? [150, 240, 190] : [200, 225, 200], 1);
     text(bm ? 'しおり: ここまで 読みました' : STEPS[L.sel].pages.length + 'ページの 読み物と、クイズが あります', 606, 350, 17, bm ? [255, 170, 150] : [255, 233, 160], 1);
     drawLearnSub(L);
   }
@@ -1310,7 +1310,7 @@
     pgi[pi].forEach((i, r) => {
       const st = STEPS[i], y = 100 + r * 64, sel = L.sel === i && L.view === 'map', done = !!D.done[st.id], bm = D.bm.step === i;
       panel(24, y, SW - 48, 58, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
-      rrect(34, y + 9, 40, 40, 20, done ? GREEN : [160, 170, 150]); text(done ? '✔' : String(i + 1), 54, y + 13, 28, WHITE, 1);
+      rrect(34, y + 9, 40, 40, 20, done ? GREEN : [160, 170, 150]); text(done ? '合' : String(i + 1), 54, y + 13, 28, WHITE, 1);
       text(st.t, 90, y + 5, 26, INK); text(st.sum, 92, y + 36, 16, [80, 80, 70]);
       rrect(SW - 150, y + 15, 58, 28, 9, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, SW - 121, y + 17, 18, WHITE, 1);
       if (bm && (D.bm.read || D.bm.next)) { rrect(SW - 84, y + 14, 56, 28, 9, D.bm.read ? QRED : [80, 130, 190]); text(D.bm.read ? 'しおり' : 'つぎ', SW - 56, y + 17, 18, WHITE, 1); }
