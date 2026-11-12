@@ -26,7 +26,7 @@
 
 static SDL_Texture *tgt = NULL; static SDL_Texture *lay[6]; static SDL_Rect curview = { 0, 0, 832, 468 };
 static SDL_Window *win; static SDL_Renderer *ren; static JSContext *ctx; static JSRuntime *rt;
-static char root[1024] = "."; static int quitf = 0; static TTF_Font *fonts[64]; static int fsz[64]; static int nfonts = 0;
+static char root[1024] = "."; static int quitf = 0; static TTF_Font *fonts[200]; static int fsz[200]; static int nfonts = 0;
 static char fontpath[1024];
 #define W 832
 #define H 468
@@ -64,7 +64,7 @@ static SDL_Texture *getsil(const char *path, int *w, int *h){
 }
 static TTF_Font *getfont(int sz){ /* sz がマイナスのときは、太字(字の大きさ = -sz) */
   for (int i = 0; i < nfonts; i++) if (fsz[i] == sz) return fonts[i];
-  if (nfonts >= 64) return fonts[0];
+  if (nfonts >= 200) { int best = 0, bd = 1 << 30; for (int i = 0; i < nfonts; i++) { int d = abs(abs(fsz[i]) - abs(sz)) * 4 + ((fsz[i] < 0) != (sz < 0)); if (d < bd) { bd = d; best = i; } } return fonts[best]; } /* いっぱいのときは、いちばん近い大きさの字を使う(小さな字にならないように) */
   TTF_Font *f = TTF_OpenFont(fontpath, sz < 0 ? -sz : sz); if (f && sz < 0) TTF_SetFontStyle(f, TTF_STYLE_BOLD); if (!f) { fprintf(stderr, "font? %s\n", TTF_GetError()); return NULL; }
   fonts[nfonts] = f; fsz[nfonts++] = sz; return f;
 }
@@ -298,7 +298,7 @@ int main(int argc, char **argv){
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
   reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "fillTop", j_filltop, 8); reg(gfx, "textTop", j_texttop, 8); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
-  reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "shot", j_shot, 1); reg(gfx, "snap", j_snap, 1);
+  reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1); reg(g, "__readdir", j_readdir, 1); reg(g, "__vopen", j_vopen, 2); reg(g, "__vstate", j_vstate, 0); reg(g, "__vseek", j_vseek, 1); reg(g, "__vpause", j_vpause, 1); reg(g, "__vclose", j_vclose, 0); JS_SetPropertyStr(ctx, g, "__dataDir", JS_NewString(ctx, datadir));
@@ -346,7 +346,7 @@ int main(int argc, char **argv){
     }
     if (keep > 0) { double t0 = nowms(); SDL_RenderClear(ren); SDL_RenderCopy(ren, tgt, NULL, NULL); vid_render(); for (int i = 0; i < ntop; i++) { if (topq[i].kind == 1) { SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); SDL_SetRenderDrawColor(ren, topq[i].r, topq[i].g, topq[i].b, topq[i].a); SDL_RenderFillRect(ren, &topq[i].d); } else { SDL_SetTextureAlphaMod(topq[i].tx, 255); SDL_RenderCopy(ren, topq[i].tx, &topq[i].sr, &topq[i].d); } } { static double st0 = 0; static int dn[16]; if (!st0) st0 = nowms(); const char *sp = getenv("MJ_SNAP"), *sl = getenv("MJ_SNAPS"); if (sp && sl) { char b[256]; strncpy(b, sl, 255); b[255] = 0; int ti = 0; for (char *t = strtok(b, ","); t && ti < 16; t = strtok(NULL, ","), ti++) if (!dn[ti] && nowms() - st0 >= atoi(t)) { dn[ti] = 1; char fn[1600]; snprintf(fn, sizeof fn, "%s_%s.bmp", sp, t); int ow, oh; SDL_GetRendererOutputSize(ren, &ow, &oh); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, ow, oh, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, fn); SDL_FreeSurface(su); } } } if (snappath[0]) { int ow, oh; SDL_GetRendererOutputSize(ren, &ow, &oh); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, ow, oh, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, snappath); SDL_FreeSurface(su); snappath[0] = 0; } SDL_RenderPresent(ren); keep--; perf_pres += nowms() - t0; perf_p++; }
     frames++; if (maxframes && frames >= maxframes) break;
-    if (perf && nowms() - perf_t0 > 3000) { printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); { long rss = 0; FILE *sf = fopen("/proc/self/statm", "r"); if (sf) { long a; if (fscanf(sf, "%ld %ld", &a, &rss) < 2) rss = 0; fclose(sf); } JSMemoryUsage mu; JS_ComputeMemoryUsage(rt, &mu); printf("perf2: 思考・進行 合計%.0fms 最大%.0fms / JS %ldMB / 全体 %ldMB / 絵%d 文字%d\n", perf_logic, perf_logicmax, (long)(mu.malloc_size / 1048576), rss * 4 / 1024, nimg, ntxt); } fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = perf_logic = perf_logicmax = 0; perf_n = perf_p = 0; }
+    if (perf && nowms() - perf_t0 > 3000) { printf("fonts=%d\n", nfonts); printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); { long rss = 0; FILE *sf = fopen("/proc/self/statm", "r"); if (sf) { long a; if (fscanf(sf, "%ld %ld", &a, &rss) < 2) rss = 0; fclose(sf); } JSMemoryUsage mu; JS_ComputeMemoryUsage(rt, &mu); printf("perf2: 思考・進行 合計%.0fms 最大%.0fms / JS %ldMB / 全体 %ldMB / 絵%d 文字%d\n", perf_logic, perf_logicmax, (long)(mu.malloc_size / 1048576), rss * 4 / 1024, nimg, ntxt); } fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = perf_logic = perf_logicmax = 0; perf_n = perf_p = 0; }
   }
   return 0;
 }
