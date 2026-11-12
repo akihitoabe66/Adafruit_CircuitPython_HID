@@ -93,6 +93,7 @@
         if (rest.length && Math.random() < 0.5) { const c = pick(rest); out.push({ p: c, text: fill(fresh(GEN[gOf(c)].humanWin), o) }); }
       }
     } catch (e) { /* ignore */ }
-    return out.slice(0, 2);
+    // いつも言うわけではない: 1つめ(上がった人の自慢など)は 7割、2つめ(悔しがり・返事)は 5割の確率で出す
+    return out.slice(0, 2).filter((l, i) => Math.random() < (i === 0 ? 0.7 : 0.5));
   };
 })(typeof window !== 'undefined' ? window : globalThis);

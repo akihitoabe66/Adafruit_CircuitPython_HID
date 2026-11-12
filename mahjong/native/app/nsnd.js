@@ -36,10 +36,10 @@
     call(p, text) {
       const K = { 'リーチ': 'riichi', 'ポン': 'pon', 'チー': 'chi', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[text]; if (!K) return;
       const id = p && p.char && p.char.voice != null ? p.char.voice : 0; const path = 'audio/voice/' + id + '_' + K + '.mp3'; snd.play(path, V.voice);
-      if (id === 0 && yk && yk['x:なのだ'] && Math.random() < 0.25) { const L = snd.len(path) || 0.6; setTimeout(() => A.speak([Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ']), Math.round((L - 0.1) * 1000)); } // あなた(ずんだもん)の掛け声のあと、ときどき「なのだ」
+      if (id === 0 && yk && yk['x:なのだ'] && Math.random() < 0.3) { const L = snd.len(path) || 0.6; setTimeout(() => A.speak([Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ']), Math.round((L - 0.1) * 1000)); } // あなた(ずんだもん)の掛け声のあと、ときどき「なのだ」
     },
     /* 語尾「なのだ」を、たまに(確率 p)つけた並びにする */
-    nanoda(keys, p) { return yk && yk['x:なのだ'] && Math.random() < (p == null ? 0.25 : p) ? keys.concat('+', Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ') : keys; },
+    nanoda(keys, p) { return yk && yk['x:なのだ'] && Math.random() < (p == null ? 0.3 : p) ? keys.concat('+', Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ') : keys; },
     stopSpeak() { token++; },
     /* 'y:ツモ' などの並び(null は短い間)を、録音をつなげて鳴らす。 BGMは読み上げの間だけ小さくする */
     speak(keys, cb) {
@@ -82,7 +82,7 @@
         if (!w.tsumo) keys.push(...num(p.ron), 'pt');
         else if (game.dealer === w.winner.seat) keys.push(...num(p.each), 'pt_all');
         else keys.push(...num(p.fromOther), null, ...num(p.fromDealer), 'pt');
-        if (yk['x:なのだ'] && Math.random() < 0.5) keys.push('+', Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ'); // ときどき、ずんだもんの語尾「なのだ」
+        if (yk['x:なのだ'] && Math.random() < 0.3) keys.push('+', Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ'); // ときどき、ずんだもんの語尾「なのだ」
         keys.push(null);
       });
       setTimeout(() => A.speak(keys), 900);
