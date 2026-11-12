@@ -157,7 +157,7 @@
     let cy = y + off + CH + 10;
     parts.forEach((q) => { const tw = gfx.measure(q.s, q.sz), dx = rot === 90 ? 3 : -3, bx = q.b ? 1 : 0; // 文字の下がわ(カンマ)が出るほうと逆に、少しよせる
       if (rot === 90) { gfx.textRot(q.s, Math.round(cxm) + dx, Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); if (bx) gfx.textRot(q.s, Math.round(cxm) + dx + 1, Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); cy += tw + 12; } else { gfx.textRot(q.s, Math.round(cxm) + dx, Math.round(y + h - (cy - y) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); if (bx) gfx.textRot(q.s, Math.round(cxm) + dx - 1, Math.round(y + h - (cy - y) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); cy += tw + 12; } });
-    if (YK) { if (!rot) gfx.image('img/yakitori.webp', x + w - 26, y + Math.max(1, Math.round((h - 22) / 2)), 16, 22, 255); else gfx.image('img/yakitori.webp', x + Math.round((w - 16) / 2), y + h - 28, 16, 22, 255); }
+    if (YK) { if (!rot) gfx.image('img/yakitori.webp', x + w - 24, y + Math.round((h - 19) / 2), 14, 19, 255); else gfx.image('img/yakitori.webp', x + Math.round((w - 14) / 2), y + h - 25, 14, 19, 255); }
   }
   /* 副露: 席ごとの向きで並べ、鳴いた牌は90度回して、鳴かれた相手の側に置く */
   function meldWH(p, w, h) { let L = 0; for (const m of p.melds) { const n = m.tiles.length, ci = calledIdx(p, m); for (let i = 0; i < n; i++) L += (i === ci ? h : w) + 1; L += 6; } return L; }
@@ -955,7 +955,7 @@
       rrect(60, y, 600, RH, 8, [0, 0, 0], 70); rrect(58, y - 2, 600, RH, 8, me ? [255, 236, 130] : [244, 247, 240]);
       if (o.rank !== 1) { rrect(58, y - 2, 12, RH, 6, mc); rrect(64, y - 2, 6, RH, 0, me ? [255, 236, 130] : [244, 247, 240]); } // 左の色の帯: 1位は、なし(「1位」の文字が金色なので、それで分かる)
       text(o.rank + '位', 80, y + 8, 38, o.rank === 1 ? [190, 130, 0] : BLACK);
-      if (f.yaki) { const dv = f.yaki.delta[o.p.seat], isY = f.yaki.seats.includes(o.p.seat); if (isY) gfx.image('img/yakitori.webp', 136, y + 3, 22, 30, 255); if (dv) text((dv > 0 ? '+' : '') + dv, 152, y + 39, 13, dv > 0 ? [20, 130, 60] : [200, 40, 30], 1); } // 焼き鳥: 一度も上がれなかった人の印と、やりとりした点数
+      if (f.yaki) { const dv = f.yaki.delta[o.p.seat], isY = f.yaki.seats.includes(o.p.seat); if (isY) gfx.image('img/yakitori.webp', 143, y + 4, 18, 25, 255); if (dv) text((dv > 0 ? '+' : '') + dv, 152, y + 36, 12, dv > 0 ? [20, 130, 60] : [200, 40, 30], 1); } // 焼き鳥: 一度も上がれなかった人の印と、やりとりした点数
       face(o.p, 170, y + 1, RH - 6, RH - 6);
       text(o.p.name, 246, y + 10, fitSz(o.p.name, 34, 250, 20), BLACK);
       text(String(o.p.score), 640, y + 8, 42, BLACK, 2);
