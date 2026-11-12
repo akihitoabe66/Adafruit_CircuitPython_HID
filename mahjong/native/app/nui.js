@@ -81,6 +81,8 @@
   const YOU_OLD = globalThis.__youEnv === 'old'; // 起動のとき MJ_YOU=old を付けると、前の「あなた」の絵(img/you)に戻る。 ふだんは ずんだもん
   const youSrc = () => YOU_OLD ? 'img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp' : skin('img/zunda/' + String(ZN[S.mood && S.moodUntil > __now() ? S.mood : 'normal']).padStart(2, '0') + '.webp');
   function setMood(m, ms) { S.mood = m; S.moodUntil = __now() + (ms || 60000); dirty(); }
+  const BW = 360, BH = 110, FSZ = 94, BUBP = { 0: [250, 150], 1: [336, 150], 2: [360, 40], 3: [70, 150] }; // セリフの吹き出し(と、ポン・チー・ロンなどの宣言)の大きさ・顔の大きさ・席ごとの位置
+  const CALL_NEW = globalThis.__callEnv === 'new'; // 宣言(ポン・チー・ロン・リーチ)を、セリフと同じ見た目・位置にする(試験中)
   const TYADJ = 0; // 宣言の文字を、顔の中心に合わせるための微調整
   /* 顔の向き: 右向きの人は下家(右の席)で、左向きの人は上家(左の席)で、左右反転する(正面向きと対面は、そのまま)。番号はキャラクターの番号 */
   const FACE_R = new Set([1, 2, 3, 10, 11, 23, 25, 26, 27, 29, 30]), FACE_L = new Set([4, 5, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 24, 28, 31, 32]); // 6・19は正面向き
@@ -377,7 +379,7 @@
     drawHand(g);
     // 吹き出し
     const now = __now();
-    const BW = 360, BH = 110, FSZ = 94, BUB = { 0: [250, 150], 1: [336, 150], 2: [360, 40], 3: [70, 150] }; // 上家・下家は、同じ高さ(麻雀先生の帯(y268〜)に かさならない高さ) // 吹き出しは、いつも同じ大きさ(顔も、いつも同じ大きさ)
+    const BUB = BUBP; // 上家・下家は、同じ高さ(麻雀先生の帯(y268〜)に かさならない高さ)。吹き出しは、いつも同じ大きさ(顔も、いつも同じ大きさ)
     const calling = (S.banner && S.banner.call) || S.ryu; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; } if (calling) continue;
       const pos = BUB[k] || [300, 200], tw = BW - FSZ - 34; let bsz = 20, lines = wrapText(b.text, bsz, tw);
@@ -395,7 +397,13 @@
     }
     if (__auto && globalThis.__shotDir && !S._stbl && g.players[2].discards.length >= 4 && g.players[3].discards.length >= 4) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
     // 演出: 札の文字が、少し大きいところから縮んで止まる
-    if (S.banner && S.banner.call && S.banner.p) { // ポン・チー・ロンなど: 顔と、色のついた大きな文字(Edge版と同じ)
+    if (S.banner && S.banner.call && S.banner.p && CALL_NEW) { // 宣言: セリフと同じ吹き出し・同じ位置に、色のついた大きな文字
+      const bn = S.banner, pos = BUBP[bn.p.seat] || [250, 150], k = Math.min(1, (__now() - bn.t0) / 160), sz = k < 0.5 ? 72 : 64, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [230, 0, 18] : [150, 80, 220];
+      rrect(pos[0] + 2, pos[1] + 3, BW, BH, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, BH, 10, [240, 243, 238]);
+      face(bn.p, pos[0] + 8, pos[1] + 8, FSZ, FSZ); text(bn.p.name, pos[0] + FSZ + 20, pos[1] + 8, 17, [80, 90, 86]);
+      const cx = pos[0] + FSZ + 20 + Math.round((BW - FSZ - 34) / 2), ty = pos[1] + 30 + Math.round((72 - sz) / 2) + TYADJ;
+      [[-2, 0], [2, 0], [0, -2], [0, 2], [2, 2]].forEach((d) => text(bn.text, cx + d[0], ty + d[1], sz, [40, 30, 30], 1)); text(bn.text, cx, ty, sz, col, 1);
+    } else if (S.banner && S.banner.call && S.banner.p) { // ポン・チー・ロンなど: 顔と、色のついた大きな文字(Edge版と同じ)
       const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = 84, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [230, 0, 18] : [196, 139, 255];
       // 鳴いた人の席の側に出す: 対面=中央の上 / 上家=左 / 下家=右(上家と同じ高さ) / 自分=中央の下
       const FB = 124, tw = gfx.measure(bn.text, sz), bw = FB + 16 + tw, sd = bn.p.seat, by = sd === 2 ? 10 : sd === 0 ? 258 : 144; // 席の側に、はっきり寄せる(上家=左はし / 下家=右はし / 対面=上はし / 自分=下はし)
