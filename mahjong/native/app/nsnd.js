@@ -36,10 +36,12 @@
     call(p, text) {
       const K = { 'リーチ': 'riichi', 'ポン': 'pon', 'チー': 'chi', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[text]; if (!K) return;
       const id = p && p.char && p.char.voice != null ? p.char.voice : 0; const path = 'audio/voice/' + id + '_' + K + '.mp3'; snd.play(path, V.voice); A.callEnd = __now() + Math.round((snd.len(path) || 0.8) * 1000); /* 掛け声が終わる時刻(結果の読み上げを、これが終わってから始めるため) */
-      if (id === 0 && yk && yk['x:なのだ'] && Math.random() < 0.3) { const L = snd.len(path) || 0.6; setTimeout(() => A.speak([Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ']), Math.round((L - 0.1) * 1000)); } // あなた(ずんだもん)の掛け声のあと、ときどき「なのだ」
+      if (id === 0 && yk && yk['x:なのだ'] && Math.random() < 0.3) { const L = snd.len(path) || 0.6, nk = A.nd(K === 'riichi' ? 'firm' : K === 'ron' || K === 'tsumo' ? 'bright' : 'flat'); if (nk) setTimeout(() => A.speak([nk]), Math.round((L - 0.1) * 1000)); } // あなた(ずんだもん)の掛け声のあと、ときどき「なのだ」
     },
     /* 語尾「なのだ」を、たまに(確率 p)つけた並びにする */
-    nanoda(keys, p) { return yk && yk['x:なのだ'] && Math.random() < (p == null ? 0.3 : p) ? keys.concat('+', Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ') : keys; },
+    /* 「なのだ」は3種類: firm=少し暗い・言い切る(x:なのだ) / bright=明るい(x:なのだ2) / flat=フラット(x:なのだ3)。場面に合うものを選ぶ */
+    nd(mood) { const M = { firm: 'x:なのだ', bright: 'x:なのだ2', flat: 'x:なのだ3' }; if (!yk) return null; if (M[mood] && yk[M[mood]]) return M[mood]; const ks = Object.keys(M).map((m) => M[m]).filter((k) => yk[k]); return ks.length ? ks[Math.floor(Math.random() * ks.length)] : null; },
+    nanoda(keys, p, mood) { const k = Math.random() < (p == null ? 0.3 : p) ? A.nd(mood) : null; return k ? keys.concat('+', k) : keys; },
     stopSpeak() { token++; },
     /* 'y:ツモ' などの並び(null は短い間)を、録音をつなげて鳴らす。 BGMは読み上げの間だけ小さくする */
     speak(keys, cb) {
@@ -82,7 +84,7 @@
         if (!w.tsumo) keys.push(...num(p.ron), 'pt');
         else if (game.dealer === w.winner.seat) keys.push(...num(p.each), 'pt_all');
         else keys.push(...num(p.fromOther), null, ...num(p.fromDealer), 'pt');
-        if (yk['x:なのだ'] && Math.random() < 0.3) keys.push('+', Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ'); // ときどき、ずんだもんの語尾「なのだ」
+        if (Math.random() < 0.3) { const nk = A.nd(w.winner.isHuman || r.limit ? 'bright' : w.loser && w.loser.isHuman ? 'firm' : 'flat'); if (nk) keys.push('+', nk); } // ときどき、ずんだもんの語尾「なのだ」(自分の上がり・満貫以上は明るく / 放銃したときは言い切り / ほかはフラット)
         keys.push(null);
       });
       const wait = Math.max(900, (A.callEnd || 0) - __now() + 250); setTimeout(() => A.speak(keys), wait); // 掛け声と重ならないように
