@@ -783,6 +783,41 @@
     rrect(300, 392, 232, 38, 12, [40, 100, 70]); text('▼ 雀士列伝を 見る', 416, 398, 20, WHITE, 1);
   }
   /* ---------- 段位の画面(背景の絵の座標は、絵のピクセル 1404x768) ---------- */
+  /* ---------- 昇段のおいわい: 認定証(あなたの絵・判子つき)→ 新しい雀士の登場 ---------- */
+  function startCert(rk, then) { // 昇段したとき、認定証を出す。そのあと、新しく登場する雀士を、1人ずつ
+    const ids = (() => { try { return MJ.Rank.newIds(rk.from, rk.to); } catch (e) { return []; } })();
+    const toRank = () => then();
+    const toReveal = () => { if (ids.length) { S.reveal = { ids, i: 0, t0: __now(), then: toRank }; NSND.sfx('slam'); dirty(); } else toRank(); };
+    S.cert = { rk, t0: __now(), then: toReveal, snd: false }; dirty();
+  }
+  function drawCert() {
+    const C = S.cert, t = __now() - C.t0, CW = 334, CH = 468, cx = 40;
+    gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 175);
+    const sh = (t > 1160 && t < 1480) ? Math.round(Math.sin((t - 1160) / 22) * 4 * (1 - (t - 1160) / 320)) : 0;
+    fill(cx + 6, 10, CW, CH - 8, [0, 0, 0], 120); gfx.image('img/cert.webp', cx + sh, 0, CW, CH, 255);
+    const K = CW / 809, px = (x) => cx + sh + Math.round(CW * x), py = (y) => Math.round(CH * y);
+    text(C.rk.dan || '', px(0.37), py(0.434) - 14, 25, [17, 17, 17], 1); text('あなた', px(0.445), py(0.48) - 11, 21, [17, 17, 17], 1);
+    rrect(px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 2, [122, 163, 179]); gfx.image(youSrc(), px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 255);
+    if (t > 700) { const k = Math.min(1, (t - 700) / 420), z = Math.round(CW * 0.15 * (1 + (1 - k) * 1.6)), a = Math.round(255 * Math.min(1, k * 1.5)); gfx.image('img/cert_stamp.webp', px(0.645) - Math.round(z / 2), py(0.775) - Math.round(z / 2), z, z, a); }
+    if (t >= 1120 && !C.snd) { C.snd = true; NSND.sfx('slam'); }
+    if (t > 300) { text('昇段 おめでとう!', 590, 120, 38, YEL, 1); text(C.rk.dan + 'に なりました', 590, 180, 28, WHITE, 1); }
+    if (t > 1500) text('決定ボタンで すすむ', 590, 400, 22, [210, 225, 205], 1);
+    if (t < 1700) dirty();
+  }
+  function certKey(k) { const C = S.cert; if (!C || __now() - C.t0 < 1500) return; if (k === 'ok' || k === 'back') { S.cert = null; C.then(); } dirty(); }
+  function drawReveal() { // 新しい雀士: 黒いシルエット → 顔と名前
+    const V = S.reveal, t = __now() - V.t0, c = MJ.CHARS.find((x) => x.id === V.ids[V.i]);
+    gfx.clear(8, 16, 22); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], t < 900 ? 215 : 160);
+    if (!c) return;
+    const z = 220, x = 90, y = 110; rrect(x - 6, y - 6, z + 12, z + 12, 10, WHITE); frame(x - 8, y - 8, z + 16, z + 16, [30, 30, 30], 2);
+    if (t < 900) gfx.image('img/sil/' + ('0' + c.id).slice(-2) + '.webp', x, y, z, z, 255); else gfx.image(skin(c.face), x, y, z, z, 255);
+    if (t >= 900 && !V.snd) { V.snd = true; NSND.sfx('slam'); }
+    text('新しい雀士が 登場!', 560, 50, 34, YEL, 1);
+    if (t >= 900) { text('NEW!', 450, 130, 40, RED); text(c.short || c.name, 560, 190, 36, WHITE, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', 560, 250, 20, WHITE, 1); text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), 560, 280, 20, WHITE, 1); const f = fitRich(c.desc || '', [18, 17, 16], 330, 100); richDraw(f.lines, 400, 322, f.sz, [230, 240, 225], 0); text('決定ボタンで すすむ  (' + (V.i + 1) + ' / ' + V.ids.length + ')', 560, 420, 20, [210, 225, 205], 1); }
+    else text('？？？？', 560, 190, 36, [200, 215, 230], 1);
+    if (t < 1000) dirty();
+  }
+  function revealKey(k) { const V = S.reveal; if (!V || __now() - V.t0 < 1300) return; if (k === 'ok' || k === 'back') { if (V.i + 1 < V.ids.length) { V.i++; V.t0 = __now(); V.snd = false; NSND.sfx('slam'); } else { S.reveal = null; V.then(); } } dirty(); }
   function drawRankScreen() {
     const R = MJ.Rank, f = R.info(), K = SW / 1404, rk = S.rankScr.rk;
     gfx.clear(10, 30, 22); gfx.view(0, 0); gfx.image('img/rank_bg.webp', 0, 6, SW, Math.round(768 * K), 255);
@@ -1376,7 +1411,7 @@
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
-  window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
+  window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
@@ -1720,6 +1755,8 @@
     S.dirty = true; if (S.locked) return;
     if (S.guardUntil && __now() < S.guardUntil) return; // 保存のあと、次の画面に変わった直後の押しまちがいを無視する
     NSND.sfx(k === 'ok' ? 'ok' : k === 'back' ? 'click' : 'select', 0.5);
+    if (S.cert) { certKey(k); return; }
+    if (S.reveal) { revealKey(k); return; }
     if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = 1 - (r.idx || 0); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 1)) { S.rankScr = null; r.done(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; } return; }
     if (k === 'menu' && !S.menuP) { openMenu(); return; } // スタート+セレクト長押し
     if (S.menuP) {
@@ -2040,7 +2077,7 @@
       return Promise.resolve();
     },
     gameEnd(g, f) { try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } NSND.sfx('end'); // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
- try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { S.rankScr = { rk, done }; dirty(); } }); }); },
+ try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go = () => { S.rankScr = { rk, done }; dirty(); }; if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
   };
 
   const AI_T = [0, 1, 2, 3, 3, 4, 4, 5, 5, 5, 5];
@@ -2057,7 +2094,7 @@
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
     if (g.cp && !S.result && !S.end && !S.rankP && !S.rankScr) { try { slotWrite(Object.assign({}, g.cp.snap, { mid: g.cp })); } catch (e) { /* ignore */ } } // 局の途中でホームへ戻るときは、いまの局の途中をセーブ(つづきから、同じ牌・同じ番で再開できる)
     g.stopped = true; MJ.paused = false; S.tmsgShown = 0; S.side = S.coach = null;
-    const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
+    const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.cert) { const q = S.cert; S.cert = null; q.then(); } if (S.reveal) { const q = S.reveal; S.reveal = null; q.then(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
     S.self = S.react = S.result = S.end = S.saveP = null;
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
     dirty();
@@ -2128,6 +2165,8 @@
     if (__auto && globalThis.__shotDir && (S.react || (S.self && S.self.btns.length)) && S.shotR < 6) { gfx.shot(__shotDir + '/act' + (++S.shotR) + '.bmp'); }
     if (S.end) { drawEnd(S.end); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/end.bmp'); }
     if (S.coach && __auto && globalThis.__shotDir && coachShots < 6 && S.coach.cards && S.coach.cards.length) { gfx.view(0, 0); gfx.shot(__shotDir + '/coach' + (++coachShots) + '.bmp'); }
+    if (S.cert) { gfx.view(0, 0); drawCert(); return true; }
+    if (S.reveal) { gfx.view(0, 0); drawReveal(); return true; }
     if (S.rankScr) { drawRankScreen(); gfx.view(0, 0); return true; }
     if (S.intro && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawIntro(); return true; }
     if (S.dice && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawDice(); return true; }
