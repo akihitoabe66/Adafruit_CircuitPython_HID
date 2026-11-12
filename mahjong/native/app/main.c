@@ -68,6 +68,7 @@ static TTF_Font *getfont(int sz){ /* sz がマイナスのときは、太字(字
   TTF_Font *f = TTF_OpenFont(fontpath, sz < 0 ? -sz : sz); if (f && sz < 0) TTF_SetFontStyle(f, TTF_STYLE_BOLD); if (!f) { fprintf(stderr, "font? %s\n", TTF_GetError()); return NULL; }
   fonts[nfonts] = f; fsz[nfonts++] = sz; return f;
 }
+static volatile int g_dry = 0; /* 1のあいだは、絵を描かずに、文字の下ごしらえ(キャッシュ)だけする */
 static SDL_Texture *gettext(const char *s, int sz, int r, int g, int b, int *w, int *h){
   char key[200]; snprintf(key, sizeof key, "%d|%d,%d,%d|%.150s", sz, r, g, b, s);
   unsigned hk = hashs(key);
@@ -83,24 +84,25 @@ static SDL_Texture *gettext(const char *s, int sz, int r, int g, int b, int *w, 
 
 /* ---- JS に渡す描画の道具 ---- */
 static int ai(JSContext *c, JSValueConst v){ int32_t x = 0; JS_ToInt32(c, &x, v); return x; }
-static JSValue j_fill(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); SDL_SetRenderDrawColor(ren, ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), n > 7 ? ai(c,a[7]) : 255); SDL_Rect r = { ai(c,a[0]), ai(c,a[1]), ai(c,a[2]), ai(c,a[3]) }; SDL_RenderFillRect(ren, &r); return JS_UNDEFINED; }
-static JSValue j_frame(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_SetRenderDrawColor(ren, ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), 255); int th = n > 7 ? ai(c,a[7]) : 1; for (int i = 0; i < th; i++) { SDL_Rect r = { ai(c,a[0])+i, ai(c,a[1])+i, ai(c,a[2])-2*i, ai(c,a[3])-2*i }; SDL_RenderDrawRect(ren, &r); } return JS_UNDEFINED; }
-static JSValue j_image(JSContext *c, JSValueConst t, int n, JSValueConst *a){
+static JSValue j_dry(JSContext *c, JSValueConst t, int n, JSValueConst *a){ g_dry = n > 0 ? ai(c,a[0]) : 0; return JS_UNDEFINED; }
+static JSValue j_fill(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); SDL_SetRenderDrawColor(ren, ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), n > 7 ? ai(c,a[7]) : 255); SDL_Rect r = { ai(c,a[0]), ai(c,a[1]), ai(c,a[2]), ai(c,a[3]) }; SDL_RenderFillRect(ren, &r); return JS_UNDEFINED; }
+static JSValue j_frame(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; SDL_SetRenderDrawColor(ren, ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), 255); int th = n > 7 ? ai(c,a[7]) : 1; for (int i = 0; i < th; i++) { SDL_Rect r = { ai(c,a[0])+i, ai(c,a[1])+i, ai(c,a[2])-2*i, ai(c,a[3])-2*i }; SDL_RenderDrawRect(ren, &r); } return JS_UNDEFINED; }
+static JSValue j_image(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED;
   const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getimg(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE;
   SDL_Rect d = { ai(c,a[1]), ai(c,a[2]), ai(c,a[3]), ai(c,a[4]) }; SDL_SetTextureAlphaMod(tx, n > 5 ? ai(c,a[5]) : 255); SDL_RenderCopy(ren, tx, NULL, &d); return JS_TRUE; }
-static JSValue j_imagesil(JSContext *c, JSValueConst t, int n, JSValueConst *a){
+static JSValue j_imagesil(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED;
   const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getsil(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE;
   SDL_Rect d = { ai(c,a[1]), ai(c,a[2]), ai(c,a[3]), ai(c,a[4]) }; SDL_SetTextureAlphaMod(tx, n > 5 ? ai(c,a[5]) : 255); SDL_RenderCopy(ren, tx, NULL, &d); return JS_TRUE; }
 typedef struct { int kind; SDL_Texture *tx; SDL_Rect d, sr; Uint8 r, g, b, a; } TopImg; static TopImg topq[160]; static int ntop = 0; /* kind: 0=絵 1=四角 2=文字(順番どおりに、最後に描く) */ /* 画面に出す直前に、窓の本当の解像度で描く絵(顔など。くっきり見せるため) */
-static JSValue j_imagetop(JSContext *c, JSValueConst t, int n, JSValueConst *a){
+static JSValue j_imagetop(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED;
   const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getimg(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE; if (ntop >= 160) return JS_TRUE;
   TopImg *q = &topq[ntop++]; q->kind = 0; q->tx = tx; q->d.x = ai(c,a[1]) + curview.x; q->d.y = ai(c,a[2]) + curview.y; q->d.w = ai(c,a[3]); q->d.h = ai(c,a[4]);
   q->sr.x = 0; q->sr.y = 0; q->sr.w = w; q->sr.h = h; /* 縦横の比が合わないときは、ゆがめず、上をそろえて切り取る */
   if (q->d.w * h > q->d.h * w) q->sr.h = h * 0 + (int)((double)w * q->d.h / q->d.w); else if (q->d.w * h < q->d.h * w) { q->sr.w = (int)((double)h * q->d.w / q->d.h); q->sr.x = (w - q->sr.w) / 2; }
   SDL_Rect z = { 0, 0, 0, 0 }; (void)z; return JS_TRUE; }
-static JSValue j_filltop(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 絵(顔)より上に重ねる四角 */
+static JSValue j_filltop(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; /* 絵(顔)より上に重ねる四角 */
   if (ntop >= 160) return JS_UNDEFINED; TopImg *q = &topq[ntop++]; q->kind = 1; q->tx = NULL; q->d.x = ai(c,a[0]) + curview.x; q->d.y = ai(c,a[1]) + curview.y; q->d.w = ai(c,a[2]); q->d.h = ai(c,a[3]); q->r = ai(c,a[4]); q->g = ai(c,a[5]); q->b = ai(c,a[6]); q->a = n > 7 ? ai(c,a[7]) : 255; return JS_UNDEFINED; }
-static JSValue j_texttop(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 絵(顔)より上に重ねる文字 */
+static JSValue j_texttop(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; /* 絵(顔)より上に重ねる文字 */
   const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0, al = n > 7 ? ai(c,a[7]) : 0; SDL_Texture *tx = (s && *s) ? gettext(s, ai(c,a[3]), ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), &w, &h) : NULL; JS_FreeCString(c, s);
   if (!tx || ntop >= 160) return JS_NewInt32(c, 0);
   int x = ai(c,a[1]); if (al == 1) x -= w / 2; else if (al == 2) x -= w;
@@ -110,14 +112,15 @@ static JSValue j_text(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0; int al = n > 7 ? ai(c,a[7]) : 0;
   SDL_Texture *tx = (s && *s) ? gettext(s, ai(c,a[3]), ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), &w, &h) : NULL; JS_FreeCString(c, s);
   if (!tx) return JS_NewInt32(c, 0);
+  if (g_dry) return JS_NewInt32(c, w);
   int x = ai(c,a[1]); if (al == 1) x -= w / 2; else if (al == 2) x -= w;
   TTF_Font *ft = getfont(ai(c,a[3])); int dyn = ft ? (int)(abs(ai(c,a[3])) * 0.86) - TTF_FontAscent(ft) : 0; /* 漢字の字面の上端を y に合わせる(フォントごとの行の高さの違いで、下に寄らないように) */
   SDL_Rect d = { x, ai(c,a[2]) + dyn, w, h }; SDL_SetTextureAlphaMod(tx, 255); SDL_RenderCopy(ren, tx, NULL, &d); return JS_NewInt32(c, w); }
-static JSValue j_imagerot(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 回して描く: (x,y)は、回したあとの外枠の左上。w,hは、回す前の大きさ */
+static JSValue j_imagerot(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; /* 回して描く: (x,y)は、回したあとの外枠の左上。w,hは、回す前の大きさ */
   const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getimg(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE;
   int x = ai(c,a[1]), y = ai(c,a[2]), dw = ai(c,a[3]), dh = ai(c,a[4]), ang = ai(c,a[6]); int bw = (ang == 90 || ang == 270) ? dh : dw, bh = (ang == 90 || ang == 270) ? dw : dh;
   SDL_Rect d = { x + bw / 2 - dw / 2, y + bh / 2 - dh / 2, dw, dh }; SDL_SetTextureAlphaMod(tx, ai(c,a[5])); SDL_RenderCopyEx(ren, tx, NULL, &d, (double)ang, NULL, SDL_FLIP_NONE); return JS_TRUE; }
-static JSValue j_textrot(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 回した文字: (cx,cy)を中心に */
+static JSValue j_textrot(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; /* 回した文字: (cx,cy)を中心に */
   const char *s = JS_ToCString(c, a[0]); int w = 0, h = 0; SDL_Texture *tx = (s && *s) ? gettext(s, ai(c,a[3]), ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), &w, &h) : NULL; JS_FreeCString(c, s);
   if (!tx) return JS_NewInt32(c, 0);
   TTF_Font *ft2 = getfont(ai(c,a[3])); int sz2 = ai(c,a[3]), off2 = ft2 ? (TTF_FontAscent(ft2) - (int)(sz2 * 0.38)) - h / 2 : 0; /* 字面の中心を、中心に合わせる */
@@ -129,7 +132,7 @@ static JSValue j_view(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL
 static JSValue j_layerbegin(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int i = ai(c,a[0]); if (i < 0 || i >= 6) return JS_UNDEFINED; if (!lay[i]) { lay[i] = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, W, H); SDL_SetTextureBlendMode(lay[i], SDL_BLENDMODE_BLEND); } SDL_SetRenderTarget(ren, lay[i]); SDL_RenderSetViewport(ren, NULL); SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE); SDL_SetRenderDrawColor(ren, 0, 0, 0, 0); SDL_RenderClear(ren); SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); return JS_UNDEFINED; }
 static JSValue j_layerend(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_SetRenderTarget(ren, tgt); SDL_RenderSetViewport(ren, &curview); return JS_UNDEFINED; }
 static JSValue j_layer(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int i = ai(c,a[0]); if (i < 0 || i >= 6 || !lay[i]) return JS_UNDEFINED; SDL_Rect d = { 0, 0, W, H }; SDL_RenderCopy(ren, lay[i], NULL, &d); return JS_UNDEFINED; } /* 描く原点を動かす(画面の外側は切れる) */
-static JSValue j_clear(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_SetRenderDrawColor(ren, ai(c,a[0]), ai(c,a[1]), ai(c,a[2]), 255); SDL_RenderClear(ren); return JS_UNDEFINED; }
+static JSValue j_clear(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; SDL_SetRenderDrawColor(ren, ai(c,a[0]), ai(c,a[1]), ai(c,a[2]), 255); SDL_RenderClear(ren); return JS_UNDEFINED; }
 static JSValue j_present(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_RenderPresent(ren); return JS_UNDEFINED; }
 static char snappath[1600]; /* 試験用: gfx.snap(パス) で、次に画面に出す絵(顔・文字も入った完成形)を保存する */
 static JSValue j_snap(JSContext *c, JSValueConst t, int n, JSValueConst *a){ const char *p = JS_ToCString(c, a[0]); if (p) { snprintf(snappath, sizeof snappath, "%s", p); JS_FreeCString(c, p); } return JS_UNDEFINED; }
@@ -307,7 +310,7 @@ int main(int argc, char **argv){
   rt = JS_NewRuntime(); JS_SetMemoryLimit(rt, 192 * 1024 * 1024); JS_SetMaxStackSize(rt, 2 * 1024 * 1024); JS_SetHostPromiseRejectionTracker(rt, rejected, NULL);
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
-  reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "fillTop", j_filltop, 8); reg(gfx, "textTop", j_texttop, 8); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
+  reg(gfx, "dry", j_dry, 1); reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "fillTop", j_filltop, 8); reg(gfx, "textTop", j_texttop, 8); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
   reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);

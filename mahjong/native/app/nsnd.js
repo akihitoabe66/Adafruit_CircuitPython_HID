@@ -35,7 +35,7 @@
     sfx(name, v) { if (SFX.indexOf(name) >= 0) snd.play('audio/sfx/' + name + '.wav', (v == null ? V.sfx : v)); },
     call(p, text) {
       const K = { 'リーチ': 'riichi', 'ポン': 'pon', 'チー': 'chi', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[text]; if (!K) return;
-      const id = p && p.char && p.char.voice != null ? p.char.voice : 0; const path = 'audio/voice/' + id + '_' + K + '.mp3'; snd.play(path, V.voice);
+      const id = p && p.char && p.char.voice != null ? p.char.voice : 0; const path = 'audio/voice/' + id + '_' + K + '.mp3'; snd.play(path, V.voice); A.callEnd = __now() + Math.round((snd.len(path) || 0.8) * 1000); /* 掛け声が終わる時刻(結果の読み上げを、これが終わってから始めるため) */
       if (id === 0 && yk && yk['x:なのだ'] && Math.random() < 0.3) { const L = snd.len(path) || 0.6; setTimeout(() => A.speak([Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ']), Math.round((L - 0.1) * 1000)); } // あなた(ずんだもん)の掛け声のあと、ときどき「なのだ」
     },
     /* 語尾「なのだ」を、たまに(確率 p)つけた並びにする */
@@ -64,7 +64,8 @@
       res.wins.forEach((w) => {
         const r = w.res;
         // 「桃太郎 ツモ!」: 上がった人の名前 + ツモ/ロン(あなたも)。「の」は入れない(声が、つなぎ言葉として合わないため)
-        if (w.winner.isHuman) { if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name); keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null); } // CPUが上がったときは、その人の声で「ツモ/ロン」と言ったばかり。ずんだもんの「〇〇 ツモ」を重ねない
+        if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name); // 「〇〇 ロン」: 上がった人の名前と、ツモ/ロン(CPUのときも読む。ただし、その人自身の掛け声が終わってから)
+        keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null);
         r.yaku.forEach((y) => {
           if (w.tsumo && y.n === '門前清自摸和') return; // 「ツモ」は、いま言ったので、くりかえさない
           if (y.n === 'ドラ' || y.n === '赤ドラ' || y.n === '裏ドラ') keys.push('y:' + (y.n === 'ドラ' ? 'ドラ' : y.n === '赤ドラ' ? 'アカドラ' : 'ウラドラ'), 'n:' + Math.min(13, y.h));
@@ -84,7 +85,7 @@
         if (yk['x:なのだ'] && Math.random() < 0.3) keys.push('+', Math.random() < 0.5 && yk['x:なのだ2'] ? 'x:なのだ2' : 'x:なのだ'); // ときどき、ずんだもんの語尾「なのだ」
         keys.push(null);
       });
-      setTimeout(() => A.speak(keys), 900);
+      const wait = Math.max(900, (A.callEnd || 0) - __now() + 250); setTimeout(() => A.speak(keys), wait); // 掛け声と重ならないように
     },
     /* 局のはじまり: 「トン、イッキョク!」など */
     readKyoku(game) {

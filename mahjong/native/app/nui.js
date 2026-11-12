@@ -1556,7 +1556,11 @@
     const d = learnLoad(), ST = MJ.Learn.STEPS, nDone = ST.filter((s) => d.done[s.id]).length;
     let nx = ST.findIndex((s) => !d.done[s.id]); if (nx < 0) nx = 0; if (d.bm && d.bm.read && !d.done[ST[d.bm.step] && ST[d.bm.step].id]) nx = d.bm.step;
     const sc = vScan(), vd = vLoad(); let vi = sc.files.findIndex((f) => f.name === vd.last && (vd.pos[f.name] || 0) >= 30 && !vd.done[f.name]); const cont = vi >= 0; if (vi < 0) vi = Math.max(0, sc.files.findIndex((f) => f.path && !vd.done[f.name])); if (vi < 0 || !sc.files[vi]) vi = 0;
-    S.study = { sel: sel || 0, nDone, total: ST.length, nx, nxStep: ST[nx], vf: sc.files[vi], cont, vpos: cont ? vd.pos[sc.files[vi].name] : 0, vn: sc.files.length, vhave: sc.files.filter((f) => f.path).length }; S.mode = 'study'; dirty();
+    S.study = { sel: sel || 0, nDone, total: ST.length, nx, nxStep: ST[nx], vf: sc.files[vi], cont, vpos: cont ? vd.pos[sc.files[vi].name] : 0, vn: sc.files.length, vhave: sc.files.filter((f) => f.path).length }; S.mode = 'study'; dirty(); studyWarm();
+  }
+  function studyWarm() { // 勉強の入口: 選んだときに出る右の説明の文字を、あらかじめ(画面には出さずに)用意しておく。はじめて選んだときの重さを、なくすため
+    if (typeof gfx.dry !== 'function') return;
+    [1, 2, 0].forEach((w, k) => setTimeout(() => { const H = S.study; if (!H || S.mode !== 'study') return; const keep = H.sel; try { gfx.dry(1); H.sel = w; drawStudy(); } catch (e) { /* ignore */ } try { gfx.dry(0); } catch (e) { /* ignore */ } H.sel = keep; }, 700 + k * 350));
   }
   function studyKey(k) {
     const H = S.study; dirty();
