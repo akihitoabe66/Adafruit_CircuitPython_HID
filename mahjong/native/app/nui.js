@@ -762,7 +762,7 @@
     const win = new Set(r.wins.map((w) => w.winner.seat)), order = g.players.map((p, i) => i).sort((a, b) => (r.after[b] - r.after[a]) || (a - b));
     order.forEach((i, k) => {
       const p = g.players[i], y = 66 + k * 86, x = 96, w = 640, h = 78, d = r.delta[i], me = p.isHuman;
-      rrect(x - 3, y - 3, w + 6, h + 6, 6, k === 0 ? [240, 200, 60] : [30, 70, 56]); rrect(x, y, w, h, 5, me ? [58, 100, 50] : [22, 56, 44]);
+      rrect(x - 3, y - 3, w + 6, h + 6, 6, [30, 70, 56]); rrect(x, y, w, h, 5, me ? [58, 100, 50] : [22, 56, 44]); // 1位の黄色い枠は、なし(「1位」の文字が黄色なので、それで分かる)
       text((k + 1) + '位', x + 22, y + 20, 38, k === 0 ? YEL : WHITE);
       face(p, x + 118, y + 7, 64, 64);
       text(p.name, x + 202, y + 12, 28, WHITE);
