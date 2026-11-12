@@ -217,9 +217,19 @@ static JSValue j_slotlist(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   closedir(dp); for (int i = 0; i < m; i++) for (int j = i + 1; j < m; j++) if (seqs[j] > seqs[i]) { int x = seqs[i]; seqs[i] = seqs[j]; seqs[j] = x; }
   for (int i = 0; i < m; i++) JS_SetPropertyUint32(c, arr, i, JS_NewInt32(c, seqs[i])); return arr; }
 static JSValue j_slotload(JSContext *c, JSValueConst t, int n, JSValueConst *a){ char p[1500]; snprintf(p, sizeof p, "%s/save_%d.json", datadir, ai(c, a[0])); size_t L; char *b = readfile(p, &L); if (!b) return JS_NULL; JSValue v = JS_NewString(c, b); free(b); return v; }
+typedef struct { char p[1500], q[1520]; char *s; } SaveJob;
+static SDL_Thread *save_th = NULL;
+static int save_run(void *u) { /* セーブは、別スレッドで書く(SDカードの書き込みを待たせて、画面を止めない) */
+  SaveJob *j = (SaveJob *)u; FILE *f = fopen(j->q, "wb"); int ok = 0;
+  if (f && j->s) { size_t L = strlen(j->s); ok = fwrite(j->s, 1, L, f) == L; fflush(f); fsync(fileno(f)); fclose(f); if (ok) rename(j->q, j->p); }
+  free(j->s); free(j); return 0; }
+static void save_wait(void) { if (save_th) { SDL_WaitThread(save_th, NULL); save_th = NULL; } }
 static JSValue j_slotsave(JSContext *c, JSValueConst t, int n, JSValueConst *a){
-  char p[1500], q[1520]; snprintf(p, sizeof p, "%s/save_%d.json", datadir, ai(c, a[0])); snprintf(q, sizeof q, "%s.tmp", p); const char *s = JS_ToCString(c, a[1]); int ok = 0;
-  FILE *f = fopen(q, "wb"); if (f && s) { size_t L = strlen(s); ok = fwrite(s, 1, L, f) == L; fflush(f); fsync(fileno(f)); fclose(f); if (ok) ok = rename(q, p) == 0; } JS_FreeCString(c, s); sync(); return JS_NewBool(c, ok); }
+  SaveJob *j = (SaveJob *)calloc(1, sizeof *j); if (!j) return JS_NewBool(c, 0);
+  snprintf(j->p, sizeof j->p, "%s/save_%d.json", datadir, ai(c, a[0])); snprintf(j->q, sizeof j->q, "%s.tmp", j->p);
+  const char *s = JS_ToCString(c, a[1]); if (!s) { free(j); return JS_NewBool(c, 0); } j->s = strdup(s); JS_FreeCString(c, s);
+  save_wait(); save_th = SDL_CreateThread(save_run, "save", j); if (!save_th) { save_run(j); }
+  return JS_NewBool(c, 1); }
 static JSValue j_slotdel(JSContext *c, JSValueConst t, int n, JSValueConst *a){ char p[1500]; snprintf(p, sizeof p, "%s/save_%d.json", datadir, ai(c, a[0])); remove(p); return JS_UNDEFINED; }
 static JSValue j_shanten(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int cc[34]; for (int i = 0; i < 34; i++) { JSValue v = JS_GetPropertyUint32(c, a[0], i); int32_t x = 0; JS_ToInt32(c, &x, v); JS_FreeValue(c, v); cc[i] = x; } return JS_NewInt32(c, sh_std(cc, ai(c, a[1]))); }
 static void dump_err(JSContext *c){ JSValue e = JS_GetException(c); const char *m = JS_ToCString(c, e); JSValue st = JS_GetPropertyStr(c, e, "stack"); const char *ss = JS_ToCString(c, st); fprintf(stderr, "JS ERR: %s\n%s\n", m ? m : "?", ss ? ss : ""); }
@@ -348,5 +358,6 @@ int main(int argc, char **argv){
     frames++; if (maxframes && frames >= maxframes) break;
     if (perf && nowms() - perf_t0 > 3000) { printf("fonts=%d\n", nfonts); printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); { long rss = 0; FILE *sf = fopen("/proc/self/statm", "r"); if (sf) { long a; if (fscanf(sf, "%ld %ld", &a, &rss) < 2) rss = 0; fclose(sf); } JSMemoryUsage mu; JS_ComputeMemoryUsage(rt, &mu); printf("perf2: 思考・進行 合計%.0fms 最大%.0fms / JS %ldMB / 全体 %ldMB / 絵%d 文字%d\n", perf_logic, perf_logicmax, (long)(mu.malloc_size / 1048576), rss * 4 / 1024, nimg, ntxt); } fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = perf_logic = perf_logicmax = 0; perf_n = perf_p = 0; }
   }
+  save_wait(); /* 書きかけのセーブがあれば、終わるのを待つ */
   return 0;
 }
