@@ -1332,9 +1332,11 @@
     if (!f.path || typeof __vopen !== 'function') { V.err = f.path ? 'この画面では 再生できません(実機で 見られます)' : 'この動画は まだ 入っていません(mjdata/video に入れてください)'; dirty(); return; }
     try { NSND.music(''); } catch (e) { /* ignore */ }
     const r = __vopen(f.path, from || 0); if (!r) { V.view = 'list'; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
+    try { snd.musicVol(vVol()); } catch (e) { /* ignore */ }
     const now = __now(); V.sel = i; V.view = 'play'; V.p = { f, i, dur: r.dur || 0, ui: now + 2500, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now, st: [from || 0, r.dur || 0, 0, 0, 0], sig: '' };
     V.d.last = f.name; vSave(); dirty();
   }
+  const vVol = () => { const v = S.vid && S.vid.d && S.vid.d.vol; return typeof v === 'number' ? v : 0.55; }; // 動画の音量(0〜1)。BGMとは別に、おぼえておく
   function vStop(markEnd) { // 動画をとじて、一覧へ
     const V = S.vid, p = V.p; if (!p) return;
     const st = __vstate(); const pos = st ? st[0] : p.st[0];
@@ -1363,6 +1365,7 @@
       const p = V.p;
       if (k === 'back') { vStop(false); return; }
       if (k === 'left') vSeek(-1, now); else if (k === 'right') vSeek(1, now);
+      else if (k === 'up' || k === 'down') { const L = Math.max(0, Math.min(10, Math.round(vVol() * 10) + (k === 'up' ? 1 : -1))); V.d.vol = L / 10; try { snd.musicVol(L / 10); } catch (e) { /* ignore */ } vSave(); p.ui = now; p.toast = '音量 ' + L + ' / 10'; p.toastT = now + 1300; }
       else if (k === 'ok') {
         p.ui = now;
         if (p.end) { p.end = false; p.userPaused = false; __vseek(0); __vpause(false); delete V.d.done[p.f.name]; return; }
@@ -1416,6 +1419,13 @@
       if (!f.path) { rrect(300, y + 8, 54, 24, 11, [140, 140, 130]); text('なし', 327, y + 10, 15, WHITE, 1); } else if (ss === 'done') { rrect(260, y + 8, 94, 24, 11, [60, 138, 60]); text('✔ 見おわり', 307, y + 10, 15, WHITE, 1); } else if (ss === 'cont') { rrect(290, y + 8, 64, 24, 11, QRED); text('つづき', 322, y + 10, 15, WHITE, 1); }
     }
     if (V.top > 0) text('▲', 189, 48, 14, YEL, 1); if (V.top + 8 < n) text('▼', 189, 412, 14, YEL, 1);
+    { const vm = globalThis.__vm; if (vm) { const more = V.top + 8 < n, y7 = 58 + 6 * 44, y8 = 58 + 7 * 44; // 提案の試作(試験用)
+      if (vm === 'A' && more) { fill(10, y7 - 2, 358, 44, [8, 24, 18], 90); fill(10, y8 - 2, 358, 46, [8, 24, 18], 150); }
+      if (vm === 'B' && more) { fill(10, y8 + 44 - 2, 358, 4, [8, 24, 18], 0); const yy = 58 + 8 * 44; rrect(14, yy, 350, 14, 8, GREEN, 255); rrect(16, yy + 2, 346, 14, 7, CREAM, 255); fill(10, yy + 12, 358, 6, [14, 40, 30], 255); text('▼', 189, yy - 1, 12, [160, 110, 0], 1); }
+      if (vm === 'C' && n > 8) { rrect(372, 58, 8, 348, 4, [10, 30, 22], 255); const th = Math.max(30, Math.round(348 * 8 / n)), ty = 58 + Math.round((348 - th) * V.top / Math.max(1, n - 8)); rrect(372, ty, 8, th, 4, YEL, 255); }
+      if (vm === 'D' && more) { fill(10, 404, 358, 34, [14, 40, 30], 235); rrect(60, 410, 258, 28, 14, YEL, 255); text('▼ このしたに あと ' + (n - V.top - 8) + ' 本', 189, 413, 20, INK, 1); }
+      if (vm === 'E' && n > 8) { const pg = Math.floor(V.top / 8) + 1, pn = Math.ceil(n / 8); rrect(300, 12, 112, 30, 10, [10, 30, 22], 255); text(pg + ' / ' + pn + ' ページ', 356, 16, 19, YEL, 1); }
+    } }
     const f = V.files[V.sel], ss = vStatus(f);
     panel(384, 58, 430, 244, 12, [16, 56, 42], [150, 190, 140], 3, 255); vThumb(f, 394, 68, 410, 230);
     panel(384, 316, 430, 100, 12, CREAM, GREEN, 3, 255); text(f.title, 599, 326, fitSz(f.title, 26, 400, 16), INK, 1);
