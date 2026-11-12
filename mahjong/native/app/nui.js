@@ -639,13 +639,13 @@
   }
   function drawIntro() {
     const it = S.intro, g = S.game, t = __now() - it.t0; stage();
-    const P = g.players, st = (p) => (p.char && p.char.level ? p.char.level : 0), wf = (x, y, z) => { rrect(x - 9, y - 9, z + 18, z + 18, 4, [150, 100, 46]); rrect(x - 6, y - 6, z + 12, z + 12, 3, [205, 150, 80]); rrect(x - 3, y - 3, z + 6, z + 6, 2, [70, 110, 85]); };
+    const P = g.players, st = (p) => (p.char && p.char.level ? p.char.level : 0), wf = (x, y, z) => { rrect(x - 3, y - 3, z + 6, z + 6, 8, [255, 255, 255]); rframe(x - 5, y - 5, z + 10, z + 10, 9, 2, [30, 30, 30]); rframe(x - 3, y - 3, z + 6, z + 6, 8, 4, [255, 255, 255]); };
     const pl = (p, cx, y, lv) => (g.dealer === p.seat ? dealerPlate(cx, y, p.name, t) : plate(cx, y, p.name, lv)); // 親は、金色の「親」の名札
     const wc = (p, x, y) => { const sw = g.seatWindOf(p); rrect(x, y, 36, 36, 6, [255, 255, 255]); rrect(x + 2, y + 2, 32, 32, 5, WIND_BG[sw]); text(WIND[sw], x + 18, y + 4, 26, WHITE, 1); }; // 東南西北のチップ
     if (t > 0) { wf(360, 18, 112); face(P[2], 360, 18, 112, 112); pl(P[2], 416, 140, st(P[2])); wc(P[2], 306, 22); }
     if (t > 0) { wf(70, 150, 112); face(P[3], 70, 150, 112, 112); pl(P[3], 126, 268, st(P[3])); wc(P[3], 22, 154); }
     if (t > 0) { wf(650, 150, 112); face(P[1], 650, 150, 112, 112); pl(P[1], 706, 268, st(P[1])); wc(P[1], 774, 154); }
-    if (t > 0) { try { gfx.imageTop(youSrc(), 60, 336, 92, 92); } catch (e) { /* ignore */ } pl(P[0], 204, 366, 0); wc(P[0], 18, 340); }
+    if (t > 0) { wf(60, 336, 92); try { gfx.imageTop(youSrc(), 60, 336, 92, 92); } catch (e) { /* ignore */ } pl(P[0], 204, 366, 0); wc(P[0], 18, 340); }
     const T1 = it.t1 || 1700; // 「勝負!」を出す時刻(局の読み上げが、ながいときは、おわるまで待つ)
     if (t > 400 && !it.v1) { it.v1 = 1; S.skipKyokuVoice = true; try { const d = NSND.readKyoku(g); it.t1 = Math.max(1700, 400 + Math.round((d || 0) * 1000) + 350); } catch (e) { /* ignore */ } }
     if (t >= T1 && !it.v2) { it.v2 = 1; NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }
