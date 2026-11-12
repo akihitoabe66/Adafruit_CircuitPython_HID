@@ -864,7 +864,7 @@
     f.results.forEach((o, i) => {
       const y = Y0 + i * (RH + GAP), me = o.p.isHuman, mc = MED[Math.min(3, o.rank - 1)];
       rrect(60, y, 600, RH, 8, [0, 0, 0], 70); rrect(58, y - 2, 600, RH, 8, me ? [255, 236, 130] : [244, 247, 240]);
-      rrect(58, y - 2, 12, RH, 6, mc); rrect(64, y - 2, 6, RH, 0, me ? [255, 236, 130] : [244, 247, 240]);
+      if (o.rank !== 1) { rrect(58, y - 2, 12, RH, 6, mc); rrect(64, y - 2, 6, RH, 0, me ? [255, 236, 130] : [244, 247, 240]); } // 左の色の帯: 1位は、なし(「1位」の文字が金色なので、それで分かる)
       text(o.rank + '位', 80, y + 8, 38, o.rank === 1 ? [190, 130, 0] : BLACK);
       face(o.p, 170, y + 1, RH - 6, RH - 6);
       text(o.p.name, 246, y + 10, fitSz(o.p.name, 34, 250, 20), BLACK);
