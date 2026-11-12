@@ -2277,9 +2277,10 @@
     if (dt >= 80) { (perf.slow = perf.slow || []).unshift(Math.round(dt) + 'ms  ' + perfCtx()); perf.slow.length = Math.min(perf.slow.length, 4); }
     if (t0 - perf.t0 >= 1000) { perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; }
     if (perfOn() || (perf.flash || 0) > t0) { // 遅れの診断(写真に とれるように、左上に 大きめに)
-      gfx.view(0, 0); const sl = perf.slow || [], h = 24 + 18 * (1 + sl.length);
+      gfx.view(0, 0); const sl = perf.slow || [], h = 24 + 18 * (2 + sl.length);
       fill(0, 0, 520, h, [0, 0, 0], 200); text('遅れの診断: ' + (perfOn() ? 'オン' : 'オフ'), 6, 3, 16, YEL); text(perf.shown || '(計測中)', 6, 22, 16, [120, 255, 160]);
       sl.forEach((x, i) => text('遅れ ' + x, 6, 40 + i * 18, 15, [255, 170, 150]));
+      try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi) { const ok = mi[0] !== 0; text('BGM ' + (mi[0] < 0 ? '(なし)' : ok ? '再生中' : '止まっている!') + '  自動で鳴らしなおした ' + mi[1] + '回  曲の読み込み 最大' + mi[2] + 'ms', 6, 40 + sl.length * 18, 15, ok ? [150, 220, 255] : [255, 120, 120]); } } catch (e) { /* ignore */ }
     }
     return r;
   };
