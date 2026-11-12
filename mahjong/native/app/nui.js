@@ -1920,6 +1920,7 @@
     },
     showResult(g, r) {
       S.bub = {}; S.sayQ = []; S.banner = null; try { MJ.Stats.hand(g, r); } catch (e) { /* ignore */ }
+      try { if (MJ.Banter && MJ.Banter.noteResult) MJ.Banter.noteResult(g, r); } catch (e) { /* ignore */ } // 直前の局のことを、覚えておく
       S.resSay = { lines: [], t0: __now() }; try { if (MJ.Banter && MJ.Banter.afterWin && !g.fast) { S.resSay.lines = MJ.Banter.afterWin(g, r); S.resSay.lines.forEach((l, i) => { const st = 700 + i * 3800; setTimeout(dirty, st); setTimeout(dirty, st + 3500); }); } } catch (e) { /* ignore */ } // 上がったあとの、煽り・悔しがり
       NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
       if (r.type === 'win' && !r.wins.some((w) => w.winner.isHuman) && !(r.delta[0] < 0) && r.wins.some((w) => !w.tsumo)) NSND.resultCpuRon(); // CPUが、別のCPUからロン(自分は関係ない)

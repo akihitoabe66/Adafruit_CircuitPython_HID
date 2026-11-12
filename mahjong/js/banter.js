@@ -423,8 +423,8 @@
         const top = sorted[0], low = sorted[sorted.length - 1];
         const base = MJ.RULES.start || 25000;
         const out = [];
-        if (top.score > base) out.push([top, 'lead']);
-        if (low !== top && low.score < base) out.push([low, 'trail']);
+        if (top.score > base) out.push([top, top.score >= base + 12000 && L[top.char.id] && L[top.char.id].bigLead && Math.random() < 0.7 ? 'bigLead' : 'lead']); // 大きく勝っている人は、名言(banter5.js)
+        if (low !== top && low.score < base) out.push([low, low.score <= base - 12000 && L[low.char.id] && L[low.char.id].bigTrail && Math.random() < 0.7 ? 'bigTrail' : 'trail']);
         if (!out.length && top.score !== low.score) out.push([top.score >= low.score ? top : low, top.score > low.score ? 'lead' : 'trail']);
         out.forEach(([p, kind], i) => setTimeout(() => B.say(game, p, kind, { force: true }), 900 + i * 1700));
         return;

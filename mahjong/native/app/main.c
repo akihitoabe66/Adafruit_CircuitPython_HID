@@ -316,7 +316,7 @@ int main(int argc, char **argv){
   { const char *lo = getenv("MJ_LEARN"); if (lo) JS_SetPropertyStr(ctx, g, "__learnEnv", JS_NewString(ctx, lo)); } /* MJ_LEARN=old で、点数計算の勉強を、前の(タブの)見た目に戻す */
   { const char *yo = getenv("MJ_YOU"); if (yo) JS_SetPropertyStr(ctx, g, "__youEnv", JS_NewString(ctx, yo)); } /* MJ_YOU=old で、前の「あなた」の絵に戻す */
   JS_SetPropertyStr(ctx, g, "__auto", JS_NewBool(ctx, auto_)); if (shots) JS_SetPropertyStr(ctx, g, "__shotDir", JS_NewString(ctx, shots));
-  const char *list[] = { "native/app/prelude.js", "js/tiles.js", "js/rules.js", "js/forms.js", "js/chars.js", "js/ai.js", "js/coach.js", "js/game.js", "js/banter.js", "js/banter2.js", "js/banter3.js", "js/banter4.js", "js/chars2.js", "js/rank.js", "native/app/icon.js", "js/ruby.js", "js/drill.js", "native/app/stats.js", "native/app/learn.js", "native/app/dictdata.js", "native/app/nsnd.js", "native/app/nui.js", NULL };
+  const char *list[] = { "native/app/prelude.js", "js/tiles.js", "js/rules.js", "js/forms.js", "js/chars.js", "js/ai.js", "js/coach.js", "js/game.js", "js/banter.js", "js/banter2.js", "js/banter3.js", "js/banter4.js", "js/banter5.js", "js/chars2.js", "js/rank.js", "native/app/icon.js", "js/ruby.js", "js/drill.js", "native/app/stats.js", "native/app/learn.js", "native/app/dictdata.js", "native/app/nsnd.js", "native/app/nui.js", NULL };
   for (int i = 0; list[i]; i++) { char p[1500]; snprintf(p, sizeof p, "%s/%s", root, list[i]); if (evalfile(p)) return 3; }
   { const char *sc = getenv("MJ_SCRIPT"); if (sc) { char p[1500]; snprintf(p, sizeof p, "%s", sc); evalfile(p); } } /* 試験用: 追加のJSを読む */
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
