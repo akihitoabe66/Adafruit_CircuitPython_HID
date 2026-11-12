@@ -1251,8 +1251,8 @@
       const items = dItems(d), np = Math.max(1, Math.ceil(items.length / DPER)), pg = Math.floor(d.sel / DPER);
       quizFrame('麻雀用語じてん', '', np > 1 && d.foc === 1 ? (pg + 1) + ' / ' + np + ' ページ' : '', '');
       rrect(204, 410, 594, 38, 10, d.foc === 1 ? [160, 110, 0] : [40, 90, 60]); text(d.foc === 0 ? '▶ を押すと、右の 言葉を えらべます' : '決定ボタンを押すと、くわしい説明が ひらきます', 501, 416, 22, WHITE, 1); text(d.foc === 0 ? '▲▼ 分類  戻る: 勉強へ' : '◀(左はし)で分類へ', 100, 417, 15, [210, 225, 205], 1);
-      DM.forEach((c, i) => { const cur = d.m === i, f = d.foc === 0 && cur; panel(14, 56 + i * 40, 176, 36, 10, f ? YEL : cur ? [60, 130, 60] : [50, 70, 60], f ? [160, 110, 0] : cur ? [150, 200, 140] : [74, 97, 84], f ? 4 : 2, 255); text(c, 102, 56 + i * 40 + (c.length > 6 ? 9 : 7), c.length > 6 ? 17 : 20, f ? INK : cur ? WHITE : [185, 201, 189], 1); });
-      items.slice(pg * DPER, pg * DPER + DPER).forEach((it, i) => dBtn(204 + (i % 2) * 302, 54 + Math.floor(i / 2) * 70, 292, 64, it.n, it.r, d.foc === 1 && pg * DPER + i === d.sel, it.star));
+      DM.forEach((c, i) => { const cur = d.m === i, f = d.foc === 0 && cur && !S.bbf; panel(14, 56 + i * 40, 176, 36, 10, f ? YEL : cur ? [60, 130, 60] : [50, 70, 60], f ? [160, 110, 0] : cur ? [150, 200, 140] : [74, 97, 84], f ? 4 : 2, 255); text(c, 102, 56 + i * 40 + (c.length > 6 ? 9 : 7), c.length > 6 ? 17 : 20, f ? INK : cur ? WHITE : [185, 201, 189], 1); });
+      items.slice(pg * DPER, pg * DPER + DPER).forEach((it, i) => dBtn(204 + (i % 2) * 302, 54 + Math.floor(i / 2) * 70, 292, 64, it.n, it.r, d.foc === 1 && !S.bbf && pg * DPER + i === d.sel, it.star));
       if (!items.length) text('この分類は、まだありません', 500, 200, 22, GREY, 1);
       return;
     }
@@ -1359,7 +1359,7 @@
     quizFrame('点数計算の勉強', '', 'おぼえた ' + nDone + ' / ' + n, L.view === 'sub' ? '' : '▲ ▼ でえらぶ    決定ボタンで ひらく    戻る: もどる');
     L.top = Math.max(0, Math.min(L.top || 0, L.sel)); if (L.sel >= L.top + 8) L.top = L.sel - 7;
     for (let r = 0; r < 8; r++) {
-      const i = L.top + r; if (i >= n) break; const st = STEPS[i], y = 58 + r * 44, on = L.sel === i && L.view === 'map', done = !!D.done[st.id];
+      const i = L.top + r; if (i >= n) break; const st = STEPS[i], y = 58 + r * 44, on = L.sel === i && L.view === 'map' && !S.bbf, done = !!D.done[st.id];
       panel(14, y, 366, 40, 10, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255);
       rrect(24, y + 5, 36, 30, 6, done ? [60, 138, 60] : GREEN); text(done ? '合' : String(i + 1), 42, y + 8, 18, WHITE, 1);
       text(st.t, 68, y + 8, fitSz(st.t, 21, 232, 14), INK);
@@ -1419,7 +1419,7 @@
       text('決定ボタンで ひらく', SW / 2, 270, 24, WHITE, 1); return;
     }
     pgi[pi].forEach((i, r) => {
-      const st = STEPS[i], y = 100 + r * 64, sel = L.sel === i && L.view === 'map', done = !!D.done[st.id], bm = D.bm.step === i;
+      const st = STEPS[i], y = 100 + r * 64, sel = L.sel === i && L.view === 'map' && !S.bbf, done = !!D.done[st.id], bm = D.bm.step === i;
       panel(24, y, SW - 48, 58, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
       rrect(34, y + 9, 40, 40, 20, done ? GREEN : [160, 170, 150]); text(done ? '合' : String(i + 1), 54, y + 13, 28, WHITE, 1);
       text(st.t, 90, y + 5, 26, INK); text(st.sum, 92, y + 36, 16, [80, 80, 70]);
@@ -1543,7 +1543,7 @@
     }
     const n = V.files.length;
     for (let r = 0; r < 8; r++) {
-      const i = V.top + r; if (i >= n) break; const f = V.files[i], y = 58 + r * 44, on = i === V.sel, ss = vStatus(f);
+      const i = V.top + r; if (i >= n) break; const f = V.files[i], y = 58 + r * 44, on = i === V.sel && !S.bbf, ss = vStatus(f);
       panel(14, y, 350, 40, 10, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255);
       rrect(24, y + 5, 36, 30, 6, GREEN); text(('0' + f.n).slice(-2), 42, y + 8, 18, WHITE, 1);
       const isLast = i === V.last, ps = V.d.pos[f.name] || 0, dd = (V.d.dur && V.d.dur[f.name]) || Math.max(ps * 2, 600), bw = !f.path ? 60 : isLast ? 106 : ss === 'cont' ? 66 : 0; text(f.title, 68, y + 7 + 0, fitSz(f.title, 21, 286 - bw, 14), INK);
@@ -1606,13 +1606,13 @@
     }
   }
   function drawStudy() { // 背景の絵(img/study_bg.webp)に、えらんだ枠と、進み具合の文字を重ねる
-    const H = S.study; gfx.clear(14, 40, 30); gfx.image('img/study_bg.webp', 0, 0, SW, SH, 255);
+    const H = S.study, hs = S.bbf ? -1 : H.sel; gfx.clear(14, 40, 30); gfx.image('img/study_bg.webp', 0, 0, SW, SH, 255); // 「もどる」に合わせているときは、3つのボタンの 枠も 拡大も 出さない
     const BT = [[17, 63, 366, 94], [17, 163, 366, 107], [17, 278, 366, 91]], pr = pressing() ? 3 : 0, CX = 609; // ボタンの絵。選んでいるものは一回り大きく(押している間は、もとの大きさで、少し沈む)
-    const SC = 1.07, sc = pr ? 1 : SC, tx = (x, y, i) => { const b = BT[i]; return [Math.round(b[0] + b[2] / 2 + (x - (b[0] + b[2] / 2)) * (H.sel === i ? sc : 1)), Math.round(b[1] + b[3] / 2 + (y - (b[1] + b[3] / 2)) * (H.sel === i ? sc : 1)) + (H.sel === i ? pr : 0)]; };
+    const SC = 1.07, sc = pr ? 1 : SC, tx = (x, y, i) => { const b = BT[i]; return [Math.round(b[0] + b[2] / 2 + (x - (b[0] + b[2] / 2)) * (hs === i ? sc : 1)), Math.round(b[1] + b[3] / 2 + (y - (b[1] + b[3] / 2)) * (hs === i ? sc : 1)) + (hs === i ? pr : 0)]; };
     const fr = (i) => { const b = BT[i], w = Math.round(b[2] * sc), h = Math.round(b[3] * sc); return [Math.round(b[0] + (b[2] - w) / 2), Math.round(b[1] + (b[3] - h) / 2) + pr, w, h]; };
-    const sel = H.sel, ord = [0, 1, 2].filter((i) => i !== sel).concat([sel]); // えらんだものを、いちばん上に描く
+    const sel = hs, ord = [0, 1, 2].filter((i) => i !== sel).concat(sel >= 0 ? [sel] : []); // えらんだものを、いちばん上に描く
     ord.forEach((i) => { const r = i === sel ? fr(i) : BT[i]; gfx.image('img/study_btn' + (i + 1) + '.webp', r[0], r[1], r[2], r[3], 255); });
-    const e = fr(sel); rframe(e[0] - 3, e[1] - 3, e[2] + 6, e[3] + 6, 8, 2, [40, 30, 10]); rframe(e[0] - 1, e[1] - 1, e[2] + 2, e[3] + 2, 7, 4, [255, 220, 40]); // えらんでいる枠(黄色・小さな角丸)
+    if (sel >= 0) { const e = fr(sel); rframe(e[0] - 3, e[1] - 3, e[2] + 6, e[3] + 6, 8, 2, [40, 30, 10]); rframe(e[0] - 1, e[1] - 1, e[2] + 2, e[3] + 2, 7, 4, [255, 220, 40]); } // えらんでいる枠(黄色・小さな角丸)
     { const p0 = tx(112, 122, 0), p2 = tx(112, 332, 2); text('おぼえた ' + H.nDone + ' / ' + H.total, p0[0], p0[1], Math.round(21 * (sel === 0 ? sc : 1)), [70, 44, 14]); text(H.vn + '本' + (H.cont ? ' ・ つづきあり' : ''), p2[0], p2[1], Math.round(21 * (sel === 2 ? sc : 1)), [244, 214, 176]); }
     text('▲ ▼ でえらぶ    決定ボタンで ひらく    戻る: ホームへ', 420, 437, 20, [236, 222, 190], 1);
     if (H.sel === 0) {
