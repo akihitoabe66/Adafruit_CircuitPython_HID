@@ -19,6 +19,9 @@
   const wrap = (i, n) => (i + n) % n;
   const pressing = () => __now() - S.pressT < (S.pressMs || 170);
   const postQ = []; const afterPresent = (fn) => { postQ.push(fn); }; // 今の絵が画面に出てから(次のコマの はじめに)実行する
+  /* 「もどる」ボタン(画面の左上): 戻る(B)だけで出入りしていた画面に、見える「もどる」を足す。 ▲ で、このボタンへ / 決定で戻る / ▼ で元の場所へ */
+  const BACKM = new Set(['diag', 'study', 'learn', 'dict', 'video', 'howto', 'stats', 'slots']);
+  function drawBack() { const on = !!S.bbf; panel(12, 8, 122, 30, 6, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255); text('◀ もどる', 73, 12, 19, INK, 1); }
   const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 170; S.locked = true; dirty(); setTimeout(() => { S.pressT = -9999; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 40); }, S.pressMs); }; // 押している間のあと、いちど「もとの形にもどった絵」を描いてから、次の画面へ(描くのがおそい機械でも、へこんだ絵のまま、つぎの画面にならないように) // 押したボタンが光ってから、次へ
   const NSLOT = 5;
   function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
@@ -1135,7 +1138,7 @@
     const d = S.dict; dirty();
     if (d.view === 'main') {
       if (d.foc === 0) {
-        if (k === 'up') { d.m = (d.m + DM.length - 1) % DM.length; d.kana = null; d.sel = 0; } else if (k === 'down') { d.m = (d.m + 1) % DM.length; d.kana = null; d.sel = 0; }
+        if (k === 'up') { if (d.m === 0) S.bbf = true; else { d.m--; d.kana = null; d.sel = 0; } } else if (k === 'down') { d.m = (d.m + 1) % DM.length; d.kana = null; d.sel = 0; }
         else if (k === 'right' || k === 'ok') { if (dItems(d).length) { d.foc = 1; d.sel = 0; } } else if (k === 'back') { startStudy(1); S.dict = null; }
         return;
       }
@@ -1185,7 +1188,7 @@
     if (L.view === 'map') {
       if (k === 'back') { startStudy(0); S.learn = null; return; }
       const pgi = learnPages(), pi = pgOf(pgi, L.sel), cur = pgi[pi], at = cur.indexOf(L.sel);
-      if (k === 'up') L.sel = cur[wrap(at - 1, cur.length)]; else if (k === 'down') L.sel = cur[wrap(at + 1, cur.length)];
+      if (k === 'up') { if (at === 0) S.bbf = true; else L.sel = cur[at - 1]; } else if (k === 'down') L.sel = cur[Math.min(cur.length - 1, at + 1)];
       else if (k === 'left' || k === 'right') { const o = pgi[wrap(pi + (k === 'left' ? -1 : 1), pgi.length)]; L.sel = o[Math.min(at, o.length - 1)]; }
       else if (k === 'ok') { if (L.sel === STEPS.length) startDict(); else if (L.sel > STEPS.length) startVideo(); else { L.view = 'sub'; L.sub = 0; } }
     } else if (L.view === 'sub') {
@@ -1202,7 +1205,7 @@
       if (k === 'back') { L.view = 'map'; L.sel = L.step; }
       else if (k === 'left') { if (L.page > 0) learnOpen(L.step, L.page - 1); }
       else if (k === 'right' || k === 'ok') { if (L.page < st.pages.length - 1) learnOpen(L.step, L.page + 1); else if (k === 'ok') learnQuiz(L.step); }
-      else if (k === 'up') L.scroll = Math.max(0, L.scroll - 40); else if (k === 'down') L.scroll += 40;
+      else if (k === 'up') { if (L.scroll <= 0) S.bbf = true; else L.scroll = Math.max(0, L.scroll - 40); } else if (k === 'down') L.scroll += 40;
     }
     dirty();
   }
@@ -1373,13 +1376,13 @@
       return;
     }
     if (V.view === 'home') {
-      if (k === 'up' || k === 'down') V.hs = 1 - V.hs; else if (k === 'back') { startStudy(2); S.vid = null; } else if (k === 'ok') { if (V.hs === 0) vPlay(V.last, V.d.pos[V.files[V.last].name] || 0); else V.view = 'list'; }
+      if (k === 'up') { if (V.hs === 0) S.bbf = true; else V.hs = 0; } else if (k === 'down') V.hs = 1; else if (k === 'back') { startStudy(2); S.vid = null; } else if (k === 'ok') { if (V.hs === 0) vPlay(V.last, V.d.pos[V.files[V.last].name] || 0); else V.view = 'list'; }
       return;
     }
     const n = V.files.length; V.err = '';
     if (k === 'back') { if (V.last >= 0) V.view = 'home'; else { startStudy(2); S.vid = null; } }
     else if (!n) return;
-    else if (k === 'up') { V.sel = (V.sel + n - 1) % n; vFit(); } else if (k === 'down') { V.sel = (V.sel + 1) % n; vFit(); }
+    else if (k === 'up') { if (V.sel === 0) S.bbf = true; else { V.sel--; vFit(); } } else if (k === 'down') { V.sel = (V.sel + 1) % n; vFit(); }
     else if (k === 'left') { V.sel = Math.max(0, V.sel - 8); vFit(); } else if (k === 'right') { V.sel = Math.min(n - 1, V.sel + 8); vFit(); }
     else if (k === 'ok') { const f = V.files[V.sel]; if (f.path && vStatus(f) === 'cont') V.ask = { i: V.sel, idx: 0 }; else vPlay(V.sel, 0); }
   }
@@ -1447,7 +1450,7 @@
   }
   function studyKey(k) {
     const H = S.study; dirty();
-    if (k === 'up') H.sel = (H.sel + 2) % 3; else if (k === 'down') H.sel = (H.sel + 1) % 3;
+    if (k === 'up') { if (H.sel === 0) S.bbf = true; else H.sel--; } else if (k === 'down') H.sel = Math.min(2, H.sel + 1);
     else if (k === 'back') { S.mode = 'menu'; S.study = null; }
     else if (k === 'ok') { const w = H.sel; later(() => { if (w === 0) startLearn(); else if (w === 1) startDict(); else startVideo(); }); } // ボタンが押し込まれてから、開く
   }
@@ -1507,7 +1510,7 @@
   function diagKey(k) {
     const D = S.diag;
     if (k === 'back') { S.mode = 'menu'; S.diag = null; }
-    else if (k === 'left') D.pg = Math.max(0, D.pg - 1); else if (k === 'right') D.pg = Math.min(3, D.pg + 1);
+    else if (k === 'up') S.bbf = true; else if (k === 'left') D.pg = Math.max(0, D.pg - 1); else if (k === 'right') D.pg = Math.min(3, D.pg + 1);
     else if (k === 'ok' && D.pg >= 2) { S.diag = null; startPractice(); }
     dirty();
   }
@@ -1602,7 +1605,7 @@
   function startHow() { S.how = { pg: 0 }; S.mode = 'howto'; dirty(); }
   function howKey(k) {
     const H = S.how; dirty();
-    if (k === 'back') { S.mode = 'settings'; S.how = null; } else if (k === 'left') H.pg = Math.max(0, H.pg - 1); else if (k === 'right' || k === 'ok') { if (H.pg < HOWP.length - 1) H.pg++; else if (k === 'ok') { S.mode = 'settings'; S.how = null; } }
+    if (k === 'back') { S.mode = 'settings'; S.how = null; } else if (k === 'up') S.bbf = true; else if (k === 'left') H.pg = Math.max(0, H.pg - 1); else if (k === 'right' || k === 'ok') { if (H.pg < HOWP.length - 1) H.pg++; else if (k === 'ok') { S.mode = 'settings'; S.how = null; } }
   }
   function howPad(x, y) { // ゲームパッドの絵(十字キー + 決定(A)・戻る(B))
     rrect(x, y, 330, 176, 40, [52, 56, 60]); rrect(x + 3, y + 3, 324, 170, 38, [78, 84, 90]);
@@ -1683,7 +1686,7 @@
       return;
     }
     if (S.mode === 'stats') {
-      if (k === 'back' || k === 'ok') S.mode = S.statsPrev || 'menu'; else if (k === 'left' || k === 'right') { const o = Object.keys(MJ.Rank.get().opp).length, pages = Math.max(1, Math.ceil(o / 3)); S.statsPg = wrap(S.statsPg + (k === 'right' ? 1 : -1), pages); }
+      if (k === 'back' || k === 'ok') S.mode = S.statsPrev || 'menu'; else if (k === 'up') S.bbf = true; else if (k === 'left' || k === 'right') { const o = Object.keys(MJ.Rank.get().opp).length, pages = Math.max(1, Math.ceil(o / 3)); S.statsPg = wrap(S.statsPg + (k === 'right' ? 1 : -1), pages); }
       return;
     }
     if (S.teachQ) { // 麻雀先生をつけますか?  つけない / つける / もどる
@@ -1703,6 +1706,8 @@
       else if (k === 'back') S.confirmQ = null; else if (k === 'ok') { const i = S.confirmQ.idx; S.confirmQ = null; if (i === 0) __quit(); }
       return;
     }
+    if (!BACKM.has(S.mode)) S.bbf = false;
+    else if (S.bbf) { if (k === 'ok' || k === 'back') { S.bbf = false; k = 'back'; } else { if (k === 'down') S.bbf = false; dirty(); return; } } // 「もどる」ボタンに合わせているとき
     if (S.mode === 'quiz') { quizKey(k); return; }
     if (S.mode === 'dict') { dictKey(k); return; }
     if (S.mode === 'study') { studyKey(k); return; }
@@ -1712,7 +1717,7 @@
     if (S.mode === 'howto') { howKey(k); return; }
     if (S.mode === 'credits') { if (k === 'ok' || k === 'back') { S.mode = 'settings'; dirty(); } return; }
     if (S.mode === 'slots') {
-      if (k === 'up' || k === 'down') { if (S.slots.length) S.slotIdx = wrap(S.slotIdx + (k === 'up' ? -1 : 1), S.slots.length); }
+      if (k === 'up') { if (!S.slots.length || S.slotIdx === 0) S.bbf = true; else S.slotIdx--; } else if (k === 'down') { if (S.slots.length) S.slotIdx = Math.min(S.slots.length - 1, S.slotIdx + 1); }
       else if (k === 'back') { S.mode = 'menu'; S.slots = []; }
       else if (k === 'ok' && S.slots.length) { const q = S.slots[S.slotIdx]; S.slots = []; startGame(q.v.snap); } // ロードしたら、この一覧は、また見えなくなる
       return;
@@ -2030,20 +2035,20 @@
       S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [32, 74, 60]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;
-    if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); return true; }
+    if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); drawBack(); return true; }
     if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); if (S.quiz && S.quiz.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog(S.quiz.learn ? 'クイズを やめますか?' : 'ホームに もどりますか?', ['つづける', S.quiz.learn ? 'やめる' : 'ホームにもどる'], S.quiz.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
-    if (S.mode === 'dict') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDict(); return true; }
-    if (S.mode === 'study') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawStudy(); return true; }
-    if (S.mode === 'video') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawVideo(); if (S.vid && S.vid.ask) { const a = S.vid.ask; S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('つづきから 見ますか?', ['つづきから(' + vfmt(S.vid.d.pos[S.vid.files[a.i].name]) + ')', 'はじめから'], a.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
-    if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); if (S.learn && S.learn.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('ホームに もどりますか?', ['つづける', 'ホームにもどる'], S.learn.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
-    if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); return true; }
-    if (S.mode === 'howto') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawHow(); return true; }
+    if (S.mode === 'dict') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDict(); if (S.dict && S.dict.view === 'main') drawBack(); return true; }
+    if (S.mode === 'study') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawStudy(); drawBack(); return true; }
+    if (S.mode === 'video') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawVideo(); if (S.vid && S.vid.view !== 'play' && !S.vid.ask) drawBack(); if (S.vid && S.vid.ask) { const a = S.vid.ask; S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('つづきから 見ますか?', ['つづきから(' + vfmt(S.vid.d.pos[S.vid.files[a.i].name]) + ')', 'はじめから'], a.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
+    if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); if (S.learn && !S.learn.confirm && S.learn.view !== 'sub') drawBack(); if (S.learn && S.learn.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('ホームに もどりますか?', ['つづける', 'ホームにもどる'], S.learn.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
+    if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); drawBack(); return true; }
+    if (S.mode === 'howto') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawHow(); drawBack(); return true; }
     if (S.mode === 'credits') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawCredits(); return true; }
     const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
     if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
     gfx.view(S.vx, S.vy);
-    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); }
+    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); drawBack(); }
     else if (S.game) { gfx.clear(32, 74, 60); drawTable(S.game); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
     if (S.rankP) drawRankP();
     if (S.result) { drawResult(S.result); drawResSay(); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
