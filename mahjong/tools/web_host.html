@@ -39,9 +39,12 @@
     <h1>麻雀 Pi版シミュレーター(音なし)</h1>
     <label class="tune">Pi Zeroの遅さ
       <select id="slow">
+        <option value="pi" selected>実機そっくり(描く数で計算)</option>
+        <option value="pi2">実機そっくり ×2(もっと遅く)</option>
+        <option value="pi4">実機そっくり ×4(かなり遅く)</option>
         <option value="1">なし(×1)</option>
         <option value="5">×5</option>
-        <option value="10" selected>×10(目安)</option>
+        <option value="10">×10(処理時間だけ)</option>
         <option value="20">×20</option>
         <option value="30">×30</option>
       </select>
@@ -121,10 +124,15 @@
     present() {}, shot() {},
     view(x, y) { vx = x; vy = y; applyView(); },
     clip(x, y, w, h) { ctx.restore(); ctx.save(); ctx.beginPath(); if (arguments.length < 4) ctx.rect(vx, vy, W - vx, H - vy); else ctx.rect(x + vx, y + vy, w, h); ctx.clip(); ctx.translate(vx, vy); },
-    layerBegin(i) { if (i < 0 || i >= 6) return; if (!lay[i]) lay[i] = mk(); const c = lay[i].getContext('2d'); ctx.restore(); ctx = c; ctx.clearRect(0, 0, W, H); ctx.save(); },
+    rrect(x, y, w, h, r, cr, cg, cb, a) { r = Math.max(0, Math.min(r, h / 2, w / 2)); ctx.fillStyle = rgba(cr, cg, cb, a === undefined ? 255 : a); ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else { ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); } ctx.fill(); },
+    layerBegin(i) { if (i < 0 || i >= 20) return; if (!lay[i]) lay[i] = mk(); const c = lay[i].getContext('2d'); ctx.restore(); ctx = c; ctx.clearRect(0, 0, W, H); ctx.save(); },
     layerEnd() { ctx.restore(); ctx = tctx; ctx.save(); applyView(); },
-    layer(i) { if (i < 0 || i >= 6 || !lay[i]) return; ctx.drawImage(lay[i], 0, 0); },
+    layer(i) { if (i < 0 || i >= 20 || !lay[i]) return; ctx.drawImage(lay[i], 0, 0); },
   };
+  /* 実機そっくり: 描く道具を呼ぶたびに、実機(Pi Zero W)でかかる時間を、数えて ためる(写真の測定: 小さな塗り1回=約30μs、1画面=約1500回で約100ms) */
+  let cost = 0, piMode = true;
+  const COST = { fill: (a) => 30 + a[2] * a[3] * 0.012, frame: () => 60, image: (a) => 100 + a[3] * a[4] * 0.03, imageRot: (a) => 120 + a[3] * a[4] * 0.04, imageSil: (a) => 120 + a[3] * a[4] * 0.04, imageTop: (a) => 100 + a[3] * a[4] * 0.03, text: () => 200, textTop: () => 200, textRot: () => 220, fillTop: (a) => 30 + a[2] * a[3] * 0.012, rrect: (a) => 40 + a[4] * 8 + a[2] * a[3] * 0.012, layer: () => 300 + W * H * 0.02 };
+  Object.keys(COST).forEach((k) => { const o = gfx[k]; if (typeof o !== 'function') return; gfx[k] = function () { cost += COST[k](arguments); return o.apply(this, arguments); }; });
   /* gfx.measure は、描画先と別でも同じ答えになるよう tctx を使う(layerBegin中も使える) */
   const noop = () => {};
   const snd = { play: noop, len: () => 0, stopAll: noop, music: noop, musicVol: noop };
@@ -183,7 +191,8 @@
   const spin = (ms) => { if (ms < 0.5) return; const e = performance.now() + Math.min(ms, 1500); while (performance.now() < e) { /* 遅いCPUを真似て、待つ */ } };
   const flush = () => new Promise((r) => queueMicrotask(() => queueMicrotask(r)));
   let slow = 10, showStat = false, sMax = 0, sDraw = 0, sDn = 0, lastStat = 0;
-  $('slow').addEventListener('change', (e) => { slow = +e.target.value; });
+  let piF = 1;
+  $('slow').addEventListener('change', (e) => { const v = e.target.value; piMode = v.indexOf('pi') === 0; piF = v === 'pi2' ? 2 : v === 'pi4' ? 4 : 1; slow = piMode ? 10 * piF : +v; });
   $('statBtn').addEventListener('click', () => { showStat = !showStat; $('stat').hidden = !showStat; $('statBtn').classList.toggle('on', showStat); });
   document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', () => { forceDraw = true; });
 
@@ -195,12 +204,12 @@
     const dl = performance.now() - a; spin((slow - 1) * dl);
     let dd = 0;
     if (need || forceDraw) {
-      forceDraw = false; const b = performance.now();
+      forceDraw = false; cost = 0; const b = performance.now();
       ctx = tctx; tops = []; ctx.save(); vx = 0; vy = 0;
       ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
       try { window.__draw(); } catch (e) { console.error(e); }
       ctx.restore(); present();
-      dd = performance.now() - b; spin((slow - 1) * dd);
+      dd = performance.now() - b; if (piMode) spin(cost / 1000 * piF); else spin((slow - 1) * dd); // 実機そっくり: 描いた数から計算した時間だけ待つ
     }
     if (dl > sMax) sMax = dl; if (dd) { sDraw += dd; sDn++; }
     const now = performance.now();
