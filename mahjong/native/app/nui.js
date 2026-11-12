@@ -1538,7 +1538,9 @@
   function diagKey(k) {
     const D = S.diag;
     if (k === 'back') { S.mode = 'menu'; S.diag = null; }
-    else if (k === 'up') S.bbf = true; else if (k === 'left') D.pg = Math.max(0, D.pg - 1); else if (k === 'right') D.pg = Math.min(3, D.pg + 1);
+    else if (D.pg === 0 && (k === 'up' || k === 'down') && !(k === 'up' && D.fi === 0)) { // 「強さ」の画面: ▲ で、左の項目(総合・攻撃力…)へ。そこに合わせると、右に説明が出る / ▼ で、下の札へもどる
+      const fi = D.fi == null ? -1 : D.fi; D.fi = k === 'up' ? (fi < 0 ? 6 : fi - 1) : (fi >= 6 ? -1 : fi < 0 ? -1 : fi + 1); }
+    else if (k === 'up') { D.fi = -1; S.bbf = true; } else if (k === 'left') { D.pg = Math.max(0, D.pg - 1); D.fi = -1; } else if (k === 'right') { D.pg = Math.min(3, D.pg + 1); D.fi = -1; }
     else if (k === 'ok' && D.pg >= 2) { S.diag = null; startPractice(); }
     dirty();
   }
@@ -1551,9 +1553,9 @@
     quizFrame('あなたの診断', '', '', '');
     if (pg === 0) { // 強さ(レーダーチャート)
       const ax = sg.ax, have = ax.filter((a) => a.v != null), cx0 = 440, cy0 = 256, R = 104, pt = (i, v, r) => { const an = -Math.PI / 2 + i * Math.PI / 3, rr = (r == null ? R : r) * v / 100; return [cx0 + Math.cos(an) * rr, cy0 + Math.sin(an) * rr]; };
-      panel(22, 56, 196, 54, 12, CREAM, [160, 110, 0], 3, 255); text('総合', 36, 74, 17, INK);
+      const FI = D.fi == null ? -1 : D.fi; panel(22, 56, 196, 54, 12, FI === 0 ? YEL : CREAM, FI === 0 ? [120, 80, 0] : [160, 110, 0], FI === 0 ? 4 : 3, 255); text('総合', 36, 74, 17, INK);
       if (sg.total != null) { text(String(sg.total), 120, 64, 34, sg.total < 60 ? [190, 60, 40] : INK, 1); text('点', 160, 74, 17, INK); } else text('--', 120, 64, 34, [120, 120, 110], 1);
-      ax.forEach((a, i) => { const y = 118 + i * 46; panel(22, y, 196, 38, 12, CREAM, GREEN, 2, 255); text(a.name, 38, y + 9, 20, a.v == null ? [130, 130, 120] : INK); text(a.v == null ? '--' : a.v + '点', 204, y + 9, 20, a.v == null ? [130, 130, 120] : a.v < 60 ? [190, 60, 40] : INK, 2); });
+      ax.forEach((a, i) => { const y = 118 + i * 46; panel(22, y, 196, 38, 12, FI === i + 1 ? YEL : CREAM, FI === i + 1 ? [120, 80, 0] : GREEN, FI === i + 1 ? 4 : 2, 255); text(a.name, 38, y + 9, 20, a.v == null ? [130, 130, 120] : INK); text(a.v == null ? '--' : a.v + '点', 204, y + 9, 20, a.v == null ? [130, 130, 120] : a.v < 60 ? [190, 60, 40] : INK, 2); });
       gPoly([0, 1, 2, 3, 4, 5].map((i) => pt(i, 100)), [13, 51, 38], 255);
       [25, 50, 75, 100].forEach((lv) => { const P = [0, 1, 2, 3, 4, 5].map((i) => pt(i, lv)); for (let i = 0; i < 6; i++) gLine(P[i][0], P[i][1], P[(i + 1) % 6][0], P[(i + 1) % 6][1], 1, [102, 170, 136]); });
       for (let i = 0; i < 6; i++) { const e = pt(i, 100); gLine(cx0, cy0, e[0], e[1], 1, [102, 170, 136]); }
@@ -1564,9 +1566,11 @@
       const best = have.slice().sort((x, y) => y.v - x.v)[0], worst = have.slice().sort((x, y) => x.v - y.v)[0], tip = { '攻撃力': '役づくりを 意識しましょう。', '守備力': '危ない牌を 見分けましょう。', '洞察力': '待ちや 押し引きの クイズが おすすめです。', '牌効率': '牌効率の クイズが おすすめです。', '計算力': 'クイズで 練習しましょう!', '打点力': 'ドラや 役を ねらってみましょう。' };
       const say = have.length >= 3 ? (best.name + 'が 得意です。\nいちばん のばせるのは「' + worst.name + '」。' + tip[worst.name]) : 'まだ 記録が すくないです。麻雀を遊んだり、クイズを解くと、強さが 見えてきます。';
       tFace(sg.total == null ? 'advice' : sg.total >= 80 ? 'cheer' : sg.total >= 60 ? 'ok' : 'advice', 'dg0' + (sg.total || 0), 716, 52, 72);
-      const f = fitRich(say, [18, 17, 16], 186, 170), bh = f.h + 26; panel(606, 132, 212, bh, 12, CREAM, GREEN, 3, 255); richDraw(f.lines, 618, 144, f.sz, INK, 0);
+      const DEX = ['総合: 下の6つの力の平均です。\n60点で「ふつうに打てる」、80点以上で「じょうず」です。', '攻撃力: 対局で、上がれた割合です。\n上がる局が多いほど、高くなります。', '守備力: 他の人に振り込まなかった割合です。\n振り込みが少ないほど、高くなります。', '洞察力: 危ない牌を避けられたか、と、待ちや押し引きのクイズの正解率です。\n相手の手を読む力です。', '牌効率: 上がりに近づく牌を切れたか、と、何を切るかのクイズの正解率です。\n手を早く完成させる力です。', '計算力: 点数計算のクイズの正解率です。\n飜と符から、点数を出す力です。', '打点力: 上がったときの、平均の点数です。\n大きな手で上がれるほど、高くなります。'];
+      const exp = FI >= 0 ? DEX[FI] + (FI >= 1 && ax[FI - 1].v == null ? '\n(まだ データが たりません)' : '') : null;
+      const f = fitRich(exp || say, [18, 17, 16], 186, 190), bh = f.h + 26; panel(606, 132, 212, bh, 12, CREAM, GREEN, 3, 255); richDraw(f.lines, 618, 144, f.sz, INK, 0);
       const ly = 132 + bh + 14; gLine(612, ly + 10, 636, ly + 10, 2, YEL, true); text('60点 = ふつう', 644, ly + 1, 15, [255, 233, 160]); text('80点 = じょうず(めざす線)', 612, ly + 24, 15, [255, 233, 160]);
-      diagTabs(0, '◀ ▶ ページ   戻る: ホームへ'); return;
+      diagTabs(0, '◀▶ ページ  ▲ 説明  戻る: ホームへ'); return;
     }
     if (pg === 1) { // ポイントのうつりかわり
       const hist = (D.rk && D.rk.hist) || [], info = D.info, n = hist.length;
