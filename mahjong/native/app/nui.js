@@ -2098,7 +2098,7 @@
       S.saveNote = { text: ok ? 'セーブしました' : 'セーブできませんでした', t0: __now(), until: __now() + 4200 }; dirty(); setTimeout(dirty, 4300);
       return Promise.resolve();
     },
-    gameEnd(g, f) { try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } NSND.sfx('end'); // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
+    gameEnd(g, f) { try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { if (g.length !== 'single' && (g.handCount || 0) >= 4) metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } /* 列伝に出るのは、4局以上 最後まで対局した相手だけ */ NSND.sfx('end'); // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
  try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go = () => { S.rankScr = { rk, done }; dirty(); }; if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
   };
 

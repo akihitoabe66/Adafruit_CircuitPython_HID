@@ -48,7 +48,7 @@
     label() { return R.info().name; },
     /* 対局が最後まで終わったとき。東風戦・東南戦だけを数える。結果(もらった点・段位の変わり方)を返す。数えない対局は null */
     record(game, final) {
-      if (!game || game.length === 'single') return null;
+      if (!game || game.length === 'single' || (game.handCount || 0) < 4) return null; // 一局だけの対局と、4局に満たないうちに終わった対局(飛びなど)は、記録しない
       const me = final.results.find((r) => r.p.seat === 0);
       if (!me) return null;
       const s = R.get(), tbl = PTS[game.length === 'east' ? 'east' : 'south']; let delta = tbl[me.rank - 1] || 0, avg = null, mult = 1;
