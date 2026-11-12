@@ -46,7 +46,11 @@
     const rii = g.players.filter((q) => q !== p && q.riichi); if (!rii.length) return null;
     const key = g.seq + ':' + p.hand.map((h) => h.id).join(',') + ':' + rii.length; if (S._dm && S._dm.key === key) return S._dm.map;
     let map = null; try { const A = MJ.AI, vis = A.visible(g, p); map = {}; [...new Set(p.hand.map((h) => h.t))].forEach((t) => { const per = rii.map((q) => A.danger1(g, vis, t, q, A.safeSet(g, q), 2)); const w = per.reduce((m, x) => (x.score > m.score ? x : m), per[0]), sc = per.reduce((a, x) => a + x.score, 0), r = MJ.Coach.rate(sc); map[t] = { tag: DTAG(w.tag), cls: r.cls }; }); } catch (e) { map = null; }
-    S._dm = { key, map }; return map;
+    S._dm = { key, map, hc: g.handCount }; return map;
+  }
+  function staleMarks(g, p) { // 相手の番: 自分の番に計算した印を、そのまま使う(同じ局で、リーチをかけた人がいるあいだだけ)
+    if (!teacherOn() || !dmarkOn() || !S._dm || !S._dm.map || S._dm.hc !== g.handCount || g.fast || S.deal) return null;
+    return g.players.some((q) => q !== p && q.riichi) ? S._dm.map : null;
   }
   const toggleTeacher = () => { try { localStorage.setItem('mj_teacher', teacherOn() ? '0' : '1'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; };
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
@@ -468,7 +472,7 @@
     const gapAt = p.drawn ? hs.length - 1 : -1; const DS = dealState(), shown = Math.min(hs.length, DS.n);
     let order = hs; if (!DS.sorted && S.deal && S.deal.perm) order = S.deal.perm.filter((j) => j < hs.length).map((j) => hs[j]); // 配られている間は、並び替える前の順で見せる
     S._hl = S.react ? reactHL(S.react, g) : null;
-    const L = [], DM = S.self ? dangerMarks(g, p) : null;
+    const L = [], DM = S.self ? dangerMarks(g, p) : staleMarks(g, p); // 相手の番のあいだも、印は 消さずに 出しつづける(自分の番になったときだけ、計算しなおす)
     order.forEach((h, i) => {
       if (i >= shown) return;
       let x = handX(i, i === gapAt), y = HY - (DS.lift || 0), rot = 0, fl = false;
