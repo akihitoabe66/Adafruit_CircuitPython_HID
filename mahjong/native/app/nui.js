@@ -1666,14 +1666,14 @@
   function startDiag() { S.mode = 'diag'; let rk = { hist: [] }, info = null; try { rk = MJ.Rank.get(); info = MJ.Rank.info(); } catch (e) { /* ignore */ } S.diag = { pg: 0, d: MJ.Stats.diag(), sg: MJ.Stats.strength(), rk, info }; dirty(); diagWarm(); }
   function diagWarm() { // 入ったあと、「強さ」の各項目を選んだときの画面を、画面に出さずに 先に描いておく
     if (typeof gfx.layerBegin !== 'function') return;
-    [0, 1, 2, 3, 4, 5, 6, -1].forEach((f, k) => setTimeout(() => { const D = S.diag; if (!D || S.mode !== 'diag' || D.pg !== 0) return; const keep = D.fi; try { D.fi = f; lay(diagSlot(D), 'dg0:' + f, drawDiagBody); } catch (e) { /* ignore */ } D.fi = keep; }, 600 + k * 300));
+    [0, 1, 2, 3, 4, 5, 6, -1].forEach((f, k) => setTimeout(() => { const D = S.diag; if (!D || S.mode !== 'diag' || D.pg !== 0) return; const keep = D.fi; try { D.fi = f; const kb = S.bbf; S.bbf = false; lay(diagSlot(D, f), 'dg0:' + f, drawDiagBody); S.bbf = kb; } catch (e) { /* ignore */ } D.fi = keep; }, 600 + k * 300));
   }
   function diagKey(k) {
     const D = S.diag;
     if (k === 'back') { S.mode = 'menu'; S.diag = null; }
     else if (D.pg === 0 && (k === 'up' || k === 'down') && !(k === 'up' && D.fi === 0)) { // 「強さ」の画面: ▲ で、左の項目(総合・攻撃力…)へ。そこに合わせると、右に説明が出る / ▼ で、下の札へもどる
       const fi = D.fi == null ? -1 : D.fi; D.fi = k === 'up' ? (fi < 0 ? 6 : fi - 1) : (fi >= 6 ? -1 : fi < 0 ? -1 : fi + 1); }
-    else if (k === 'up') { D.fi = -1; S.bbf = true; } else if (k === 'left') { D.pg = Math.max(0, D.pg - 1); D.fi = -1; } else if (k === 'right') { D.pg = Math.min(3, D.pg + 1); D.fi = -1; }
+    else if (k === 'up') { if (D.pg !== 0) D.fi = -1; S.bbf = true; } else if (k === 'left') { D.pg = Math.max(0, D.pg - 1); D.fi = -1; } else if (k === 'right') { D.pg = Math.min(3, D.pg + 1); D.fi = -1; } // 一番上の項目から ▲ で「もどる」へ: どの項目だったかは、おぼえておく(▼ で、そこへ もどる)
     else if (k === 'ok' && D.pg >= 2) { S.diag = null; startPractice(); }
     dirty();
   }
@@ -1681,17 +1681,18 @@
     ['強さ', 'ポイント', 'アドバイス', '学習の記録'].forEach((t, i) => { const x = 14 + i * 130, on = i === pg; panel(x, 428, 122, 32, 9, on ? [60, 130, 60] : [50, 70, 60], on ? [150, 200, 140] : [74, 97, 84], 2, 255); text(t, x + 61, 428 + Math.round((32 - 18) / 2) - 1, 18, on ? WHITE : [185, 201, 189], 1); });
     text(hint, 806, 428 + 8, 16, [210, 225, 205], 2);
   }
-  const diagSlot = (D) => 10 + (D.pg === 0 ? (D.fi == null ? -1 : D.fi) + 1 : 7 + D.pg); // 診断は、ページ(と、強さの画面では 選んだ項目)ごとに、絵を使い回す: 強さ 8通り + 3ページ
+  const diagFi = (D) => (S.bbf ? -1 : D.fi == null ? -1 : D.fi); // 「もどる」に合わせているときは、項目の枠を出さない
+  const diagSlot = (D, f) => 10 + (D.pg === 0 ? (f == null ? diagFi(D) : f) + 1 : 7 + D.pg); // 診断は、ページ(と、強さの画面では 選んだ項目)ごとに、絵を使い回す: 強さ 8通り + 3ページ
   function drawDiag() {
     const D = S.diag; if (typeof gfx.layerBegin !== 'function') { drawDiagBody(); return; }
-    cached(diagSlot(D), 'dg' + D.pg + ':' + (D.pg === 0 ? (D.fi == null ? -1 : D.fi) : 0), drawDiagBody);
+    cached(diagSlot(D), 'dg' + D.pg + ':' + (D.pg === 0 ? diagFi(D) : 0), drawDiagBody);
   }
   function drawDiagBody() {
     const D = S.diag, d = D.d, pg = D.pg, sg = D.sg;
     quizFrame('あなたの診断', '', '', '');
     if (pg === 0) { // 強さ(レーダーチャート)
       const ax = sg.ax, have = ax.filter((a) => a.v != null), cx0 = 440, cy0 = 256, R = 104, pt = (i, v, r) => { const an = -Math.PI / 2 + i * Math.PI / 3, rr = (r == null ? R : r) * v / 100; return [cx0 + Math.cos(an) * rr, cy0 + Math.sin(an) * rr]; };
-      const FI = D.fi == null ? -1 : D.fi; panel(22, 56, 196, 54, 12, FI === 0 ? YEL : CREAM, FI === 0 ? [120, 80, 0] : [160, 110, 0], FI === 0 ? 4 : 3, 255); text('総合', 36, 74, 17, INK);
+      const FI = diagFi(D); panel(22, 56, 196, 54, 12, FI === 0 ? YEL : CREAM, FI === 0 ? [120, 80, 0] : [160, 110, 0], FI === 0 ? 4 : 3, 255); text('総合', 36, 74, 17, INK);
       if (sg.total != null) { text(String(sg.total), 120, 64, 34, sg.total < 60 ? [190, 60, 40] : INK, 1); text('点', 160, 74, 17, INK); } else text('--', 120, 64, 34, [120, 120, 110], 1);
       ax.forEach((a, i) => { const y = 118 + i * 46; panel(22, y, 196, 38, 12, FI === i + 1 ? YEL : CREAM, FI === i + 1 ? [120, 80, 0] : GREEN, FI === i + 1 ? 4 : 2, 255); text(a.name, 38, y + 9, 20, a.v == null ? [130, 130, 120] : INK); text(a.v == null ? '--' : a.v + '点', 204, y + 9, 20, a.v == null ? [130, 130, 120] : a.v < 60 ? [190, 60, 40] : INK, 2); });
       gPoly([0, 1, 2, 3, 4, 5].map((i) => pt(i, 100)), [13, 51, 38], 255);
