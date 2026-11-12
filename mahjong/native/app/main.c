@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <time.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -85,6 +86,20 @@ static SDL_Texture *gettext(const char *s, int sz, int r, int g, int b, int *w, 
 /* ---- JS に渡す描画の道具 ---- */
 static int ai(JSContext *c, JSValueConst v){ int32_t x = 0; JS_ToInt32(c, &x, v); return x; }
 static JSValue j_dry(JSContext *c, JSValueConst t, int n, JSValueConst *a){ g_dry = n > 0 ? ai(c,a[0]) : 0; return JS_UNDEFINED; }
+static JSValue j_rrect(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 角の丸い四角を、1回の呼び出しで(JSの rrect と同じ形・なめらかな縁) */
+  if (g_dry) return JS_UNDEFINED;
+  int x = ai(c,a[0]), y = ai(c,a[1]), w = ai(c,a[2]), h = ai(c,a[3]), r = ai(c,a[4]), cr = ai(c,a[5]), cg = ai(c,a[6]), cb = ai(c,a[7]), al = n > 8 ? ai(c,a[8]) : 255;
+  if (r > h / 2) r = h / 2; if (r > w / 2) r = w / 2; if (r < 0) r = 0;
+  SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+  for (int dy = 0; dy < r; dy++) {
+    double d = r - dy - 0.5, q = (double)r * r - d * d; if (q < 0) q = 0; double xo = r - sqrt(q); int xi = (int)ceil(xo - 1e-6); double cov = xi - xo;
+    SDL_SetRenderDrawColor(ren, cr, cg, cb, al);
+    SDL_Rect r1 = { x + xi, y + dy, w - 2 * xi, 1 }, r2 = { x + xi, y + h - 1 - dy, w - 2 * xi, 1 }; SDL_RenderFillRect(ren, &r1); SDL_RenderFillRect(ren, &r2);
+    if (cov > 0.04 && xi >= 1) { int aa = (int)floor(al * cov + 0.5); SDL_SetRenderDrawColor(ren, cr, cg, cb, aa);
+      SDL_Rect p1 = { x + xi - 1, y + dy, 1, 1 }, p2 = { x + w - xi, y + dy, 1, 1 }, p3 = { x + xi - 1, y + h - 1 - dy, 1, 1 }, p4 = { x + w - xi, y + h - 1 - dy, 1, 1 };
+      SDL_RenderFillRect(ren, &p1); SDL_RenderFillRect(ren, &p2); SDL_RenderFillRect(ren, &p3); SDL_RenderFillRect(ren, &p4); }
+  }
+  SDL_SetRenderDrawColor(ren, cr, cg, cb, al); SDL_Rect m = { x, y + r, w, h - 2 * r }; SDL_RenderFillRect(ren, &m); return JS_UNDEFINED; }
 static JSValue j_fill(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); SDL_SetRenderDrawColor(ren, ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), n > 7 ? ai(c,a[7]) : 255); SDL_Rect r = { ai(c,a[0]), ai(c,a[1]), ai(c,a[2]), ai(c,a[3]) }; SDL_RenderFillRect(ren, &r); return JS_UNDEFINED; }
 static JSValue j_frame(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; SDL_SetRenderDrawColor(ren, ai(c,a[4]), ai(c,a[5]), ai(c,a[6]), 255); int th = n > 7 ? ai(c,a[7]) : 1; for (int i = 0; i < th; i++) { SDL_Rect r = { ai(c,a[0])+i, ai(c,a[1])+i, ai(c,a[2])-2*i, ai(c,a[3])-2*i }; SDL_RenderDrawRect(ren, &r); } return JS_UNDEFINED; }
 static JSValue j_image(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED;
@@ -310,7 +325,7 @@ int main(int argc, char **argv){
   rt = JS_NewRuntime(); JS_SetMemoryLimit(rt, 192 * 1024 * 1024); JS_SetMaxStackSize(rt, 2 * 1024 * 1024); JS_SetHostPromiseRejectionTracker(rt, rejected, NULL);
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
-  reg(gfx, "dry", j_dry, 1); reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "fillTop", j_filltop, 8); reg(gfx, "textTop", j_texttop, 8); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
+  reg(gfx, "dry", j_dry, 1); reg(gfx, "rrect", j_rrect, 9); reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "fillTop", j_filltop, 8); reg(gfx, "textTop", j_texttop, 8); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
   reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1);

@@ -71,7 +71,8 @@
     if (!gfx.image(MJ.tileSrc(t, red), x, y, w, h, dim ? 100 : 255)) { fill(x, y, w, h, [240, 240, 230]); text(MJ.tileName(t), x + w / 2, y + 2, 10, BLACK, 1); }
   }
   function panel(x, y, w, h, r, c, bc, bw, a) { r = Math.max(3, Math.min(7, Math.round(r * 0.55))); rrect(x, y, w, h, r, bc, a); rrect(x + bw, y + bw, w - 2 * bw, h - 2 * bw, Math.max(1, r - bw), c, a); } // 角の丸い板(縁つき)
-  function rrect(x, y, w, h, r, c, a) { // 角の丸い四角(縁をなめらかに。左右・上下で同じ形)
+  function rrect(x, y, w, h, r, c, a) { // 角の丸い四角(縁をなめらかに。左右・上下で同じ形)。C側に 1回で頼む(実機では、細かい塗りを何十回も呼ぶと 遅い)
+    if (typeof gfx.rrect === 'function') { if (a === undefined) a = 255; gfx.rrect(Math.round(x), Math.round(y), Math.round(w), Math.round(h), Math.round(r), c[0], c[1], c[2], a); return; }
     r = Math.min(r, Math.floor(h / 2), Math.floor(w / 2)); if (a === undefined) a = 255;
     for (let dy = 0; dy < r; dy++) {
       const d = r - dy - 0.5, xo = r - Math.sqrt(Math.max(0, r * r - d * d)), xi = Math.ceil(xo - 1e-6), cov = xi - xo;
