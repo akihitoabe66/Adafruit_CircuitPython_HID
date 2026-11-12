@@ -1007,10 +1007,28 @@
       if (!p) { q.phase = 'fail'; dirty(); return; }
       q.p = p; q.n++; q.phase = 'ask'; q.idx = 0;
       q.disp = (p.hand || []).slice().sort((a, b) => a.t - b.t);
-      { const hs = mark(p.sit || '') + (p.sit ? '\n' : '') + mark(p.prompt || ''), f = fitRich(hs, [30, 28, 26, 24, 22, 20, 18], 770, p.kind === 'choice' ? 140 : 262); q.hsz = f.sz; q.head = f.lines; }
+      q.rv = qRiverInfo(p); { const hs = mark(p.sit || '') + (p.sit ? '\n' : '') + mark(p.prompt || ''), f = q.rv ? fitRich(hs, [26, 24, 22, 20, 18], 770, 110) : fitRich(hs, [30, 28, 26, 24, 22, 20, 18], 770, p.kind === 'choice' ? 140 : 262); q.hsz = f.sz; q.head = f.lines; q.hh = f.h; }
       q.opts = (p.options || []).slice(0, 4).map((o) => { const f = fitRich(mark(o.html), [28, 26, 24, 22, 20, 18], 290, 50); return { id: o.id, lines: f.lines, sz: f.sz, h: f.h }; });
       dirty();
     }, 60);
+  }
+  const QSEAT = { 3: '上家', 2: '対面', 1: '下家' };
+  function qRiverInfo(p) { // 問題の中に、相手の河があるときは、画面に見せる(安全牌を選ぶには、河が見えないと、こたえられない)
+    const g = p && p.g; if (!g || !g.players || p.kind !== 'tile') return null;
+    const cols = [3, 2, 1].map((s) => ({ s, pl: g.players[s], ds: (g.players[s] && g.players[s].discards) || [] }));
+    if (!cols.some((c) => c.ds.length)) return null;
+    const rows = Math.max(1, ...cols.map((c) => Math.ceil(c.ds.length / 12)));
+    return { cols, rows: Math.min(3, rows) };
+  }
+  function drawQRiver(q) {
+    const R = q.rv, TW = 20, TH = 27, h = 24 + R.rows * (TH + 2), y0 = 322 - h, cw = 262;
+    if (y0 < 54 + (q.hh || 0)) return;
+    R.cols.forEach((c, i) => {
+      const x = 28 + i * cw, pl = c.pl; panel(x - 4, y0, cw - 6, h, 8, [6, 28, 18], [90, 140, 110], 2, 215);
+      text((pl.name || '') + '(' + QSEAT[c.s] + ')', x + 4, y0 + 2, 18, WHITE);
+      if (pl.riichi) { rrect(x + cw - 76, y0 + 3, 62, 18, 8, QRED); text('リーチ', x + cw - 45, y0 + 3, 14, WHITE, 1); }
+      c.ds.slice(0, 36).forEach((d, k) => { const tx = x + (k % 12) * (TW + 1), ty = y0 + 24 + Math.floor(k / 12) * (TH + 2); tile(d.tile.t, tx, ty, TW, TH, d.tile.red); if (d.riichi) frame(tx - 1, ty - 1, TW + 2, TH + 2, RED, 2); });
+    });
   }
   function quizAnswer(ans) {
     const q = S.quiz, p = q.p; let r = null;
@@ -1078,6 +1096,7 @@
     quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, p.kind === 'tile' ? '◀ ▶ で牌をえらんで 決定ボタン(切る牌)' : '◀ ▶ ▲ ▼ で えらんで 決定ボタン');
     tFace('advice', 'q' + q.n + (q.title || ''), SW - 196, 3, 44);
     richDraw(q.head, 30, 54, q.hsz, WHITE, 0);
+    if (q.rv) drawQRiver(q);
     if (p.kind === 'choice') q.opts.forEach((o, i) => {
       const x = 30 + (i % 2) * 394, y = 202 + Math.floor(i / 2) * 62, sel = q.idx === i;
       panel(x, y, 378, 54, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 3, 255); rrect(x + 10, y + 10, 34, 34, 17, sel ? [160, 110, 0] : GREEN); text('ABCD'[i], x + 27, y + 12, 24, WHITE, 1);
@@ -1320,7 +1339,7 @@
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
-  window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
+  window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用

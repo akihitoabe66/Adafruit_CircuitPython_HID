@@ -243,7 +243,7 @@
       const opp = g.players[rs];
       return {
         cat: 'def', kind: 'tile', theme, title: `どれを切る?(守備: ${THEMES[theme].name})`, hand, g, an, rank, rs,
-        sit: sitHTML(g, `<b>${opp.name}</b>がリーチ中`), prompt: `${opp.name}がリーチしました。あなたは<b>オリ(守備)</b>を選びます。<b>いちばん安全な牌</b>を1枚切ってください。`,
+        sit: sitHTML(g, ''), prompt: `${opp.name}がリーチしました。あなたは<b>オリ(守備)</b>を選びます。<b>いちばん安全な牌</b>を1枚切ってください。`,
         grade(tile) {
           const e = an.evals.find((x) => x.t === tile.t);
           const min = safest.danger.score;
