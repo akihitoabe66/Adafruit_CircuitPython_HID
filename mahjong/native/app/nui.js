@@ -298,6 +298,7 @@
   function drawTeacher(g) {
     if (!teacherOn()) return;
     const h = S.hint, s = S.self; if (s && s.rm) return; // リーチする牌をえらぶ間は、案内の文字だけ
+     if (S.wnote && __now() < S.wnote.until && S.game && S.game.watching) { const w = S.wnote; panel(6, 262, 700, 74, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生の解説', 18, 266, 16, YEL); text(w.a, 18, 286, fitSz(w.a, 21, 676, 15), WHITE); text(w.b, 18, 312, fitSz(w.b, 18, 676, 14), [200, 225, 205]); return; } // 観戦中: CPUが捨てた理由
      if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 268, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('advice', 'm' + S.tmsg.until, 12, 270, 60); text('麻雀先生', 80, 272, 16, YEL); text(S.tmsg.text, 80, 294, fitSz(S.tmsg.text, 21, 480, 16), WHITE); return; }
     if (!h || !s || s.row !== 0) return;
     panel(6, 268, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('ok', 'h' + h.t + (h.riichi ? 'r' : ''), 12, 270, 60);
@@ -2227,6 +2228,18 @@
       })();
     },
     clearSaves() { try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } },
+    watchNote(g, p, act) { // 観戦中: 下の席のCPUが、なぜその牌を切ったか(牌効率・守り)を、麻雀先生が 説明する
+      try {
+        if (!act || !act.tile) return; const A = MJ.AI, ob = MJ.AI_BUDGET; MJ.AI_BUDGET = 1; let an; try { an = A.analyze(g, p, { know: 2, deep: true, deepN: 6, budget: 60 }); } finally { MJ.AI_BUDGET = ob; }
+        const me = an.evals.find((e) => e.t === act.tile.t), best = A.byEff(an.evals)[0], nm = MJ.tileName(act.tile.t);
+        const stc = an.opps.length ? A.stance(g, p, an, 'balance') : null;
+        const shT = (e) => (e.sh === 0 ? 'テンパイ' : e.sh + 'シャンテン');
+        let a = p.name + ' は ' + nm + ' を切りました' + (act.act === 'riichi' ? '(リーチ)' : '') + '。', b = '';
+        if (stc && stc.kind !== 'push') b = (stc.label || '守り') + ': ' + (stc.why || '相手のリーチに 注意して 安全な牌を選びました') + '。';
+        else if (me) b = '切ったあと ' + shT(me) + '、' + (me.ukeire ? '有効牌 ' + me.ukeire.n + '枚' : '') + (best && best.t !== me.t ? '(牌効率だけなら ' + MJ.tileName(best.t) + ' が最善)' : '(牌効率で いちばん よい選択)') + '。';
+        S.wnote = { a, b, until: __now() + 3400 }; dirty(); setTimeout(dirty, 3500);
+      } catch (e) { /* ignore */ }
+    },
     askSave(g) { if (g.practice) return Promise.resolve(); // 練習対局は、セーブしない
  // 局が終わるたびに、質問なしで、自動で保存する(次の局の画面が出ている間に、すみっこに小さく知らせる)
       let ok = false; try { ok = slotWrite(g.snapshot()); } catch (e) { /* ignore */ }
