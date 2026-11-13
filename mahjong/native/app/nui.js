@@ -248,6 +248,7 @@
     }
     sbtn(726, 322, 100, 46, [40, 90, 190], [20, 50, 120], [''], f === 1, 24); gfx.image('img/teacher/t12.webp', 730, 324, 38, 40, 255); text('解説', 792, 332, 22, WHITE, 1);
     sbtn(726, 376, 100, 56, teacherOn() ? [30, 120, 80] : [90, 90, 90], teacherOn() ? [15, 70, 45] : [50, 50, 50], ['麻雀先生', teacherOn() ? 'あり' : 'なし'], f === 2, 19);
+    if (g.practice) sbtn(726, 438, 100, 26, g.openHands ? [190, 110, 30] : [90, 90, 90], g.openHands ? [110, 60, 10] : [50, 50, 50], [g.openHands ? '手牌を とじる' : '全員の手牌'], f === 4, 14); // 練習・観戦: 全員の手牌を ひらく/とじる
   }
   function wrapText(s, sz, maxw) { // 文字列を、幅に収まるように、行に分ける
     const out = []; let cur = '';
@@ -407,7 +408,10 @@
       const pos = { 2: (i) => [265 + i * 17, 32], 3: (i) => [3, 66 + i * 17], 1: (i) => [692, 66 + i * 17] }, bk = { 2: [16, 24, undefined], 3: [24, 16, 'l'], 1: [24, 16, 'r'] };
       const drawBacks = (sd) => { const b = bk[sd]; for (let i = 0; i < nHand(P[sd]); i++) { const q = pos[sd](i); back(q[0], q[1], b[0], b[1], b[2]); } };
       const flying = [2, 3, 1].some((sd) => (DS.fly[sd] || []).length);
-      if (!flying && typeof gfx.layerBegin === 'function') cached(4, 'bk' + nHand(P[2]) + ',' + nHand(P[3]) + ',' + nHand(P[1]), () => [2, 3, 1].forEach(drawBacks)); // 配り終わったあとは、他の3人の伏せ牌を1枚の絵にして貼る(毎回 100回以上 描かない)
+      if (g.openHands && !flying && typeof gfx.layerBegin === 'function') { // 全員の手牌を ひらく(練習・観戦): 小さな牌を、1枚の層にして貼る
+        const key = 'o' + [2, 3, 1].map((sd) => P[sd].hand.map((h) => h.id).join('.')).join('|');
+        cached(5, key, () => [2, 3, 1].forEach((sd) => { const tl = P[sd].hand.filter((h) => h !== P[sd].drawn).sort((a, b) => a.t - b.t); if (P[sd].drawn && P[sd].hand.includes(P[sd].drawn)) tl.push(P[sd].drawn); tl.forEach((h, i) => { const q = pos[sd](i); if (sd === 2) tileR(h.t, q[0], q[1], 16, 24, h.red, false, 180); else tileR(h.t, q[0], q[1], 16, 24, h.red, false, sd === 3 ? 90 : 270); }); }));
+      } else if (!flying && typeof gfx.layerBegin === 'function') cached(4, 'bk' + nHand(P[2]) + ',' + nHand(P[3]) + ',' + nHand(P[1]), () => [2, 3, 1].forEach(drawBacks)); // 配り終わったあとは、他の3人の伏せ牌を1枚の絵にして貼る(毎回 100回以上 描かない)
       [2, 3, 1].forEach((sd) => {
         const b = bk[sd]; if (flying || typeof gfx.layerBegin !== 'function') drawBacks(sd);
         (DS.fly[sd] || []).forEach((f) => { const q0 = pos[sd](f.from), q1 = pos[sd](f.from + f.cnt - 1); drawBlock(f, (q0[0] + q1[0] + b[0]) / 2, (q0[1] + q1[1] + b[1]) / 2); }); // 山から、となりあわせのまま手元へ
@@ -2103,7 +2107,8 @@
       return;
     }
     if (S.side) { // 右の操作の列
-      if (k === 'up' || k === 'down') S.side.idx = (k === 'up' ? { 0: 2, 3: 2, 1: 0, 2: 1 } : { 0: 1, 3: 1, 1: 2, 2: 0 })[S.side.idx]; // 上: 解説→MENU / MENU・音→麻雀先生 / 麻雀先生→解説。下: MENU・音→解説 / 解説→麻雀先生 / 麻雀先生→MENU
+      if ((k === 'up' || k === 'down') && S.game && S.game.practice) { const cyc = [0, 1, 2, 4], at = Math.max(0, cyc.indexOf(S.side.idx === 3 ? 0 : S.side.idx)); S.side.idx = cyc[wrap(at + (k === 'down' ? 1 : -1), cyc.length)]; } // 練習・観戦は 4つ(全員の手牌ボタンが ふえる)
+      else if (k === 'up' || k === 'down') S.side.idx = (k === 'up' ? { 0: 2, 3: 2, 1: 0, 2: 1 } : { 0: 1, 3: 1, 1: 2, 2: 0 })[S.side.idx]; // 上: 解説→MENU / MENU・音→麻雀先生 / 麻雀先生→解説。下: MENU・音→解説 / 解説→麻雀先生 / 麻雀先生→MENU
       else if (k === 'left' && S.side.idx === 3) S.side.idx = 0; // スピーカーから左: MENUへ
       else if (k === 'right' && S.side.idx === 0) S.side.idx = 3; // MENUから右: スピーカーへ
       else if (k === 'left' || k === 'back') { S.side = null; if (S.game && S.game.watching) { /* 観戦: 牌にカーソルは出さない */ } else if (S.self && k === 'left' && S.self.row === 0) S.self.idx = S.self.tiles.length - 1; else if (!S.self && k === 'left' && S.game) S.curIdx = Math.max(0, myTiles(S.game.players[0]).length - 1); } // 左: いちばん右の牌へ
@@ -2112,6 +2117,7 @@
         const i = S.side.idx;
         if (i === 0) openMenu();
         else if (i === 3) { S.soundP = { idx: 0 }; MJ.paused = true; }
+        else if (i === 4 && S.game) { S.game.openHands = !S.game.openHands; S.dirty = true; S.full = true; }
         else if (i === 1 && S.game && S.game.watching) { if (S.wnote) S.wnote.until = __now() + 14000; dirty(); } // 観戦: 解説を、もう少し長く出す
         else if (i === 1) S.coach = { tab: 0, scroll: 0, cards: teacherOn() ? buildCoach() : [] };
         else { toggleTeacher(); if (teacherOn() && S.self && !S.self.p.riichi && !S.game.fast) { try { S.hint = teacherAdvice(S.game, S.self.p, S.self.opts); } catch (e) { /* ignore */ } } else S.hint = null; }
