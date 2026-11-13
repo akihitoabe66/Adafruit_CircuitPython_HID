@@ -44,9 +44,11 @@
   function dangerMarks(g, p) { // リーチをかけた人がいるとき、手牌の牌ごとの安全さ(現物・スジ・無スジ…)。同じ番の間は、1回だけ計算
     if (!teacherOn() || !dmarkOn() || g.fast || S.deal) return null;
     const rii = g.players.filter((q) => q !== p && q.riichi); if (!rii.length) return null;
-    const key = g.seq + ':' + p.hand.map((h) => h.id).join(',') + ':' + rii.length; if (S._dm && S._dm.key === key) return S._dm.map;
-    let map = null; try { const A = MJ.AI, vis = A.visible(g, p); map = {}; [...new Set(p.hand.map((h) => h.t))].forEach((t) => { const per = rii.map((q) => A.danger1(g, vis, t, q, A.safeSet(g, q), 2)); const w = per.reduce((m, x) => (x.score > m.score ? x : m), per[0]), sc = per.reduce((a, x) => a + x.score, 0), r = MJ.Coach.rate(sc); map[t] = { tag: DTAG(w.tag), cls: r.cls }; }); } catch (e) { map = null; }
-    S._dm = { key, map, hc: g.handCount }; return map;
+    const key = g.seq + ':' + p.hand.map((h) => h.id).join(',') + ':' + rii.length; if (S._dm && S._dm.key === key && S._dmw && !S._dmw.todo.length) return S._dm.map;
+    // 重い計算は、1コマに2種類ずつだけ(カーソルや描画を、待たせない)。できた印から、順に出す
+    let w = S._dmw; if (!w || w.key !== key) { let vis = null; try { vis = MJ.AI.visible(g, p); } catch (e) { vis = null; } w = S._dmw = { key, map: {}, todo: [...new Set(p.hand.map((h) => h.t))], vis, ss: {} }; S._dm = { key, map: w.map, hc: g.handCount }; }
+    let n = 0; while (w.todo.length && n < 2 && w.vis) { const t = w.todo.shift(); n++; try { const A = MJ.AI; const per = rii.map((q) => A.danger1(g, w.vis, t, q, w.ss[q.name] || (w.ss[q.name] = A.safeSet(g, q)), 2)); const wo = per.reduce((m, x) => (x.score > m.score ? x : m), per[0]), sc = per.reduce((a, x) => a + x.score, 0), r = MJ.Coach.rate(sc); w.map[t] = { tag: DTAG(wo.tag), cls: r.cls }; } catch (e) { /* ignore */ } }
+    return w.map;
   }
   function staleMarks(g, p) { // 相手の番: 自分の番に計算した印を、そのまま使う(同じ局で、リーチをかけた人がいるあいだだけ)
     if (!teacherOn() || !dmarkOn() || !S._dm || !S._dm.map || S._dm.hc !== g.handCount || g.fast || S.deal) return null;
@@ -68,7 +70,9 @@
   const WHITE = [255, 255, 255], BLACK = [20, 20, 20], YEL = [255, 220, 40], GREY = [170, 190, 175], RED = [235, 70, 60];
   function tile(t, x, y, w, h, red, dim) {
     fill(x + 1, y + 1, w, h, [0, 0, 0], 70);
-    if (!gfx.image(MJ.tileSrc(t, red), x, y, w, h, dim ? 100 : 255)) { fill(x, y, w, h, [240, 240, 230]); text(MJ.tileName(t), x + w / 2, y + 2, 10, BLACK, 1); }
+    const sz = (w === 44 && h === 58) ? 't44' : (w === 26 && h === 33) ? 't26' : null; // あらかじめ縮小した絵があれば、それを使う(毎回の拡大縮小をなくす)
+    let src = MJ.tileSrc(t, red); if (sz) src = src.replace('img/tiles/', 'img/' + sz + '/');
+    if (!gfx.image(src, x, y, w, h, dim ? 100 : 255) && !(sz && gfx.image(MJ.tileSrc(t, red), x, y, w, h, dim ? 100 : 255))) { fill(x, y, w, h, [240, 240, 230]); text(MJ.tileName(t), x + w / 2, y + 2, 10, BLACK, 1); }
   }
   function panel(x, y, w, h, r, c, bc, bw, a) { r = Math.max(3, Math.min(7, Math.round(r * 0.55))); rrect(x, y, w, h, r, bc, a); rrect(x + bw, y + bw, w - 2 * bw, h - 2 * bw, Math.max(1, r - bw), c, a); } // 角の丸い板(縁つき)
   function rrect(x, y, w, h, r, c, a) { // 角の丸い四角(縁をなめらかに。左右・上下で同じ形)。C側に 1回で頼む(実機では、細かい塗りを何十回も呼ぶと 遅い)
