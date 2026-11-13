@@ -234,7 +234,7 @@
   }
   function drawSide(g) {
     const f = S.side ? S.side.idx : -1;
-    sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 765, 11, 15, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 12 + i * 5, 10, 2, WHITE));
+    sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 765, 14, 15, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
     sbtn(796, 6, 30, 32, [50, 90, 160], [25, 50, 100], [''], f === 3, 13); fill(803, 17, 4, 10, WHITE); fill(807, 14, 3, 16, WHITE); fill(810, 11, 3, 22, WHITE); fill(816, 17, 2, 10, WHITE);
     { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 44, 24, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 70, 16, [200, 215, 200], 1); }
     {
