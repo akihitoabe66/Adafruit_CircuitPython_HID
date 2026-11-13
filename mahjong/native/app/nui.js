@@ -346,6 +346,11 @@
   function dealState() {
     const d = S.deal, ALL = { n: 99, ns: [99, 99, 99, 99], fly: [[], [], [], []], sorted: true, lift: 0, wall: false }; if (!d) return ALL;
     if (d.seq === S.drawSeq && d.last) return d.last; // 1コマの中で、何度よばれても同じ答え
+    { // 重い1コマ(読み込みなど)があっても、アニメが飛ばないよう、時計を最大50msしか進めない。はじめは、描きが安定するまで少し待つ(最長1.5秒)
+      const nw = __now(); if (!d.c0) d.c0 = nw;
+      if (d._ln) { const dt = nw - d._ln, ex = dt - 50; d.calm = dt < 80 ? (d.calm || 0) + 1 : 0; if (ex > 0) { d.t0 += ex; if (d.gt) for (let i = 0; i < d.gt.length; i++) d.gt[i] += ex; } }
+      d._ln = nw; if (!d.go) { if (nw >= d.t0 - 60 && (d.calm || 0) < 4 && nw - d.c0 < 1500) d.t0 = nw + 60; else d.go = true; }
+    }
     const t = __now() - d.t0; if (t >= DEAL_END && d.groups >= 16 && __now() - d.gt[15] > FLY_MS) { S.deal = null; NSND.release(); return ALL; }
     // 配った回数(親から反時計回りに、1人ぶん=1回): 時間で決まる目標まで、1コマに1回ずつ進める(遅い機械でも、1人ずつ見える)
     let target = 0; for (let r = 0; r < 4; r++) for (let j = 0; j < 4; j++) if (t >= DEAL_R[r] + j * DEAL_J) target++;
