@@ -51,7 +51,7 @@
       const id = ++token; let t = 0.05; const known = keys.filter((k) => !k || k === '+' || yk[k]);
       known.forEach((k) => {
         if (k === '+') { t -= 0.06; return; } // 「+」: 前の声に、ほとんど間をあけずに つなげる(じゅう + いっぽんば)
-        if (!k) { t += 0.28; return; }
+        if (!k) { t += 0.4; return; } // 間(null)は、少し長め: 声が重なって聞こえないように
         const p = 'audio/yk/' + yk[k]; const len = snd.len(p); if (!len) return;
         setTimeout(() => { if (id === token) snd.play(p, V.read); }, t * 1000); t += len + 0.07;
       });
@@ -69,8 +69,8 @@
       res.wins.forEach((w) => {
         const r = w.res;
         // 「桃太郎 ツモ!」: 上がった人の名前 + ツモ/ロン(あなたも)。「の」は入れない(声が、つなぎ言葉として合わないため)
-        if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name); // 「〇〇 ロン」: 上がった人の名前と、ツモ/ロン(CPUのときも読む。ただし、その人自身の掛け声が終わってから)
-        keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null);
+        if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name, null); // 「〇〇 ロン」: 上がった人の名前と、ツモ/ロン(CPUのときも読む。ただし、その人自身の掛け声が終わってから)
+        keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null, null);
         r.yaku.forEach((y) => {
           if (w.tsumo && y.n === '門前清自摸和') return; // 「ツモ」は、いま言ったので、くりかえさない
           if (y.n === 'ドラ' || y.n === '赤ドラ' || y.n === '裏ドラ') keys.push('y:' + (y.n === 'ドラ' ? 'ドラ' : y.n === '赤ドラ' ? 'アカドラ' : 'ウラドラ'), 'n:' + Math.min(13, y.h));
@@ -90,7 +90,7 @@
         if (Math.random() < 0.3) { const nk = A.nd(w.winner.isHuman || r.limit ? 'bright' : w.loser && w.loser.isHuman ? 'firm' : 'flat'); if (nk) keys.push('+', nk); } // ときどき、ずんだもんの語尾「なのだ」(自分の上がり・満貫以上は明るく / 放銃したときは言い切り / ほかはフラット)
         keys.push(null);
       });
-      const wait = Math.max(900, (A.callEnd || 0) - __now() + 250); setTimeout(() => A.speak(keys), wait); // 掛け声と重ならないように
+      const wait = Math.max(1100, (A.callEnd || 0) - __now() + 500); setTimeout(() => A.speak(keys), wait); // 掛け声と重ならないように
     },
     /* 局のはじまり: 「トン、イッキョク!」など */
     readKyoku(game) {
