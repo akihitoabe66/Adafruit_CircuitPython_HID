@@ -1951,6 +1951,7 @@
     return (S._credBest = best);
   }
   function drawCredits() {
+    if (!globalThis.__creditsLive && gfx.image('img/credits.webp', 0, 0, SW, SH, 255)) return; // 内容は 決まっていて 変わらないので、できあがった絵を そのまま出す(計算なし)。作りなおし: tools/make_credits_img.sh
     quizFrame('クレジット', '', '', '決定ボタン・戻る で もどる');
     const best = creditLayout();
     let y = 56; best.items.forEach((it) => { text(it.h, 30, y, best.sz - 4, YEL); y += Math.round((best.sz - 4) * 1.4); richDraw(it.lines, 30, y, best.sz, WHITE, 0); y += richH(it.lines, best.sz) + 6; });
@@ -2455,6 +2456,6 @@
     return r;
   };
 
-  NSND.home(); homeWarm(); setTimeout(() => { try { creditLayout(); } catch (e) { /* ignore */ } }, 5000);
+  NSND.home(); homeWarm();
   print('ネイティブ版 準備できました');
 })();
