@@ -346,7 +346,7 @@
   function dealState() {
     const d = S.deal, ALL = { n: 99, ns: [99, 99, 99, 99], fly: [[], [], [], []], sorted: true, lift: 0, wall: false }; if (!d) return ALL;
     if (d.seq === S.drawSeq && d.last) return d.last; // 1コマの中で、何度よばれても同じ答え
-    const t = __now() - d.t0; if (t >= DEAL_END && d.groups >= 16 && __now() - d.gt[15] > FLY_MS) { S.deal = null; return ALL; }
+    const t = __now() - d.t0; if (t >= DEAL_END && d.groups >= 16 && __now() - d.gt[15] > FLY_MS) { S.deal = null; NSND.release(); return ALL; }
     // 配った回数(親から反時計回りに、1人ぶん=1回): 時間で決まる目標まで、1コマに1回ずつ進める(遅い機械でも、1人ずつ見える)
     let target = 0; for (let r = 0; r < 4; r++) for (let j = 0; j < 4; j++) if (t >= DEAL_R[r] + j * DEAL_J) target++;
     if (d.groups == null) d.groups = 0;
@@ -2072,7 +2072,7 @@
     banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; if (p && p.isHuman) setMood({ 'リーチ': 'fight', 'ポン': 'call', 'チー': 'call', 'カン': 'call', 'ロン': 'point', 'ツモ': 'happy' }[t] || 'normal', 4000); dirty(); if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
     handStart(g) {
       S.curIdx = null; if (teacherOn() && !S.tmsgShown) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
-      S.game = g; NSND.game(g); NSND.sfx('slam');
+      S.game = g; if (!g.fast) NSND.hold(); NSND.game(g); NSND.sfx('slam');
       { // あなたの表情: 最終局はドキドキ。前の局で振り込んだらむすっ・上がったらくすくす。トップなら余裕・最下位ならやる気
         const me = g.players[0], rk = 1 + g.players.filter((q) => q.score > me.score).length, even = g.players.every((q) => q.score === me.score);
         setMood((g.isOras && g.isOras()) ? 'dokidoki' : S.carryMood || (even ? 'normal' : rk === 1 ? 'smug' : rk === 4 ? 'fight' : 'focus')); S.carryMood = null;
@@ -2080,7 +2080,7 @@
       let vlen = 0; if (S.skipKyokuVoice) S.skipKyokuVoice = false; else { try { vlen = NSND.readKyoku(g) || 0; } catch (e) { /* ignore */ } }
       const sb = S.skipBanner; S.skipBanner = false;
       if (!sb) S.banner = { text: g.kyokuLabel(), t0: __now() };
-      if (g.fast) { S.deal = null; dirty(); return sleep(300).then(() => { S.banner = null; dirty(); }); }
+      if (g.fast) { S.deal = null; NSND.release(); dirty(); return sleep(300).then(() => { S.banner = null; dirty(); }); }
       const bms = sb ? 300 : vlen ? Math.max(2200, Math.round(vlen * 1000) + 700) : 900; // 読み上げが終わって、少し画面を見せてから、配牌
       S.deal = { t0: __now() + bms, step: 0, perm: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].sort(() => Math.random() - 0.5), flip: (() => { const f = {}; for (let n = 0; n < 4; n++) f[Math.floor(Math.random() * 13)] = 1; return f; })() };
       setTimeout(() => { S.banner = null; dirty(); }, bms); dirty();

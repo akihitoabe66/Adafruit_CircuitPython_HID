@@ -14,10 +14,12 @@
   const A = (window.NSND = {
     on: true,
     scale: 1, bv() { return V.bgm * A.scale; }, /* 画面ごとのBGMの大きさ(結果の画面は、はじめから少し小さく。声のたびに上げ下げしない) */
-    music(p) { if (!A.on) { snd.music(''); cur = ''; return; } if (cur === p) return; cur = p; snd.musicVol(A.bv(), 0); snd.music(p, true); },
+    music(p) { if (!A.on) { snd.music(''); cur = ''; return; } if (cur === p) return; if (A.holding) { A._pend = p; return; } /* 配牌のアニメーション中は、曲の読み込みを待つ(コマ落ちさせない) */ cur = p; snd.musicVol(A.bv(), 0); snd.music(p, true); },
     getLevel(k) { return lvlOf(k); },
     setLevel(k, l) { l = Math.max(0, Math.min(10, l)); try { localStorage.setItem('mj_vol_' + k, String(l)); } catch (e) { /* ignore */ } applyLvl(k); if (k === 'bgm') snd.musicVol(A.bv(), 200); },
-    home() { A.scale = 1; A.music(HOME); },
+    hold() { A.holding = true; A._hid = (A._hid || 0) + 1; const id = A._hid; setTimeout(() => { if (A._hid === id) A.release(); }, 12000); }, // 配牌のあいだ、曲の切りかえを待たせる(12秒たったら、かならず はじめる)
+    release() { if (!A.holding) return; A.holding = false; const p = A._pend; A._pend = null; if (p) setTimeout(() => A.music(p), 300); },
+    home() { A.holding = false; A._pend = null; A.scale = 1; A.music(HOME); },
     game(g) {
       // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」から選ぶ
       const isGameTrack = GAME.indexOf(cur) >= 0 || LATE.indexOf(cur) >= 0 || FINAL.indexOf(cur) >= 0;
