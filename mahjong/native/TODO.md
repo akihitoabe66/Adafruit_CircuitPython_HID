@@ -19,3 +19,4 @@
 - 相手の番のあいだは、手牌のカーソルを出さず、方向キーも受け付けない(捨てたらカーソルは消え、自分の番はツモ牌から始まる)。違和感がないか
 - CPUの思考の上限時間を3倍に(AI_BUDGET 0.4→3。自分の番の解説は0.4のまま)。CPUの番の引っかかり・待ち時間が気にならないか。長すぎるときは nui.js の MJ.AI_BUDGET を下げる
 - サイコロ: 新しい転がり(img/dice の絵6+6枚・影、native/app/dicepat.js の軌道6種からランダム、跳ねる「ドッ」・ぶつかる「チャ」の音 audio/sfx/dice_hit.wav, dice_clack.wav)。再ビルド必要(main.c: imageRotTop・読み込み一覧)。実機で、コマ落ちしないか・音の大きさ/質・止まる位置が名札に近すぎないか確認。作りなおし: python3 tools/make_dice_assets.py / tools/gen_dice_sfx.py
+- サイコロの1回目が飛ぶ件: 動きの時計を1コマ最大50msに・描きが安定(80ms未満のコマが5つ続く)してから転がしはじめる(最長2.5秒待ち)。まだ飛ぶなら ~/mjdata/stall.log の「dice」が true の行(何が重いか)を確認

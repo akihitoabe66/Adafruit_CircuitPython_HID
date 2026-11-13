@@ -748,7 +748,8 @@
   function drawDice() {
     const d = S.dice, g = S.game, now = __now();
     const dtf = d._ln ? now - d._ln : 0; d._ln = now; d.vt = (d.vt || 0) + Math.min(dtf, 50); // 動きの時計: 1コマが重くても、50msぶんしか進めない(最初の数コマが飛んで、いきなり終わりに見えるのを防ぐ)
-    if (!d.started && d.vt > 600) { d.started = true; d.rolling = true; d.t0 = now; d.rt0 = d.vt; NSND.sfx('deal4'); }
+    if (!d.t00) d.t00 = now; if (d._ln2 !== undefined) d.calm = dtf < 80 ? (d.calm || 0) + 1 : 0; d._ln2 = 1; // 画面の描きが安定する(軽い コマが 続く)まで、転がしはじめを待つ(最長2.5秒)
+    if (!d.started && d.vt > 600 && ((d.calm || 0) >= 5 || now - d.t00 > 2500)) { d.started = true; d.rolling = true; d.t0 = now; d.rt0 = d.vt; NSND.sfx('deal4'); }
     const total = d.a + d.b, cStart = d.t1 + 700, cStep = 380, revealAt = cStart + (total - 1) * cStep; // 最後の1つで、その席が止まった瞬間に、親が決まる(止まってから光り直さない)
     const P = g.players, counting = d.settled && now >= cStart && now < revealAt, done = d.settled && now >= revealAt;
     if (done && !d.revealT) { d.revealT = now; NSND.sfx('start', 0.8); NSND.sfx('slam', 0.8); }
