@@ -121,6 +121,7 @@ static JSValue j_imagetop(JSContext *c, JSValueConst t, int n, JSValueConst *a){
 static JSValue j_imagerottop(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; /* 絵(顔)より上に、回して・半透明で重ねる絵: (中心x, 中心y, 幅, 高さ, 不透明度0..255, 角度(度)) */
   const char *p = JS_ToCString(c, a[0]); int w, h; SDL_Texture *tx = getimg(p, &w, &h); JS_FreeCString(c, p); if (!tx) return JS_FALSE; if (ntop >= 160) return JS_TRUE;
   double cx, cy, ang; JS_ToFloat64(c, &cx, a[1]); JS_ToFloat64(c, &cy, a[2]); JS_ToFloat64(c, &ang, a[6]); int dw = ai(c,a[3]), dh = ai(c,a[4]);
+  SDL_SetTextureScaleMode(tx, SDL_ScaleModeLinear); /* 回すと ギザギザにならないように */
   TopImg *q = &topq[ntop++]; q->kind = 0; q->tx = tx; q->a = (Uint8)ai(c,a[5]); q->ang = ang; q->d.w = dw; q->d.h = dh; q->d.x = (int)(cx - dw / 2.0) + curview.x; q->d.y = (int)(cy - dh / 2.0) + curview.y; q->sr.x = 0; q->sr.y = 0; q->sr.w = w; q->sr.h = h; return JS_TRUE; }
 static JSValue j_filltop(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; /* 絵(顔)より上に重ねる四角 */
   if (ntop >= 160) return JS_UNDEFINED; TopImg *q = &topq[ntop++]; q->kind = 1; q->tx = NULL; q->d.x = ai(c,a[0]) + curview.x; q->d.y = ai(c,a[1]) + curview.y; q->d.w = ai(c,a[2]); q->d.h = ai(c,a[3]); q->r = ai(c,a[4]); q->g = ai(c,a[5]); q->b = ai(c,a[6]); q->a = n > 7 ? ai(c,a[7]) : 255; return JS_UNDEFINED; }
