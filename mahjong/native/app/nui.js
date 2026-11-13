@@ -1290,12 +1290,14 @@
     const d = S.dict, L = D_().list;
     if (d.view === 'main') {
       const items = dItems(d), np = Math.max(1, Math.ceil(items.length / DPER)), pg = Math.floor(d.sel / DPER);
-      quizFrame('麻雀用語じてん', '', np > 1 && d.foc === 1 ? (pg + 1) + ' / ' + np + ' ページ' : '', '');
-      text(d.foc === 0 ? '▶ を押すと、右の 言葉を えらべます' : '決定ボタンを押すと、くわしい説明が ひらきます', 501, 401, 18, d.foc === 1 ? YEL : [226, 240, 222], 1); text(d.foc === 0 ? '▲▼ 分類  戻る: 勉強へ' : '◀(左はし)で分類へ', 100, 417, 15, [210, 225, 205], 1); // 案内は、細い1行に(下に、つぎのページの1段めを のぞかせるため)
+      quizFrame('麻雀用語じてん', '', d.foc === 1 && items.length ? (d.sel + 1) + ' / ' + items.length + ' 語' : '', '');
+      rrect(204, 410, 594, 38, 10, d.foc === 1 ? [160, 110, 0] : [40, 90, 60]); text(d.foc === 0 ? '▶ を押すと、右の 言葉を えらべます' : '決定ボタンを押すと、くわしい説明が ひらきます', 501, 416, 22, WHITE, 1); text(d.foc === 0 ? '▲▼ 分類  戻る: 勉強へ' : '◀(左はし)で分類へ', 100, 417, 15, [210, 225, 205], 1);
       DM.forEach((c, i) => { const cur = d.m === i, f = d.foc === 0 && cur && !S.bbf; panel(14, 56 + i * 40, 176, 36, 10, f ? YEL : cur ? [60, 130, 60] : [50, 70, 60], f ? [160, 110, 0] : cur ? [150, 200, 140] : [74, 97, 84], f ? 4 : 2, 255); text(c, 102, 56 + i * 40 + (c.length > 6 ? 9 : 7), c.length > 6 ? 17 : 20, f ? INK : cur ? WHITE : [185, 201, 189], 1); });
-      items.slice(pg * DPER, pg * DPER + DPER).forEach((it, i) => dBtn(204 + (i % 2) * 302, 54 + Math.floor(i / 2) * 70, 292, 64, it.n, it.r, d.foc === 1 && !S.bbf && pg * DPER + i === d.sel, it.star));
-      if (pg < np - 1) { // つぎのページの1段めを、下から のぞかせる(半分とうめいに) + とうめいな矢印: まだ先に あると分かるように
-        const nx = items.slice((pg + 1) * DPER, (pg + 1) * DPER + 2); nx.forEach((it, i) => dBtn(204 + (i % 2) * 302, 426, 292, 64, it.n, it.r, false, it.star)); fill(200, 424, 600, 44, [8, 24, 18], 120); gPoly([[484, 424], [518, 424], [501, 440]], YEL, 190);
+      { // 一覧は 1段ずつ動く(学習の一覧と同じ): カーソルは4段めで止まり、下の2段は うすく(まだ先があると分かる)
+        const VR = 6, rowsN = Math.ceil(items.length / 2), selRow = Math.floor(d.sel / 2), topRow = rowsN <= VR ? 0 : Math.max(0, Math.min(selRow - 3, rowsN - VR));
+        for (let r = 0; r < VR; r++) for (let c = 0; c < 2; c++) { const idx = (topRow + r) * 2 + c; if (idx >= items.length) break; const it = items[idx]; dBtn(204 + c * 302, 54 + r * 58, 292, 54, it.n, it.r, d.foc === 1 && !S.bbf && idx === d.sel, it.star); }
+        if (topRow + VR < rowsN) { fill(200, 54 + 4 * 58 - 2, 600, 58, [8, 24, 18], 90); fill(200, 54 + 5 * 58 - 2, 600, 58, [8, 24, 18], 150); }
+        if (topRow > 0) text('▲', 501, 44, 14, YEL, 1); if (topRow + VR < rowsN) text('▼', 501, 402, 14, YEL, 1);
       }
       if (!items.length) text('この分類は、まだありません', 500, 200, 22, GREY, 1);
       return;
