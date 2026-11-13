@@ -1,7 +1,7 @@
 #!/bin/sh
 # ビルド(Raspberry Pi Zero W では数分かかります)。 使い方: cd mahjong/native/app && sh build.sh
 set -e
-OPT="-O3"; case "$(uname -m)" in armv6*) OPT="-O3 -mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard";; esac # 最適化(Pi Zero W向けも)
+OPT="-O2" # 最適化(-O3やARM向けフラグは、起動後に落ちる疑いがあったので、いったん戻した)
 cd "$(dirname "$0")"
 Q=../quickjs
 CF=$(sdl2-config --cflags)

@@ -8,6 +8,9 @@
 #include <time.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <execinfo.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
 #include <SDL.h>
@@ -209,8 +212,8 @@ static void loading_screen(int done, int total){
   int w, h; SDL_Texture *bg = getimg("img/boot.webp", &w, &h);
   if (bg) { SDL_Rect d = { 0, 0, W, H }; SDL_RenderCopy(ren, bg, NULL, &d); }
   else { SDL_Texture *t = gettext("麻雀ゲーム 起動中", 40, 255, 240, 200, &w, &h); if (t) { SDL_Rect d = { (W - w) / 2, 130, w, h }; SDL_RenderCopy(ren, t, NULL, &d); } }
-  SDL_SetRenderDrawColor(ren, 20, 50, 38, 255); SDL_Rect bar = { (W - 300) / 2, 300, 300, 6 }; SDL_RenderFillRect(ren, &bar);
-  SDL_SetRenderDrawColor(ren, 222, 184, 96, 255); SDL_Rect fg = { (W - 300) / 2, 300, total ? 300 * done / total : 0, 6 }; SDL_RenderFillRect(ren, &fg);
+  SDL_SetRenderDrawColor(ren, 20, 50, 38, 255); SDL_Rect bar = { (W - 360) / 2, 296, 360, 20 }; SDL_RenderFillRect(ren, &bar);
+  SDL_SetRenderDrawColor(ren, 222, 184, 96, 255); SDL_Rect fg = { (W - 360) / 2, 296, total ? 360 * done / total : 0, 20 }; SDL_RenderFillRect(ren, &fg);
   SDL_RenderPresent(ren); }
 static void preload(void){
   static char *list[1200]; int n = 0;
@@ -303,6 +306,12 @@ static void stall_log(const char *kind, double ms){
 static void bgm_log(const char *what, double ms, const char *path){ /* BGMの異変を ~/mjdata/stall.log に書く */
   char p[1500]; snprintf(p, sizeof p, "%s/stall.log", datadir); FILE *fp = fopen(p, "a"); if (fp) { time_t t = time(NULL); struct tm *tm = localtime(&t); fprintf(fp, "%02d:%02d:%02d %s %.0fms %s\n", tm->tm_hour, tm->tm_min, tm->tm_sec, what, ms, path ? path : ""); fclose(fp); }
   fprintf(stderr, "%s %.0fms %s\n", what, ms, path ? path : ""); }
+extern const char *crash_dir;
+static void crash_h(int sig){ /* 落ちたとき、原因を ~/mjdata/crash.log に書く */
+  char p[1500]; snprintf(p, sizeof p, "%s/crash.log", crash_dir ? crash_dir : "/tmp");
+  int fd = open(p, O_WRONLY | O_CREAT | O_APPEND, 0644); if (fd >= 0) { char m[64]; int n = snprintf(m, sizeof m, "signal %d\n", sig); (void)!write(fd, m, n); void *bt[40]; int c = backtrace(bt, 40); backtrace_symbols_fd(bt, c, fd); close(fd); }
+  signal(sig, SIG_DFL); raise(sig); }
+const char *crash_dir = NULL;
 int main(int argc, char **argv){
   const char *shots = NULL, *vplay = NULL; int auto_ = 0, maxframes = 0; char *files[64]; int nf = 0;
   for (int i = 1; i < argc; i++) {
@@ -330,7 +339,7 @@ int main(int argc, char **argv){
   SDL_RenderSetLogicalSize(ren, W, H); SDL_ShowCursor(SDL_DISABLE);
   SDL_RendererInfo ri; SDL_GetRendererInfo(ren, &ri); printf("renderer: %s\n", ri.name);
   for (int i = 0; i < SDL_NumJoysticks(); i++) { SDL_JoystickOpen(i); }
-  initdata(); preload();
+  initdata(); crash_dir = datadir; signal(SIGSEGV, crash_h); signal(SIGABRT, crash_h); signal(SIGBUS, crash_h); signal(SIGILL, crash_h); signal(SIGFPE, crash_h); preload();
   rt = JS_NewRuntime(); JS_SetMemoryLimit(rt, 192 * 1024 * 1024); JS_SetMaxStackSize(rt, 2 * 1024 * 1024); JS_SetHostPromiseRejectionTracker(rt, rejected, NULL);
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);

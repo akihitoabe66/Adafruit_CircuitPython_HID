@@ -12,3 +12,4 @@
 - `sh native/app/build.sh` で作りなおしが必要(main.cの読みこみ一覧を変更)
 - 長押しの速さを、描く速さに合わせた(95〜220ms)。ゲーム中に長押しして、牌がつかえず動くか
 - build.sh を -O3(Pi Zero Wでは ARM向けフラグつき)に。QuickJSも作りなおされる(obj を消して `sh build.sh`)。動作・速さを確認
+- 起動後にタイトルから起動中の画面へ戻る不具合: -O3/ARM向けを戻して(-O2)、落ちたときは ~/mjdata/crash.log に書くようにした。再現したら crash.log と stall.log を見る
