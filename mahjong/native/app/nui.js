@@ -738,7 +738,7 @@
     }).sort((p, q) => p.gz - q.gz); // 奥のものから描く
     items.forEach((o) => {
       const hp = Math.min(o.h / DK, 130), sw = Math.round(o.sz * (0.8 - hp / 450)), sh = Math.round(sw * 24 / 64);
-      gfx.imageRotTop('img/dice/shadow.webp', o.x, o.gz + o.sz * 0.5 - 6, sw, sh, Math.round(255 - hp / 2), 0);
+      gfx.imageRotTop('img/dice/shadow.webp', o.x, o.gz + o.sz * 0.26, Math.round(sw * 1.15), sh, Math.round(255 - hp / 2), 0);
       const cy = o.gz - o.h - o.sz * 0.15, A = 'img/dice/a' + (o.di ? d.b : d.a) + '.webp', B = 'img/dice/b' + ((o.di * 3 + 1) % 6) + '.webp'; // 最初は別の向きの絵 → 空中で、出目の絵へ溶けこむ(止まる前に終わる)
       if (o.mix < 1) gfx.imageRotTop(B, o.x, cy, o.sz, o.sz, 255, o.ang);
       if (o.mix > 0) gfx.imageRotTop(A, o.x, cy, o.sz, o.sz, Math.round(255 * o.mix), o.ang);
