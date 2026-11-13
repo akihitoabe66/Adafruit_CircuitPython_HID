@@ -760,9 +760,10 @@
       else if (d.rolling) T2('…', 267, 22, WHITE);
       else if (!done) T2('合計 ' + total + ' …  あなたから 左回りに 数えます', 268, 19, WHITE);
       else T2(P[d.target].name + ' が 親です', 265, 24, YEL);
-      pos.forEach((p, i) => drawDie(p[0], p[1], i ? vb : va, sz[i])); // サイコロは、黒い帯より上を通る(最後に描く)
+      if (!globalThis.__nodice) pos.forEach((p, i) => drawDie(p[0], p[1], i ? vb : va, sz[i])); // サイコロは、黒い帯より上を通る(最後に描く)
     } else if (rt < T2) { const k = Math.min(1, (rt - 1500) / 160), sz2 = k < 0.5 ? 96 : 78; fill(192, 174, 448, 122, [0, 0, 0], 200); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz2 / 2, sz2, YEL, 1); }
     else { const k = Math.min(1, (rt - T2) / 160), sz2 = k < 0.5 ? 110 : 90; fill(192, 174, 448, 122, [0, 0, 0], 200); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((dd) => text('勝負!', SW / 2 + dd[0], 235 - sz2 / 2 + dd[1], sz2, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz2 / 2, sz2, [225, 40, 30], 1); }
+    if (globalThis.__nodice && globalThis.__shotDir && !d._snapped) { d._snapped = 1; gfx.snap(globalThis.__shotDir + '/dicefull.bmp'); } // 試験用
     if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
     if (d.started || true) dirty();
   }
