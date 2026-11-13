@@ -905,11 +905,38 @@
   }
   /* ---------- 段位の画面(背景の絵の座標は、絵のピクセル 1404x768) ---------- */
   /* ---------- 昇段のおいわい: 認定証(あなたの絵・判子つき)→ 新しい雀士の登場 ---------- */
+  /* ---------- 昇段の地図(源平討魔伝ふう): 段位が上がると、ずんだもんが 九州から 関東へ 歩いていく ---------- */
+  const MAP_K = 832 / 1376, MAP_POS = { 0: [222, 535], 1: [212, 450], 2: [440, 468], 3: [470, 350], 4: [735, 368], 5: [765, 340], 6: [885, 398], 7: [935, 410], 8: [985, 268], 9: [1130, 330], 10: [1160, 312], 11: [1190, 290] };
+  const MAP_ROUTE = { 1: [[205, 490], [212, 450]], 2: [[300, 402], [395, 392], [425, 440], [440, 468]], 3: [[425, 440], [395, 392], [470, 350]], 4: [[600, 360], [735, 368]], 5: [[765, 340]], 6: [[820, 385], [885, 398]], 7: [[935, 410]], 8: [[960, 340], [985, 268]], 9: [[1060, 300], [1130, 330]], 10: [[1160, 312]], 11: [[1190, 290]] };
+  const mapRegion = (d) => (d <= 0 ? '熊本' : d === 1 ? '福岡' : d === 2 ? '四国' : d === 3 ? '中国' : d <= 5 ? '近畿' : d <= 7 ? '東海道' : d === 8 ? '中部' : '関東');
+  const MAP_MSG = { 熊本: '旅の はじまり。まずは 熊本から なのだ', 福岡: '初段! 博多の町で 腕だめし なのだ', 四国: '二段! 海を わたって 四国へ なのだ', 中国: '三段! 中国路を 一歩ずつ なのだ', 近畿: '都の近畿へ! 強い雀士が 集まる なのだ', 東海道: '東海道を 江戸へ! 達人が 待っているのだ', 中部: '山を こえて 中部へ。ここからが 本番なのだ', 関東: 'ついに 関東へ! 名人を 倒すのだ!' };
+  function startMap(rk, then) { // 昇段したあと、認定証のあとに 出す。 rk.from → rk.to の道のりを 歩く
+    const from = Math.max(0, Math.min(11, rk.from || 0)), to = Math.max(from, Math.min(11, rk.to || 0)), pts = [MAP_POS[from]];
+    for (let d = from + 1; d <= to; d++) (MAP_ROUTE[d] || [MAP_POS[d]]).forEach((q) => pts.push(q));
+    const P = pts.map((q) => [q[0] * MAP_K, q[1] * MAP_K]); let len = 0; const seg = [0]; for (let i = 1; i < P.length; i++) { len += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); seg.push(len); }
+    S.map = { rk, from, to, P, seg, len, dur: Math.max(1500, Math.min(6000, len / 75 * 1000)), t0: __now(), then, fin: false, tapT: 0 }; dirty();
+  }
+  function mapPos(M, dist) { let i = 1; while (i < M.P.length - 1 && M.seg[i] < dist) i++; const a = M.P[i - 1], b = M.P[i], sl = M.seg[i] - M.seg[i - 1] || 1, u = Math.max(0, Math.min(1, (dist - M.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]; }
+  function drawMap() {
+    const M = S.map, t = __now() - M.t0, HOLD = 700, mt = Math.max(0, Math.min(1, (t - HOLD) / M.dur)), ease = mt < 0.5 ? 2 * mt * mt : 1 - Math.pow(-2 * mt + 2, 2) / 2, dist = M.len * (M.len > 0 ? ease : 0), arrived = t >= HOLD + M.dur;
+    gfx.clear(10, 10, 14); gfx.image('img/map/map.webp', 0, 0, SW, SH, 255);
+    for (let d = 12; d < dist; d += 12) { const q = mapPos(M, d); fill(Math.round(q[0]) - 1, Math.round(q[1]) - 1, 3, 3, [196, 52, 40], 210); } // 歩いたあとの足あと
+    const pos = mapPos(M, dist), moving = t >= HOLD && !arrived, fr = moving ? [1, 2, 3, 2][Math.floor(t / 130) % 4] : 0, bob = moving ? Math.round(Math.sin(t / 65) * 1.5) : 0;
+    if (moving && __now() - M.tapT > 260) { M.tapT = __now(); NSND.sfx('select', 0.16); }
+    fill(Math.round(pos[0] - 11), Math.round(pos[1] - 3), 22, 5, [0, 0, 0], 120); gfx.image('img/map/w' + fr + '.webp', Math.round(pos[0] - 15), Math.round(pos[1] - 52 + bob), 30, 56, 255); // 足もとの影 + 少し大きく(地図の ほかの人と 見分けがつくように)
+    const dn = arrived ? M.to : M.from; fill(46, 19, 44, 22, [244, 232, 200]); text(MJ.DAN_NAME(dn), 68, 21, 17, [150, 30, 20], 1); if (arrived && t - HOLD - M.dur < 500 && Math.floor(t / 90) % 2) frame(44, 17, 48, 26, [255, 214, 0], 3); // 左上のわく: 段位(着いたら 新しい段位に)
+    fill(36, 424, 760, 40, [22, 20, 28]); const msg = arrived ? ((M.to >= 11 ? '名人に 到達! 天下一の 雀士なのだ!' : MAP_MSG[mapRegion(M.to)])) : (mapRegion(M.from) + ' から 旅立つのだ'); text(msg, 416, 430, 24, arrived ? YEL : WHITE, 1);
+    if (arrived && t - HOLD - M.dur > 600) text('決定ボタンで つづける', 700, 6, 14, [235, 235, 220], 1);
+    if (arrived && !M.fin) { M.fin = true; NSND.sfx('start', 0.7); }
+    dirty();
+  }
+  function mapKey(k) { const M = S.map; if (!M) return; const arrived = __now() - M.t0 >= 700 + M.dur; if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - 700 - M.dur - 1; dirty(); return; } if (__now() - M.t0 < 700 + M.dur + 600) return; S.map = null; M.then(); } dirty(); }
   function startCert(rk, then) { // 昇段したとき、認定証を出す。そのあと、新しく登場する雀士を、1人ずつ
     const ids = (() => { try { return MJ.Rank.newIds(rk.from, rk.to); } catch (e) { return []; } })();
     const toRank = () => then();
+    const toMap = () => { try { startMap(rk, toReveal); } catch (e) { toReveal(); } };
     const toReveal = () => { if (ids.length) { S.reveal = { ids, i: 0, t0: __now(), then: toRank }; NSND.sfx('slam'); dirty(); } else toRank(); };
-    S.cert = { rk, t0: __now(), then: toReveal, snd: false }; dirty();
+    S.cert = { rk, t0: __now(), then: toMap, snd: false }; dirty();
   }
   function drawCert() {
     const C = S.cert, t = __now() - C.t0, CW = 334, CH = 468, cx = 40;
@@ -1542,7 +1569,7 @@
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
-  window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
+  window.__startMap = (a, b) => { S.mode = 'menu'; startMap({ from: a || 0, to: b || 3 }, () => { S.mode = 'menu'; dirty(); }); }; window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, dice: !!S.dice, ros: S.ros ? [S.ros.sel, (S.ros.pick || []).length, S.ros.menu ? S.ros.menu.idx : -1] : null, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
@@ -1907,6 +1934,7 @@
     S.dirty = true; if (S.locked) return;
     if (S.guardUntil && __now() < S.guardUntil) return; // 保存のあと、次の画面に変わった直後の押しまちがいを無視する
     NSND.sfx(k === 'ok' ? 'ok' : k === 'back' ? 'click' : 'select', 0.5);
+    if (S.map) { mapKey(k); return; }
     if (S.cert) { certKey(k); return; }
     if (S.reveal) { revealKey(k); return; }
     if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = wrap((r.idx || 0) + (k === 'left' ? -1 : 1), 3); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 2)) { S.rankScr = null; r.done(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; if ((r.idx || 0) === 1) { S.ros = { sel: 0 }; S.rosFrom = 'rank'; } } return; }
@@ -2265,7 +2293,7 @@
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
     if (g.cp && !g.practice && !S.result && !S.end && !S.rankP && !S.rankScr) { try { slotWrite(Object.assign({}, g.cp.snap, { mid: g.cp })); } catch (e) { /* ignore */ } } // 局の途中でホームへ戻るときは、いまの局の途中をセーブ(つづきから、同じ牌・同じ番で再開できる)
     g.stopped = true; MJ.paused = false; S.tmsgShown = 0; S.side = S.coach = null;
-    const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.cert) { const q = S.cert; S.cert = null; q.then(); } if (S.reveal) { const q = S.reveal; S.reveal = null; q.then(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
+    const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.map) { const q = S.map; S.map = null; q.then(); } if (S.cert) { const q = S.cert; S.cert = null; q.then(); } if (S.reveal) { const q = S.reveal; S.reveal = null; q.then(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
     S.self = S.react = S.result = S.end = S.saveP = null;
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
     dirty();
@@ -2337,6 +2365,7 @@
     if (__auto && globalThis.__shotDir && (S.react || (S.self && S.self.btns.length)) && S.shotR < 6) { gfx.shot(__shotDir + '/act' + (++S.shotR) + '.bmp'); }
     if (S.end) { drawEnd(S.end); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/end.bmp'); }
     if (S.coach && __auto && globalThis.__shotDir && coachShots < 6 && S.coach.cards && S.coach.cards.length) { gfx.view(0, 0); gfx.shot(__shotDir + '/coach' + (++coachShots) + '.bmp'); }
+    if (S.map) { gfx.view(0, 0); drawMap(); return true; }
     if (S.cert) { gfx.view(0, 0); drawCert(); return true; }
     if (S.reveal) { gfx.view(0, 0); drawReveal(); return true; }
     if (S.rankScr) { drawRankScreen(); gfx.view(0, 0); return true; }
@@ -2368,7 +2397,7 @@
     else if (S.mode === 'diag' && S.diag) t += ' p' + S.diag.pg + ' f' + S.diag.fi; else if (S.mode === 'study' && S.study) t += ' sel' + S.study.sel;
     else if (S.mode === 'learn' && S.learn) t += ' ' + S.learn.view + ' sel' + S.learn.sel; else if (S.mode === 'video' && S.vid) t += ' ' + S.vid.view + ' sel' + S.vid.sel; else if (S.mode === 'dict' && S.dict) t += ' ' + S.dict.view + ' foc' + S.dict.foc;
     else if (S.mode === 'stats') t += S.ros ? ' 対戦相手' : ' 成績'; else if (S.mode === 'quiz' && S.quiz) t += ' ' + S.quiz.phase;
-    if (S.rankScr) t += ' 段位'; if (S.cert) t += ' 認定証'; if (S.reveal) t += ' 登場'; if (S.rankP) t += ' 順位'; if (S.end) t += ' 終局'; if (S.menuP) t += ' メニュー';
+    if (S.rankScr) t += ' 段位'; if (S.map) t += ' 地図'; if (S.cert) t += ' 認定証'; if (S.reveal) t += ' 登場'; if (S.rankP) t += ' 順位'; if (S.end) t += ' 終局'; if (S.menuP) t += ' メニュー';
     return t;
   };
   window.__draw = function () {
