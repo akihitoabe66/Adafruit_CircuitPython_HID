@@ -19,6 +19,8 @@
     setLevel(k, l) { l = Math.max(0, Math.min(10, l)); try { localStorage.setItem('mj_vol_' + k, String(l)); } catch (e) { /* ignore */ } applyLvl(k); if (k === 'bgm') snd.musicVol(A.bv(), 200); },
     hold() { A.holding = true; A._hid = (A._hid || 0) + 1; const id = A._hid; try { snd.musicVol(0, 700); setTimeout(() => { if (A.holding && A._hid === id) { snd.music(''); cur = ''; } }, 800); } catch (e) { /* ignore */ } /* 前の曲(ホームの曲など)は、すっと小さくして止める。配牌は、曲なしで(効果音だけ) */ setTimeout(() => { if (A._hid === id) A.release(); }, 12000); }, // 配牌のあいだ、曲の切りかえを待たせる(12秒たったら、かならず はじめる)
     release() { if (!A.holding) return; A.holding = false; const p = A._pend; A._pend = null; if (p) setTimeout(() => A.music(p), 300); },
+    mapOn() { A._pcur = cur; A.scale = 1; A.music('audio/map.mp3'); }, // 昇段の地図の曲(終わったら、前の曲にもどす)
+    mapOff() { const q = A._pcur; A._pcur = null; if (q) { cur = ''; A.music(q); } },
     home() { A.holding = false; A._pend = null; A.scale = 1; A.music(HOME); },
     game(g) {
       // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」から選ぶ

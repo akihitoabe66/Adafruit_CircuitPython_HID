@@ -914,6 +914,7 @@
     const from = Math.max(0, Math.min(11, rk.from || 0)), to = Math.max(from, Math.min(11, rk.to || 0)), pts = [MAP_POS[from]];
     for (let d = from + 1; d <= to; d++) (MAP_ROUTE[d] || [MAP_POS[d]]).forEach((q) => pts.push(q));
     const P = pts.map((q) => [q[0] * MAP_K, q[1] * MAP_K]); let len = 0; const seg = [0]; for (let i = 1; i < P.length; i++) { len += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); seg.push(len); }
+    try { NSND.mapOn(); } catch (e) { /* ignore */ }
     S.map = { rk, from, to, P, seg, len, dur: Math.max(1500, Math.min(6000, len / 75 * 1000)), t0: __now(), then, fin: false, tapT: 0 }; dirty();
   }
   function mapPos(M, dist) { let i = 1; while (i < M.P.length - 1 && M.seg[i] < dist) i++; const a = M.P[i - 1], b = M.P[i], sl = M.seg[i] - M.seg[i - 1] || 1, u = Math.max(0, Math.min(1, (dist - M.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]; }
@@ -930,7 +931,7 @@
     if (arrived && !M.fin) { M.fin = true; NSND.sfx('start', 0.7); }
     dirty();
   }
-  function mapKey(k) { const M = S.map; if (!M) return; const arrived = __now() - M.t0 >= 700 + M.dur; if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - 700 - M.dur - 1; dirty(); return; } if (__now() - M.t0 < 700 + M.dur + 600) return; S.map = null; M.then(); } dirty(); }
+  function mapKey(k) { const M = S.map; if (!M) return; const arrived = __now() - M.t0 >= 700 + M.dur; if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - 700 - M.dur - 1; dirty(); return; } if (__now() - M.t0 < 700 + M.dur + 600) return; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
   function startCert(rk, then) { // 昇段したとき、認定証を出す。そのあと、新しく登場する雀士を、1人ずつ
     const ids = (() => { try { return MJ.Rank.newIds(rk.from, rk.to); } catch (e) { return []; } })();
     const toRank = () => then();
@@ -2103,12 +2104,13 @@
       if (k === 'up' || k === 'down') S.side.idx = (k === 'up' ? { 0: 2, 3: 2, 1: 0, 2: 1 } : { 0: 1, 3: 1, 1: 2, 2: 0 })[S.side.idx]; // 上: 解説→MENU / MENU・音→麻雀先生 / 麻雀先生→解説。下: MENU・音→解説 / 解説→麻雀先生 / 麻雀先生→MENU
       else if (k === 'left' && S.side.idx === 3) S.side.idx = 0; // スピーカーから左: MENUへ
       else if (k === 'right' && S.side.idx === 0) S.side.idx = 3; // MENUから右: スピーカーへ
-      else if (k === 'left' || k === 'back') { S.side = null; if (S.self && k === 'left' && S.self.row === 0) S.self.idx = S.self.tiles.length - 1; else if (!S.self && k === 'left' && S.game) S.curIdx = Math.max(0, myTiles(S.game.players[0]).length - 1); } // 左: いちばん右の牌へ
-      else if (k === 'right') { S.side = null; S.curIdx = 0; if (S.self) { S.self.row = 0; S.self.idx = 0; } } // 右: いちばん左の牌へもどる
+      else if (k === 'left' || k === 'back') { S.side = null; if (S.game && S.game.watching) { /* 観戦: 牌にカーソルは出さない */ } else if (S.self && k === 'left' && S.self.row === 0) S.self.idx = S.self.tiles.length - 1; else if (!S.self && k === 'left' && S.game) S.curIdx = Math.max(0, myTiles(S.game.players[0]).length - 1); } // 左: いちばん右の牌へ
+      else if (k === 'right') { S.side = null; S.curIdx = S.game && S.game.watching ? null : 0; if (S.self) { S.self.row = 0; S.self.idx = 0; } } // 右: いちばん左の牌へもどる
       else if (k === 'ok') {
         const i = S.side.idx;
         if (i === 0) openMenu();
         else if (i === 3) { S.soundP = { idx: 0 }; MJ.paused = true; }
+        else if (i === 1 && S.game && S.game.watching) { if (S.wnote) S.wnote.until = __now() + 14000; dirty(); } // 観戦: 解説を、もう少し長く出す
         else if (i === 1) S.coach = { tab: 0, scroll: 0, cards: teacherOn() ? buildCoach() : [] };
         else { toggleTeacher(); if (teacherOn() && S.self && !S.self.p.riichi && !S.game.fast) { try { S.hint = teacherAdvice(S.game, S.self.p, S.self.opts); } catch (e) { /* ignore */ } } else S.hint = null; }
       }
@@ -2119,7 +2121,7 @@
     if (r && k === 'back' && !r.pick) return; // 確認の間は、戻るは何もしない(誤操作防止)
     if (S.mode === 'game' && !s && !r && S.game && k === 'back') { openMenu(); return; } // 戻るボタン: メニュー(対局を止める)
     if (S.mode === 'game' && !s && !r && S.game && (k === 'left' || k === 'right' || k === 'up' || k === 'down')) { // 相手の番でも、牌をなぞれる
-      S.curIdx = null; return; // 相手の番のあいだは、カーソルを出さず、方向キーも受け付けない(自分の番の はじめに、ずれて選んでしまうのを防ぐ)
+      S.curIdx = null; if (S.game.watching) { S.side = { idx: 1 }; S.dirty = true; } return; // 相手の番のあいだは、牌にカーソルを出さず、方向キーも受け付けない(自分の番の はじめに、ずれて選んでしまうのを防ぐ)。観戦中だけ、右の「解説」などへは動かせる
       const n = myTiles(S.game.players[0]).length; if (!n) return; if (S.curIdx == null) { S.curIdx = (k === 'right' || k === 'up') ? 0 : n - 1; S.dirty = true; S.partialKey = true; return; } const slot = S.curIdx >= n && n % 3 === 1, c = Math.min(S.curIdx, n - 1); // slot: 14枚目の場所にカーソルがある
       if (k === 'left') { if (slot) S.curIdx = n - 1; else if (c === 0) S.side = { idx: 2 }; else S.curIdx = c - 1; }
       else if (k === 'right') { if (slot || c >= n - 1) S.side = { idx: 1 }; else S.curIdx = c + 1; }
@@ -2169,7 +2171,7 @@
     },
     banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; if (p && p.isHuman) setMood({ 'リーチ': 'fight', 'ポン': 'call', 'チー': 'call', 'カン': 'call', 'ロン': 'point', 'ツモ': 'happy' }[t] || 'normal', 4000); dirty(); if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
     handStart(g) {
-      S.curIdx = null; if (teacherOn() && !S.tmsgShown) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
+      S.curIdx = null; if (teacherOn() && !S.tmsgShown && !g.watching) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
       S.game = g; if (!g.fast) NSND.hold(); NSND.game(g); NSND.sfx('slam');
       { // あなたの表情: 最終局はドキドキ。前の局で振り込んだらむすっ・上がったらくすくす。トップなら余裕・最下位ならやる気
         const me = g.players[0], rk = 1 + g.players.filter((q) => q.score > me.score).length, even = g.players.every((q) => q.score === me.score);
@@ -2293,7 +2295,7 @@
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
     if (g.cp && !g.practice && !S.result && !S.end && !S.rankP && !S.rankScr) { try { slotWrite(Object.assign({}, g.cp.snap, { mid: g.cp })); } catch (e) { /* ignore */ } } // 局の途中でホームへ戻るときは、いまの局の途中をセーブ(つづきから、同じ牌・同じ番で再開できる)
     g.stopped = true; MJ.paused = false; S.tmsgShown = 0; S.side = S.coach = null;
-    const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.map) { const q = S.map; S.map = null; q.then(); } if (S.cert) { const q = S.cert; S.cert = null; q.then(); } if (S.reveal) { const q = S.reveal; S.reveal = null; q.then(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
+    const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.map) { const q = S.map; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } q.then(); } if (S.cert) { const q = S.cert; S.cert = null; q.then(); } if (S.reveal) { const q = S.reveal; S.reveal = null; q.then(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
     S.self = S.react = S.result = S.end = S.saveP = null;
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
     dirty();
