@@ -369,10 +369,11 @@ int main(int argc, char **argv){
   int frames = 0, shotn = 0, keep = 0; double perf_t0 = nowms(), perf_draw = 0, perf_pres = 0, perf_logic = 0, perf_logicmax = 0; int perf_n = 0, perf_p = 0; int perf = getenv("MJ_PERF") != NULL;
   JSValue gg = JS_GetGlobalObject(ctx);
   while (!quitf) {
+    static double it0 = 0, it_ms = 0; { double tn0 = nowms(); if (it0) it_ms = it_ms * 0.7 + (tn0 - it0) * 0.3; it0 = tn0; } /* 1周にかかった時間(長押しの速さを、描く速さに合わせる) */
     SDL_Event e; int got = SDL_WaitEventTimeout(&e, (keep || vid_active()) ? 1 : 8);
     while (got) { handle_event(&e); got = SDL_PollEvent(&e); }
     { int both = (jb[8] && jb[9]) || (jb[6] && jb[7]); if (both) { if (!menu_t0) menu_t0 = nowms(); else if (menu_t0 > 0 && nowms() - menu_t0 > 1200) { callkey("menu"); menu_t0 = -1; } } else menu_t0 = 0; } /* スタート+セレクトを長押し: メニュー(終了など) */
-    if (held && nowms() >= held_next) { callkey(HELD[held]); held_next = nowms() + 95; }
+    if (held && nowms() >= held_next) { callkey(HELD[held]); held_next = nowms() + (it_ms * 1.1 > 95 ? (it_ms * 1.1 > 220 ? 220 : it_ms * 1.1) : 95); }
     if (vid_update() && keep < 1) keep = 1; /* 動画の新しい絵が来たら、画面に出す */
     double tl0 = nowms(); int need = callframe(); { double d = nowms() - tl0; perf_logic += d; if (d > perf_logicmax) perf_logicmax = d; stall_log("logic", d); }
     if (need) {
