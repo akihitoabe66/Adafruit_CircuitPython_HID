@@ -9,6 +9,8 @@ CFG=/boot/config.txt; [ -f /boot/firmware/config.txt ] && CFG=/boot/firmware/con
 cp "$CFG" "$CFG.bak_led"
 sed -i '/^dtparam=act_led_/d;/^gpio=16=/d;/^dtoverlay=gpio-led/d;/^dtoverlay=gpio-fan/d' "$CFG"
 install -m 755 mjled.py /usr/local/bin/mjled.py
+# 通電してすぐ(ファームウェアの段階=約1〜2秒後)から GPIO16 のLEDを点灯させる。OSが起動して mjled が動くまで、点灯のまま
+echo 'gpio=16=op,dh' >> "$CFG"
 cat > /etc/systemd/system/mjled.service <<EOF
 [Unit]
 Description=Mahjong LED and fan
