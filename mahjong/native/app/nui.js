@@ -724,9 +724,9 @@
   function drawDice2(d, now) {
     const P = d.pat; if (!P || !d.started) return;
     const fT = d.rolling ? Math.min(P.n - 1, (now - d.t0) * 24 / 1000) : P.n - 1, f0 = Math.floor(fT), f1 = Math.min(P.n - 1, f0 + 1), fr = fT - f0;
-    if (d.rolling) { // 跳ねたとき「ドッ」、ぶつかったとき「チャ」(強いほど、大きく)
+    if (d.rolling) { // 跳ねたとき「ドッ」(強いほど、大きく)。ぶつかる音は、なし
       if (d._ef == null) d._ef = -1;
-      if (f0 > d._ef) { P.bounce.forEach((bl) => bl.forEach((e) => { if (e[0] > d._ef && e[0] <= f0) NSND.sfx('dice_hit', Math.min(0.9, 0.25 + 0.65 * e[1])); })); if (P.col != null && P.col > d._ef && P.col <= f0) NSND.sfx('dice_clack', 0.85); d._ef = f0; }
+      if (f0 > d._ef) { P.bounce.forEach((bl) => bl.forEach((e) => { if (e[0] > d._ef && e[0] <= f0) NSND.sfx('dice_hit', Math.min(0.9, 0.25 + 0.65 * e[1])); })); d._ef = f0; }
     }
     const lerp = (a, b) => a + (b - a) * fr;
     const items = [0, 1].map((di) => {
