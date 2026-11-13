@@ -1297,7 +1297,7 @@
         const VR = 6, rowsN = Math.ceil(items.length / 2), selRow = Math.floor(d.sel / 2), topRow = rowsN <= VR ? 0 : Math.max(0, Math.min(selRow - 3, rowsN - VR));
         for (let r = 0; r < VR; r++) for (let c = 0; c < 2; c++) { const idx = (topRow + r) * 2 + c; if (idx >= items.length) break; const it = items[idx]; dBtn(204 + c * 302, 54 + r * 58, 292, 54, it.n, it.r, d.foc === 1 && !S.bbf && idx === d.sel, it.star); }
         if (topRow + VR < rowsN) { fill(200, 54 + 4 * 58 - 2, 600, 58, [8, 24, 18], 90); fill(200, 54 + 5 * 58 - 2, 600, 58, [8, 24, 18], 150); }
-        if (topRow > 0) text('▲', 501, 44, 14, YEL, 1); if (topRow + VR < rowsN) text('▼', 501, 402, 14, YEL, 1);
+        if (topRow > 0) gPoly([[484, 56], [518, 56], [501, 41]], YEL, 235); if (topRow + VR < rowsN) gPoly([[484, 393], [518, 393], [501, 408]], YEL, 235); // 矢印は、大きめに
       }
       if (!items.length) text('この分類は、まだありません', 500, 200, 22, GREY, 1);
       return;
