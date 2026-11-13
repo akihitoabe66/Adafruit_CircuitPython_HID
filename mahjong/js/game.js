@@ -69,10 +69,10 @@
         if (this.length === 'east' && this.kyoku >= 4) end = true;
         if (this.length === 'south' && this.kyoku >= 8) end = true;
         this.roundWind = Math.min(1, Math.floor(this.kyoku / 4));
-        if (doneStop) { if (end) { if (MJ.Rank) MJ.Rank.clearSave(); if (this.ui && this.ui.clearSaves) this.ui.clearSaves(); } else if (this.ui && this.ui.askSave) await this.ui.askSave(this); return null; } // 終わった対局は、つづきを消す / そうでなければ、次の局のはじめを、自動セーブ
+        if (doneStop) { if (end) { if (MJ.Rank && !this.practice) MJ.Rank.clearSave(); if (this.ui && this.ui.clearSaves && !this.practice) this.ui.clearSaves(); } else if (this.ui && this.ui.askSave) await this.ui.askSave(this); return null; } // 終わった対局は、つづきを消す / そうでなければ、次の局のはじめを、自動セーブ
         if (!end && this.ui && this.ui.askSave) { await this.ui.askSave(this); if (this.stopped) return null; } // 局の結果のあと: 「セーブして次の局へ」(ネイティブ版だけが持つ画面)
         if (end) {
-          if (this.ui && MJ.Rank) MJ.Rank.clearSave(); // 終わった対局には、戻れない
+          if (this.ui && MJ.Rank && !this.practice) MJ.Rank.clearSave(); // 終わった対局には、戻れない
           this.yaki = null;
           if (MJ.RULES.yakitori) { // 焼き鳥: 一度も上がれなかった人は、上がった人に1000点ずつ払う(全員が上がれなかったときは、なし)
             const yk = this.players.filter((p) => !this.winCnt[p.seat]), ok = this.players.filter((p) => this.winCnt[p.seat]);
@@ -303,7 +303,7 @@
     /* 麻雀先生の評価に使う、あなたの1局ぶんの記録(直近20局) */
     logHand(r) {
       try {
-        const me = this.players.find((p) => p.isHuman); if (!me) return;
+        const me = this.players.find((p) => p.isHuman); if (!me || this.practice) return; // 練習対局は 記録しない
         const win = r.type === 'win' ? r.wins.find((w) => w.winner === me) : null;
         const dealt = r.type === 'win' ? r.wins.find((w) => w.loser === me) : null;
         const faced = this.players.some((p) => p !== me && p.riichi);

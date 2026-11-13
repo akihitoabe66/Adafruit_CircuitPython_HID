@@ -236,6 +236,7 @@
     const f = S.side ? S.side.idx : -1;
     sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 765, 14, 15, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
     sbtn(796, 6, 30, 32, [50, 90, 160], [25, 50, 100], [''], f === 3, 13); fill(803, 17, 4, 10, WHITE); fill(807, 14, 3, 16, WHITE); fill(810, 11, 3, 22, WHITE); fill(816, 17, 2, 10, WHITE);
+    if (g.practice) { rrect(728, 92, 98, 22, 8, [160, 70, 140]); text(g.watching ? '観戦(記録なし)' : '練習(記録なし)', 777, 94, 14, WHITE, 1); } // 練習対局のしるし
     { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 44, 24, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 70, 16, [200, 215, 200], 1); }
     {
       const w = waitInfoOf(g);
@@ -801,9 +802,39 @@
     if (S.rankScr) { rosLeave(); return; }
     S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'stats'; dirty(); } }; dirty();
   }
+  /* ---------- 練習対局(記録なし): 雀士列伝で えらんだ人と対戦 / CPU同士を観戦 ---------- */
+  const rosState = (c) => (metLoad().includes(c.id) ? 2 : MJ.unlockDan(c.id) > (MJ.Rank.get().maxdan || 0) ? 0 : 1);
+  function rosMenuItems(R) {
+    const L = rosList(), c = L[R.sel], picked = R.pick.includes(c.id), n = R.pick.length, it = [];
+    it.push(picked ? { t: 'えらぶのを やめる', a: 'unpick' } : n < 4 ? { t: '対戦相手に えらぶ', a: 'pick' } : { t: 'もう 4人 えらんでいます', a: 'none' });
+    if (n === 3) it.push({ t: 'あなたが 打つ (この3人)', a: 'play' });
+    if (n === 4) it.push({ t: 'CPU同士を 観戦 (この4人)', a: 'watch' });
+    if (n > 0) it.push({ t: 'えらびなおし', a: 'clear' });
+    it.push({ t: 'やめる', a: 'close' }); return it;
+  }
+  function rosMenuKey(k) {
+    const R = S.ros, m = R.menu, items = rosMenuItems(R), L = rosList(), c = L[R.sel];
+    if (k === 'back') { R.menu = null; dirty(); return; }
+    if (k === 'up') m.idx = wrap(m.idx - 1, items.length); else if (k === 'down') m.idx = wrap(m.idx + 1, items.length);
+    else if (k === 'ok') {
+      const a = items[m.idx].a; R.menu = null;
+      if (a === 'pick') { R.pick.push(c.id); if (R.pick.length >= 3) R.menu = { idx: 1 }; } // 3人めをえらぶと、すぐに 次の選択を出す
+      else if (a === 'unpick') R.pick = R.pick.filter((x) => x !== c.id);
+      else if (a === 'clear') R.pick = [];
+      else if (a === 'play' || a === 'watch') { const ids = R.pick.slice(); S.ros = null; S.rosFrom = null; startFreeMatch(ids, a === 'watch'); return; }
+    }
+    dirty();
+  }
+  function startFreeMatch(ids, watch) { // 記録に残らない対局(段位・成績・出会った雀士・つづきには ふれない)
+    const chars = ids.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean);
+    S.mode = 'menu'; S.rankScr = null; startGame(null, { practice: true, chars, watch });
+  }
   function rosKey(k) {
     const R = S.ros, L = rosList(), n = L.length, pages = Math.ceil(n / ROS_PER), pg = Math.floor(R.sel / ROS_PER), i = R.sel % ROS_PER, c = i % 4, r = Math.floor(i / 4);
-    if (k === 'back') { rosLeave(); return; }
+    if (!R.pick) R.pick = [];
+    if (R.menu) { rosMenuKey(k); return; }
+    if (k === 'back') { if (R.pick.length) { R.pick = []; dirty(); return; } rosLeave(); return; }
+    if (k === 'ok' && !R.dan) { const ch = L[R.sel]; if (rosState(ch) === 0) { S.toast = { text: 'まだ 登場していません', until: __now() + 1800 }; dirty(); setTimeout(dirty, 1900); return; } R.menu = { idx: 0 }; dirty(); return; }
     if (R.dan) { // 右上の「あなたの段位」に合わせているとき
       if (k === 'ok') rosDanOpen(); else if (k === 'down') R.dan = false; else if (k === 'up') S.bbf = true;
       dirty(); return;
@@ -843,7 +874,17 @@
     else { gfx.image('img/sil/' + pad(c.id) + '.webp', px + 44, py + 14, 112, 112, 255); frame(px + 43, py + 13, 114, 114, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', px + 77, py + 45, 46, 64, 255); text('？？？？', px + pw / 2, py + 134, 22, YEL, 1); const m = st === 0 ? MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'になると、\n登場します。' : 'まだ 出会っていません。\n4局以上 最後まで 対局すると、\n出会えます。'; const f = fitRich(m, [15, 14, 13], 176, 120); richDraw(f.lines, px + 12, py + 176, f.sz, [230, 240, 225], 0); }
     for (let k = 0; k < pages; k++) { const cx = 190 + k * 26; rrect(cx - 7, 424, 14, 14, 7, k === pg ? YEL : [80, 100, 90]); }
     text('出会った ' + met.filter((id) => L.some((x) => x.id === id)).length + ' / ' + n + '人', 24, 423, 16, YEL); text((pg + 1) + ' / ' + pages, 280, 423, 16, [200, 220, 205]);
-    text('◀ ▶ ▲ ▼ で えらぶ    戻る: もどる', SW / 2 + 80, SH - 28, 15, [210, 225, 205], 1);
+    text('◀ ▶ ▲ ▼ で えらぶ    決定: 対戦・観戦    戻る: もどる', SW / 2 + 80, SH - 28, 15, [210, 225, 205], 1);
+    if (R.pick && R.pick.length) { // 練習対局に えらんだ人: 金色の枠と番号。上の題も変える
+      fill(0, 0, 540, 50, [10, 40, 28]); text('対戦相手を えらんでいます  ' + R.pick.length + ' / 3〜4人', 354, 14, 24, YEL, 1);
+      R.pick.forEach((id, n2) => { const idx = L.findIndex((q) => q.id === id); if (idx < 0 || Math.floor(idx / ROS_PER) !== pg) return; const kk = idx % ROS_PER, x = X0 + (kk % 4) * DX, y = 64 + Math.floor(kk / 4) * 116; frame(x - 4, y - 4, Z + 8, Z + 8, [255, 214, 0], 4); rrect(x + Z - 22, y - 8, 30, 30, 15, [200, 50, 40]); text(String(n2 + 1), x + Z - 7, y - 6, 22, WHITE, 1); });
+    }
+    if (R.menu) { // 決定を押したメニュー
+      const items = rosMenuItems(R), ch = L[R.sel], w = 460, h = 110 + items.length * 56, x0 = Math.round((SW - w) / 2), y0 = Math.round((SH - h) / 2);
+      fill(0, 0, SW, SH, [0, 0, 0], 150); panel(x0, y0, w, h, 18, [10, 40, 28], [140, 190, 130], 4, 250);
+      text(rosState(ch) === 2 ? ch.short || ch.name : '？？？？', SW / 2, y0 + 14, 32, YEL, 1); text('えらんだ人: ' + R.pick.length + '人', SW / 2, y0 + 56, 18, [200, 220, 205], 1);
+      items.forEach((q, j) => { const on = R.menu.idx === j, yy = y0 + 92 + j * 56; rrect(x0 + 30, yy, w - 60, 48, 12, on ? [160, 110, 0] : GREEN); rrect(x0 + 33, yy + 3, w - 66, 42, 10, on ? YEL : CREAM); text(q.t, SW / 2, yy + 8, 24, q.a === 'none' ? GREY : INK, 1); });
+    }
   }
   function drawStats() {
     if (S.ros) { drawRoster(); return; }
@@ -1502,7 +1543,7 @@
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
   window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
-  globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, dice: !!S.dice, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
+  globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, dice: !!S.dice, ros: S.ros ? [S.ros.sel, (S.ros.pick || []).length, S.ros.menu ? S.ros.menu.idx : -1] : null, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   function startVideo() {
     const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last);
@@ -1698,7 +1739,7 @@
     let y0 = 1e9, y1 = -1e9; pts.forEach((p) => { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
     for (let y = Math.ceil(y0); y <= Math.floor(y1); y++) { const xs = []; for (let i = 0; i < pts.length; i++) { const A = pts[i], B = pts[(i + 1) % pts.length]; if ((A[1] <= y + 0.5) !== (B[1] <= y + 0.5)) xs.push(A[0] + (y + 0.5 - A[1]) / (B[1] - A[1]) * (B[0] - A[0])); } xs.sort((m, n) => m - n); for (let k = 0; k + 1 < xs.length; k += 2) fill(Math.round(xs[k]), y, Math.max(1, Math.round(xs[k + 1]) - Math.round(xs[k])), 1, c, a); }
   }
-  function recordDiscard(g, p, h) { // 実戦の記録: 打った牌が 最善に近いか(牌効率) / ほかの人の当たり牌を 持っていて、切らずに すんだか(洞察力)
+  function recordDiscard(g, p, h) { if (g.practice) return; // 実戦の記録: 打った牌が 最善に近いか(牌効率) / ほかの人の当たり牌を 持っていて、切らずに すんだか(洞察力)
     if (g.fast || p.riichi) return; const A = MJ.AI; let effOk = null;
     try { const ob = MJ.AI_BUDGET; MJ.AI_BUDGET = 0.4; let an; try { an = A.analyze(g, p, { know: 2 }); } finally { MJ.AI_BUDGET = ob; } if (an.evals.length && !an.opps.length) { const me = an.evals.find((e) => e.t === h.t); if (me) { const mx = Math.max.apply(null, an.evals.filter((e) => e.sh === an.minSh).map((e) => e.ukeire.n)); effOk = me.sh === an.minSh && me.ukeire.n >= mx * 0.8; } } } catch (e) { /* ignore */ }
     const safe = [];
@@ -1902,7 +1943,7 @@
     }
     if (S.mode === 'stats') {
       if (S.ros) { rosKey(k); return; } // 雀士列伝
-      if (k === 'down') { S.ros = { sel: 0 }; dirty(); return; }
+      if (k === 'down') { S.ros = { sel: 0, pick: [] }; dirty(); return; }
       if (k === 'back' || k === 'ok') S.mode = S.statsPrev || 'menu'; else if (k === 'up') S.bbf = true; else if (k === 'left' || k === 'right') { const o = Object.keys(MJ.Rank.get().opp).length, pages = Math.max(1, Math.ceil(o / 3)); S.statsPg = wrap(S.statsPg + (k === 'right' ? 1 : -1), pages); }
       return;
     }
@@ -2147,7 +2188,7 @@
       });
     },
     showResult(g, r) {
-      S.bub = {}; S.sayQ = []; S.banner = null; try { MJ.Stats.hand(g, r); } catch (e) { /* ignore */ }
+      S.bub = {}; S.sayQ = []; S.banner = null; try { if (!g.practice) MJ.Stats.hand(g, r); } catch (e) { /* ignore */ }
       try { if (MJ.Banter && MJ.Banter.noteResult) MJ.Banter.noteResult(g, r); } catch (e) { /* ignore */ } // 直前の局のことを、覚えておく
       S.resSay = { lines: [], t0: __now() }; try { if (MJ.Banter && MJ.Banter.afterWin && !g.fast) { S.resSay.lines = MJ.Banter.afterWin(g, r); S.resSay.lines.forEach((l, i) => { const st = 700 + i * 3800; setTimeout(dirty, st); setTimeout(dirty, st + 3500); }); } } catch (e) { /* ignore */ } // 上がったあとの、煽り・悔しがり
       NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
@@ -2186,12 +2227,14 @@
       })();
     },
     clearSaves() { try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } },
-    askSave(g) { // 局が終わるたびに、質問なしで、自動で保存する(次の局の画面が出ている間に、すみっこに小さく知らせる)
+    askSave(g) { if (g.practice) return Promise.resolve(); // 練習対局は、セーブしない
+ // 局が終わるたびに、質問なしで、自動で保存する(次の局の画面が出ている間に、すみっこに小さく知らせる)
       let ok = false; try { ok = slotWrite(g.snapshot()); } catch (e) { /* ignore */ }
       S.saveNote = { text: ok ? 'セーブしました' : 'セーブできませんでした', t0: __now(), until: __now() + 4200 }; dirty(); setTimeout(dirty, 4300);
       return Promise.resolve();
     },
-    gameEnd(g, f) { try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { if (g.length !== 'single' && (g.handCount || 0) >= 4) metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } /* 列伝に出るのは、4局以上 最後まで対局した相手だけ */ NSND.sfx('end'); // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
+    gameEnd(g, f) { if (g.practice) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({}, f, { rk: null, done }); }); } // 練習対局: 記録・順位・認定証なし
+ try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { if (g.length !== 'single' && (g.handCount || 0) >= 4) metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } /* 列伝に出るのは、4局以上 最後まで対局した相手だけ */ NSND.sfx('end'); // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
  try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go = () => { S.rankScr = { rk, done }; dirty(); }; if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
   };
 
@@ -2207,7 +2250,7 @@
   }
   function stopGame() { // ゲームを途中でやめて、ホームへ
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
-    if (g.cp && !S.result && !S.end && !S.rankP && !S.rankScr) { try { slotWrite(Object.assign({}, g.cp.snap, { mid: g.cp })); } catch (e) { /* ignore */ } } // 局の途中でホームへ戻るときは、いまの局の途中をセーブ(つづきから、同じ牌・同じ番で再開できる)
+    if (g.cp && !g.practice && !S.result && !S.end && !S.rankP && !S.rankScr) { try { slotWrite(Object.assign({}, g.cp.snap, { mid: g.cp })); } catch (e) { /* ignore */ } } // 局の途中でホームへ戻るときは、いまの局の途中をセーブ(つづきから、同じ牌・同じ番で再開できる)
     g.stopped = true; MJ.paused = false; S.tmsgShown = 0; S.side = S.coach = null;
     const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.cert) { const q = S.cert; S.cert = null; q.then(); } if (S.reveal) { const q = S.reveal; S.reveal = null; q.then(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
     S.self = S.react = S.result = S.end = S.saveP = null;
@@ -2216,12 +2259,13 @@
   }
   /* 親が決まったあと: 「東一局!」「勝負!」(顔・文字・声)。そのあと、すぐ配牌へ */
   const startIntro = (g) => new Promise((res) => { if (g.resumed || g.fast) { res(); return; } S.intro = { t0: __now(), done: () => { S.skipBanner = true; res(); } }; NSND.sfx('slam'); dirty(); });
-  async function startGame(sn) {
-    S.mode = 'game'; dirty();
-    const chars = sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
-    const g = new MJ.Game({ chars: liftChars(chars.length === 3 ? chars : pickChars()), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined });
+  async function startGame(sn, opt) {
+    S.mode = 'game'; dirty(); opt = opt || {};
+    const chars = opt.practice ? opt.chars : sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
+    const g = new MJ.Game({ chars: opt.practice ? (opt.watch ? chars.slice(1) : chars) : liftChars(chars.length === 3 ? chars : pickChars()), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
+    if (opt.practice) { g.practice = true; g.watching = !!opt.watch; if (opt.watch) { const c0 = chars[0]; g.players[0].char = c0; g.players[0].name = c0.short; } } // 練習対局: 記録しない。観戦: 1人めの席(下)の手牌を見る
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; if (sn.mid) g.resumeMid = sn.mid; }
-    g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
+    if (!opt.watch) g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
     S.game = g;
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
     S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; S.homeBot = false; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
