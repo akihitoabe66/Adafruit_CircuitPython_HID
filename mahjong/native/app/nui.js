@@ -17,12 +17,12 @@
 
   /* ---------- セーブ(手動・最新から5件) ---------- */
   const wrap = (i, n) => (i + n) % n;
-  const pressing = () => __now() - S.pressT < (S.pressMs || 170);
+  const pressing = () => __now() - S.pressT < (S.pressMs || 100);
   const postQ = []; const afterPresent = (fn) => { postQ.push(fn); }; // 今の絵が画面に出てから(次のコマの はじめに)実行する
   /* 「もどる」ボタン(画面の左上): 戻る(B)だけで出入りしていた画面に、見える「もどる」を足す。 ▲ で、このボタンへ / 決定で戻る / ▼ で元の場所へ */
   const BACKM = new Set(['diag', 'study', 'learn', 'dict', 'video', 'howto', 'stats', 'slots']);
   function drawBack(x) { x = x === undefined ? 12 : x; const on = !!S.bbf, bw = 3, R = globalThis.__bkR || 9; rrect(x, 11, 124, 36, R, on ? [160, 110, 0] : GREEN, 255); rrect(x + bw, 11 + bw, 124 - 2 * bw, 36 - 2 * bw, R - bw, on ? YEL : CREAM, 255); text('◀ もどる', x + 62, 19, 19, INK, 1); }
-  const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 170; S.locked = true; dirty(); setTimeout(() => { S.pressT = -9999; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 40); }, S.pressMs); }; // 押している間のあと、いちど「もとの形にもどった絵」を描いてから、次の画面へ(描くのがおそい機械でも、へこんだ絵のまま、つぎの画面にならないように) // 押したボタンが光ってから、次へ
+  const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 100; S.locked = true; dirty(); setTimeout(() => { S.pressT = -9999; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 20); }, S.pressMs); }; // 押している間のあと、いちど「もとの形にもどった絵」を描いてから、次の画面へ(描くのがおそい機械でも、へこんだ絵のまま、つぎの画面にならないように) // 押したボタンが光ってから、次へ
   const NSLOT = 5;
   function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
     const out = [];
@@ -526,17 +526,16 @@
     }
   }
   function drawTitle() {
-    gfx.clear(32, 74, 60);
-    gfx.image(skin('img/title_art.webp'), 0, 0, SW, SH, 255); // タイトルの文字は、絵に入っている
+    if (typeof gfx.layerBegin === 'function') cached(28, 'tbg', () => { gfx.clear(32, 74, 60); gfx.image(skin('img/title_art.webp'), 0, 0, SW, SH, 255); }); else { gfx.clear(32, 74, 60); gfx.image(skin('img/title_art.webp'), 0, 0, SW, SH, 255); } // タイトルの文字は、絵に入っている。背景は 1枚の絵として使い回す
     const f = S.titleIdx, pr = pressing();
     const sc = (i) => { // 選んでいるボタンは少し大きく。押すと「ぎゅっと縮んで、ぽんと跳ねる」
-      if (i !== f) return 1; if (!pr) return 1.06; const k = (__now() - S.pressT) / (S.pressMs || 170);
-      return k < 0.3 ? 1.06 - (k / 0.3) * 0.22 : k < 0.65 ? 0.84 + ((k - 0.3) / 0.35) * 0.36 : 1.2 - ((k - 0.65) / 0.35) * 0.14; };
+      if (i !== f) return 1; if (!pr) return 1.06; const k = (__now() - S.pressT) / (S.pressMs || 100);
+      return k < 0.35 ? 1.06 - (k / 0.35) * 0.08 : 0.98 + ((k - 0.35) / 0.65) * 0.06; }; // ほんの少し沈んで、すぐ戻る(振れ幅は 小さく・短く)
     const img = (path, x, y, w, h, i) => {
       const k = sc(i), W2 = Math.round(w * k), H2 = Math.round(h * k), X2 = Math.round(x - (W2 - w) / 2), Y2 = Math.round(y - (H2 - h) / 2);
       if (i === f && gfx.imageSil) { // 選んでいるボタン: ボタンの形(透明なところは除く)にそって、黄色く光る縁
-        const ring = (r, al) => { for (let q = 0; q < 12; q++) { const an = q * Math.PI / 6; gfx.imageSil(path, X2 + Math.round(Math.cos(an) * r), Y2 + Math.round(Math.sin(an) * r), W2, H2, al); } };
-        ring(7, 60); ring(5, 110); ring(3, 255);
+        const ring = (r, al) => { for (let q = 0; q < 8; q++) { const an = q * Math.PI / 4; gfx.imageSil(path, X2 + Math.round(Math.cos(an) * r), Y2 + Math.round(Math.sin(an) * r), W2, H2, al); } };
+        ring(5, 90); ring(3, 255);
       }
       gfx.image(path, X2, Y2, W2, H2, 255);
     };
@@ -570,7 +569,19 @@
     rrect(x, y, w, h, 6, [201, 154, 61]); rrect(x + 2, y + 2, w - 4, h - 4, 4, sel ? [120, 84, 36] : [74, 52, 24]);
     text(label, x + w / 2, y + (h - (sz || 18)) / 2, sz || 18, sel ? [255, 245, 200] : [243, 227, 176], 1);
   }
-  function drawHome() {
+  const homeSlot = () => 20 + (S.homeBot ? 4 + S.homeBotIdx : Math.min(3, S.menuIdx));
+  const homeKey = () => 'h' + S.menuIdx + ':' + (S.homeBot ? 1 : 0) + ':' + S.homeBotIdx + ':' + teacherLabel() + ':' + (function () { try { return MJ.Rank.label(); } catch (e) { return ''; } })() + ':' + homeItems().map((i) => (i.off ? 1 : 0)).join('') + ':' + (S.teachQ || S.playQ || S.confirmQ ? 1 : 0);
+  function drawHome() { // 動かない画面: 選んでいる項目ごとの絵を、いちど描いたら 使い回す(押している間の動きだけ、そのつど描く)
+    if (pressing() || typeof gfx.layerBegin !== 'function') { drawHomeBody(); return; }
+    cached(homeSlot(), homeKey(), drawHomeBody);
+  }
+  function homeWarm() { // タイトルが出ているあいだに、ホームの 全部の状態の絵を、画面に出さずに 先に描いておく(押してから切りかわるときの 重さを なくす)
+    if (typeof gfx.layerBegin !== 'function') return;
+    const sv = [S.menuIdx, S.homeBot, S.homeBotIdx];
+    const st = [[false, 0, 0], [false, 1, 0], [false, 2, 0], [false, 3, 0], [true, 0, 0], [true, 0, 1], [true, 0, 2]];
+    st.forEach((q, k) => setTimeout(() => { if (S.mode !== 'title' && S.mode !== 'menu') return; const keep = [S.menuIdx, S.homeBot, S.homeBotIdx]; try { S.homeBot = q[0]; if (q[0]) S.homeBotIdx = q[2]; else S.menuIdx = q[1]; lay(homeSlot(), homeKey(), drawHomeBody); } catch (e) { /* ignore */ } S.menuIdx = keep[0]; S.homeBot = keep[1]; S.homeBotIdx = keep[2]; }, 1200 + k * 350));
+  }
+  function drawHomeBody() {
     gfx.clear(32, 74, 60);
     gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255);
     if (UKIYO) gfx.image('img/uk/logo.webp', 36, 6, 272, 149, 255); else gfx.image('img/logo.webp', 52, 22, 244, 139, 255); // 浮世絵版: タイトルの絵から切り抜いた、ぼかし楕円のロゴ
@@ -1899,7 +1910,7 @@
     }
     if (S.mode === 'title') { // タイトル: はじめる / BGM / 終了
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { S.titleIdx = 1 - S.titleIdx; }
-      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 120); else later(() => { S.confirmQ = { idx: 0 }; }, 120); }
+      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 80); else later(() => { S.confirmQ = { idx: 0 }; }, 80); }
       return;
     }
     if (S.mode === 'rules') { // 麻雀のルール
@@ -2285,6 +2296,6 @@
     return r;
   };
 
-  NSND.home();
+  NSND.home(); homeWarm();
   print('ネイティブ版 準備できました');
 })();

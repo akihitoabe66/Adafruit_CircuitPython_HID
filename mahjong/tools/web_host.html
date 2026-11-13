@@ -125,9 +125,9 @@
     view(x, y) { vx = x; vy = y; applyView(); },
     clip(x, y, w, h) { ctx.restore(); ctx.save(); ctx.beginPath(); if (arguments.length < 4) ctx.rect(vx, vy, W - vx, H - vy); else ctx.rect(x + vx, y + vy, w, h); ctx.clip(); ctx.translate(vx, vy); },
     rrect(x, y, w, h, r, cr, cg, cb, a) { r = Math.max(0, Math.min(r, h / 2, w / 2)); ctx.fillStyle = rgba(cr, cg, cb, a === undefined ? 255 : a); ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else { ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); } ctx.fill(); },
-    layerBegin(i) { if (i < 0 || i >= 20) return; if (!lay[i]) lay[i] = mk(); const c = lay[i].getContext('2d'); ctx.restore(); ctx = c; ctx.clearRect(0, 0, W, H); ctx.save(); },
+    layerBegin(i) { if (i < 0 || i >= 32) return; if (!lay[i]) lay[i] = mk(); const c = lay[i].getContext('2d'); ctx.restore(); ctx = c; ctx.clearRect(0, 0, W, H); ctx.save(); },
     layerEnd() { ctx.restore(); ctx = tctx; ctx.save(); applyView(); },
-    layer(i) { if (i < 0 || i >= 20 || !lay[i]) return; ctx.drawImage(lay[i], 0, 0); },
+    layer(i) { if (i < 0 || i >= 32 || !lay[i]) return; ctx.drawImage(lay[i], 0, 0); },
   };
   /* 実機そっくり: 描く道具を呼ぶたびに、実機(Pi Zero W)でかかる時間を、数えて ためる(写真の測定: 小さな塗り1回=約30μs、1画面=約1500回で約100ms) */
   let cost = 0, piMode = true;
