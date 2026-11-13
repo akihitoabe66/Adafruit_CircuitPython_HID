@@ -2022,6 +2022,7 @@
     if (r && k === 'back' && !r.pick) return; // 確認の間は、戻るは何もしない(誤操作防止)
     if (S.mode === 'game' && !s && !r && S.game && k === 'back') { openMenu(); return; } // 戻るボタン: メニュー(対局を止める)
     if (S.mode === 'game' && !s && !r && S.game && (k === 'left' || k === 'right' || k === 'up' || k === 'down')) { // 相手の番でも、牌をなぞれる
+      S.curIdx = null; return; // 相手の番のあいだは、カーソルを出さず、方向キーも受け付けない(自分の番の はじめに、ずれて選んでしまうのを防ぐ)
       const n = myTiles(S.game.players[0]).length; if (!n) return; if (S.curIdx == null) { S.curIdx = (k === 'right' || k === 'up') ? 0 : n - 1; S.dirty = true; S.partialKey = true; return; } const slot = S.curIdx >= n && n % 3 === 1, c = Math.min(S.curIdx, n - 1); // slot: 14枚目の場所にカーソルがある
       if (k === 'left') { if (slot) S.curIdx = n - 1; else if (c === 0) S.side = { idx: 2 }; else S.curIdx = c - 1; }
       else if (k === 'right') { if (slot || c >= n - 1) S.side = { idx: 1 }; else S.curIdx = c + 1; }
@@ -2043,7 +2044,7 @@
       else if (k === 'back' && s.rm) { s.rm = false; }
       else if (k === 'back' && s.row === 0) { openMenu(); }
       else if (k === 'ok') {
-        if (s.row === 0) { const live = myTiles(s.p), h = live[s.idx] || tiles[s.idx]; if (h && allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.curIdx = s.idx; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; try { recordDiscard(S.game, s.p, h); } catch (e) { /* ignore */ } s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
+        if (s.row === 0) { const live = myTiles(s.p), h = live[s.idx] || tiles[s.idx]; if (h && allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.curIdx = null; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; try { recordDiscard(S.game, s.p, h); } catch (e) { /* ignore */ } s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
         else {
           const b = s.btns[s.idx];
           if (b.act === 'riichi') { s.rm = !s.rm; s.row = 0; const okI = tiles.findIndex((h) => allowed(s, h)); if (s.rm) { const d = tiles.indexOf(s.p.drawn); s.idx = d >= 0 && allowed(s, tiles[d]) ? d : Math.max(0, okI); } else s.idx = tiles.length - 1; }
