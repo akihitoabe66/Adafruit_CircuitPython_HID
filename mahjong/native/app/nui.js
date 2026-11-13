@@ -920,11 +920,11 @@
     if (pts.length === 1) pts.push([pts[0][0] + 0.01, pts[0][1]]); // 動かないとき(同じ段位・お祝い)
     const P = pts.map((q) => [q[0] * MAP_K, q[1] * MAP_K]); let len = 0; const seg = [0]; for (let i = 1; i < P.length; i++) { len += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]); seg.push(len); }
     try { NSND.mapOn(); } catch (e) { /* ignore */ }
-    S.map = { congrats: !!rk.congrats, rk, from, to, P, seg, len, dur: Math.max(1500, Math.min(9000, len / 75 * 1000)), t0: __now(), then, fin: false, tapT: 0 }; dirty();
+    S.map = { congrats: !!rk.congrats, rk, from, to, P, seg, len, dur: Math.max(1500, Math.min(30000, (to - from) * 3500)), t0: __now(), then, fin: false, tapT: 0 }; dirty();
   }
   function mapPos(M, dist) { let i = 1; while (i < M.P.length - 1 && M.seg[i] < dist) i++; const a = M.P[i - 1], b = M.P[i], sl = M.seg[i] - M.seg[i - 1] || 1, u = Math.max(0, Math.min(1, (dist - M.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]; }
   function drawMap() {
-    const M = S.map, t = __now() - M.t0, HOLD = 700, mt = Math.max(0, Math.min(1, (t - HOLD) / M.dur)), ease = mt < 0.5 ? 2 * mt * mt : 1 - Math.pow(-2 * mt + 2, 2) / 2, dist = M.len * (M.len > 0 ? ease : 0), arrived = t >= HOLD + M.dur;
+    const M = S.map, t = __now() - M.t0, HOLD = 700, mt = Math.max(0, Math.min(1, (t - HOLD) / M.dur)), ease = mt, dist = M.len * (M.len > 0 ? ease : 0), arrived = t >= HOLD + M.dur;
     gfx.clear(10, 10, 14); gfx.image('img/map/map.webp', 0, 0, SW, SH, 255);
     for (let d = 12; d < dist; d += 12) { const q = mapPos(M, d); fill(Math.round(q[0]) - 1, Math.round(q[1]) - 1, 3, 3, [196, 52, 40], 210); } // 歩いたあとの足あと
     const pos = mapPos(M, dist), moving = t >= HOLD && !arrived, fr = moving ? [1, 2, 3, 2][Math.floor(t / 130) % 4] : 0, bob = moving ? Math.round(Math.sin(t / 65) * 1.5) : 0;
