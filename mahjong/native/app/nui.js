@@ -1158,27 +1158,27 @@
       if (!p) { q.phase = 'fail'; dirty(); return; }
       q.p = p; q.n++; q.phase = 'ask'; q.idx = 0;
       q.disp = (p.hand || []).slice().sort((a, b) => a.t - b.t);
-      q.rv = qRiverInfo(p); { const hs = mark(p.sit || '') + (p.sit ? '\n' : '') + mark(String(p.prompt || '').replace(/<span class="cc-s">[\s\S]*?<\/span>/g, '').replace(/(<br\s*\/?>\s*)+$/, '')), f = q.rv ? fitRich(hs, [26, 24, 22, 20, 18], 770, 110) : fitRich(hs, [30, 28, 26, 24, 22, 20, 18], 770, p.kind === 'choice' ? 140 : 262); q.hsz = f.sz; q.head = f.lines; q.hh = f.h; }
+      q.rv = qRiverInfo(p); { const hs = mark(p.sit || '') + (p.sit ? '\n' : '') + mark(String(p.prompt || '').replace(/<span class="cc-s">[\s\S]*?<\/span>/g, '').replace(/(<br\s*\/?>\s*)+$/, '')), f = q.rv ? (q.rv.cp ? fitRich(hs, [20, 18, 16], 770, 64) : fitRich(hs, [26, 24, 22, 20, 18], 770, 110)) : fitRich(hs, [30, 28, 26, 24, 22, 20, 18], 770, p.kind === 'choice' ? 140 : 262); q.hsz = f.sz; q.head = f.lines; q.hh = f.h; }
       q.opts = (p.options || []).slice(0, 4).map((o) => { const f = fitRich(mark(o.html), [28, 26, 24, 22, 20, 18], 290, 50); return { id: o.id, lines: f.lines, sz: f.sz, h: f.h }; });
       dirty();
     }, 60);
   }
   const QSEAT = { 3: '上家', 2: '対面', 1: '下家' };
   function qRiverInfo(p) { // 問題の中に、相手の河があるときは、画面に見せる(安全牌を選ぶには、河が見えないと、こたえられない)
-    const g = p && p.g; if (!g || !g.players || p.kind !== 'tile') return null;
+    const g = p && p.g; if (!g || !g.players || (p.kind !== 'tile' && p.cat !== 'push')) return null; const cp = p.cat === 'push'; // 押し引き(選択肢が下にある)は、河を小さく出す
     const cols = [3, 2, 1].map((s) => ({ s, pl: g.players[s], ds: (g.players[s] && g.players[s].discards) || [] }));
     if (!cols.some((c) => c.ds.length)) return null;
     const rows = Math.max(1, ...cols.map((c) => Math.ceil(c.ds.length / 12)));
-    return { cols, rows: Math.min(3, rows) };
+    return { cols, rows: Math.min(cp ? 2 : 3, rows), cp };
   }
   function drawQRiver(q) {
-    const R = q.rv, TW = 20, TH = 27, h = 24 + R.rows * (TH + 2), y0 = 322 - h, cw = 262;
+    const R = q.rv, TW = R.cp ? 16 : 20, TH = R.cp ? 21 : 27, h = 24 + R.rows * (TH + 2), y0 = (R.cp ? 200 : 322) - h, cw = 262;
     if (y0 < 54 + (q.hh || 0)) return;
     R.cols.forEach((c, i) => {
       const x = 28 + i * cw, pl = c.pl; panel(x - 4, y0, cw - 6, h, 8, [6, 28, 18], [90, 140, 110], 2, 215);
       text((pl.name || '') + '(' + QSEAT[c.s] + ')', x + 4, y0 + 2, 18, WHITE);
       if (pl.riichi) { rrect(x + cw - 76, y0 + 3, 62, 18, 8, QRED); text('リーチ', x + cw - 45, y0 + 3, 14, WHITE, 1); }
-      c.ds.slice(0, 36).forEach((d, k) => { const tx = x + (k % 12) * (TW + 1), ty = y0 + 24 + Math.floor(k / 12) * (TH + 2); tile(d.tile.t, tx, ty, TW, TH, d.tile.red); if (d.riichi) frame(tx - 1, ty - 1, TW + 2, TH + 2, RED, 2); });
+      c.ds.slice(0, R.cp ? 24 : 36).forEach((d, k) => { const tx = x + (k % 12) * (TW + 1), ty = y0 + 24 + Math.floor(k / 12) * (TH + 2); tile(d.tile.t, tx, ty, TW, TH, d.tile.red); if (d.riichi) frame(tx - 1, ty - 1, TW + 2, TH + 2, RED, 2); });
     });
   }
   function quizAnswer(ans) {
@@ -1294,6 +1294,7 @@
       rrect(204, 410, 594, 38, 10, d.foc === 1 ? [160, 110, 0] : [40, 90, 60]); text(d.foc === 0 ? '▶ を押すと、右の 言葉を えらべます' : '決定ボタンを押すと、くわしい説明が ひらきます', 501, 416, 22, WHITE, 1); text(d.foc === 0 ? '▲▼ 分類  戻る: 勉強へ' : '◀(左はし)で分類へ', 100, 417, 15, [210, 225, 205], 1);
       DM.forEach((c, i) => { const cur = d.m === i, f = d.foc === 0 && cur && !S.bbf; panel(14, 56 + i * 40, 176, 36, 10, f ? YEL : cur ? [60, 130, 60] : [50, 70, 60], f ? [160, 110, 0] : cur ? [150, 200, 140] : [74, 97, 84], f ? 4 : 2, 255); text(c, 102, 56 + i * 40 + (c.length > 6 ? 9 : 7), c.length > 6 ? 17 : 20, f ? INK : cur ? WHITE : [185, 201, 189], 1); });
       items.slice(pg * DPER, pg * DPER + DPER).forEach((it, i) => dBtn(204 + (i % 2) * 302, 54 + Math.floor(i / 2) * 70, 292, 64, it.n, it.r, d.foc === 1 && !S.bbf && pg * DPER + i === d.sel, it.star));
+      if (pg < np - 1) { fill(200, 262, 600, 68, [8, 24, 18], 70); fill(200, 332, 600, 68, [8, 24, 18], 150); } // 下の2段を、うすく: つぎのページが あると分かるように
       if (!items.length) text('この分類は、まだありません', 500, 200, 22, GREY, 1);
       return;
     }
