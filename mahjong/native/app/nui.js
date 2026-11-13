@@ -720,7 +720,7 @@
     } else face(p, x, y, fs, fs);
   }
   /* ---------- サイコロの転がり(あらかじめ計算した軌道 DICEPAT + 絵 img/dice を、回して重ねるだけ。3D計算なし) ---------- */
-  const DK = 0.8125, DSZ = 96 * DK, DC = [416, 222]; // 画面の倍率 / 止まる位置(2つの中心)
+  const DK = 0.8125, DSC = 0.65, DSZ = 96 * DK * DSC, DC = [416, 222]; // DSC: サイコロの大きさの倍率(軌道の距離も、同じ倍率で縮めて、ぶつかる見え方を そろえる) // 画面の倍率 / 止まる位置(2つの中心)
   function drawDice2(d, now) {
     const P = d.pat; if (!P || !d.started) return;
     const fT = d.rolling ? Math.min(P.n - 1, (now - d.t0) * 24 / 1000) : P.n - 1, f0 = Math.floor(fT), f1 = Math.min(P.n - 1, f0 + 1), fr = fT - f0;
@@ -731,14 +731,14 @@
     if (!d.off) { const sg = Math.random() < 0.5 ? 1 : -1; d.off = [[Math.round((Math.random() - 0.5) * 14), sg * (3 + Math.round(Math.random() * 4))], [Math.round((Math.random() - 0.5) * 14), -sg * (3 + Math.round(Math.random() * 4))]]; d.tilt = [(Math.random() < 0.5 ? 1 : -1) * (2 + Math.random() * 5), (Math.random() < 0.5 ? 1 : -1) * (2 + Math.random() * 5)]; } // 止まったとき、2つの高さ・向きを そろえない(そろいすぎて見えるため)
     const lerp = (a, b) => a + (b - a) * fr;
     const items = [0, 1].map((di) => {
-      const a = P.p[di][f0], b = P.p[di][f1], x = lerp(a[0], b[0]), z = lerp(a[1], b[1]), h = lerp(a[2], b[2]);
+      const a = P.p[di][f0], b = P.p[di][f1], x = lerp(a[0], b[0]) * DSC, z = lerp(a[1], b[1]) * DSC, h = lerp(a[2], b[2]) * DSC;
       const Ti = Math.max(8, P.rest[di]), u = Math.min(1, fT / Ti), u2 = Math.min(1, u * (di ? 1.18 : 1)); // 2つで、回る量・止まる早さ・ゆらぎを変える(同期しない)
       const ang = -(di ? 300 : 430) * Math.pow(1 - u2, di ? 1.7 : 2.2) - (di ? 28 * Math.sin(fT * 0.55) * (1 - u2) : 0);
-      const sc = 0.72 + 0.28 * Math.max(0, Math.min(1, (z / DK + 11) / 145)); // 奥へいくほど、少し小さく
+      const sc = 0.72 + 0.28 * Math.max(0, Math.min(1, (z / DK / DSC + 11) / 145)); // 奥へいくほど、少し小さく
       return { di, x: DC[0] + x + d.off[di][0], gz: DC[1] + z + d.off[di][1], h, ang: -ang + d.tilt[di], sf: Math.max(0, Math.min(1, (P.rest[di] - fT) / 6)), mix: Math.max(0, Math.min(1, (u - 0.2) / 0.16)), sz: Math.round(DSZ * sc) };
     }).sort((p, q) => p.gz - q.gz); // 奥のものから描く
     items.forEach((o) => {
-      const hp = Math.min(o.h / DK, 130), sw = Math.round(o.sz * (0.8 - hp / 450)), sh = Math.round(sw * 24 / 64);
+      const hp = Math.min(o.h / DK / DSC, 130), sw = Math.round(o.sz * (0.8 - hp / 450)), sh = Math.round(sw * 24 / 64);
       if (o.sf > 0) gfx.imageRotTop('img/dice/shadow.webp', o.x, o.gz + o.sz * 0.26, Math.round(sw * 1.15), sh, Math.round((255 - hp / 2) * o.sf), 0); // 影は、止まるころに消える(止まったら、影なし)
       const cy = o.gz - o.h - o.sz * 0.15, A = 'img/dice/a' + (o.di ? d.b : d.a) + '.webp', B = 'img/dice/b' + ((o.di * 3 + 1) % 6) + '.webp'; // 最初は別の向きの絵 → 空中で、出目の絵へ溶けこむ(止まる前に終わる)
       if (o.mix < 1) gfx.imageRotTop(B, o.x, cy, o.sz, o.sz, 255, o.ang);
