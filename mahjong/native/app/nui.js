@@ -1942,12 +1942,16 @@
     P.c.forEach((l, i) => text(l, SW / 2, 382 + i * 30, 23, i ? [255, 233, 160] : WHITE, 1));
     text('◀ ▶ ページ    戻る: 設定へ', SW / 2, 446, 15, [210, 225, 205], 1);
   }
-  function drawCredits() {
-    quizFrame('クレジット', '', '', '決定ボタン・戻る で もどる');
-    let best = null;
+  function creditLayout() { // 組みかたは、1回だけ計算して 使いまわす(毎回 計算すると 実機で数秒かかる)。ホームが出てしばらくしたら、先に計算しておく
+    if (S._credBest) return S._credBest; let best = null;
     for (const sz of [32, 30, 28, 26, 24, 22, 20, 18]) { // 入りきる いちばん大きな字で
       const items = CREDITS.map((c) => ({ h: c[0], lines: richWrap(c[1], sz, 770) })); const hh = items.reduce((a, it) => a + Math.round((sz - 4) * 1.4) + richH(it.lines, sz) + 6, 0); best = { sz, items }; if (hh <= 352) break;
     }
+    return (S._credBest = best);
+  }
+  function drawCredits() {
+    quizFrame('クレジット', '', '', '決定ボタン・戻る で もどる');
+    const best = creditLayout();
     let y = 56; best.items.forEach((it) => { text(it.h, 30, y, best.sz - 4, YEL); y += Math.round((best.sz - 4) * 1.4); richDraw(it.lines, 30, y, best.sz, WHITE, 0); y += richH(it.lines, best.sz) + 6; });
   }
   function drawSlots() {
@@ -2443,13 +2447,13 @@
     if (t0 - perf.t0 >= 1000) { perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; }
     if (perfOn() || (perf.flash || 0) > t0) { // 遅れの診断(写真に とれるように、左上に 大きめに)
       gfx.view(0, 0); const sl = perf.slow || [], h = 24 + 18 * (2 + sl.length);
-      fill(0, 0, 520, h, [0, 0, 0], 200); text('遅れの診断: ' + (perfOn() ? 'オン' : 'オフ'), 6, 3, 16, YEL); text(perf.shown || '(計測中)', 6, 22, 16, [120, 255, 160]);
+      fill(0, 0, 520, h, [0, 0, 0], 200); text('遅れの診断: ' + (perfOn() ? 'オン' : 'オフ'), 6, 3, 16, YEL); if (perfOn()) text('消すには ホームで ▼▼▲▲▶◀▶◀ 戻る 決定 / 設定の「遅れの診断」', 190, 3, 13, [200, 220, 205]); text(perf.shown || '(計測中)', 6, 22, 16, [120, 255, 160]);
       sl.forEach((x, i) => text('遅れ ' + x, 6, 40 + i * 18, 15, [255, 170, 150]));
       try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi) { const ok = mi[0] !== 0; text('BGM ' + (mi[0] < 0 ? '(なし)' : ok ? '再生中' : '止まっている!') + (mi[4] >= 0 ? '  先読み ' + mi[4] + 'ms ぶん / 足りなかった ' + mi[3] + '回' : '') + '  曲の読み込み 最大' + mi[2] + 'ms', 6, 40 + sl.length * 18, 15, ok ? [150, 220, 255] : [255, 120, 120]); } } catch (e) { /* ignore */ }
     }
     return r;
   };
 
-  NSND.home(); homeWarm();
+  NSND.home(); homeWarm(); setTimeout(() => { try { creditLayout(); } catch (e) { /* ignore */ } }, 5000);
   print('ネイティブ版 準備できました');
 })();
