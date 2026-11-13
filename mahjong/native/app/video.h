@@ -5,6 +5,7 @@
 #ifdef NO_VIDEO
 static int bgms_open(const char *p, int loop) { return 0; }
 static void bgms_close(void) {}
+static int bgms_failed(void) { return 0; }
 static int bgms_active(void) { return 0; }
 static int bgms_underruns(void) { return 0; }
 static int bgms_ms(void) { return -1; }
@@ -259,7 +260,8 @@ static int vid_test(const char *path) {
 /* ===== BGMの先読み再生 =====
    BGMを、FFmpegで解読して、5秒ぶんの「音の置き場(リング)」に、先にためておく。音を出す側は、そこから取り出すだけ。
    ほかの重い処理(絵・計算・SDカード)で、CPUが足りなくなっても、ためた分で もちこたえるので、音が途切れにくい。 */
-static struct { AVFormatContext *fc; AVCodecContext *ac; SwrContext *swr; int si, rate, sw_rate, sw_fmt, sw_ch, loop, cap, rd, wr, n, underruns; Sint16 *buf, *tmp; int tmpcap; SDL_mutex *mu; SDL_Thread *th; volatile int stop, on; } B;
+static struct { AVFormatContext *fc; AVCodecContext *ac; SwrContext *swr; int si, rate, sw_rate, sw_fmt, sw_ch, loop, cap, rd, wr, n, underruns; Sint16 *buf, *tmp; int tmpcap; SDL_mutex *mu; SDL_Thread *th; volatile int stop, on, failed; char path[1400]; } B;
+static int bgms_failed(void) { return B.failed; }
 static int bgms_active(void) { return B.on; }
 static int bgms_underruns(void) { return B.underruns; }
 static int bgms_ms(void) { return B.rate ? (int)(B.n * 1000.0 / B.rate) : -1; }
@@ -290,10 +292,19 @@ static void bgms_push(AVFrame *fr) {
     SDL_UnlockMutex(B.mu); if (m > 0) off += m; else SDL_Delay(10);
   }
 }
+static void bgms_hook(void *u, Uint8 *st, int len);
 static int bgms_thread(void *u) {
   setpriority(PRIO_PROCESS, (id_t)syscall(SYS_gettid), 3); /* 絵を描く本体よりは、少し優先(音の準備は、先に済ませる) */
+  { /* 曲を開く(読み込みの待ちは、ここ=別スレッドで。画面の動きを止めない) */
+    if (avformat_open_input(&B.fc, B.path, NULL, NULL) < 0) { B.fc = NULL; B.failed = 1; return 0; }
+    if (avformat_find_stream_info(B.fc, NULL) < 0) { B.failed = 1; return 0; }
+    B.si = av_find_best_stream(B.fc, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0); if (B.si < 0) { B.failed = 1; return 0; }
+    const AVCodec *dec = avcodec_find_decoder(B.fc->streams[B.si]->codecpar->codec_id); if (!dec) { B.failed = 1; return 0; }
+    B.ac = avcodec_alloc_context3(dec); avcodec_parameters_to_context(B.ac, B.fc->streams[B.si]->codecpar); if (avcodec_open2(B.ac, dec, NULL) < 0) { B.failed = 1; return 0; } }
+  double st0 = nowms(); int armed = 0;
   AVPacket *pk = av_packet_alloc(); AVFrame *fr = av_frame_alloc();
   while (!B.stop) {
+    if (!armed) { SDL_LockMutex(B.mu); int nn = B.n; SDL_UnlockMutex(B.mu); if (nn >= B.rate || nowms() - st0 > 600) { armed = 1; B.on = 1; Mix_HookMusic(bgms_hook, NULL); } } /* 最初の1秒ぶんがたまったら、鳴らしはじめる */
     SDL_LockMutex(B.mu); int space = B.cap - B.n; SDL_UnlockMutex(B.mu);
     if (space < 16384) { SDL_Delay(20); continue; } /* いっぱいに近いあいだは、待つ */
     int r = av_read_frame(B.fc, pk);
@@ -313,25 +324,20 @@ static void bgms_hook(void *u, Uint8 *st, int len) { /* 音を出す側(別ス�
     g_vcur = cur; }
 }
 static void bgms_close(void) {
-  if (!B.on && !B.fc) return;
+  if (!B.on && !B.fc && !B.th) return;
   B.stop = 1; if (audio_ok) Mix_HookMusic(NULL, NULL); B.on = 0;
-  if (B.th) { SDL_WaitThread(B.th, NULL); B.th = NULL; }
+  if (B.th) { SDL_WaitThread(B.th, NULL); B.th = NULL; } if (audio_ok) Mix_HookMusic(NULL, NULL); B.on = 0; /* スレッドが終わってからも、もう一度(開く途中で鳴らしはじめていた場合のため) */
   if (B.ac) avcodec_free_context(&B.ac); if (B.fc) avformat_close_input(&B.fc); if (B.swr) swr_free(&B.swr);
   if (B.mu) { SDL_DestroyMutex(B.mu); B.mu = NULL; } free(B.buf); free(B.tmp);
   memset(&B, 0, sizeof B);
 }
-static int bgms_open(const char *path, int loop) { /* 開けなかったら 0 を返す(そのときは、SDL_mixer の ふつうの再生に もどる) */
+static int bgms_open(const char *path, int loop) { /* すぐに返る(曲を開くのは別スレッド)。開けなかったときは bgms_failed() が 1 になる */
   bgms_close(); if (!audio_ok || vid_active()) return 0;
-  if (avformat_open_input(&B.fc, path, NULL, NULL) < 0) { B.fc = NULL; return 0; }
-  if (avformat_find_stream_info(B.fc, NULL) < 0) { bgms_close(); return 0; }
-  B.si = av_find_best_stream(B.fc, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0); if (B.si < 0) { bgms_close(); return 0; }
-  const AVCodec *dec = avcodec_find_decoder(B.fc->streams[B.si]->codecpar->codec_id); if (!dec) { bgms_close(); return 0; }
-  B.ac = avcodec_alloc_context3(dec); avcodec_parameters_to_context(B.ac, B.fc->streams[B.si]->codecpar); if (avcodec_open2(B.ac, dec, NULL) < 0) { bgms_close(); return 0; }
+  snprintf(B.path, sizeof B.path, "%s", path);
   { Uint16 fm; int nc; Mix_QuerySpec(&B.rate, &fm, &nc); if (B.rate <= 0) B.rate = 44100; }
   B.loop = loop; B.cap = B.rate * 6; B.buf = malloc((size_t)B.cap * 4); B.mu = SDL_CreateMutex(); if (!B.buf || !B.mu) { bgms_close(); return 0; }
-  Mix_HaltMusic(); B.stop = 0; B.th = SDL_CreateThread(bgms_thread, "bgm", NULL); if (!B.th) { bgms_close(); return 0; }
-  { double t0 = nowms(); while (nowms() - t0 < 600) { SDL_LockMutex(B.mu); int n = B.n; SDL_UnlockMutex(B.mu); if (n >= B.rate) break; SDL_Delay(5); } } /* 最初に、1秒ぶんだけ ためてから、鳴らしはじめる */
-  B.on = 1; Mix_HookMusic(bgms_hook, NULL); return 1;
+  Mix_HaltMusic(); B.stop = 0; B.failed = 0; B.th = SDL_CreateThread(bgms_thread, "bgm", NULL); if (!B.th) { bgms_close(); return 0; }
+  return 1;
 }
 #endif
 /* ディレクトリの中の名前の一覧(並べ替え済み)。なければ null */
