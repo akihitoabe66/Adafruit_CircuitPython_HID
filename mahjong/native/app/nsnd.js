@@ -36,7 +36,7 @@
     sfx(name, v) { if (SFX.indexOf(name) >= 0) snd.play('audio/sfx/' + name + '.wav', (v == null ? V.sfx : v)); },
     call(p, text) {
       const K = { 'リーチ': 'riichi', 'ポン': 'pon', 'チー': 'chi', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[text]; if (!K) return;
-      const id = p && p.char && p.char.voice != null ? p.char.voice : 0; const path = 'audio/voice/' + id + '_' + K + '.mp3'; snd.play(path, V.voice); A.callEnd = __now() + Math.round((snd.len(path) || 0.8) * 1000); /* 掛け声が終わる時刻(結果の読み上げを、これが終わってから始めるため) */
+      const id = p && p.char && p.char.voice != null ? p.char.voice : 0; const path = 'audio/voice/' + id + '_' + K + '.mp3'; const nw = __now(); if (A._lc && A._lc.path === path && nw - A._lc.t < 5000) return; A._lc = { path, t: nw }; /* 同じ掛け声は、5秒以内に2回言わない */ snd.play(path, V.voice); A.callEnd = __now() + Math.round((snd.len(path) || 0.8) * 1000); /* 掛け声が終わる時刻(結果の読み上げを、これが終わってから始めるため) */
       if (id === 0 && yk && yk['x:なのだ'] && Math.random() < 0.3) { const L = snd.len(path) || 0.6, nk = A.nd(K === 'riichi' ? 'firm' : K === 'ron' || K === 'tsumo' ? 'bright' : 'flat'); if (nk) setTimeout(() => A.speak([nk]), Math.round((L - 0.1) * 1000)); } // あなた(ずんだもん)の掛け声のあと、ときどき「なのだ」
     },
     /* 語尾「なのだ」を、たまに(確率 p)つけた並びにする */
@@ -68,7 +68,7 @@
         const r = w.res;
         // 「桃太郎 ツモ!」: 上がった人の名前 + ツモ/ロン(あなたも)。「の」は入れない(声が、つなぎ言葉として合わないため)
         if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name); // 「〇〇 ロン」: 上がった人の名前と、ツモ/ロン(CPUのときも読む。ただし、その人自身の掛け声が終わってから)
-        if (!((A.callEnd || 0) > __now() - 20000)) keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null); // 掛け声(ツモ・ロン)を、いま言ったばかりなら、くりかえさない(2回言うと、声が重なる)
+        keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null);
         r.yaku.forEach((y) => {
           if (w.tsumo && y.n === '門前清自摸和') return; // 「ツモ」は、いま言ったので、くりかえさない
           if (y.n === 'ドラ' || y.n === '赤ドラ' || y.n === '裏ドラ') keys.push('y:' + (y.n === 'ドラ' ? 'ドラ' : y.n === '赤ドラ' ? 'アカドラ' : 'ウラドラ'), 'n:' + Math.min(13, y.h));
