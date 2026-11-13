@@ -403,8 +403,11 @@
     { // 伏せた手牌(小さな牌): 配牌のあいだは1人ずつ増えるので、層の外で毎回描く
       const nHand = (p) => Math.min(p.hand.length, DS.ns[p.seat]);
       const pos = { 2: (i) => [265 + i * 17, 32], 3: (i) => [3, 66 + i * 17], 1: (i) => [692, 66 + i * 17] }, bk = { 2: [16, 24, undefined], 3: [24, 16, 'l'], 1: [24, 16, 'r'] };
+      const drawBacks = (sd) => { const b = bk[sd]; for (let i = 0; i < nHand(P[sd]); i++) { const q = pos[sd](i); back(q[0], q[1], b[0], b[1], b[2]); } };
+      const flying = [2, 3, 1].some((sd) => (DS.fly[sd] || []).length);
+      if (!flying && typeof gfx.layerBegin === 'function') cached(4, 'bk' + nHand(P[2]) + ',' + nHand(P[3]) + ',' + nHand(P[1]), () => [2, 3, 1].forEach(drawBacks)); // 配り終わったあとは、他の3人の伏せ牌を1枚の絵にして貼る(毎回 100回以上 描かない)
       [2, 3, 1].forEach((sd) => {
-        const b = bk[sd]; for (let i = 0; i < nHand(P[sd]); i++) { const q = pos[sd](i); back(q[0], q[1], b[0], b[1], b[2]); }
+        const b = bk[sd]; if (flying || typeof gfx.layerBegin !== 'function') drawBacks(sd);
         (DS.fly[sd] || []).forEach((f) => { const q0 = pos[sd](f.from), q1 = pos[sd](f.from + f.cnt - 1); drawBlock(f, (q0[0] + q1[0] + b[0]) / 2, (q0[1] + q1[1] + b[1]) / 2); }); // 山から、となりあわせのまま手元へ
       });
     }
