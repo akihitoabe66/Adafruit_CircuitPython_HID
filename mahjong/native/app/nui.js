@@ -720,10 +720,10 @@
     } else face(p, x, y, fs, fs);
   }
   /* ---------- サイコロの転がり(あらかじめ計算した軌道 DICEPAT + 絵 img/dice を、回して重ねるだけ。3D計算なし) ---------- */
-  const DK = 0.8125, DSC = 0.65, DSZ = 96 * DK * DSC, DC = [416, 222]; // DSC: サイコロの大きさの倍率(軌道の距離も、同じ倍率で縮めて、ぶつかる見え方を そろえる) // 画面の倍率 / 止まる位置(2つの中心)
+  const DK = 0.8125, DSC = 0.8, DSZ = 96 * DK * DSC, DC = [416, 222]; // DSC: サイコロの大きさの倍率(軌道の距離も、同じ倍率で縮めて、ぶつかる見え方を そろえる) // 画面の倍率 / 止まる位置(2つの中心)
   function drawDice2(d, now) {
     const P = d.pat; if (!P || !d.started) return;
-    const fT = d.rolling ? Math.min(P.n - 1, (now - d.t0) * 24 / 1000) : P.n - 1, f0 = Math.floor(fT), f1 = Math.min(P.n - 1, f0 + 1), fr = fT - f0;
+    const fT = d.rolling ? Math.min(P.n - 1, (d.vt - d.rt0) * 24 / 1000) : P.n - 1, f0 = Math.floor(fT), f1 = Math.min(P.n - 1, f0 + 1), fr = fT - f0;
     if (d.rolling) { // 跳ねたとき「ドッ」(強いほど、大きく)。ぶつかる音は、なし
       if (d._ef == null) d._ef = -1;
       if (f0 > d._ef) { P.bounce.forEach((bl) => bl.forEach((e) => { if (e[0] > d._ef && e[0] <= f0) NSND.sfx('dice_hit', Math.min(0.9, 0.25 + 0.65 * e[1])); })); d._ef = f0; }
@@ -747,7 +747,8 @@
   }
   function drawDice() {
     const d = S.dice, g = S.game, now = __now();
-    if (!d.started && now - d.t0 > 600) { d.started = true; d.rolling = true; d.t0 = now; NSND.sfx('deal4'); }
+    const dtf = d._ln ? now - d._ln : 0; d._ln = now; d.vt = (d.vt || 0) + Math.min(dtf, 50); // 動きの時計: 1コマが重くても、50msぶんしか進めない(最初の数コマが飛んで、いきなり終わりに見えるのを防ぐ)
+    if (!d.started && d.vt > 600) { d.started = true; d.rolling = true; d.t0 = now; d.rt0 = d.vt; NSND.sfx('deal4'); }
     const total = d.a + d.b, cStart = d.t1 + 700, cStep = 380, revealAt = cStart + (total - 1) * cStep; // 最後の1つで、その席が止まった瞬間に、親が決まる(止まってから光り直さない)
     const P = g.players, counting = d.settled && now >= cStart && now < revealAt, done = d.settled && now >= revealAt;
     if (done && !d.revealT) { d.revealT = now; NSND.sfx('start', 0.8); NSND.sfx('slam', 0.8); }
@@ -763,7 +764,7 @@
     if (done) seatsStatic(); else cached(2, 'd' + (d.id || 0) + ':' + hiSeat, seatsStatic); // 動かない部分は、1枚の絵にして貼る(サイコロのアニメを、カクつかせないため)
     [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, false, '', done && sd === d.target ? now - d.revealT : null, 'face'));
     if (!d.pat) d.pat = DICEPAT[Math.floor(Math.random() * DICEPAT.length)]; // 転がり方は、数種類から ランダムに
-    if (d.started && d.rolling && (now - d.t0) * 24 / 1000 >= d.pat.n + 2) { d.rolling = false; d.settled = true; d.t1 = now; }
+    if (d.started && d.rolling && (d.vt - d.rt0) * 24 / 1000 >= d.pat.n + 2) { d.rolling = false; d.settled = true; d.t1 = now; }
     const big = rt > 1500; // 「東一局」「勝負!」のあいだは、サイコロと案内の帯を消して、そのまま中央に大きく出す(画面は切り替えない)
     if (!big) {
       gfx.fillTop(190, 262, 452, 32, 0, 0, 0, 190); const T2 = (str, y, sz2, c) => gfx.textTop(str, SW / 2, y, sz2, c[0], c[1], c[2], 1);
