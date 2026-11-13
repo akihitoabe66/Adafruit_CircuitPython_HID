@@ -11,7 +11,7 @@
   try { MJ.loadRules && MJ.loadRules(); } catch (e) { /* ignore */ }
   MJ.MEMO_CAP = 30000; // 計算の記憶表の上限(メモリを食いすぎないように)
   if (globalThis.__teacherEnv) { try { localStorage.setItem('mj_teacher', globalThis.__teacherEnv); } catch (e) { /* ignore */ } } // 例: MJ_TEACHER=1 ./mj .
-  MJ.AI_BUDGET = 0.4; // Pi Zeroでは、CPUの思考の時間上限を縮める(考えている間、画面と入力が止まるため)
+  MJ.AI_BUDGET = 3; // CPUの思考の時間上限: 相手の番はコントローラーを受け付けないので、PCの約3倍の時間をかけて、きちんと考えさせる(Pi Zeroは遅いので、これで、ふつうのPCと同じくらい)。自分の番の解説の計算は、下で短くする
   if (globalThis.__cpuEnv && MJ.CPU_SPEEDS.includes(globalThis.__cpuEnv)) MJ.setCpuSpeed(globalThis.__cpuEnv); // 例: MJ_CPU=fast ./mj .
 
 
@@ -204,7 +204,7 @@
   }
   /* ---------- 麻雀先生(バランス型) ---------- */
   function teacherAdvice(g, p, opts) {
-    const A = MJ.AI; const an = A.analyze(g, p, { know: 2, deep: true, deepN: 6, budget: 60 });
+    const A = MJ.AI; const ob = MJ.AI_BUDGET; MJ.AI_BUDGET = 0.4; let an; try { an = A.analyze(g, p, { know: 2, deep: true, deepN: 6, budget: 60 }); } finally { MJ.AI_BUDGET = ob; } // 自分の番は、カーソルが引っかからないよう、短く
     if (!an.evals.length) return null;
     const stc = an.opps.length ? A.stance(g, p, an, 'balance') : null;
     const pick = stc && stc.pick ? stc.pick : A.byEff(an.evals)[0];
@@ -1673,7 +1673,7 @@
   }
   function recordDiscard(g, p, h) { // 実戦の記録: 打った牌が 最善に近いか(牌効率) / ほかの人の当たり牌を 持っていて、切らずに すんだか(洞察力)
     if (g.fast || p.riichi) return; const A = MJ.AI; let effOk = null;
-    try { const an = A.analyze(g, p, { know: 2 }); if (an.evals.length && !an.opps.length) { const me = an.evals.find((e) => e.t === h.t); if (me) { const mx = Math.max.apply(null, an.evals.filter((e) => e.sh === an.minSh).map((e) => e.ukeire.n)); effOk = me.sh === an.minSh && me.ukeire.n >= mx * 0.8; } } } catch (e) { /* ignore */ }
+    try { const ob = MJ.AI_BUDGET; MJ.AI_BUDGET = 0.4; let an; try { an = A.analyze(g, p, { know: 2 }); } finally { MJ.AI_BUDGET = ob; } if (an.evals.length && !an.opps.length) { const me = an.evals.find((e) => e.t === h.t); if (me) { const mx = Math.max.apply(null, an.evals.filter((e) => e.sh === an.minSh).map((e) => e.ukeire.n)); effOk = me.sh === an.minSh && me.ukeire.n >= mx * 0.8; } } } catch (e) { /* ignore */ }
     const safe = [];
     try { const mine = new Set(p.hand.map((x) => x.t)); g.players.forEach((q) => { if (q === p || q.hand.length % 3 !== 1) return; const c = MJ.toCounts(q.hand); if (MJ.shanten(c, q.melds.length) !== 0) return; const ws = MJ.waits(c.slice(), q.melds.length); if (ws.length && ws.some((w) => mine.has(w))) safe.push(!ws.includes(h.t)); }); } catch (e) { /* ignore */ }
     MJ.Stats.discard(effOk, safe);

@@ -269,7 +269,8 @@
     async decideSelf(p, opts, st) {
       if (p.isHuman) return this.ui.askSelf(this, p, opts, st);
       if (this.ui) await sleep(0); // 重い計算の前に、一度画面と入力を回す(カーソルが引っかからないように)
-      const act = p.coachType ? MJ.AI.coachSelf(this, p, opts, p.coachType, { saki: !!p.coachSaki }) : MJ.AI.chooseSelf(this, p, opts);
+      const tk0 = Date.now(); const act = p.coachType ? MJ.AI.coachSelf(this, p, opts, p.coachType, { saki: !!p.coachSaki }) : MJ.AI.chooseSelf(this, p, opts);
+      const took = Date.now() - tk0; // 考えるのにかかった時間は、そのあとの待ちから引く(間が長くなりすぎないように)
       if (this.cfg.cpuDelay != null) { await this.wait(this.cfg.cpuDelay); return act; }
       // 考える時間にゆらぎを持たせる: 引いた牌をそのまま切るときは短め、手を入れかえるときは長め。ときどき、じっくり考える
       const r = Math.random();
@@ -286,7 +287,7 @@
         ms = swap ? 1100 + r * 1000 : 700 + r * 600;
         if (r > 0.88) ms += 1200 + Math.random() * 1200;
       }
-      await this.wait(ms);
+      await this.wait(Math.max(60, ms - took));
       return act;
     }
     /* 思考モード: CPUがためらう場面 → リーチを迷う(テンパイ) / リーチ者がいるときに、現物でない牌を切る */
