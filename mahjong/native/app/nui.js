@@ -719,6 +719,31 @@
       if (wind) { const wi = ['東', '南', '西', '北'].indexOf(wind); rrect(x - 46, y + 6, 38, 38, 6, [255, 255, 255]); rrect(x - 44, y + 8, 34, 34, 5, WIND_BG[wi]); text(wind, x - 27, y + 11, 28, WHITE, 1); }
     } else face(p, x, y, fs, fs);
   }
+  /* ---------- サイコロの転がり(あらかじめ計算した軌道 DICEPAT + 絵 img/dice を、回して重ねるだけ。3D計算なし) ---------- */
+  const DK = 0.8125, DSZ = 96 * DK, DC = [416, 230]; // 画面の倍率 / 止まる位置(2つの中心)
+  function drawDice2(d, now) {
+    const P = d.pat; if (!P || !d.started) return;
+    const fT = d.rolling ? Math.min(P.n - 1, (now - d.t0) * 24 / 1000) : P.n - 1, f0 = Math.floor(fT), f1 = Math.min(P.n - 1, f0 + 1), fr = fT - f0;
+    if (d.rolling) { // 跳ねたとき「ドッ」、ぶつかったとき「チャ」(強いほど、大きく)
+      if (d._ef == null) d._ef = -1;
+      if (f0 > d._ef) { P.bounce.forEach((bl) => bl.forEach((e) => { if (e[0] > d._ef && e[0] <= f0) NSND.sfx('dice_hit', Math.min(0.9, 0.25 + 0.65 * e[1])); })); if (P.col != null && P.col > d._ef && P.col <= f0) NSND.sfx('dice_clack', 0.85); d._ef = f0; }
+    }
+    const lerp = (a, b) => a + (b - a) * fr;
+    const items = [0, 1].map((di) => {
+      const a = P.p[di][f0], b = P.p[di][f1], x = lerp(a[0], b[0]), z = lerp(a[1], b[1]), h = lerp(a[2], b[2]);
+      const Ti = Math.max(8, P.rest[di]), u = Math.min(1, fT / Ti), u2 = Math.min(1, u * (di ? 1.18 : 1)); // 2つで、回る量・止まる早さ・ゆらぎを変える(同期しない)
+      const ang = -(di ? 300 : 430) * Math.pow(1 - u2, di ? 1.7 : 2.2) - (di ? 28 * Math.sin(fT * 0.55) * (1 - u2) : 0);
+      const sc = 0.72 + 0.28 * Math.max(0, Math.min(1, (z / DK + 11) / 145)); // 奥へいくほど、少し小さく
+      return { di, x: DC[0] + x, gz: DC[1] + z, h, ang: -ang, mix: Math.max(0, Math.min(1, (u - 0.2) / 0.16)), sz: Math.round(DSZ * sc) };
+    }).sort((p, q) => p.gz - q.gz); // 奥のものから描く
+    items.forEach((o) => {
+      const hp = Math.min(o.h / DK, 130), sw = Math.round(o.sz * (0.8 - hp / 450)), sh = Math.round(sw * 24 / 64);
+      gfx.imageRotTop('img/dice/shadow.webp', o.x, o.gz + o.sz * 0.5 - 6, sw, sh, Math.round(255 - hp / 2), 0);
+      const cy = o.gz - o.h - o.sz * 0.15, A = 'img/dice/a' + (o.di ? d.b : d.a) + '.webp', B = 'img/dice/b' + ((o.di * 3 + 1) % 6) + '.webp'; // 最初は別の向きの絵 → 空中で、出目の絵へ溶けこむ(止まる前に終わる)
+      if (o.mix < 1) gfx.imageRotTop(B, o.x, cy, o.sz, o.sz, 255, o.ang);
+      if (o.mix > 0) gfx.imageRotTop(A, o.x, cy, o.sz, o.sz, Math.round(255 * o.mix), o.ang);
+    });
+  }
   function drawDice() {
     const d = S.dice, g = S.game, now = __now();
     if (!d.started && now - d.t0 > 600) { d.started = true; d.rolling = true; d.t0 = now; NSND.sfx('deal4'); }
@@ -736,23 +761,8 @@
     const seatsStatic = () => { stage(); [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, sd === hiSeat, winds(sd), done && sd === d.target ? now - d.revealT : null, 'static')); };
     if (done) seatsStatic(); else cached(2, 'd' + (d.id || 0) + ':' + hiSeat, seatsStatic); // 動かない部分は、1枚の絵にして貼る(サイコロのアニメを、カクつかせないため)
     [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, false, '', done && sd === d.target ? now - d.revealT : null, 'face'));
-    let va = d.started ? d.a : 1, vb = d.started ? d.b : 6; const T = [[350, 186], [446, 184]];
-    const SEG = [[0.34, 0.62, 0.82, 1.0], [0.38, 0.66, 0.85, 1.0]], AMP = [[70, 34, 14, 5], [62, 30, 12, 4]];
-    const sz = [72, 72], pos = [T[0].slice(), T[1].slice()];
-    if (d.started && d.rolling) {
-      const k = (now - d.t0) / 1500;
-      if (k >= 1) { d.rolling = false; d.settled = true; d.t1 = now; NSND.sfx('slam'); }
-      else {
-        const f = Math.floor((now - d.t0) / 65); if (k < 0.8) { va = 1 + (f * 5 + 3) % 6; vb = 1 + (f * 3 + 1) % 6; }
-        [0, 1].forEach((i) => { // 右から転がってきて、手前から奥へ(だんだん小さく)。とん、とん、とんとん
-          const sg = SEG[i], a = AMP[i]; let seg = 0; while (seg < 3 && k > sg[seg]) seg++;
-          const t0 = seg ? sg[seg - 1] : 0, u = (k - t0) / (sg[seg] - t0), h = a[seg] * 4 * u * (1 - u) * (seg === 0 ? 1.15 : 1);
-          if (seg !== d['_lastSeg' + i]) { if (seg > 0) NSND.sfx('discard', 0.35); d['_lastSeg' + i] = seg; }
-          const e = 1 - Math.pow(1 - k, 1.7);
-          pos[i] = [Math.round(T[i][0] + (800 - T[i][0]) * (1 - e) - (i ? 0 : 20) * (1 - e)), Math.round(T[i][1] + (i ? 60 : 90) * (1 - e) - h)];
-        });
-      }
-    }
+    if (!d.pat) d.pat = DICEPAT[Math.floor(Math.random() * DICEPAT.length)]; // 転がり方は、数種類から ランダムに
+    if (d.started && d.rolling && (now - d.t0) * 24 / 1000 >= d.pat.n + 2) { d.rolling = false; d.settled = true; d.t1 = now; }
     const big = rt > 1500; // 「東一局」「勝負!」のあいだは、サイコロと案内の帯を消して、そのまま中央に大きく出す(画面は切り替えない)
     if (!big) {
       gfx.fillTop(190, 262, 452, 32, 0, 0, 0, 190); const T2 = (str, y, sz2, c) => gfx.textTop(str, SW / 2, y, sz2, c[0], c[1], c[2], 1);
@@ -760,7 +770,7 @@
       else if (d.rolling) T2('…', 267, 22, WHITE);
       else if (!done) T2('合計 ' + total + ' …  あなたから 左回りに 数えます', 268, 19, WHITE);
       else T2(P[d.target].name + ' が 親です', 265, 24, YEL);
-      if (!globalThis.__nodice) pos.forEach((p, i) => drawDie(p[0], p[1], i ? vb : va, sz[i])); // サイコロは、黒い帯より上を通る(最後に描く)
+      if (!globalThis.__nodice) drawDice2(d, now); // サイコロは、黒い帯より上を通る(最後に描く) // サイコロは、黒い帯より上を通る(最後に描く)
     } else if (rt < T2) { const k = Math.min(1, (rt - 1500) / 160), sz2 = k < 0.5 ? 96 : 78; fill(192, 174, 448, 122, [0, 0, 0], 200); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz2 / 2, sz2, YEL, 1); }
     else { const k = Math.min(1, (rt - T2) / 160), sz2 = k < 0.5 ? 110 : 90; fill(192, 174, 448, 122, [0, 0, 0], 200); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((dd) => text('勝負!', SW / 2 + dd[0], 235 - sz2 / 2 + dd[1], sz2, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz2 / 2, sz2, [225, 40, 30], 1); }
     if (globalThis.__nodice && globalThis.__shotDir && !d._snapped) { d._snapped = 1; gfx.snap(globalThis.__shotDir + '/dicefull.bmp'); } // 試験用
@@ -1476,7 +1486,7 @@
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
   window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
-  globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
+  globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, dice: !!S.dice, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   function startVideo() {
     const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last);

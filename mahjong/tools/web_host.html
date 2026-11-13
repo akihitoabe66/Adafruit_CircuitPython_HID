@@ -117,6 +117,7 @@
     fillTop(x, y, w, h, r, g, b, a) { tops.push({ k: 'rect', x: x + vx, y: y + vy, w, h, c: rgba(r, g, b, a === undefined ? 255 : a) }); },
     textTop(s, x, y, sz, r, g, b, al) { if (s === '' || s == null) return 0; s = String(s); setFont(sz); const w = Math.round(ctx.measureText(s).width); if (al === 1) x -= Math.round(w / 2); else if (al === 2) x -= w; tops.push({ k: 'text', s, x: x + vx, y: y + vy, sz: Math.abs(sz), bold: sz < 0, c: rgba(r, g, b, 255) }); return w; },
     imageTop(p, x, y, w, h) { const im = imgs[p]; if (!im) return false; const iw = im.naturalWidth, ih = im.naturalHeight; let sx = 0, sy = 0, sw = iw, sh = ih; if (w * ih > h * iw) sh = iw * h / w; else if (w * ih < h * iw) { sw = ih * w / h; sx = (iw - sw) / 2; } tops.push({ im, sx, sy, sw, sh, x: x + vx, y: y + vy, w, h }); return true; },
+    imageRotTop(p, cx, cy, w, h, a, ang) { const im = imgs[p]; if (!im) return false; tops.push({ k: 'rot', im, cx: cx + vx, cy: cy + vy, w, h, a, ang }); return true; },
     text(s, x, y, sz, r, g, b, al) { if (s === '' || s == null) return 0; s = String(s); setFont(sz); const w = Math.round(ctx.measureText(s).width); if (al === 1) x -= Math.round(w / 2); else if (al === 2) x -= w; ctx.fillStyle = rgba(r, g, b, 255); ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y + Math.abs(sz) * 0.86); return w; },
     textRot(s, cx, cy, sz, r, g, b, ang) { if (s === '' || s == null) return 0; s = String(s); setFont(sz); const w = Math.round(ctx.measureText(s).width); ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang * Math.PI / 180); ctx.fillStyle = rgba(r, g, b, 255); ctx.textBaseline = 'alphabetic'; ctx.fillText(s, -w / 2, Math.abs(sz) * 0.37); ctx.restore(); return w; },
     measure(s, sz) { tctx.font = (sz < 0 ? '700 ' : '500 ') + Math.abs(sz) + 'px ' + FONT; return Math.round(tctx.measureText(String(s)).width); },
@@ -131,7 +132,7 @@
   };
   /* 実機そっくり: 描く道具を呼ぶたびに、実機(Pi Zero W)でかかる時間を、数えて ためる(写真の測定: 小さな塗り1回=約30μs、1画面=約1500回で約100ms) */
   let cost = 0, piMode = true;
-  const COST = { fill: (a) => 30 + a[2] * a[3] * 0.012, frame: () => 60, image: (a) => 100 + a[3] * a[4] * 0.03, imageRot: (a) => 120 + a[3] * a[4] * 0.04, imageSil: (a) => 120 + a[3] * a[4] * 0.04, imageTop: (a) => 100 + a[3] * a[4] * 0.03, text: () => 200, textTop: () => 200, textRot: () => 220, fillTop: (a) => 30 + a[2] * a[3] * 0.012, rrect: (a) => 40 + a[4] * 8 + a[2] * a[3] * 0.012, layer: () => 300 + W * H * 0.02 };
+  const COST = { fill: (a) => 30 + a[2] * a[3] * 0.012, frame: () => 60, image: (a) => 100 + a[3] * a[4] * 0.03, imageRot: (a) => 120 + a[3] * a[4] * 0.04, imageSil: (a) => 120 + a[3] * a[4] * 0.04, imageTop: (a) => 100 + a[3] * a[4] * 0.03, imageRotTop: (a) => 120 + a[3] * a[4] * 0.04, text: () => 200, textTop: () => 200, textRot: () => 220, fillTop: (a) => 30 + a[2] * a[3] * 0.012, rrect: (a) => 40 + a[4] * 8 + a[2] * a[3] * 0.012, layer: () => 300 + W * H * 0.02 };
   Object.keys(COST).forEach((k) => { const o = gfx[k]; if (typeof o !== 'function') return; gfx[k] = function () { cost += COST[k](arguments); return o.apply(this, arguments); }; });
   /* gfx.measure は、描画先と別でも同じ答えになるよう tctx を使う(layerBegin中も使える) */
   const noop = () => {};
@@ -185,6 +186,7 @@
     for (const t of tops) {
       if (t.k === 'rect') { vctx.fillStyle = t.c; vctx.fillRect(t.x * sx, t.y * sy, t.w * sx, t.h * sy); }
       else if (t.k === 'text') { vctx.font = (t.bold ? '700 ' : '500 ') + (t.sz * sx) + 'px ' + FONT; vctx.fillStyle = t.c; vctx.textBaseline = 'alphabetic'; vctx.fillText(t.s, t.x * sx, (t.y + t.sz * 0.86) * sy); }
+      else if (t.k === 'rot') { vctx.save(); vctx.globalAlpha = t.a / 255; vctx.translate(t.cx * sx, t.cy * sy); vctx.rotate(t.ang * Math.PI / 180); vctx.drawImage(t.im, -t.w * sx / 2, -t.h * sy / 2, t.w * sx, t.h * sy); vctx.restore(); }
       else vctx.drawImage(t.im, t.sx, t.sy, t.sw, t.sh, t.x * sx, t.y * sy, t.w * sx, t.h * sy);
     }
   }
