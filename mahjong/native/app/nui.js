@@ -619,6 +619,7 @@
   }
   const swapOn = () => { try { const v = localStorage.getItem('mj_swapab'); return v === null ? true : v === '1'; } catch (e) { return true; } };
   try { __swapab(swapOn() ? 1 : 0); } catch (e) { /* ignore */ }
+  try { localStorage.setItem('mj_perf', '0'); } catch (e) { /* ignore */ } // 遅れの診断(テスト表示)は、起動のたびに オフにもどす(つけたままに しない)
   const perfOn = () => { try { const v = localStorage.getItem('mj_perf'); return v === '1' ? true : v === '0' ? false : !!globalThis.__perfEnv; } catch (e) { return false; } }; // 隠しコマンド・設定で切りかえたら、それを優先(MJ_PERF=1 で起動しても、オフにできる)
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
