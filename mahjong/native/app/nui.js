@@ -60,6 +60,7 @@
   try { if (localStorage.getItem('mj_rules_ver') !== '3') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '3'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
   const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz' }, { label: '麻雀の勉強', act: 'study' }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
+  const PROMOSEQ = ['left', 'left', 'right', 'right', 'up', 'down', 'up', 'down', 'back', 'ok']; // 隠しコマンド(ホーム): 昇段の演出テスト(認定証→地図→新しい雀士)を開く
   const PERFSEQ = ['down', 'down', 'up', 'up', 'right', 'left', 'right', 'left', 'back', 'ok']; // 隠しコマンド(ホーム): 画面の左上に、遅れの診断を出す/消す
   const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'back', 'ok']; // 隠しコマンド(タイトル): 5件のセーブから選べる
 
@@ -938,6 +939,27 @@
     dirty();
   }
   function mapKey(k) { const M = S.map; if (!M) return; const arrived = __now() - M.t0 >= 700 + M.dur; if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - 700 - M.dur - 1; dirty(); return; } if (__now() - M.t0 < 700 + M.dur + 600) return; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
+  /* ---------- 昇段の演出テスト(隠しコマンドで開く): 認定証 → 地図 → 新しい雀士 を、いつでも見られる ---------- */
+  function drawPromo() {
+    const P = S.promo; gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
+    text('昇段の演出テスト', SW / 2, 10, 30, YEL, 1); text('記録には、のこりません', SW / 2, 48, 16, [205, 224, 212], 1);
+    const rows = [['昇段前の段位', MJ.DAN_NAME(P.from)], ['昇段後の段位', MJ.DAN_NAME(P.to)], ['認定証から ながす', ''], ['名人に勝った お祝い', ''], ['もどる', '']];
+    rows.forEach((r, i) => { const y = 84 + i * 62, sel = P.row === i; panel(140, y, 552, 54, 12, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2); text(r[0], i < 2 ? 170 : SW / 2, y + 12, 26, BLACK, i < 2 ? 0 : 1); if (i < 2) { text('◀', 470, y + 14, 22, [90, 90, 80], 1); text(r[1], 570, y + 10, 28, [190, 60, 40], 1); text('▶', 664, y + 14, 22, [90, 90, 80], 1); } });
+    text('▲▼ えらぶ   ◀▶ 段位   決定: ながす   戻る: もどる', SW / 2, 420, 16, [210, 225, 205], 1);
+  }
+  function promoKey(k) {
+    const P = S.promo; if (!P) { S.mode = 'menu'; return; }
+    const back = () => { S.mode = 'promo'; dirty(); };
+    if (k === 'back') { S.mode = 'menu'; S.promo = null; NSND.home(); dirty(); return; }
+    if (k === 'up') P.row = wrap(P.row - 1, 5); else if (k === 'down') P.row = wrap(P.row + 1, 5);
+    else if ((k === 'left' || k === 'right') && P.row < 2) { const d = k === 'left' ? -1 : 1; if (P.row === 0) { P.from = Math.max(0, Math.min(10, P.from + d)); if (P.to <= P.from) P.to = P.from + 1; } else P.to = Math.max(P.from + 1, Math.min(11, P.to + d)); }
+    else if (k === 'ok') {
+      if (P.row === 2) { S.mode = 'menu'; startCert({ dan: MJ.DAN_NAME(P.to), from: P.from, to: P.to, promoted: true }, back); }
+      else if (P.row === 3) { S.mode = 'menu'; let dn = P.to; startMap({ from: dn, to: dn, congrats: true }, back); }
+      else if (P.row === 4) { S.mode = 'menu'; S.promo = null; NSND.home(); }
+    }
+    dirty();
+  }
   function startCert(rk, then) { // 昇段したとき、認定証を出す。そのあと、新しく登場する雀士を、1人ずつ
     const ids = (() => { try { return MJ.Rank.newIds(rk.from, rk.to); } catch (e) { return []; } })();
     const toRank = () => then();
@@ -2021,6 +2043,7 @@
       else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 80); else later(() => { S.confirmQ = { idx: 0 }; }, 80); }
       return;
     }
+    if (S.mode === 'promo') { promoKey(k); return; }
     if (S.mode === 'rules') { // 麻雀のルール
       const n = RULE_ROWS.length + 2, i = S.ruleIdx || 0;
       if (k === 'up' || k === 'down') S.ruleIdx = wrap(i + (k === 'up' ? -1 : 1), n);
@@ -2062,6 +2085,9 @@
         if (S.hidN === HIDDEN.length - 1) return; // 最後の1つ手前の「戻る」は、何も起こさない
         if (!S.hidP || nw - (S.hidT2 || 0) > 2500) S.hidP = 0; S.hidT2 = nw; if (k === PERFSEQ[S.hidP]) S.hidP++; else S.hidP = k === PERFSEQ[0] ? 1 : 0;
         if (S.hidP >= PERFSEQ.length) { S.hidP = 0; try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } perf.flash = __now() + 3000; dirty(); return; }
+        if (!S.hidQ || nw - (S.hidT3 || 0) > 2500) S.hidQ = 0; S.hidT3 = nw; if (k === PROMOSEQ[S.hidQ]) S.hidQ++; else S.hidQ = k === PROMOSEQ[0] ? 1 : 0;
+        if (S.hidQ >= PROMOSEQ.length) { S.hidQ = 0; S.promo = S.promo || { from: 0, to: 3, row: 0 }; S.mode = 'promo'; dirty(); return; }
+        if (S.hidQ === PROMOSEQ.length - 1) return;
         if (S.hidP === PERFSEQ.length - 1) return;
       }
       if (S.menuIdx >= items.length) S.menuIdx = 0;
@@ -2364,11 +2390,11 @@
     if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); drawBack(22); return true; }
     if (S.mode === 'howto') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawHow(); drawBack(24); return true; }
     if (S.mode === 'credits') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawCredits(); return true; }
-    const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules';
+    const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules' || S.mode === 'promo';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
     if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
     gfx.view(S.vx, S.vy);
-    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); drawBack(80); }
+    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'promo') drawPromo(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); drawBack(80); }
     else if (S.game) { gfx.clear(32, 74, 60); drawTable(S.game); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
     if (S.rankP) drawRankP();
     if (S.result) { drawResult(S.result); drawResSay(); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
