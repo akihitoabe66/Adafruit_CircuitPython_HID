@@ -1670,6 +1670,7 @@
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
   window.__startMapView = (d) => { S.mode = 'menu'; startMapView(d); }; // 試験用
+  window.__newGame = () => { startGame(null, {}); }; // 試験用
   window.__openSettings = () => { if (S.game) return false; S.mode = 'settings'; S.setIdx = 0; S.rankScr = null; dirty(); return true; }; // 試験用
   window.__openPromo = () => { if (S.game) return false; S.promo = S.promo || { from: 0, to: 1, row: 0 }; S.mode = 'promo'; S.rankScr = null; dirty(); return true; }; // シミュレーターのボタンから、昇段の演出テストを開く
   window.__startMap = (a, b, c, ms) => { if (ms != null) S.mapSet = ms; S.mode = 'menu'; startMap({ from: a || 0, to: b || 3, congrats: !!c }, () => { S.mode = 'menu'; dirty(); }); }; window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
@@ -2557,6 +2558,21 @@
     return r;
   };
 
-  NSND.home(); homeWarm();
+  /* 初回(新しくはじめた最初の対局)で、文字をはじめて作る重さが 出ないように、よく出る文字を 先に作っておく(画面には出さない)。 タイトルのあいだに、少しずつ */
+  function warmText() {
+    if (typeof gfx.dry !== 'function') return;
+    const W = [255, 255, 255], Y = [255, 220, 40], L = [];
+    const add = (s, sz, c) => L.push([s, sz, c[0], c[1], c[2]]);
+    [['東一局', 96, Y], ['東一局', 78, Y], ['東一局', 28, W], ['東一局', 24, W], ['勝負!', 110, W], ['勝負!', 110, [225, 40, 30]], ['勝負!', 90, W], ['勝負!', 90, [225, 40, 30]], ['東風戦', 16, [200, 215, 200]], ['東南戦', 16, [200, 215, 200]], ['解説', 22, W], ['麻雀先生', 19, W], ['なし', 19, W], ['あり', 19, W], ['親', 24, W],
+      ['サイコロを振ります  (Aボタンで スキップ)', 20, Y], ['…', 22, W], ['あなた が 親です', 24, Y], ['25,000', 22, Y], ['25,000', 22, [120, 60, 0]], ['供託 0', 17, [200, 215, 200]], ['残り', 18, W], ['枚', 18, W], ['MENU', 15, W]].forEach((e) => add(e[0], e[1], e[2]));
+    ['東', '南', '西', '北'].forEach((w) => { add(w, 28, W); add(w, 18, W); });
+    for (let n = 0; n <= 70; n++) add(String(n), 34, Y); // 山の残り枚数
+    add('あなた', 21, W); add('あなた', 21, [35, 26, 0]); add('あなた', 20, W); add('あなた', 20, [27, 27, 18]);
+    try { MJ.CHARS.forEach((c) => { const nm = c.short || c.name; add(nm, 21, W); add(nm, 20, W); add(nm, 20, [27, 27, 18]); add(nm, 17, [80, 90, 86]); }); } catch (e) { /* ignore */ }
+    let i = 0;
+    const step = () => { gfx.dry(1); try { for (let k = 0; k < 4 && i < L.length; k++, i++) { const e = L[i]; gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0); } } catch (e) { /* ignore */ } finally { gfx.dry(0); } if (i < L.length) setTimeout(step, 40); };
+    setTimeout(step, 1200);
+  }
+  NSND.home(); homeWarm(); warmText();
   print('ネイティブ版 準備できました');
 })();

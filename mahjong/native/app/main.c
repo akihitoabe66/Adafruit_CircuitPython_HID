@@ -184,6 +184,9 @@ static Snd *getsnd(const char *path){
   int fr, ch; Uint16 fm; Mix_QuerySpec(&fr, &fm, &ch); int bps = (fm & 0xFF) / 8; e->len = (double)e->ch->alen / (fr * ch * bps);
   return e;
 }
+/* 無音がつづくと、HDMIのテレビ・アンプが音の出口を眠らせて、つぎの音の出だしが切れる(最初の声の「トン」が欠ける)。 聞こえない大きさの雑音(±2/32768)を、いつも足して、眠らせない */
+static unsigned dither_s = 12345u;
+static void postmix_dither(void *u, Uint8 *stream, int len){ Sint16 *p = (Sint16 *)stream; int n = len / 2; unsigned s = dither_s; for (int i = 0; i < n; i++) { s = s * 1664525u + 1013904223u; int v = p[i] + (int)((s >> 29) & 3) - 1; if (v > 32767) v = 32767; if (v < -32768) v = -32768; p[i] = (Sint16)v; } dither_s = s; }
 static JSValue j_play(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   if (!audio_ok) return JS_NewFloat64(c, 0);
   const char *p = JS_ToCString(c, a[0]); double v = 1.0; if (n > 1) JS_ToFloat64(c, &v, a[1]);
@@ -224,14 +227,14 @@ static void loading_screen(int done, int total){
 static void preload(void){
   static char *list[1200]; int n = 0;
   n = listdir("img", ".webp", list, 1200, n); n = listdir("img/tiles", ".webp", list, 1200, n); n = listdir("img/dice", ".webp", list, 1200, n); n = listdir("img/map", ".webp", list, 1200, n); n = listdir("img/certface", ".webp", list, 1200, n); n = listdir("img/t44", ".webp", list, 1200, n); n = listdir("img/t26", ".webp", list, 1200, n); n = listdir("img/chars", ".webp", list, 1200, n); n = listdir("img/chars/face", ".webp", list, 1200, n);
-  n = listdir("img/you", ".webp", list, 1200, n); n = listdir("img/sil", ".webp", list, 1200, n); n = listdir("img/peek", ".webp", list, 1200, n); n = listdir("img/teacher", ".webp", list, 1200, n); n = listdir("img/video", ".webp", list, 1200, n); /* ビデオ一覧のサムネイル(はじめて見るとき、読みこみでカーソルが遅れないように) */
+  n = listdir("img/you", ".webp", list, 1200, n); n = listdir("img/sil", ".webp", list, 1200, n); n = listdir("img/peek", ".webp", list, 1200, n); n = listdir("img/teacher", ".webp", list, 1200, n); n = listdir("img/video", ".webp", list, 1200, n); n = listdir("audio/yk", ".mp3", list, 1200, n); n = listdir("audio/voice", ".mp3", list, 1200, n); /* 声(読み上げ・掛け声)は、はじめて鳴らすときの読みこみで 出だしが切れるので、先に全部読む */ /* ビデオ一覧のサムネイル(はじめて見るとき、読みこみでカーソルが遅れないように) */
   { const char *st = getenv("MJ_STYLE"); if (st && !strcmp(st, "old")) n = listdir("img/zunda", ".webp", list, 1200, n); else { n = listdir("img/uk", ".webp", list, 1200, n); n = listdir("img/uk/chars/face", ".webp", list, 1200, n); n = listdir("img/uk/zunda", ".webp", list, 1200, n); } } /* 浮世絵版(ふだん) / MJ_STYLE=old で、前のバージョンの絵 */
   int nimgs = n; n = listdir("audio/sfx", ".wav", list, 1200, n);
   qsort(list, n, sizeof(char *), cmpstr);
   double t0 = nowms(); int last = -1;
   for (int i = 0; i < n; i++) {
     if ((strstr(list[i], "/certface/") && !strstr(list[i], "/certface/01.webp")) || strstr(list[i], "/tenbo_")) continue; /* 認定証の紙・ハンコ・顔(01)は先に読む(はじめて出すとき、画面が止まって ハンコのアニメが切れるため) */ /* 実機では使わない絵は、読まない(起動を速く) */
-    size_t L = strlen(list[i]); if (L > 4 && !strcmp(list[i] + L - 4, ".wav")) { if (audio_ok) (void)getsnd(list[i]); } else getimg(list[i], NULL, NULL);
+    size_t L = strlen(list[i]); if (L > 4 && (!strcmp(list[i] + L - 4, ".wav") || !strcmp(list[i] + L - 4, ".mp3"))) { if (audio_ok) (void)getsnd(list[i]); } else getimg(list[i], NULL, NULL);
     SDL_PumpEvents(); int pc = i * 20 / (n ? n : 1); if (pc != last) { last = pc; loading_screen(i, n); }
   }
   (void)nimgs; loading_screen(n, n); printf("preload: %d files, %.0fms\n", n, nowms() - t0); fflush(stdout);
@@ -343,7 +346,7 @@ int main(int argc, char **argv){
   strncpy(fontpath, fp, sizeof fontpath - 1);
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_EVENTS) < 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }
   IMG_Init(IMG_INIT_WEBP | IMG_INIT_PNG); TTF_Init();
-  if (!getenv("MJ_NOSOUND")) { if (SDL_InitSubSystem(SDL_INIT_AUDIO) == 0 && Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, getenv("MJ_ABUF") ? atoi(getenv("MJ_ABUF")) : 4096) == 0) { int mf = Mix_Init(MIX_INIT_MP3); Mix_AllocateChannels(16); audio_ok = 1; int fr, nc; Uint16 fm; Mix_QuerySpec(&fr, &fm, &nc); printf("audio: ok (driver=%s, %dHz, ch=%d, mp3=%s)\n", SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver() : "?", fr, nc, (mf & MIX_INIT_MP3) ? "ok" : "NG"); } else fprintf(stderr, "audio? %s\n", SDL_GetError()); }
+  if (!getenv("MJ_NOSOUND")) { if (SDL_InitSubSystem(SDL_INIT_AUDIO) == 0 && Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, getenv("MJ_ABUF") ? atoi(getenv("MJ_ABUF")) : 4096) == 0) { int mf = Mix_Init(MIX_INIT_MP3); Mix_AllocateChannels(16); audio_ok = 1; int fr, nc; Uint16 fm; Mix_QuerySpec(&fr, &fm, &nc); if (fm == AUDIO_S16SYS && !getenv("MJ_NODITHER")) Mix_SetPostMix(postmix_dither, NULL); printf("audio: ok (driver=%s, %dHz, ch=%d, mp3=%s)\n", SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver() : "?", fr, nc, (mf & MIX_INIT_MP3) ? "ok" : "NG"); } else fprintf(stderr, "audio? %s\n", SDL_GetError()); }
   { /* ゲーム本体(JS・絵)の優先度を、少し下げる: 重い処理で止まっても、BGMの音(別スレッド)が、先に動けるように。 MJ_NICE=0 で、やめる */
     int nv = getenv("MJ_NICE") ? atoi(getenv("MJ_NICE")) : 6; if (nv > 0) setpriority(PRIO_PROCESS, (id_t)syscall(SYS_gettid), nv); }
   int windowed = getenv("MJ_WINDOWED") != NULL, ww = 1080, wh = 642; if (windowed && sscanf(getenv("MJ_WINDOWED"), "%dx%d", &ww, &wh) != 2) { ww = 1080; wh = 642; } /* MJ_WINDOWED=832x468 など、窓の大きさも指定できる */
