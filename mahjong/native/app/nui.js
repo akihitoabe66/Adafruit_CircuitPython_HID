@@ -934,7 +934,7 @@
     for (let d = from + 1; d <= to; d++) { const pts = L[d - 1].map(mapPt); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d, pts, seg, len, dur: len < 4 ? 1500 : Math.max(2400, Math.min(9000, len / 38 * 1000)) }); }
     let tt = MAP_T.slide + MAP_T.hold; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; tt += i < steps.length - 1 ? MAP_T.dwell : 0; return { a, b }; });
     try { NSND.mapOn(); } catch (e) { /* ignore */ }
-    S.map = { ms, L, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: steps.length ? tt : MAP_T.slide + MAP_T.hold, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
+    S.map = { ms, L, vd: from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: steps.length ? tt : MAP_T.slide + MAP_T.hold, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
   }
   function mapAlong(st, u) { const dist = st.len * u; let i = 1; while (i < st.pts.length - 1 && st.seg[i] < dist) i++; const a = st.pts[i - 1], b = st.pts[i], sl = st.seg[i] - st.seg[i - 1] || 1, v = Math.max(0, Math.min(1, (dist - st.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v, b[0] - a[0]]; }
   function drawWater(t) { // 水面: 横長の帯を、少しずつ ずらして 波うたせる(2枚 重ねて、きらめき)
