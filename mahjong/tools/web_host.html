@@ -69,6 +69,7 @@
   <div class="sub">
     <button class="btn" data-k="menu">メニュー</button>
     <button class="btn" id="statBtn">処理時間を表示</button>
+    <button class="btn" id="promoBtn">昇段の演出テスト</button>
   </div>
   <p class="note">実機のPi Zero W(CPU 1コア)の遅さを、処理時間を「×N」して待つことで真似ています。画面の描画(GPU)や音は再現しません。キーボードの矢印・Enter・Escでも操作できます。</p>
 </div>
@@ -195,6 +196,7 @@
   let slow = 10, showStat = false, sMax = 0, sDraw = 0, sDn = 0, lastStat = 0;
   let piF = 1;
   $('slow').addEventListener('change', (e) => { const v = e.target.value; piMode = v.indexOf('pi') === 0; piF = v === 'pi2' ? 2 : v === 'pi4' ? 4 : 1; slow = piMode ? 10 * piF : +v; });
+  $('promoBtn').addEventListener('click', () => { if (typeof window.__openPromo === 'function' && !window.__openPromo()) { /* 対局中は 開けない */ } });
   $('statBtn').addEventListener('click', () => { showStat = !showStat; $('stat').hidden = !showStat; $('statBtn').classList.toggle('on', showStat); });
   document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', () => { forceDraw = true; });
 

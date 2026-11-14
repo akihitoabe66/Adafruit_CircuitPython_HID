@@ -25,6 +25,6 @@ for d, _, fs in os.walk(os.path.join(root, 'img')):
 for d, _, fs in (os.walk(os.path.join(root, 'native', 'img')) if os.path.isdir(os.path.join(root, 'native', 'img')) else []): # 実機用に小さくした絵が、あれば、そちらを使う
     for f in fs:
         p = os.path.join(d, f); rel = os.path.relpath(p, os.path.join(root, 'native')).replace(os.sep, '/'); assets[rel] = 'data:image/webp;base64,%s' % base64.b64encode(open(p, 'rb').read()).decode()
-for k in [k for k in assets if k.startswith('img/cert') or k.startswith('img/tenbo_')]: del assets[k]  # 実機では使わない絵
+for k in [k for k in assets if k.startswith('img/tenbo_') or (k.startswith('img/certface/') and not k.endswith('/01.webp'))]: del assets[k]  # 実機では使わない絵(認定証 img/cert*.webp は、昇段の演出テストで見られるように 入れる)
 json.dump(assets, open(os.path.join(out, 'assets.json'), 'w'))
 print('bundle %d bytes, assets %d files, chars %d' % (len(body), len(assets), len(chars)))
