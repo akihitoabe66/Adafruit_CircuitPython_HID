@@ -969,11 +969,23 @@
     let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = walkMsg(M.steps[stepIdx].d); else msg = MAP_SETS[M.ms].say[curDan];
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) NSND.speak([pk]); } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
-    if (arrived && t - M.endT > 600) text('決定ボタンで つづける', 700, 6, 14, [220, 235, 245], 1);
-    if (arrived && !M.fin) { M.fin = true; NSND.sfx('start', 0.7); }
+    if (M.view) { const hl = M.from > 0 ? '◀ ' : '   ', hr = M.from < M.maxd ? ' ▶' : '   '; fill(300, 4, 400, 30, [10, 30, 22], 190); text(hl + 'ほかの場所の セリフを 読む' + hr + '    戻る: もどる', 500, 8, 17, [255, 236, 170], 1); if (M.from === M.cur) { rrect(716, 6, 100, 26, 10, [200, 50, 40]); text('いま ここ', 766, 9, 17, WHITE, 1); } }
+    else if (arrived && t - M.endT > 600) text('決定ボタンで つづける', 700, 6, 14, [220, 235, 245], 1);
+    if (arrived && !M.fin) { M.fin = true; if (!M.view) NSND.sfx('start', 0.7); }
     dirty();
   }
-  function mapKey(k) { const M = S.map; if (!M) return; const t = __now() - M.t0, arrived = t >= M.endT; if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
+  function startMapView(d0) { // 成績の画面から: いま 地図のどこに居るか見る。 ◀ ▶ で、これまでに着いた場所(無段から)の セリフを 読み返せる
+    let mx = 0, cur = 0; try { const r = MJ.Rank.get(); mx = Math.max(r.maxdan || 0, r.dan || 0); cur = r.dan || 0; } catch (e) { /* ignore */ }
+    const d = Math.max(0, Math.min(mx, d0 == null ? cur : d0));
+    startMap({ from: d, to: d }, () => { dirty(); });
+    const M = S.map; M.view = true; M.vd = -1; M.maxd = mx; M.cur = cur; dirty();
+  }
+  function mapKey(k) { const M = S.map; if (!M) return; const t = __now() - M.t0, arrived = t >= M.endT;
+    if (M.view) { // 地図を見る(成績の画面から)
+      if (k === 'left' || k === 'right') { const d = Math.max(0, Math.min(M.maxd, M.from + (k === 'left' ? -1 : 1))); if (d !== M.from) { NSND.sfx('select', 0.5); M.from = d; M.to = d; M.vd = -1; M.t0 = __now() - (MAP_T.slide + MAP_T.hold + 1); } dirty(); return; }
+      if (k === 'ok' || k === 'back') { S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); }
+      dirty(); return;
+    } if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
   /* ---------- 昇段の演出テスト(隠しコマンドで開く): 認定証 → 地図 → 新しい雀士 を、いつでも見られる ---------- */
   function drawPromo() {
     const P = S.promo; gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
@@ -1052,7 +1064,7 @@
     const bx = Math.round(531 * K), by = Math.round(506 * K) + 6, bw = Math.round(350 * K), bh = Math.round(46 * K);
     fill(bx, by, bw, bh, [26, 18, 10]); fill(bx, by, Math.round(bw * Math.max(f.prog > 0 ? 0.04 : 0, f.prog)), bh, [235, 200, 110]);
     if (f.next) at(706, 529, 26, (f.s.pt - f.base) + ' / ' + (f.next_pt - f.base), DK);
-    { const bl = ['対戦成績', '対戦相手を見る', '◀ もどる'], bwid = [150, 200, 150]; let bx2 = Math.round(SW / 2 - (bwid.reduce((a, b) => a + b, 0) + 20 * (bwid.length - 1)) / 2); const idx = S.rankScr.idx || 0; bl.forEach((l, i) => { brownBtn(bx2, SH - 52, bwid[i], 38, l, idx === i, 18); bx2 += bwid[i] + 20; }); }
+    { const bl = ['対戦成績', '対戦相手を見る', '地図を見る', '◀ もどる'], bwid = [140, 190, 150, 130]; let bx2 = Math.round(SW / 2 - (bwid.reduce((a, b) => a + b, 0) + 20 * (bwid.length - 1)) / 2); const idx = S.rankScr.idx || 0; bl.forEach((l, i) => { brownBtn(bx2, SH - 52, bwid[i], 38, l, idx === i, 18); bx2 += bwid[i] + 20; }); }
     if (rk) at(702, 625, 28, (rk.delta > 0 ? '+' : '') + rk.delta + '点' + (rk.msg ? '  ' + rk.msg : ''), CR);
     if (__auto && globalThis.__shotDir && !S._rkShot) { S._rkShot = 1; gfx.shot(__shotDir + '/rank.bmp'); }
   }
@@ -1657,6 +1669,7 @@
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
+  window.__startMapView = (d) => { S.mode = 'menu'; startMapView(d); }; // 試験用
   window.__openSettings = () => { if (S.game) return false; S.mode = 'settings'; S.setIdx = 0; S.rankScr = null; dirty(); return true; }; // 試験用
   window.__openPromo = () => { if (S.game) return false; S.promo = S.promo || { from: 0, to: 1, row: 0 }; S.mode = 'promo'; S.rankScr = null; dirty(); return true; }; // シミュレーターのボタンから、昇段の演出テストを開く
   window.__startMap = (a, b, c, ms) => { if (ms != null) S.mapSet = ms; S.mode = 'menu'; startMap({ from: a || 0, to: b || 3, congrats: !!c }, () => { S.mode = 'menu'; dirty(); }); }; window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
@@ -2048,7 +2061,7 @@
     if (S.map) { mapKey(k); return; }
     if (S.cert) { certKey(k); return; }
     if (S.reveal) { revealKey(k); return; }
-    if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = wrap((r.idx || 0) + (k === 'left' ? -1 : 1), 3); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 2)) { S.rankScr = null; r.done(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; if ((r.idx || 0) === 1) { S.ros = { sel: 0 }; S.rosFrom = 'rank'; } } return; }
+    if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = wrap((r.idx || 0) + (k === 'left' ? -1 : 1), 4); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 3)) { S.rankScr = null; r.done(); } else if (k === 'ok' && (r.idx || 0) === 2) { startMapView(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; if ((r.idx || 0) === 1) { S.ros = { sel: 0 }; S.rosFrom = 'rank'; } } return; }
     if (k === 'menu' && !S.menuP) { openMenu(); return; } // スタート+セレクト長押し
     if (S.menuP) {
       const items = menuItems();
