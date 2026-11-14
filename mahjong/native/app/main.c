@@ -39,7 +39,7 @@ static double nowms(void){ struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t);
 /* ---- 画像・文字のキャッシュ ---- */
 typedef struct { char key[200]; unsigned hs; SDL_Texture *tex; int w, h; } Ent;
 static unsigned hashs(const char *s){ unsigned h = 2166136261u; while (*s) { h ^= (unsigned char)*s++; h *= 16777619u; } return h; }
-#define NIMG 480
+#define NIMG 760
 #define NTXT 1200
 static Ent imgs[NIMG]; static int nimg = 0; static Ent txts[NTXT]; static int ntxt = 0; static int txtnext = 0;
 static SDL_Texture *getimg(const char *path, int *w, int *h){
