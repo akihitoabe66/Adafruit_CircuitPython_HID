@@ -663,7 +663,9 @@
       return this.finishWin(wins, delta, { review, loseReview });
     }
 
-    finishWin(wins, delta, extra = {}) {
+    async finishWin(wins, delta, extra = {}) {
+      // 裏ドラの権利がある人(リーチ者)が上がったら、結果の画面の前に、裏ドラを見せるアニメ(画面側にあるときだけ)
+      if (this.ui && this.ui.uraReveal && !this.fast && MJ.RULES.ura && this.uraAll && this.doraInd && wins.some((w) => w.winner.riichi)) { try { await this.ui.uraReveal(this, wins); } catch (e) { /* ignore */ } }
       wins.forEach((w) => { this.winCnt[w.winner.seat]++; });
       const before = this.players.map((p) => p.score);
       this.players.forEach((p, i) => { p.score += delta[i]; });

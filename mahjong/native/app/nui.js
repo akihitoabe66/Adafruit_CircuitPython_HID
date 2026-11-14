@@ -375,6 +375,42 @@
   }
   const lay = (i, key, fn) => { const c = S.lay[i]; if (!c || c.key !== key) { gfx.layerBegin(i); fn(); gfx.layerEnd(); S.lay[i] = { key }; } }; // 絵を、画面に出さずに、キャッシュの面に描いておく(先に用意するとき)
   const cached = (i, key, fn) => { lay(i, key, fn); gfx.layer(i); };
+  /* ---------- 裏ドラ確認のアニメ(王牌の7本のうえに かさねて描く) ---------- */
+  const URA_T = { start: 0.4, slide: 0.28, hold1: 0.5, hold2: 0.35, lift: 0.12, drop: 0.11, gap: 0.4, end: 1.0 }; // 秒
+  const URA_C = { BLUE: [74, 140, 222], BLUE_L: [140, 190, 246], CREAM: [240, 234, 212], FACE: [252, 249, 238] };
+  const URA_X = (i) => Math.round(358 + i * 17.58), URA_YU = 191, URA_YL = 205, URA_W = 17, URA_HS = 22, URA_HC = 7, URA_SLIDE = 23, URA_LIFT = 3;
+  function uraTile(x, y, kind, tl) { // 牌1枚: 上の面(伏せ=青 / 表=数字)+ 手前の白い側面(表の牌は いちばん下の縁だけ 青い線)
+    const hh = URA_HS + URA_HC, fy = y + 9;
+    rrect(x, y + 1, URA_W, hh, 3, [0, 0, 0], 60);
+    if (kind === 'up') { rrect(x, fy, URA_W, hh - 9, 3, URA_C.BLUE); rrect(x, fy, URA_W, hh - 9 - 3, 3, URA_C.CREAM); } else rrect(x, fy, URA_W, hh - 9, 3, URA_C.CREAM);
+    if (kind === 'down') { rrect(x, y, URA_W, URA_HS, 3, URA_C.BLUE_L); rrect(x + 1, y + 1, URA_W - 2, URA_HS - 2, 2, URA_C.BLUE); }
+    else { rrect(x, y, URA_W, URA_HS, 3, URA_C.CREAM); rrect(x + 1, y + 1, URA_W - 2, URA_HS - 2, 2, URA_C.FACE); tile(tl.t, x + 1, y + 1, URA_W - 2, URA_HS - 2, tl.red); }
+  }
+  function uraDone() { const U = S.ura; if (!U) return; S.ura = null; dirty(); try { U.res(); } catch (e) { /* ignore */ } }
+  function uraSkip() { // 決定ボタン: 「トンッ」と置かれたところまで すぐ進む。 もう一度 押すと 結果の画面へ
+    const U = S.ura; if (!U) return;
+    if (U.vt < U.lastD + 0.05) { U.items.forEach((it) => { if (!it.sp) it.sp = 1; if (!it.tp && it !== U.items[U.items.length - 1]) it.tp = 1; }); U.vt = U.lastD + 0.05; dirty(); } else uraDone();
+  }
+  function drawUra() {
+    const U = S.ura; if (!U) return; const now = __now(); U.vt += Math.min(now - (U.l || now), 50) / 1000; U.l = now; const t = U.vt;
+    U.items.forEach((it) => { if (!it.sp && t >= it.s0) { it.sp = 1; NSND.sfx('ura_slide'); } if (!it.tp && t >= it.d1) { it.tp = 1; NSND.sfx('ura_tap'); } });
+    fill(354, 186, 134, 58, [6, 44, 26]); // 王牌の絵を、いったん おおう
+    const st = {}; U.items.forEach((it) => { st[it.col] = it; });
+    const e3 = (x) => { x = Math.max(0, Math.min(1, x)); return 1 - Math.pow(1 - x, 3); }, e2 = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+    for (let i = 0; i < 7; i++) { // 下の牌
+      const it = st[i], x = URA_X(i);
+      if (!it) { uraTile(x, URA_YL, 'down'); continue; }
+      if (t >= it.d1) { const u = (t - it.d1) / 0.2, sq = u < 1 ? Math.round(Math.sin(u * Math.PI) * (1 - u) * 1.0) : 0; uraTile(x, URA_YL + sq, 'up', it.ura); }
+      else { let lift = 0; if (t >= it.l0 && t < it.l1) lift = URA_LIFT * e2((t - it.l0) / URA_T.lift); else if (t >= it.l1) lift = URA_LIFT * (1 - Math.pow((t - it.l1) / URA_T.drop, 2)); uraTile(x, URA_YL - Math.round(t >= it.s0 ? lift : 0), 'down'); }
+    }
+    for (let i = 0; i < 7; i++) { // 上の牌(ドラ表示牌は、上へ出る)
+      const it = st[i], x = URA_X(i);
+      if (!it) { uraTile(x, URA_YU, 'down'); continue; }
+      uraTile(x, URA_YU - Math.round(URA_SLIDE * e3((t - it.s0) / URA_T.slide)), 'up', it.ind);
+    }
+    if (t >= U.endT) { uraDone(); return; }
+    dirty();
+  }
   function drawTable(g) {
     if (!g.doraInd || !g.players[0].hand) return; // 始まる前は、まだ描くものがない
     gfx.clear(32, 74, 60);
@@ -1671,6 +1707,7 @@
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
   window.__startMapView = (d) => { S.mode = 'menu'; startMapView(d); }; // 試験用
   window.__newGame = () => { startGame(null, {}); }; // 試験用
+  window.__uraDemo = (n) => { const g = S.game; if (!g || !g.doraInd || !g.uraAll) return false; n = n || 1; while (g.doraInd.length < n) g.doraInd.push(g.doraInd[0]); while (g.uraAll.length < n) g.uraAll.push(g.uraAll[0]); g.doraInd = g.doraInd.slice(0, n); g.uraAll = g.uraAll.slice(0, n); ui.uraReveal(g, []).then(() => print('URA done')); return true; }; // 試験用
   window.__openSettings = () => { if (S.game) return false; S.mode = 'settings'; S.setIdx = 0; S.rankScr = null; dirty(); return true; }; // 試験用
   window.__openPromo = () => { if (S.game) return false; S.promo = S.promo || { from: 0, to: 1, row: 0 }; S.mode = 'promo'; S.rankScr = null; dirty(); return true; }; // シミュレーターのボタンから、昇段の演出テストを開く
   window.__startMap = (a, b, c, ms) => { if (ms != null) S.mapSet = ms; S.mode = 'menu'; startMap({ from: a || 0, to: b || 3, congrats: !!c }, () => { S.mode = 'menu'; dirty(); }); }; window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
@@ -2056,6 +2093,7 @@
   /* ---------- 入力 ---------- */
   window.__key = function (k) {
     S.lastKeyT = __now(); // 最後にボタンを押した時刻(先に絵を描いておく処理は、ボタンを押しているあいだは しない)
+    if (S.ura) { if (k === 'ok' || k === 'back') uraSkip(); dirty(); return; } // 裏ドラ確認のアニメ中
     S.dirty = true; if (S.locked) return;
     if (S.guardUntil && __now() < S.guardUntil) return; // 保存のあと、次の画面に変わった直後の押しまちがいを無視する
     NSND.sfx(k === 'ok' ? 'ok' : k === 'back' ? 'click' : 'select', 0.5);
@@ -2355,6 +2393,15 @@
         dirty();
       });
     },
+    uraReveal(g, wins) { // 裏ドラを見せる: ドラ表示牌が上へ出る → 下の牌が少し浮いて → トンッと置かれて表になる(左の列から順に)
+      return new Promise((res) => {
+        const n = Math.min(5, (g.doraInd || []).length, (g.uraAll || []).length); if (!n) { res(); return; }
+        const cols = []; for (let k = 0; k < n; k++) cols.push(4 - k); cols.sort((x, y) => x - y); // 左の列から
+        const items = []; let t = URA_T.start;
+        cols.forEach((col, i) => { const k = 4 - col, s0 = t, s1 = s0 + URA_T.slide, l0 = s1 + (i === 0 ? URA_T.hold1 : URA_T.hold2), l1 = l0 + URA_T.lift, d1 = l1 + URA_T.drop; items.push({ col, ind: g.doraInd[k], ura: g.uraAll[k], s0, s1, l0, l1, d1, sp: 0, tp: 0 }); t = d1 + URA_T.gap; });
+        S.ura = { items, vt: 0, l: 0, res, endT: items[items.length - 1].d1 + URA_T.end, lastD: items[items.length - 1].d1 }; dirty();
+      });
+    },
     showResult(g, r) {
       S.bub = {}; S.sayQ = []; S.banner = null; try { if (!g.practice) MJ.Stats.hand(g, r); } catch (e) { /* ignore */ }
       try { if (MJ.Banter && MJ.Banter.noteResult) MJ.Banter.noteResult(g, r); } catch (e) { /* ignore */ } // 直前の局のことを、覚えておく
@@ -2433,7 +2480,7 @@
   function stopGame() { // ゲームを途中でやめて、ホームへ
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
     if (g.cp && !g.practice && !S.result && !S.end && !S.rankP && !S.rankScr) { try { slotWrite(Object.assign({}, g.cp.snap, { mid: g.cp })); } catch (e) { /* ignore */ } } // 局の途中でホームへ戻るときは、いまの局の途中をセーブ(つづきから、同じ牌・同じ番で再開できる)
-    g.stopped = true; MJ.paused = false; S.tmsgShown = 0; S.side = S.coach = null;
+    S.ura = null; g.stopped = true; MJ.paused = false; S.tmsgShown = 0; S.side = S.coach = null;
     const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.map) { const q = S.map; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } q.then(); } if (S.cert) { const q = S.cert; S.cert = null; q.then(); } if (S.reveal) { const q = S.reveal; S.reveal = null; q.then(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
     S.self = S.react = S.result = S.end = S.saveP = null;
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
@@ -2442,7 +2489,7 @@
   /* 親が決まったあと: 「東一局!」「勝負!」(顔・文字・声)。そのあと、すぐ配牌へ */
   const startIntro = (g) => new Promise((res) => { if (g.resumed || g.fast) { res(); return; } S.intro = { t0: __now(), done: () => { S.skipBanner = true; res(); } }; NSND.sfx('slam'); dirty(); });
   async function startGame(sn, opt) {
-    S.mode = 'game'; dirty(); opt = opt || {};
+    S.ura = null; S.mode = 'game'; dirty(); opt = opt || {};
     const chars = opt.practice ? opt.chars : sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
     const g = new MJ.Game({ chars: opt.practice ? (opt.watch ? chars.slice(1) : chars) : liftChars(chars.length === 3 ? chars : pickChars()), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
     try { g.tenka = !opt.practice && (MJ.Rank.get().dan === 10) && g.players.some((p) => p.char && p.char.id === 1) && g.players.some((p) => p.char && p.char.id === 7); } catch (e) { g.tenka = false; } // 天下分け目(名人 + 徳川家康 + 水戸黄門)
@@ -2501,7 +2548,7 @@
     if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
     gfx.view(S.vx, S.vy);
     if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'promo') drawPromo(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); drawBack(80); }
-    else if (S.game) { gfx.clear(32, 74, 60); drawTable(S.game); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
+    else if (S.game) { gfx.clear(32, 74, 60); drawTable(S.game); drawUra(); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
     if (S.rankP) drawRankP();
     if (S.result) { drawResult(S.result); drawResSay(); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
     if (__auto && globalThis.__shotDir && (S.react || (S.self && S.self.btns.length)) && S.shotR < 6) { gfx.shot(__shotDir + '/act' + (++S.shotR) + '.bmp'); }
