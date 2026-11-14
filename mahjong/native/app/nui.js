@@ -624,7 +624,7 @@
   const perfOn = () => { try { const v = localStorage.getItem('mj_perf'); return v === '1' ? true : v === '0' ? false : !!globalThis.__perfEnv; } catch (e) { return false; } }; // 隠しコマンド・設定で切りかえたら、それを優先(MJ_PERF=1 で起動しても、オフにできる)
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'back', label: 'もどる' },
+    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'reset', label: 'リセット(デバッグ用)' }, { k: 'back', label: 'もどる' },
   ];
   /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
   const RULE_ROWS = [
@@ -663,8 +663,8 @@
     gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
     text('設定', SW / 2, 8, 30, YEL, 1);
     SETS.forEach((s, i) => {
-      const y = 40 + i * 38, sel = S.setIdx === i; panel(110, y, 612, 35, 9, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
-      text(s.label, 130, y + 4, 24, BLACK);
+      const y = 38 + i * 35.5 | 0, sel = S.setIdx === i; panel(110, y, 612, 33, 9, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
+      text(s.label, 130, y + 2, 24, BLACK);
       if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 7, 24, 21, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 4, 24, BLACK, 2); }
       else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 4, 24, BLACK, 1);
@@ -814,8 +814,9 @@
   const rosState = (c) => (metLoad().includes(c.id) ? 2 : MJ.unlockDan(c.id) > (MJ.Rank.get().maxdan || 0) ? 0 : 1);
   function rosMenuItems(R) {
     const L = rosList(), c = L[R.sel], picked = R.pick.includes(c.id), n = R.pick.length, it = [];
-    it.push(picked ? { t: 'えらぶのを やめる', a: 'unpick' } : n < 4 ? { t: '対戦相手に えらぶ', a: 'pick' } : { t: 'もう 4人 えらんでいます', a: 'none' });
+    it.push(picked ? { t: 'えらぶのを やめる', a: 'unpick' } : n === 3 ? { t: '4人めに えらぶ (CPU同士を 観戦)', a: 'pick' } : n < 4 ? { t: '対戦相手に えらぶ', a: 'pick' } : { t: 'もう 4人 えらんでいます', a: 'none' });
     if (n === 3) it.push({ t: 'あなたが 打つ (この3人)', a: 'play' });
+    if (n === 3 && picked) it.push({ t: 'もう1人 えらんで 観戦する', a: 'more' }); // 4人めを えらぶために、メニューを閉じる
     if (n === 4) it.push({ t: 'CPU同士を 観戦 (この4人)', a: 'watch' });
     if (n > 0) it.push({ t: 'えらびなおし', a: 'clear' });
     it.push({ t: 'やめる', a: 'close' }); return it;
@@ -829,6 +830,7 @@
       if (a === 'pick') { R.pick.push(c.id); if (R.pick.length >= 3) R.menu = { idx: 1 }; } // 3人めをえらぶと、すぐに 次の選択を出す
       else if (a === 'unpick') R.pick = R.pick.filter((x) => x !== c.id);
       else if (a === 'clear') R.pick = [];
+      else if (a === 'more') { /* メニューを閉じるだけ。 カーソルを動かして、4人めを えらぶ */ }
       else if (a === 'play' || a === 'watch') { const ids = R.pick.slice(); S.ros = null; S.rosFrom = null; startFreeMatch(ids, a === 'watch'); return; }
     }
     dirty();
@@ -882,7 +884,7 @@
     else { gfx.image('img/sil/' + pad(c.id) + '.webp', px + 44, py + 14, 112, 112, 255); frame(px + 43, py + 13, 114, 114, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', px + 77, py + 45, 46, 64, 255); text('？？？？', px + pw / 2, py + 134, 22, YEL, 1); const m = st === 0 ? MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'になると、\n登場します。' : 'まだ 出会っていません。\n4局以上 最後まで 対局すると、\n出会えます。'; const f = fitRich(m, [15, 14, 13], 176, 120); richDraw(f.lines, px + 12, py + 176, f.sz, [230, 240, 225], 0); }
     for (let k = 0; k < pages; k++) { const cx = 190 + k * 26; rrect(cx - 7, 424, 14, 14, 7, k === pg ? YEL : [80, 100, 90]); }
     text('出会った ' + met.filter((id) => L.some((x) => x.id === id)).length + ' / ' + n + '人', 24, 423, 16, YEL); text((pg + 1) + ' / ' + pages, 280, 423, 16, [200, 220, 205]);
-    text('◀ ▶ ▲ ▼ で えらぶ    決定: 対戦・観戦    戻る: もどる', SW / 2 + 80, SH - 28, 15, [210, 225, 205], 1);
+    text(R.pick && R.pick.length === 3 ? '3人 えらびました: もう1人 えらぶと CPU同士の観戦   このままなら 決定 →「あなたが打つ」' : '◀ ▶ ▲ ▼ で えらぶ    決定: 対戦・観戦    戻る: もどる', SW / 2 + 80, SH - 28, R.pick && R.pick.length === 3 ? 13 : 15, R.pick && R.pick.length === 3 ? [255, 224, 120] : [210, 225, 205], 1);
     if (R.pick && R.pick.length) { // 練習対局に えらんだ人: 金色の枠と番号。上の題も変える
       fill(0, 0, 540, 50, [10, 40, 28]); text('対戦相手を えらんでいます  ' + R.pick.length + ' / 3〜4人', 354, 14, 24, YEL, 1);
       R.pick.forEach((id, n2) => { const idx = L.findIndex((q) => q.id === id); if (idx < 0 || Math.floor(idx / ROS_PER) !== pg) return; const kk = idx % ROS_PER, x = X0 + (kk % 4) * DX, y = 64 + Math.floor(kk / 4) * 116; frame(x - 4, y - 4, Z + 8, Z + 8, [255, 214, 0], 4); rrect(x + Z - 22, y - 8, 30, 30, 15, [200, 50, 40]); text(String(n2 + 1), x + Z - 7, y - 6, 22, WHITE, 1); });
@@ -1652,11 +1654,20 @@
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
+  window.__openSettings = () => { if (S.game) return false; S.mode = 'settings'; S.setIdx = 0; S.rankScr = null; dirty(); return true; }; // 試験用
   window.__openPromo = () => { if (S.game) return false; S.promo = S.promo || { from: 0, to: 1, row: 0 }; S.mode = 'promo'; S.rankScr = null; dirty(); return true; }; // シミュレーターのボタンから、昇段の演出テストを開く
   window.__startMap = (a, b, c, ms) => { if (ms != null) S.mapSet = ms; S.mode = 'menu'; startMap({ from: a || 0, to: b || 3, congrats: !!c }, () => { S.mode = 'menu'; dirty(); }); }; window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, dice: !!S.dice, ros: S.ros ? [S.ros.sel, (S.ros.pick || []).length, S.ros.menu ? S.ros.menu.idx : -1] : null, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
+  /* ---------- リセット(デバッグ用): ゲームを はじめから。 音量・ルール・麻雀先生などの「設定」は残し、成績・段位・雀士・ビデオ・勉強・途中のセーブを消す ---------- */
+  const KEEP_PREF = ['mj_vol_', 'mj_teacher', 'mj_dmark', 'mj_swapab', 'mj_cpuspeed', 'mj_rules', 'mj_padid', 'mj_orient', 'mj_perf', 'mj_winfx', 'mj_you', 'mj_think', 'mj_danger_', 'mj_banter'];
+  function resetAll() {
+    try { Object.keys(__ls).forEach((k) => { if (k.indexOf('mj_') === 0 && !KEEP_PREF.some((p) => k.indexOf(p) === 0)) delete __ls[k]; }); __lsDirty = true; } catch (e) { /* ignore */ }
+    try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ }
+    try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ }
+    S.resetDone = { t0: __now() }; dirty();
+  }
   function startVideo() {
     const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last);
     S.vid = { view: 'list', files: sc.files, dir: sc.dir, d, sel: Math.max(0, last), top: 0, hs: 0, last, ask: null }; S.mode = 'video'; vFit(); dirty();
@@ -2085,6 +2096,12 @@
       else if (k === 'ok') { const q = S.playQ; S.playQ = null; S.teachQ = { idx: teacherOn() ? 1 : 0, snap: q.idx === 0 ? q.snap : null }; }
       return;
     }
+    if (S.resetDone) return;
+    if (S.resetQ) { // リセットの確認(はじめは「やめる」)
+      if (k === 'left' || k === 'right' || k === 'up' || k === 'down') S.resetQ.idx = 1 - S.resetQ.idx;
+      else if (k === 'back') S.resetQ = null; else if (k === 'ok') { const i = S.resetQ.idx; S.resetQ = null; if (i === 0) resetAll(); }
+      dirty(); return;
+    }
     if (S.confirmQ) {
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') S.confirmQ.idx = 1 - S.confirmQ.idx;
       else if (k === 'back') S.confirmQ = null; else if (k === 'ok') { const i = S.confirmQ.idx; S.confirmQ = null; if (i === 0) __quit(); }
@@ -2140,6 +2157,7 @@
         else if (it.k === 'rules' && k !== 'left') { S.mode = 'rules'; S.ruleIdx = 0; }
         else if (it.k === 'credits' && k !== 'left') { S.mode = 'credits'; }
         else if (it.k === 'help' && k !== 'left') startHow();
+        else if (it.k === 'reset' && k === 'ok') S.resetQ = { idx: 1 };
         else if (it.k === 'back' && k === 'ok') S.mode = 'menu';
       }
       return;
@@ -2495,6 +2513,8 @@
     if (S.teachQ) drawTeachQ();
     if (S.playQ) drawDialog('麻雀をはじめます', ['つづきから(' + kyokuText(S.playQ.snap) + ')', 'はじめから'], S.playQ.idx, '');
     if (S.confirmQ) drawDialog('このまま ゲームが 終了しますが よろしいですか?', ['終了', 'もどる'], S.confirmQ.idx, '');
+    if (S.resetQ) drawDialog('ゲームを はじめから にしますか?', ['リセットする', 'やめる'], S.resetQ.idx, '成績・段位・雀士・ビデオ・勉強の進みが 消えます');
+    if (S.resetDone) { fill(0, 0, SW, SH, [0, 0, 0], 225); text('リセットしました', SW / 2, 170, 40, YEL, 1); text('ゲームを 終了します。 もう一度 起動してください', SW / 2, 240, 24, WHITE, 1); if (__now() - S.resetDone.t0 > 1800 && typeof __quit === 'function') __quit(); dirty(); }
     gfx.view(0, 0);
     return true;
   };
