@@ -28,3 +28,13 @@ for gi, (x0, y0, x1, y1) in enumerate(boxes):
     crop = Image.fromarray(rgba[Y0:Y1 + 1, x0:x1 + 1], 'RGBA'); fr.paste(crop, ((WMAX - crop.width) // 2, 0))
     fr = fr.resize((max(1, int(round(WMAX * sc))), H), Image.LANCZOS); fr.save(os.path.join(OUT, 'w%d.webp' % gi), 'WEBP', quality=92, method=6)
 print('ok')
+# ずんだもんの「影」(シルエット): 足もとから右のほうへ のびる、地面に落ちた影。 出力: img/map/ws0..3.webp (縦に つぶして ななめに のばした黒い絵)
+from PIL import ImageFilter
+for gi in range(4):
+    fr = Image.open(os.path.join(OUT, 'w%d.webp' % gi)).convert('RGBA'); W, Hh = fr.size
+    al = fr.split()[3].transpose(Image.FLIP_TOP_BOTTOM).resize((W, int(Hh * 0.5)), Image.BILINEAR)  # 上下を ひっくり返して(足もとが上)、縦に つぶす
+    k = 0.8; sw = int(al.width + k * al.height) + 2; sh = Image.new('L', (sw, al.height), 0)
+    sh = al.transform((sw, al.height), Image.AFFINE, (1, -k, 0, 0, 1, 0), Image.BILINEAR)  # y に応じて 右へ ずらす(ななめの影)
+    out = Image.new('RGBA', sh.size, (0, 0, 0, 0)); out.putalpha(sh.point(lambda v: int(v * 0.92))); out = out.filter(ImageFilter.GaussianBlur(0.6))
+    out.save(os.path.join(OUT, 'ws%d.webp' % gi), 'WEBP', quality=90, method=6)
+print('shadow ok')

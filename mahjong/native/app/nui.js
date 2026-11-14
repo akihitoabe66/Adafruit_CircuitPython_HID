@@ -931,9 +931,8 @@
     for (let d = 12; d < dist; d += 12) { const q = mapPos(M, d); fill(Math.round(q[0]) - 1, Math.round(q[1]) - 1, 3, 3, [196, 52, 40], 210); } // 歩いたあとの足あと
     const pos = mapPos(M, dist), moving = t >= HOLD && !arrived, fr = moving ? [1, 2, 3, 2][Math.floor(t / 130) % 4] : 0, bob = moving ? Math.round(Math.sin(t / 65) * 1.5) : 0;
     if (moving && __now() - M.tapT > 260) { M.tapT = __now(); NSND.sfx('select', 0.16); }
-    { const sx = Math.round(pos[0]), sy = Math.round(pos[1]); fill(sx - 17, sy - 4, 34, 9, [0, 0, 0], 70); fill(sx - 14, sy - 3, 28, 7, [0, 0, 0], 130); fill(sx - 10, sy - 2, 20, 5, [0, 0, 0], 190); // 足もとの影(こく)
-      const pulse = Math.floor(t / 220) % 2; frame(sx - 20 - pulse, sy - 60 - pulse, 40 + pulse * 2, 70 + pulse * 2, [255, 236, 120], 2); // ずんだもんのまわりに、点滅する黄色いわく(地図と色が近くても 気づけるように)
-      const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); gPoly([[sx - 7, sy - 78 - bob2], [sx + 7, sy - 78 - bob2], [sx, sy - 66 - bob2]], [255, 224, 60], 240); } // 頭の上の ▼
+    { const sx = Math.round(pos[0]), sy = Math.round(pos[1]); gfx.image('img/map/ws' + fr + '.webp', sx - 15, sy - 4, 54, 28, 235); // 足もとから ななめに のびる、シルエットの影
+      const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); if (t < 2600) gPoly([[sx - 7, sy - 78 - bob2], [sx + 7, sy - 78 - bob2], [sx, sy - 66 - bob2]], [255, 224, 60], 240); } // 頭の上の ▼(はじめだけ)
     gfx.image('img/map/w' + fr + '.webp', Math.round(pos[0] - 15), Math.round(pos[1] - 52 + bob), 30, 56, 255); // 足もとの影 + 少し大きく(地図の ほかの人と 見分けがつくように)
     const dn = arrived ? M.to : M.from; fill(46, 19, 44, 22, [244, 232, 200]); text(MJ.DAN_NAME(dn), 68, 21, 17, [150, 30, 20], 1); if (arrived && t - HOLD - M.dur < 500 && Math.floor(t / 90) % 2) frame(44, 17, 48, 26, [255, 214, 0], 3); // 左上のわく: 段位(着いたら 新しい段位に)
     fill(36, 424, 760, 40, [22, 20, 28]); const msg = M.congrats ? '名人(水戸黄門)を 倒したのだ! 天下一の 雀士なのだ!' : arrived ? ((M.to >= 11 ? '名人に 到達! 天下一の 雀士なのだ!' : MAP_MSG[mapRegion(M.to)])) : (mapRegion(M.from) + ' から 旅立つのだ'); text(msg, 416, 430, 24, arrived ? YEL : WHITE, 1);
