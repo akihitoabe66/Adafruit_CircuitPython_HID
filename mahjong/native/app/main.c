@@ -230,7 +230,7 @@ static void preload(void){
   qsort(list, n, sizeof(char *), cmpstr);
   double t0 = nowms(); int last = -1;
   for (int i = 0; i < n; i++) {
-    if (strstr(list[i], "/cert") || strstr(list[i], "/tenbo_")) continue; /* 実機では使わない絵は、読まない(起動を速く) */
+    if ((strstr(list[i], "/certface/") && !strstr(list[i], "/certface/01.webp")) || strstr(list[i], "/tenbo_")) continue; /* 認定証の紙・ハンコ・顔(01)は先に読む(はじめて出すとき、画面が止まって ハンコのアニメが切れるため) */ /* 実機では使わない絵は、読まない(起動を速く) */
     size_t L = strlen(list[i]); if (L > 4 && !strcmp(list[i] + L - 4, ".wav")) { if (audio_ok) (void)getsnd(list[i]); } else getimg(list[i], NULL, NULL);
     SDL_PumpEvents(); int pc = i * 20 / (n ? n : 1); if (pc != last) { last = pc; loading_screen(i, n); }
   }
@@ -279,7 +279,8 @@ static void jobs(void){ JSContext *c1; int r; do { r = JS_ExecutePendingJob(rt, 
 static void rejected(JSContext *c, JSValueConst p, JSValueConst reason, JS_BOOL handled, void *o){ if (handled) return; const char *m = JS_ToCString(c, reason); JSValue st = JS_GetPropertyStr(c, reason, "stack"); const char *ss = JS_ToCString(c, st); fprintf(stderr, "UNHANDLED: %s\n%s\n", m ? m : "?", ss ? ss : ""); }
 static int evalfile(const char *p){ size_t n; char *s = readfile(p, &n); if (!s) { fprintf(stderr, "cannot read %s\n", p); return 1; }
   JSValue v = JS_Eval(ctx, s, n, p, JS_EVAL_TYPE_GLOBAL); free(s); if (JS_IsException(v)) { dump_err(ctx); return 2; } JS_FreeValue(ctx, v); jobs(); return 0; }
-static void callkey(const char *k){ JSValue g = JS_GetGlobalObject(ctx); JSValue f = JS_GetPropertyStr(ctx, g, "__key"); JSValue a = JS_NewString(ctx, k); JSValue r = JS_Call(ctx, f, g, 1, &a); if (JS_IsException(r)) dump_err(ctx); JS_FreeValue(ctx, r); JS_FreeValue(ctx, a); JS_FreeValue(ctx, f); JS_FreeValue(ctx, g); jobs(); }
+static double key_block_until = 0; /* 起動のあいだ(進捗バー)に押されたボタンを、タイトルが出たとたんに受けつけない */
+static void callkey(const char *k){ if (nowms() < key_block_until) return; JSValue g = JS_GetGlobalObject(ctx); JSValue f = JS_GetPropertyStr(ctx, g, "__key"); JSValue a = JS_NewString(ctx, k); JSValue r = JS_Call(ctx, f, g, 1, &a); if (JS_IsException(r)) dump_err(ctx); JS_FreeValue(ctx, r); JS_FreeValue(ctx, a); JS_FreeValue(ctx, f); JS_FreeValue(ctx, g); jobs(); }
 static int callframe(void){ JSValue g = JS_GetGlobalObject(ctx); JSValue f = JS_GetPropertyStr(ctx, g, "__frame"); JSValue a = JS_NewFloat64(ctx, nowms()); JSValue r = JS_Call(ctx, f, g, 1, &a); int d = 0; if (JS_IsException(r)) dump_err(ctx); else d = JS_ToBool(ctx, r); JS_FreeValue(ctx, r); JS_FreeValue(ctx, a); JS_FreeValue(ctx, f); JS_FreeValue(ctx, g); jobs(); return d; }
 
 static void reg(JSValue o, const char *name, JSCFunction *f, int n){ JS_SetPropertyStr(ctx, o, name, JS_NewCFunction(ctx, f, name, n)); }
@@ -380,6 +381,7 @@ int main(int argc, char **argv){
   const char *list[] = { "native/app/prelude.js", "js/tiles.js", "js/rules.js", "js/forms.js", "js/chars.js", "js/ai.js", "js/coach.js", "js/game.js", "js/banter.js", "js/banter2.js", "js/banter3.js", "js/banter4.js", "js/banter5.js", "js/chars2.js", "js/rank.js", "native/app/icon.js", "js/ruby.js", "js/drill.js", "native/app/stats.js", "native/app/learn.js", "native/app/dictdata.js", "native/app/dicepat.js", "native/app/map2data.js", "native/app/nsnd.js", "native/app/nui.js", NULL };
   for (int i = 0; list[i]; i++) { char p[1500]; snprintf(p, sizeof p, "%s/%s", root, list[i]); if (evalfile(p)) return 3; }
   { const char *sc = getenv("MJ_SCRIPT"); if (sc) { char p[1500]; snprintf(p, sizeof p, "%s", sc); evalfile(p); } } /* 試験用: 追加のJSを読む */
+  SDL_PumpEvents(); SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT); held = 0; axisdir[0] = axisdir[1] = 0; for (int i = 0; i < 32; i++) jb[i] = 0; key_block_until = nowms() + 450; /* 起動中に押されたボタンは、なかったことに */
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
   tgt = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, W, H);
   if (!tgt) { fprintf(stderr, "target: %s\n", SDL_GetError()); return 1; }
