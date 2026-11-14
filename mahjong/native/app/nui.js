@@ -60,7 +60,7 @@
   try { if (localStorage.getItem('mj_rules_ver') !== '3') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '3'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
   const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz' }, { label: '麻雀の勉強', act: 'study' }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
-  const PROMOSEQ = ['left', 'left', 'right', 'right', 'up', 'down', 'up', 'down', 'back', 'ok']; // 隠しコマンド(ホーム): 昇段の演出テスト(認定証→地図→新しい雀士)を開く
+  const PROMOSEQ = ['left', 'left', 'right', 'right', 'up', 'up', 'down', 'down', 'back', 'ok']; // 隠しコマンド(ホーム): 昇段の演出テスト(認定証→地図→新しい雀士)を開く
   const PERFSEQ = ['down', 'down', 'up', 'up', 'right', 'left', 'right', 'left', 'back', 'ok']; // 隠しコマンド(ホーム): 画面の左上に、遅れの診断を出す/消す
   const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'back', 'ok']; // 隠しコマンド(タイトル): 5件のセーブから選べる
 
