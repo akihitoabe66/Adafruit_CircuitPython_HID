@@ -1009,12 +1009,12 @@
     const K = CW / 809, px = (x) => cx + sh + Math.round(CW * x), py = (y) => Math.round(CH * y);
     text(C.rk.dan || '', px(0.37), py(0.434) - 14 + ((C.rk.dan || '').length > 3 ? 3 : 0), (C.rk.dan || '').length > 3 ? 19 : 25, [17, 17, 17], 1); text('あなた', px(0.445), py(0.48) - 11, 21, [17, 17, 17], 1);
     rrect(px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 2, [122, 163, 179]); if (!gfx.imageTop('img/certface/01.webp', px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139))) gfx.image(youSrc(), px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 255); // 証明写真: 背景を切りぬいた絵を、画面の本当の解像度で(くっきり)
-    { // ハンコ: 大きく(手前から) → 加速して 当たる (大きなゆれ・放射線・ ぺちゃっと つぶれてもどる)
+    { // ハンコ: 大きく(手前から) → 加速して 当たる (大きなゆれ・白いフラッシュ・ ぺちゃっと つぶれてもどる)
       const base = Math.round(CW * 0.15), cxs = px(0.645), cys = py(0.775);
       if (t > 560 && t < 1120) { const k = (t - 560) / 560, e = k * k * k, z = Math.round(base * (1 + (1 - e) * 4.2)), a = Math.round(255 * Math.min(1, k * 2.5)), ang = -45 * (1 - k) * (1 - k); gfx.imageRotTop('img/cert_stamp.webp', cxs, cys, z, z, a, ang); /* 少し(45度)まわりながら近づく */ }
       else if (t >= 1120) { const u = (t - 1120) / 160, z = Math.round(base * (1 + 0.16 * Math.max(0, 1 - u))); gfx.image('img/cert_stamp.webp', cxs - Math.round(z / 2), cys - Math.round(z / 2), z, z, 255); }
       if (t >= 1120 && t < 1620) { const u = (t - 1120) / 500;
-        for (let q = 0; q < 14; q++) { const ang = q * Math.PI * 2 / 14 + 0.2, r0 = base * 0.55 + u * 70, r1 = r0 + 30 * (1 - u) + 6, w = 3 * (1 - u) + 1; gPoly([[cxs + Math.cos(ang) * r0 - Math.sin(ang) * w, cys + Math.sin(ang) * r0 + Math.cos(ang) * w], [cxs + Math.cos(ang) * r0 + Math.sin(ang) * w, cys + Math.sin(ang) * r0 - Math.cos(ang) * w], [cxs + Math.cos(ang) * r1, cys + Math.sin(ang) * r1]], [232, 120, 40], Math.round(235 * (1 - u))); }
+        if (t < 1260) fill(0, 0, SW, SH, [255, 255, 255], Math.round(150 * (1 - (t - 1120) / 140))); // 白いフラッシュ
       }
     }
     if (t >= 1120 && !C.snd) { C.snd = true; NSND.sfx('slam'); if (C.rk.to >= 1 && C.rk.to <= 11) setTimeout(() => { if (S.cert === C) NSND.speak(['d:0', 'd:' + C.rk.to]); }, 700); } // ハンコのあと「昇格したのだ。〇〇になりました。」
