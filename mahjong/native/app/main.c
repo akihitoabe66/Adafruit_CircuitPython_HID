@@ -254,9 +254,9 @@ typedef struct { char p[1500], q[1520]; char *s; } SaveJob;
 static SDL_Thread *save_th = NULL;
 static int save_run(void *u) { /* セーブは、別スレッドで書く(SDカードの書き込みを待たせて、画面を止めない) */
   SaveJob *j = (SaveJob *)u; FILE *f = fopen(j->q, "wb"); int ok = 0;
-  if (f && j->s) { size_t L = strlen(j->s); ok = fwrite(j->s, 1, L, f) == L; fflush(f); fsync(fileno(f)); fclose(f); if (ok) rename(j->q, j->p); }
+  if (f && j->s) { size_t L = strlen(j->s); ok = fwrite(j->s, 1, L, f) == L; fflush(f); fclose(f); if (ok) rename(j->q, j->p); } /* fsync は しない: SDカードで 数秒 止まり、そのあいだ ほかのファイル操作(画像・音の読み込み)まで 待たされるため。上書きの rename は、ext4 が データを先に書いてくれる */
   free(j->s); free(j); return 0; }
-static void save_wait(void) { if (save_th) { SDL_WaitThread(save_th, NULL); save_th = NULL; } }
+static void save_wait(void) { if (save_th) { double w0 = nowms(); SDL_WaitThread(save_th, NULL); save_th = NULL; double w = nowms() - w0; if (w > 80) bgm_log("save-wait", w, "slot"); } }
 static SDL_Thread *save2_th = NULL; /* 設定などの保存(save.json): これも別スレッド。SDカードを待たせて、画面を止めない */
 static int save2_run(void *u) { SaveJob *j = (SaveJob *)u; FILE *f = fopen(j->q, "wb"); if (f && j->s) { size_t L = strlen(j->s); int ok = fwrite(j->s, 1, L, f) == L; fclose(f); if (ok) rename(j->q, j->p); } free(j->s); free(j); return 0; }
 static void save2_wait(void) { if (save2_th) { SDL_WaitThread(save2_th, NULL); save2_th = NULL; } }

@@ -352,7 +352,7 @@
     if (d.seq === S.drawSeq && d.last) return d.last; // 1コマの中で、何度よばれても同じ答え
     { // 重い1コマ(読み込みなど)があっても、アニメが飛ばないよう、時計を最大50msしか進めない。はじめは、描きが安定するまで少し待つ(最長1.5秒)
       const nw = __now(); if (!d.c0) d.c0 = nw;
-      if (d._ln) { const dt = nw - d._ln, ex = dt - 50; d.calm = dt < 80 ? (d.calm || 0) + 1 : 0; if (ex > 0) { d.t0 += ex; if (d.gt) for (let i = 0; i < d.gt.length; i++) d.gt[i] += ex; } }
+      if (d._ln) { const dt = nw - d._ln, ex = dt - 50; d.calm = dt < 80 ? (d.calm || 0) + 1 : 0; if (ex > 0 && (d.str || 0) < 700) { const e2 = Math.min(ex, 700 - (d.str || 0)); d.str = (d.str || 0) + e2; d.t0 += e2; if (d.gt) for (let i = 0; i < d.gt.length; i++) d.gt[i] += e2; } } // 時計を止める量は、合計700msまで(それ以上 重いときは、実際の時間どおりに 進める。進まないまま 固まって見えないように)
       d._ln = nw; if (!d.go) { if (nw >= d.t0 - 60 && (d.calm || 0) < 4 && nw - d.c0 < 1500) d.t0 = nw + 60; else d.go = true; }
     }
     const t = __now() - d.t0; if (t >= DEAL_END && d.groups >= 16 && __now() - d.gt[15] > FLY_MS) { S.deal = null; NSND.release(); return ALL; }
@@ -763,7 +763,7 @@
   }
   function drawDice() {
     const d = S.dice, g = S.game, now = __now();
-    const dtf = d._ln ? now - d._ln : 0; d._ln = now; d.vt = (d.vt || 0) + Math.min(dtf, 50); // 動きの時計: 1コマが重くても、50msぶんしか進めない(最初の数コマが飛んで、いきなり終わりに見えるのを防ぐ)
+    const dtf = d._ln ? now - d._ln : 0; d._ln = now; { const cl = (d.vstr || 0) < 1200 ? Math.min(dtf, 50) : dtf; d.vstr = (d.vstr || 0) + (dtf - cl); d.vt = (d.vt || 0) + cl; } // 動きの時計: 1コマが重くても、50msぶんしか進めない(最初の数コマが飛んで、いきなり終わりに見えるのを防ぐ)
     if (!d.t00) d.t00 = now; if (d._ln2 !== undefined) d.calm = dtf < 80 ? (d.calm || 0) + 1 : 0; d._ln2 = 1; // 画面の描きが安定する(軽い コマが 続く)まで、転がしはじめを待つ(最長2.5秒)
     if (!d.started && d.vt > 600 && ((d.calm || 0) >= 5 || now - d.t00 > 2500)) { d.started = true; d.rolling = true; d.t0 = now; d.rt0 = d.vt; NSND.sfx('deal4'); }
     const total = d.a + d.b, cStart = d.t1 + 700, cStep = 380, revealAt = cStart + (total - 1) * cStep; // 最後の1つで、その席が止まった瞬間に、親が決まる(止まってから光り直さない)
@@ -931,7 +931,10 @@
     for (let d = 12; d < dist; d += 12) { const q = mapPos(M, d); fill(Math.round(q[0]) - 1, Math.round(q[1]) - 1, 3, 3, [196, 52, 40], 210); } // 歩いたあとの足あと
     const pos = mapPos(M, dist), moving = t >= HOLD && !arrived, fr = moving ? [1, 2, 3, 2][Math.floor(t / 130) % 4] : 0, bob = moving ? Math.round(Math.sin(t / 65) * 1.5) : 0;
     if (moving && __now() - M.tapT > 260) { M.tapT = __now(); NSND.sfx('select', 0.16); }
-    fill(Math.round(pos[0] - 11), Math.round(pos[1] - 3), 22, 5, [0, 0, 0], 120); gfx.image('img/map/w' + fr + '.webp', Math.round(pos[0] - 15), Math.round(pos[1] - 52 + bob), 30, 56, 255); // 足もとの影 + 少し大きく(地図の ほかの人と 見分けがつくように)
+    { const sx = Math.round(pos[0]), sy = Math.round(pos[1]); fill(sx - 17, sy - 4, 34, 9, [0, 0, 0], 70); fill(sx - 14, sy - 3, 28, 7, [0, 0, 0], 130); fill(sx - 10, sy - 2, 20, 5, [0, 0, 0], 190); // 足もとの影(こく)
+      const pulse = Math.floor(t / 220) % 2; frame(sx - 20 - pulse, sy - 60 - pulse, 40 + pulse * 2, 70 + pulse * 2, [255, 236, 120], 2); // ずんだもんのまわりに、点滅する黄色いわく(地図と色が近くても 気づけるように)
+      const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); gPoly([[sx - 7, sy - 78 - bob2], [sx + 7, sy - 78 - bob2], [sx, sy - 66 - bob2]], [255, 224, 60], 240); } // 頭の上の ▼
+    gfx.image('img/map/w' + fr + '.webp', Math.round(pos[0] - 15), Math.round(pos[1] - 52 + bob), 30, 56, 255); // 足もとの影 + 少し大きく(地図の ほかの人と 見分けがつくように)
     const dn = arrived ? M.to : M.from; fill(46, 19, 44, 22, [244, 232, 200]); text(MJ.DAN_NAME(dn), 68, 21, 17, [150, 30, 20], 1); if (arrived && t - HOLD - M.dur < 500 && Math.floor(t / 90) % 2) frame(44, 17, 48, 26, [255, 214, 0], 3); // 左上のわく: 段位(着いたら 新しい段位に)
     fill(36, 424, 760, 40, [22, 20, 28]); const msg = M.congrats ? '名人(水戸黄門)を 倒したのだ! 天下一の 雀士なのだ!' : arrived ? ((M.to >= 11 ? '名人に 到達! 天下一の 雀士なのだ!' : MAP_MSG[mapRegion(M.to)])) : (mapRegion(M.from) + ' から 旅立つのだ'); text(msg, 416, 430, 24, arrived ? YEL : WHITE, 1);
     if (arrived && t - HOLD - M.dur > 600) text('決定ボタンで つづける', 700, 6, 14, [235, 235, 220], 1);
@@ -965,7 +968,7 @@
     const ids = (() => { try { return MJ.Rank.newIds(rk.from, rk.to); } catch (e) { return []; } })();
     const toRank = () => then();
     const toMap = () => { try { startMap(rk, toReveal); } catch (e) { toReveal(); } };
-    const toReveal = () => { if (ids.length) { S.reveal = { ids, i: 0, t0: __now(), then: toRank }; NSND.sfx('slam'); dirty(); } else toRank(); };
+    const toReveal = () => { if (ids.length) { S.reveal = { ids, i: 0, t0: __now(), then: () => { try { NSND.revealOff(); } catch (e) { /* ignore */ } toRank(); } }; try { NSND.revealOn(); } catch (e) { /* ignore */ } NSND.sfx('slam'); dirty(); } else toRank(); };
     S.cert = { rk, t0: __now(), then: toMap, snd: false }; dirty();
   }
   function drawCert() {
@@ -987,7 +990,7 @@
     const V = S.reveal, t = __now() - V.t0, c = MJ.CHARS.find((x) => x.id === V.ids[V.i]);
     gfx.clear(8, 16, 22); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], t < 900 ? 215 : 160);
     if (!c) return;
-    const z = 220, x = 90, y = 110; rrect(x - 6, y - 6, z + 12, z + 12, 10, WHITE); frame(x - 8, y - 8, z + 16, z + 16, [30, 30, 30], 2);
+    const z = 150, x = 120, y = 150; rrect(x - 6, y - 6, z + 12, z + 12, 10, WHITE); frame(x - 8, y - 8, z + 16, z + 16, [30, 30, 30], 2);
     if (t < 900) gfx.image('img/sil/' + ('0' + c.id).slice(-2) + '.webp', x, y, z, z, 255); else gfx.image(skin(c.face), x, y, z, z, 255);
     if (t >= 900 && !V.snd) { V.snd = true; NSND.sfx('slam'); }
     text('新しい雀士が 登場!', 560, 50, 34, YEL, 1);
@@ -2429,7 +2432,7 @@
     if (S.soundP) drawSound();
     if (S.teachQ) drawTeachQ();
     if (S.playQ) drawDialog('麻雀をはじめます', ['つづきから(' + kyokuText(S.playQ.snap) + ')', 'はじめから'], S.playQ.idx, '');
-    if (S.confirmQ) drawDialog('このまま ゲームが 終了しますが よろしいですか?', ['OK(ゲームを おわる)', 'もどる'], S.confirmQ.idx, '');
+    if (S.confirmQ) drawDialog('このまま ゲームが 終了しますが よろしいですか?', ['終了', 'もどる'], S.confirmQ.idx, '');
     gfx.view(0, 0);
     return true;
   };

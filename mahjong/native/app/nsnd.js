@@ -20,6 +20,8 @@
     hold() { A.holding = true; A._hid = (A._hid || 0) + 1; const id = A._hid; try { snd.musicVol(0, 700); setTimeout(() => { if (A.holding && A._hid === id) { snd.music(''); cur = ''; } }, 800); } catch (e) { /* ignore */ } /* 前の曲(ホームの曲など)は、すっと小さくして止める。配牌は、曲なしで(効果音だけ) */ setTimeout(() => { if (A._hid === id) A.release(); }, 12000); }, // 配牌のあいだ、曲の切りかえを待たせる(12秒たったら、かならず はじめる)
     release() { if (!A.holding) return; A.holding = false; const p = A._pend; A._pend = null; if (p) setTimeout(() => A.music(p), 300); },
     mapOn() { A._pcur = cur; A.scale = 1; A.music('audio/map.mp3'); }, // 昇段の地図の曲(終わったら、前の曲にもどす)
+    revealOn() { A._rcur = cur; A.scale = 1; cur = ''; A.music(FINAL[Math.floor(Math.random() * FINAL.length)]); }, // 新しい雀士が登場する画面: ノリノリの曲(最終局用)
+    revealOff() { const q = A._rcur; A._rcur = null; if (q) { cur = ''; A.music(q); } },
     mapOff() { const q = A._pcur; A._pcur = null; if (q) { cur = ''; A.music(q); } },
     home() { A.holding = false; A._pend = null; A.scale = 1; A.music(HOME); },
     game(g) {
