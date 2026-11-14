@@ -1011,7 +1011,7 @@
     rrect(px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 2, [122, 163, 179]); if (!gfx.imageTop('img/certface/01.webp', px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139))) gfx.image(youSrc(), px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 255); // 証明写真: 背景を切りぬいた絵を、画面の本当の解像度で(くっきり)
     { // ハンコ: 大きく(手前から) → 加速して バンッ! (ゆれ・白いフラッシュ・放射線・ ぺちゃっと つぶれてもどる)
       const base = Math.round(CW * 0.15), cxs = px(0.645), cys = py(0.775);
-      if (t > 560 && t < 1120) { const k = (t - 560) / 560, e = k * k * k, z = Math.round(base * (1 + (1 - e) * 4.2)), a = Math.round(255 * Math.min(1, k * 2.5)); gfx.image('img/cert_stamp.webp', cxs - Math.round(z / 2), cys - Math.round(z / 2), z, z, a); }
+      if (t > 560 && t < 1120) { const k = (t - 560) / 560, e = k * k * k, z = Math.round(base * (1 + (1 - e) * 4.2)), a = Math.round(255 * Math.min(1, k * 2.5)), ang = 180 * (1 - k) * (1 - k); gfx.imageRotTop('img/cert_stamp.webp', cxs, cys, z, z, a, ang); /* 半回転しながら近づく */ }
       else if (t >= 1120) { const u = (t - 1120) / 160, z = Math.round(base * (1 + 0.16 * Math.max(0, 1 - u))); gfx.image('img/cert_stamp.webp', cxs - Math.round(z / 2), cys - Math.round(z / 2), z, z, 255); }
       if (t >= 1120 && t < 1620) { const u = (t - 1120) / 500;
         if (t < 1260) fill(0, 0, SW, SH, [255, 255, 255], Math.round(150 * (1 - (t - 1120) / 140)));
