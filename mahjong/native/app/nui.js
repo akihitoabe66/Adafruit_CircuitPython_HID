@@ -1008,7 +1008,7 @@
     text(C.rk.dan || '', px(0.37), py(0.434) - 14 + ((C.rk.dan || '').length > 3 ? 3 : 0), (C.rk.dan || '').length > 3 ? 19 : 25, [17, 17, 17], 1); text('あなた', px(0.445), py(0.48) - 11, 21, [17, 17, 17], 1);
     rrect(px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 2, [122, 163, 179]); if (!gfx.imageTop('img/certface/01.webp', px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139))) gfx.image(youSrc(), px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 255); // 証明写真: 背景を切りぬいた絵を、画面の本当の解像度で(くっきり)
     if (t > 700) { const k = Math.min(1, (t - 700) / 420), z = Math.round(CW * 0.15 * (1 + (1 - k) * 1.6)), a = Math.round(255 * Math.min(1, k * 1.5)); gfx.image('img/cert_stamp.webp', px(0.645) - Math.round(z / 2), py(0.775) - Math.round(z / 2), z, z, a); }
-    if (t >= 1120 && !C.snd) { C.snd = true; NSND.sfx('slam'); }
+    if (t >= 1120 && !C.snd) { C.snd = true; NSND.sfx('slam'); if (C.rk.to >= 1 && C.rk.to <= 11) setTimeout(() => { if (S.cert === C) NSND.speak(['d:' + C.rk.to]); }, 700); } // ハンコのあと「〇〇になりました。」
     if (t > 300) { text('昇段 おめでとう!', 590, 120, 38, YEL, 1); text(C.rk.dan + 'に なりました', 590, 180, 28, WHITE, 1); }
     if (t > 1500) text('決定ボタンで すすむ', 590, 400, 22, [210, 225, 205], 1);
     if (t < 1700) dirty();
