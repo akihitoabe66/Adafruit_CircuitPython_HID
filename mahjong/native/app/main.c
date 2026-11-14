@@ -223,7 +223,7 @@ static void loading_screen(int done, int total){
   SDL_RenderPresent(ren); }
 static void preload(void){
   static char *list[1200]; int n = 0;
-  n = listdir("img", ".webp", list, 1200, n); n = listdir("img/tiles", ".webp", list, 1200, n); n = listdir("img/dice", ".webp", list, 1200, n); n = listdir("img/map", ".webp", list, 1200, n); n = listdir("img/t44", ".webp", list, 1200, n); n = listdir("img/t26", ".webp", list, 1200, n); n = listdir("img/chars", ".webp", list, 1200, n); n = listdir("img/chars/face", ".webp", list, 1200, n);
+  n = listdir("img", ".webp", list, 1200, n); n = listdir("img/tiles", ".webp", list, 1200, n); n = listdir("img/dice", ".webp", list, 1200, n); n = listdir("img/map", ".webp", list, 1200, n); n = listdir("img/certface", ".webp", list, 1200, n); n = listdir("img/t44", ".webp", list, 1200, n); n = listdir("img/t26", ".webp", list, 1200, n); n = listdir("img/chars", ".webp", list, 1200, n); n = listdir("img/chars/face", ".webp", list, 1200, n);
   n = listdir("img/you", ".webp", list, 1200, n); n = listdir("img/sil", ".webp", list, 1200, n); n = listdir("img/peek", ".webp", list, 1200, n); n = listdir("img/teacher", ".webp", list, 1200, n);
   { const char *st = getenv("MJ_STYLE"); if (st && !strcmp(st, "old")) n = listdir("img/zunda", ".webp", list, 1200, n); else { n = listdir("img/uk", ".webp", list, 1200, n); n = listdir("img/uk/chars/face", ".webp", list, 1200, n); n = listdir("img/uk/zunda", ".webp", list, 1200, n); } } /* 浮世絵版(ふだん) / MJ_STYLE=old で、前のバージョンの絵 */
   int nimgs = n; n = listdir("audio/sfx", ".wav", list, 1200, n);

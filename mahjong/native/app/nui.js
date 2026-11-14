@@ -975,7 +975,7 @@
     fill(cx + 6, 10, CW, CH - 8, [0, 0, 0], 120); gfx.image('img/cert.webp', cx + sh, 0, CW, CH, 255);
     const K = CW / 809, px = (x) => cx + sh + Math.round(CW * x), py = (y) => Math.round(CH * y);
     text(C.rk.dan || '', px(0.37), py(0.434) - 14, 25, [17, 17, 17], 1); text('あなた', px(0.445), py(0.48) - 11, 21, [17, 17, 17], 1);
-    rrect(px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 2, [122, 163, 179]); gfx.image(youSrc(), px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 255);
+    rrect(px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 2, [122, 163, 179]); if (!gfx.imageTop('img/certface/01.webp', px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139))) gfx.image(youSrc(), px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 255); // 証明写真: 背景を切りぬいた絵を、画面の本当の解像度で(くっきり)
     if (t > 700) { const k = Math.min(1, (t - 700) / 420), z = Math.round(CW * 0.15 * (1 + (1 - k) * 1.6)), a = Math.round(255 * Math.min(1, k * 1.5)); gfx.image('img/cert_stamp.webp', px(0.645) - Math.round(z / 2), py(0.775) - Math.round(z / 2), z, z, a); }
     if (t >= 1120 && !C.snd) { C.snd = true; NSND.sfx('slam'); }
     if (t > 300) { text('昇段 おめでとう!', 590, 120, 38, YEL, 1); text(C.rk.dan + 'に なりました', 590, 180, 28, WHITE, 1); }
