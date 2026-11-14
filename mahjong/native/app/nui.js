@@ -1019,7 +1019,7 @@
     const V = S.reveal, t = __now() - V.t0, c = MJ.CHARS.find((x) => x.id === V.ids[V.i]);
     gfx.clear(8, 16, 22); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], t < 900 ? 215 : 160);
     if (!c) return;
-    if (!V.said) { V.said = true; if (V.i === 0) NSND.speak(['r:new']); } // 最初の1人のときだけ「新しい雀士が登場」
+    if (V.said !== V.i + 1 && (V.i === 0 || t >= 900)) { V.said = V.i + 1; NSND.speak((V.i === 0 ? ['r:new'] : []).concat(['nm:' + c.name])); } // 「新しい雀士が登場」(最初の1人だけ)→ 名前
     const z = 150, x = 120, y = 150; rrect(x - 6, y - 6, z + 12, z + 12, 10, WHITE); frame(x - 8, y - 8, z + 16, z + 16, [30, 30, 30], 2);
     if (t < 900) gfx.image('img/sil/' + ('0' + c.id).slice(-2) + '.webp', x, y, z, z, 255); else gfx.image(skin(c.face), x, y, z, z, 255);
     if (t >= 900 && !V.snd) { V.snd = true; NSND.sfx('slam'); }
