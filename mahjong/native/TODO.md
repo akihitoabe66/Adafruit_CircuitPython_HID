@@ -71,3 +71,5 @@
 - [ ] (要ビルド) 動画を git で配る: リポジトリの mahjong/video/04_reach_order.mp4 が、ビデオの一覧の4番で再生できるか。 ラズパイで、前の動画の番号をずらす: `cd ~/mjdata/video && sh ~/Adafruit_CircuitPython_HID/mahjong/tools/video/shift_numbers.sh`(場所はあなたの環境に合わせて)
 
 - [ ] 起動画面(img/boot.webp)の緑の背景を、なめらかなグラデーションに作り直した(tools/make_boot_bg.py)。 実機のテレビで、ブロック状のムラ・帯が消えているか
+
+- [ ] 「麻雀の勉強」に入った直後、5秒ほど入力が効かない件: 入ったあとの「先に絵を描いておく」処理を、ボタンを2秒押していないときだけに(入力を止めない)。 まだ止まるなら `tail -20 ~/mjdata/stall.log` の結果(何が何ミリ秒止まったか)で原因をさがす

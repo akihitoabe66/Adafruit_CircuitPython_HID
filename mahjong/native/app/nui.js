@@ -1789,9 +1789,16 @@
     const sc = vScan(), vd = vLoad(); let vi = sc.files.findIndex((f) => f.name === vd.last && (vd.pos[f.name] || 0) >= 30 && !vd.done[f.name]); const cont = vi >= 0; if (vi < 0) vi = Math.max(0, sc.files.findIndex((f) => f.path && !vd.done[f.name])); if (vi < 0 || !sc.files[vi]) vi = 0;
     S.study = { sel: sel || 0, nDone, total: ST.length, nx, nxStep: ST[nx], vf: sc.files[vi], cont, vpos: cont ? vd.pos[sc.files[vi].name] : 0, vn: sc.files.length, vhave: sc.files.filter((f) => f.path).length }; S.mode = 'study'; dirty(); studyWarm();
   }
-  function studyWarm() { // 入ったあと、3つの項目を選んだときの画面を、画面に出さずに 先に描いておく(はじめて選んだときの重さを、なくすため)
+  function studyWarm() { // 入ったあと、ボタンを押していない間だけ、3つの項目を選んだときの画面を、画面に出さずに 先に描いておく(はじめて選んだときの重さを、なくすため)。 ボタンを押している間は、待つ(入力を止めない)
     if (typeof gfx.layerBegin !== 'function') return;
-    [1, 2, 0, -1].forEach((w, k) => setTimeout(() => { const H = S.study; if (!H || S.mode !== 'study') return; try { lay(6 + w + 1, studyKey_(H, w), () => drawStudyBody(w)); } catch (e) { /* ignore */ } }, 500 + k * 400));
+    const W = [1, 2, 0, -1], H0 = S.study;
+    const step = (k) => {
+      const H = S.study; if (H !== H0 || !H || S.mode !== 'study' || k >= W.length) return;
+      if (__now() - (S.lastKeyT || 0) < 2000) { setTimeout(() => step(k), 700); return; }
+      const w = W[k]; try { lay(6 + w + 1, studyKey_(H, w), () => drawStudyBody(w)); } catch (e) { /* ignore */ }
+      setTimeout(() => step(k + 1), 900);
+    };
+    setTimeout(() => step(0), 2500);
   }
   function studyKey(k) {
     const H = S.study; dirty();
@@ -2020,6 +2027,7 @@
 
   /* ---------- 入力 ---------- */
   window.__key = function (k) {
+    S.lastKeyT = __now(); // 最後にボタンを押した時刻(先に絵を描いておく処理は、ボタンを押しているあいだは しない)
     S.dirty = true; if (S.locked) return;
     if (S.guardUntil && __now() < S.guardUntil) return; // 保存のあと、次の画面に変わった直後の押しまちがいを無視する
     NSND.sfx(k === 'ok' ? 'ok' : k === 'back' ? 'click' : 'select', 0.5);
