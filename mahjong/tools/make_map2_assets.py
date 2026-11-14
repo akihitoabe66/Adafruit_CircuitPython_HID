@@ -49,14 +49,27 @@ def dijk(s, t):
 def trace(a, b): return cv2.approxPolyDP(np.array(dijk(nodes[a], nodes[b]), np.int32).reshape(-1, 1, 2), 4.0, False).reshape(-1, 2).tolist()
 E_ = {k: trace(k[0], k[1]) for k in ['AB', 'BC', 'CD', 'DE', 'EF', 'FG', 'GH', 'HI', 'GJ']}
 def cut(poly, i, j): return poly[i:j + 1]
-# 段位ごとの 区間(1段ぶん)。 0=熊本 1=福岡 2=四国 3=中国 4=山城(京) 5=摂津(大阪) 6=信濃 7=越後 8=駿河の手前 9=駿河 10=江戸 11=奥州(天下統一)
-de = E_['DE']; fg = E_['FG']; gh = E_['GH']
+# 段位ごとの 区間(1段ぶん)。 legs[i] = 段位 i → i+1 の道。 行き止まりの枝は、分かれ道まで 戻ってから 次へ
+de = E_['DE']; fg = E_['FG']; gh = E_['GH']; hi = E_['HI']; gj = E_['GJ']
 top = int(np.argmin(np.array(fg)[:, 1]))                          # 越後: 北の海ぞいの、いちばん高いところ
-mid = [(gh[0][0] + gh[1][0]) // 2, (gh[0][1] + gh[1][1]) // 2 + 20]  # 駿河の手前
-legs = [E_['AB'], E_['BC'], E_['CD'], de[:7], de[6:], E_['EF'], fg[:top + 1], fg[top:] + [gh[1], mid], [mid, gh[2], gh[3]], E_['HI'], E_['HI'][::-1] + gh[::-1][1:] + E_['GJ'][1:]]
-# じゅんばんに つなぐ(区間の はじめは、まえの区間の おわり)
-for i in range(1, len(legs)): legs[i][0] = legs[i - 1][-1]
-data = {'ox': int(bx0), 'oy': int(by0), 'bw': int(bx1 - bx0), 'bh': int(by1 - by0), 'start': legs[0][0], 'legs': legs}
+ise = [list(nodes['E']), [768, 445], [766, 474]]                  # 伊勢: 大坂のあたりから 南へ のびる 寄り道(行き止まり)
+def join(*ps):
+    out = []
+    for p in ps:
+        for q in p:
+            if not out or out[-1] != q: out.append(q)
+    return out
+rev = lambda p: p[::-1]
+#  A: 描いてもらった赤い線どおり。 0熊本 1福岡 2四国 3中国 4山城(京) 5摂津(大阪) 6信濃 7越後 8駿河 9奥州 10江戸 11(江戸で天下統一)
+legsA = [E_['AB'], E_['BC'], E_['CD'], de[:7], de[6:], E_['EF'], fg[:top + 1], join(fg[top:], gh[1:]), join(rev(gh), gj[1:]), join(rev(gj), gh[1:], hi[1:]), [list(nodes['I']), [nodes['I'][0] + 1, nodes['I'][1]]]]
+#  B: おすすめ(伊勢あり)。 6伊勢(寄り道) 7信濃 8駿河 9奥州 10江戸 11(江戸で天下統一)。 越後は 通りすぎるだけ
+legsB = [E_['AB'], E_['BC'], E_['CD'], de[:7], de[6:], ise, join(rev(ise), E_['EF']), join(fg, gh[1:]), join(rev(gh), gj[1:]), join(rev(gj), gh[1:], hi[1:]), [list(nodes['I']), [nodes['I'][0] + 1, nodes['I'][1]]]]
+for L in (legsA, legsB):
+    for i in range(1, len(L)): L[i] = [L[i - 1][-1]] + L[i][1:]
+data = {'ox': int(bx0), 'oy': int(by0), 'bw': int(bx1 - bx0), 'bh': int(by1 - by0), 'sets': [{'name': '赤い線どおり', 'legs': legsA}, {'name': 'おすすめ(伊勢あり)', 'legs': legsB}]}
 with open(os.path.join(ROOT, 'native', 'app', 'map2data.js'), 'w') as f:
-    f.write('// 自動生成(tools/make_map2_assets.py): 昇段の地図の道すじ(元の絵 1375x768 の座標)。 legs[i] = 段位 i→i+1 の道\nglobalThis.MAP2 = ' + json.dumps(data, separators=(',', ':')) + ';\n')
-print('scroll bbox', bx0, by0, bx1, by1, 'asset', AW, AH, 'legs', [len(l) for l in legs])
+    f.write('// 自動生成(tools/make_map2_assets.py): 昇段の地図の道すじ(元の絵 1375x768 の座標)。 sets[n].legs[i] = 段位 i→i+1 の道\nglobalThis.MAP2 = ' + json.dumps(data, separators=(',', ':')) + ';\n')
+# ---- ずんだもんの 左右反転(左へ歩くとき)
+for gi in range(4):
+    Image.open(os.path.join(OUT, 'w%d.webp' % gi)).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(OUT, 'w%df.webp' % gi), 'WEBP', quality=92, method=6)
+print('scroll bbox', bx0, by0, bx1, by1, 'asset', AW, AH, 'legsA', [len(l) for l in legsA], 'legsB', [len(l) for l in legsB])
