@@ -963,7 +963,7 @@
     // 下の 帯: ずんだもんの ひとこと(1段ずつ)
     panel(24, 408, 784, 54, 12, [252, 246, 228], [120, 84, 40], 3, 245);
     gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]);
-    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = MAP_SETS[M.ms].say[M.from]; else if (walking) msg = M.steps[stepIdx].d === 10 ? '天下統一を めざして 江戸へ テクテク…' : MAP_DAN[M.steps[stepIdx].d + 1] + ' ' + MAP_SETS[M.ms].place[M.steps[stepIdx].d + 1] + 'を めざして テクテク…'; else msg = MAP_SETS[M.ms].say[curDan]; // 歩くとき: もう その段位に なっているので、ひとつ上の段位を めざす。 名人は、江戸へ「天下統一」をめざして歩く
+    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = MAP_SETS[M.ms].say[M.from]; else if (walking) msg = M.steps[stepIdx].d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_DAN[M.steps[stepIdx].d + 1] + ' ' + MAP_SETS[M.ms].place[M.steps[stepIdx].d + 1] + 'を めざすため テクテク…'; else msg = MAP_SETS[M.ms].say[curDan]; // 歩くとき: もう その段位に なっているので、ひとつ上の段位を めざす。 名人は、江戸へ「天下統一」をめざして歩く
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) NSND.speak([pk]); } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
     if (arrived && t - M.endT > 600) text('決定ボタンで つづける', 700, 6, 14, [220, 235, 245], 1);
