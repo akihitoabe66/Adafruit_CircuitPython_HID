@@ -1013,11 +1013,11 @@
     text(C.rk.dan || '', px(0.37), py(0.434) - 14 + ((C.rk.dan || '').length > 3 ? 3 : 0), (C.rk.dan || '').length > 3 ? 19 : 25, [17, 17, 17], 1); text('あなた', px(0.445), py(0.48) - 11, 21, [17, 17, 17], 1);
     rrect(px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 2, [122, 163, 179]); if (!gfx.imageTop('img/certface/01.webp', px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139))) gfx.image(youSrc(), px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 255); // 証明写真: 背景を切りぬいた絵を、画面の本当の解像度で(くっきり)
     { // ハンコ: はじめは ゆっくり(大きく、ふわっと 近づく) → 一気に加速して バンッ(慣性) → 当たったあと 少しめりこんで、はねかえって おさまる
-      const base = Math.round(CW * 0.15), cxs = px(0.645), cys = py(0.775), TS = 450, TF = TI - 150; // TS=見えはじめ TF=加速をはじめる時刻
+      const base = Math.round(CW * 0.15), cxs = px(0.645), cys = py(0.775), TS = 700, TF = TI - 150; // TS=見えはじめ TF=加速をはじめる時刻
       if (t > TS && t < TI) {
         let m, ang, a;
-        if (t < TF) { const k = (t - TS) / (TF - TS), e = k * k * (3 - 2 * k); m = 5.4 - 1.6 * e; ang = -48 + 14 * e; a = Math.round(255 * Math.min(1, k * 2.2)); } // ゆっくり: 5.4倍 → 3.8倍
-        else { const k = (t - TF) / (TI - TF), e = k * k * k * k; m = 3.8 - 2.8 * e; ang = -34 * (1 - e); a = 255; } // 一気に: 3.8倍 → 1倍(加速しながら ぶつかる)
+        if (t < TF) { const k = (t - TS) / (TF - TS), e = k * k * (3 - 2 * k); m = 5.4 - 1.6 * e; ang = -48 + 14 * e; a = Math.round((60 + 70 * k) * Math.min(1, k * 4)); } // ゆっくり: 5.4倍 → 3.8倍。 半透明(うすい)で ただよう
+        else { const k = (t - TF) / (TI - TF), e = k * k * k * k; m = 3.8 - 2.8 * e; ang = -34 * (1 - e); a = Math.round(130 + 125 * Math.min(1, k * 1.6)); } // 一気に: 3.8倍 → 1倍(加速しながら ぶつかる)。 落ちるあいだに、うすい → こい
         const z = Math.round(base * m); gfx.imageRotTop('img/cert_stamp.webp', cxs, cys, z, z, a, ang);
       } else if (t >= TI) { const u = (t - TI) / 1000, sq = 1 - 0.14 * Math.exp(-7 * u) * Math.cos(u * 26), z = Math.round(base * sq); gfx.image('img/cert_stamp.webp', cxs - Math.round(z / 2), cys - Math.round(z / 2), z, z, 255); } // 慣性: ぶつかったあと めりこんで(小さく) → はねかえって → おさまる
       if (t >= TI && t < TI + 140) fill(0, 0, SW, SH, [255, 255, 255], Math.round(150 * (1 - (t - TI) / 140))); // 白いフラッシュ
