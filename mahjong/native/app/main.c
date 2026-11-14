@@ -173,7 +173,7 @@ static JSValue j_save(JSContext *c, JSValueConst t, int n, JSValueConst *a); /* 
 
 /* ---- 音(SDL_mixer): 効果音・声は短い音をキャッシュ、BGMはストリーム ---- */
 typedef struct { char key[200]; Mix_Chunk *ch; double len; } Snd;
-#define NSND 400
+#define NSND 1200
 static Snd snds[NSND]; static int nsnd = 0; static Mix_Music *bgm = NULL; static int audio_ok = 0; static double mvol = 1.0; static volatile int g_vvol = 128; static volatile float g_vtgt = 1.0f, g_vcur = 1.0f, g_vstep = 0.0f; /* BGMの音量: 目標と今の値(なめらかに変える。クリックノイズを出さない) */ /* 動画の音量(0〜128)。Mix_HookMusic の音には Mix_VolumeMusic が効かないので、自分でかける */
 static Snd *getsnd(const char *path){
   for (int i = 0; i < nsnd; i++) if (!strcmp(snds[i].key, path)) return snds[i].ch ? &snds[i] : NULL;

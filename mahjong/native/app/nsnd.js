@@ -11,6 +11,8 @@
   ['bgm', 'sfx', 'voice'].forEach(applyLvl);
   let yk = null, token = 0, last = null, cur = '', duckT = 0;
   try { const t = __readtext('audio/yk/manifest.json'); yk = t ? JSON.parse(t) : {}; } catch (e) { yk = {}; }
+  /* 段位・地図・雀士登場の声は、はじめて鳴らすときに読みこむと、出だしが切れる。 先に全部 読みこんでおく */
+  try { Object.keys(yk).forEach((k) => { if (/^(d|m|r|v|nm):/.test(k)) snd.len('audio/yk/' + yk[k]); }); } catch (e) { /* ignore */ }
   const A = (window.NSND = {
     on: true,
     scale: 1, bv() { return V.bgm * A.scale; }, /* 画面ごとのBGMの大きさ(結果の画面は、はじめから少し小さく。声のたびに上げ下げしない) */
@@ -51,8 +53,8 @@
     nanoda(keys, p, mood) { const k = Math.random() < (p == null ? 0.3 : p) ? A.nd(mood) : null; return k ? keys.concat('+', k) : keys; },
     stopSpeak() { token++; },
     /* 'y:ツモ' などの並び(null は短い間)を、録音をつなげて鳴らす。 BGMは読み上げの間だけ小さくする */
-    speak(keys, cb) {
-      const id = ++token; let t = 0.05; const known = keys.filter((k) => !k || k === '+' || yk[k]);
+    speak(keys, cb, lead) {
+      const id = ++token; let t = lead == null ? 0.05 : lead; const known = keys.filter((k) => !k || k === '+' || yk[k]);
       known.forEach((k) => {
         if (k === '+') { t -= 0.06; return; } // 「+」: 前の声に、ほとんど間をあけずに つなげる(じゅう + いっぽんば)
         if (!k) { t += 0.4; return; } // 間(null)は、少し長め: 声が重なって聞こえないように
