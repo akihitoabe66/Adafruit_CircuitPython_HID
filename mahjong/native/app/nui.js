@@ -1623,10 +1623,22 @@
   }
 
   /* ---------- ビデオ(SDカードの ~/mjdata/video に入れた動画を、ゲームの中で見る) ---------- */
-  const VTITLES = { 1: '10分で分かる麻雀ルール', 2: '麻雀役解説', 3: '役はこれだけ覚えればOK', 4: 'ポンしていい?', 5: 'ポンしたらあがれない?', 6: 'スジ、習ったのに忘れる', 7: 'どれが通る?', 8: 'どれを捨てる?', 9: '捨てた順番で読む、3から5なら?', 10: '待ちがわからない?', 11: '役なしロン、防ぐ3つのコツ', 12: 'フリテン、そのロン待った', 13: '丸暗記、重要な形5選', 14: 'あがったのに点数が言えない', 15: '7つを整理', 16: '席決め親決め' };
+  const VTITLES = { 1: '10分で分かる麻雀ルール', 2: '麻雀役解説', 3: '役はこれだけ覚えればOK', 4: 'リーチされたら、この順番で切る', 5: 'ポンしていい?', 6: 'ポンしたらあがれない?', 7: 'スジ、習ったのに忘れる', 8: 'どれが通る?', 9: 'どれを捨てる?', 10: '捨てた順番で読む、3から5なら?', 11: '待ちがわからない?', 12: '役なしロン、防ぐ3つのコツ', 13: 'フリテン、そのロン待った', 14: '丸暗記、重要な形5選', 15: 'あがったのに点数が言えない', 16: '7つを整理', 17: '席決め親決め' };
   const VSTEP = 10, VSTEP_HOLD = 30, VHOLD_MS = 600; // 押す: 10秒 / 長押し: 30秒(3倍)ずつ
   const vfmt = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); };
-  function vLoad() { try { const v = JSON.parse(localStorage.getItem('mj_video')); if (v && v.pos) return v; } catch (e) { /* ignore */ } return { pos: {}, done: {}, last: '' }; }
+  function vLoad() {
+    try {
+      const v = JSON.parse(localStorage.getItem('mj_video'));
+      if (v && v.pos) {
+        if (!v.vs) { // 4番に新しい動画を入れたので、4番以降の番号が1つずつ後ろにずれた。 見た記録も、ファイル名の番号を1つ進めて引きつぐ
+          v.vs = 1; const sh = (k) => { const m = String(k).match(/^(\d+)(.*)$/); return !m || +m[1] < 4 ? k : ('0' + (+m[1] + 1)).slice(-2) + m[2]; };
+          ['pos', 'done', 'dur'].forEach((f) => { if (v[f]) { const o = {}; Object.keys(v[f]).forEach((k) => { o[sh(k)] = v[f][k]; }); v[f] = o; } }); if (v.last) v.last = sh(v.last);
+        }
+        return v;
+      }
+    } catch (e) { /* ignore */ }
+    return { pos: {}, done: {}, last: '', vs: 1 };
+  }
   function vSave() { try { localStorage.setItem('mj_video', JSON.stringify(S.vid.d)); } catch (e) { /* ignore */ } }
   function vScan() { // 動画の置き場所(いくつか探す)の「番号_題名.mp4」から、一覧を作る。サムネイルは、ゲームの中に入っている
     const dirs = globalThis.__videoDirs || [(globalThis.__dataDir || '.') + '/video'], files = [], have = {}, seen = {};
