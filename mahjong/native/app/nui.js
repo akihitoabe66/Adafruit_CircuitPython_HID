@@ -956,9 +956,9 @@
     M.steps.forEach((st, i) => { const w = M.tl[i]; const u = t >= w.b ? 1 : t >= w.a ? (t - w.a) / st.dur : 0; for (let d = 11; d < st.len * u; d += 11) { const q = shift(mapAlong(st, d / st.len)); fill(Math.round(q[0]) - 1, Math.round(q[1]) - 1, 3, 3, [196, 52, 40], 210); } });
     const p2 = shift(pos), sx = Math.round(p2[0]), sy = Math.round(p2[1]), fr = walking ? [1, 2, 3, 2][Math.floor(t / 130) % 4] : 0, bob = walking ? Math.round(Math.sin(t / 65) * 1.5) : 0;
     if (walking && __now() - M.tapT > 260) { M.tapT = __now(); NSND.sfx('select', 0.16); }
-    fill(sx - 13, sy - 3, 26, 7, [0, 0, 0], 70); fill(sx - 10, sy - 2, 20, 5, [0, 0, 0], 120); fill(sx - 6, sy - 1, 12, 3, [0, 0, 0], 170); // 足もとの 丸い影
-    gfx.image('img/map/w' + fr + (face < 0 ? 'f' : '') + 'g.webp', sx - 23, sy - 57 + bob, 47, 71, 255); /* 白くボケた縁どりつき */ // 左へ歩くときは、左右反転
-    { const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); gPoly([[sx - 7, sy - 72 - bob2], [sx + 7, sy - 72 - bob2], [sx, sy - 60 - bob2]], [255, 224, 60], 240); } // 頭の上の ▼(ずっと出して、どこにいるか分かるように)
+    fill(sx - 17, sy - 3, 34, 8, [0, 0, 0], 70); fill(sx - 13, sy - 2, 26, 6, [0, 0, 0], 120); fill(sx - 8, sy - 1, 16, 4, [0, 0, 0], 170); // 足もとの 丸い影
+    gfx.image('img/map/w' + fr + (face < 0 ? 'f' : '') + 'g.webp', sx - 23, sy - 70 + bob, 46, 78, 255); /* 画面と同じ大きさで作った絵(拡大しない = ぼやけない)。 白+こげ茶のふち */ // 左へ歩くときは、左右反転
+    { const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); gPoly([[sx - 7, sy - 87 - bob2], [sx + 7, sy - 87 - bob2], [sx, sy - 75 - bob2]], [255, 224, 60], 240); } // 頭の上の ▼(ずっと出して、どこにいるか分かるように)
     // 左上のわく: 段位
     const dn = curDan, lw = Math.max(56, gfx.measure(MAP_DAN[dn], 19) + 14); fill(MAP_V.x0 + ox + 22, MAP_V.y0 + 16, lw, 26, [244, 232, 200]); frame(MAP_V.x0 + ox + 22, MAP_V.y0 + 16, lw, 26, [120, 84, 40], 2); text(MAP_DAN[dn], MAP_V.x0 + ox + 22 + lw / 2, MAP_V.y0 + 20, 19, [150, 30, 20], 1);
     if (M.congrats || (M.tenka && arrived)) { if (!M.vsaid) { M.vsaid = true; NSND.speak(['v:eisei']); } /* 永世名人の声 */ const tt2 = M.congrats ? t : t - M.endT, k = 1 + Math.sin(tt2 / 220) * 0.03, w = Math.round(600 * k), h = Math.round(w * 0.1404), cy = 190; fill(0, cy - 66, SW, 146, [10, 8, 14], 150); gfx.image('img/map/congrats.webp', Math.round(SW / 2 - w / 2), Math.round(cy - h / 2) - 18, w, h, 255); text('天下統一!', SW / 2, cy + 34, 32, [255, 224, 90], 1); for (let i = 0; i < 14; i++) { const a = tt2 / 600 + i * 1.7, qx = Math.round(SW / 2 + Math.cos(a * 1.3 + i) * 290), qy = Math.round(cy + Math.sin(a * 2.1 + i * 2) * 52), sz = 3 + (i % 3); if (Math.sin(tt2 / 130 + i * 2.3) > -0.2) { fill(qx - sz, qy, sz * 2 + 1, 1, [255, 240, 150], 230); fill(qx, qy - sz, 1, sz * 2 + 1, [255, 240, 150], 230); } } }
@@ -1006,25 +1006,28 @@
   function drawCert() {
     const C = S.cert, nw = __now(); C.vt = (C.vt || 0) + Math.min(nw - (C.l || nw), 50); C.l = nw; const t = C.vt, CW = 334, CH = 468, cx = 40; // 画面が止まっても、アニメは 1コマずつ 最後まで見せる(時計は 1コマ最大50msだけ進める)
     gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 175);
-    const sh = (t > 1120 && t < 1560) ? Math.round(Math.sin((t - 1120) / 20) * 18 * (1 - (t - 1120) / 440)) : 0;
+    const TI = 1340; // ハンコが紙に当たる時刻(はじめは ゆっくり、そのあと 一気に)
+    const sh = (t > TI && t < TI + 440) ? Math.round(Math.sin((t - TI) / 20) * 18 * (1 - (t - TI) / 440)) : 0;
     fill(cx + 6, 10, CW, CH - 8, [0, 0, 0], 120); gfx.image('img/cert.webp', cx + sh, 0, CW, CH, 255);
     const K = CW / 809, px = (x) => cx + sh + Math.round(CW * x), py = (y) => Math.round(CH * y);
     text(C.rk.dan || '', px(0.37), py(0.434) - 14 + ((C.rk.dan || '').length > 3 ? 3 : 0), (C.rk.dan || '').length > 3 ? 19 : 25, [17, 17, 17], 1); text('あなた', px(0.445), py(0.48) - 11, 21, [17, 17, 17], 1);
     rrect(px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 2, [122, 163, 179]); if (!gfx.imageTop('img/certface/01.webp', px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139))) gfx.image(youSrc(), px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 255); // 証明写真: 背景を切りぬいた絵を、画面の本当の解像度で(くっきり)
-    { // ハンコ: 大きく(手前から) → 加速して 当たる (大きなゆれ・白いフラッシュ・ ぺちゃっと つぶれてもどる)
-      const base = Math.round(CW * 0.15), cxs = px(0.645), cys = py(0.775);
-      if (t > 560 && t < 1120) { const k = (t - 560) / 560, e = k * k * k, z = Math.round(base * (1 + (1 - e) * 4.2)), a = Math.round(255 * Math.min(1, k * 2.5)), ang = -45 * (1 - k) * (1 - k); gfx.imageRotTop('img/cert_stamp.webp', cxs, cys, z, z, a, ang); /* 少し(45度)まわりながら近づく */ }
-      else if (t >= 1120) { const u = (t - 1120) / 160, z = Math.round(base * (1 + 0.16 * Math.max(0, 1 - u))); gfx.image('img/cert_stamp.webp', cxs - Math.round(z / 2), cys - Math.round(z / 2), z, z, 255); }
-      if (t >= 1120 && t < 1620) { const u = (t - 1120) / 500;
-        if (t < 1260) fill(0, 0, SW, SH, [255, 255, 255], Math.round(150 * (1 - (t - 1120) / 140))); // 白いフラッシュ
-      }
+    { // ハンコ: はじめは ゆっくり(大きく、ふわっと 近づく) → 一気に加速して バンッ(慣性) → 当たったあと 少しめりこんで、はねかえって おさまる
+      const base = Math.round(CW * 0.15), cxs = px(0.645), cys = py(0.775), TS = 450, TF = TI - 150; // TS=見えはじめ TF=加速をはじめる時刻
+      if (t > TS && t < TI) {
+        let m, ang, a;
+        if (t < TF) { const k = (t - TS) / (TF - TS), e = k * k * (3 - 2 * k); m = 5.4 - 1.6 * e; ang = -48 + 14 * e; a = Math.round(255 * Math.min(1, k * 2.2)); } // ゆっくり: 5.4倍 → 3.8倍
+        else { const k = (t - TF) / (TI - TF), e = k * k * k * k; m = 3.8 - 2.8 * e; ang = -34 * (1 - e); a = 255; } // 一気に: 3.8倍 → 1倍(加速しながら ぶつかる)
+        const z = Math.round(base * m); gfx.imageRotTop('img/cert_stamp.webp', cxs, cys, z, z, a, ang);
+      } else if (t >= TI) { const u = (t - TI) / 1000, sq = 1 - 0.14 * Math.exp(-7 * u) * Math.cos(u * 26), z = Math.round(base * sq); gfx.image('img/cert_stamp.webp', cxs - Math.round(z / 2), cys - Math.round(z / 2), z, z, 255); } // 慣性: ぶつかったあと めりこんで(小さく) → はねかえって → おさまる
+      if (t >= TI && t < TI + 140) fill(0, 0, SW, SH, [255, 255, 255], Math.round(150 * (1 - (t - TI) / 140))); // 白いフラッシュ
     }
-    if (t >= 1120 && !C.snd) { C.snd = true; NSND.sfx('slam'); if (C.rk.to >= 1 && C.rk.to <= 11) setTimeout(() => { if (S.cert === C) NSND.speak(['d:0', 'd:' + C.rk.to]); }, 700); } // ハンコのあと「昇格したのだ。〇〇になりました。」
+    if (t >= TI && !C.snd) { C.snd = true; NSND.sfx('slam'); if (C.rk.to >= 1 && C.rk.to <= 11) setTimeout(() => { if (S.cert === C) NSND.speak(['d:0', 'd:' + C.rk.to]); }, 700); } // ハンコのあと「昇格したのだ。〇〇になりました。」
     if (t > 300) { text('昇段 おめでとう!', 590, 120, 38, YEL, 1); text(C.rk.dan + 'に なりました', 590, 180, 28, WHITE, 1); }
-    if (t > 1500) text('決定ボタンで すすむ', 590, 400, 22, [210, 225, 205], 1);
-    if (t < 1700) dirty();
+    if (t > TI + 380) text('決定ボタンで すすむ', 590, 400, 22, [210, 225, 205], 1);
+    if (t < TI + 600) dirty();
   }
-  function certKey(k) { const C = S.cert; if (!C || (C.vt || 0) < 1500) return; if (k === 'ok' || k === 'back') { S.cert = null; C.then(); } dirty(); }
+  function certKey(k) { const C = S.cert; if (!C || (C.vt || 0) < 1720) return; if (k === 'ok' || k === 'back') { S.cert = null; C.then(); } dirty(); }
   function drawReveal() { // 新しい雀士: 黒いシルエット → 顔と名前
     const V = S.reveal, t = __now() - V.t0, c = MJ.CHARS.find((x) => x.id === V.ids[V.i]);
     gfx.clear(8, 16, 22); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], t < 900 ? 215 : 160);
