@@ -386,6 +386,11 @@
     if (kind === 'down') { rrect(x, y, URA_W, URA_HS, 3, URA_C.BLUE_L); rrect(x + 1, y + 1, URA_W - 2, URA_HS - 2, 2, URA_C.BLUE); }
     else { rrect(x, y, URA_W, URA_HS, 3, URA_C.CREAM); rrect(x + 1, y + 1, URA_W - 2, URA_HS - 2, 2, URA_C.FACE); tile(tl.t, x + 1, y + 1, URA_W - 2, URA_HS - 2, tl.red); }
   }
+  function uraWallStatic(g) { // ふだんの王牌: アニメと同じ形・同じ場所に描く
+    const isInd = {}; (g.doraInd || []).slice(0, 5).forEach((d, k) => { if (d) isInd[4 - k] = d; });
+    for (let i = 0; i < 7; i++) uraTile(URA_X(i), URA_YL, 'down');
+    for (let i = 0; i < 7; i++) uraTile(URA_X(i), URA_YU, isInd[i] ? 'up' : 'down', isInd[i]);
+  }
   function uraDone() { const U = S.ura; if (!U) return; S.ura = null; dirty(); try { U.res(); } catch (e) { /* ignore */ } }
   function uraSkip() { // 決定ボタン: 「トンッ」と置かれたところまで すぐ進む。 もう一度 押すと 結果の画面へ
     const U = S.ura; if (!U) return;
@@ -435,8 +440,7 @@
     panel(218, 163, 281, 101, 14, [6, 44, 26], [90, 140, 110], 2);
     const lb = g.kyokuLabel().split(' '); text(lb[0], 234, 170, 28, WHITE); text('供託 ' + g.kyotaku + (lb[1] ? '  ' + lb[1] : ''), 234, 204, 17, [200, 215, 200]);
     text('残り', 234, 228, 18, WHITE); text(String(g.live.length), 280, 220, 34, YEL); text('枚', 334, 230, 18, WHITE);
-    { const WX = 356, WY = 188, WS = 128 / 219; gfx.image('img/wall.webp', WX, WY, 128, Math.round(88 * WS), 255); // 王牌の絵の上に、ドラ表示牌を重ねる
-      (g.doraInd || []).slice(0, 5).forEach((d, k) => { if (d) tile(d.t, WX + Math.round((3.4 + (4 - k) * 30.1) * WS), WY + Math.round(4.4 * WS), Math.round(29.2 * WS), Math.round(39.4 * WS), d.red); }); }
+    uraWallStatic(g); // 王牌(7本・2段): 裏ドラのアニメと同じ、新しい描きかたで(ドラ表示牌は、表にして立てる)
     [[0, 322, 249, 72, 10, 'c0'], [2, 322, 167, 72, 10, 'c180'], [1, 484, 177, 10, 72, 'c90'], [3, 222, 177, 10, 72, 'c90']].forEach((r) => { if (P[r[0]].riichi) gfx.image('img/tenbo_' + r[5] + '.webp', r[1], r[2], r[3], r[4], 255); }); // リーチ棒: 中央の板の縁の内側に、立てた人の方向で
     }
     });
