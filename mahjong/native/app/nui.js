@@ -974,8 +974,8 @@
   function drawPromo() {
     const P = S.promo; gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
     text('昇段の演出テスト', SW / 2, 10, 30, YEL, 1); text('記録には、のこりません', SW / 2, 48, 16, [205, 224, 212], 1);
-    const rows = [['昇段前の段位', MJ.DAN_NAME(P.from)], ['昇段後の段位', MJ.DAN_NAME(P.to)], ['道すじ', MAP2.sets[mapSetNo()].name], ['認定証から ながす', ''], ['天下統一の お祝いだけ', ''], ['もどる', '']];
-    rows.forEach((r, i) => { const y = 74 + i * 54, sel = P.row === i; panel(140, y, 552, 48, 12, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2); text(r[0], i < 3 ? 170 : SW / 2, y + 9, 24, BLACK, i < 3 ? 0 : 1); if (i < 3) { text('◀', 440, y + 11, 20, [90, 90, 80], 1); text(r[1], i === 2 ? 565 : 570, y + 7, i === 2 ? 22 : 28, [190, 60, 40], 1); text('▶', 672, y + 11, 20, [90, 90, 80], 1); } });
+    const rows = [['昇段前の段位', MJ.DAN_NAME(P.from)], ['昇段後の段位(自動)', MJ.DAN_NAME(P.to)], ['道すじ', MAP2.sets[mapSetNo()].name], ['認定証から ながす', ''], ['天下統一の お祝いだけ', ''], ['もどる', '']];
+    rows.forEach((r, i) => { const y = 74 + i * 54, sel = P.row === i; panel(140, y, 552, 48, 12, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2); text(r[0], i < 3 ? 170 : SW / 2, y + 9, 24, BLACK, i < 3 ? 0 : 1); if (i < 3 && i !== 1) text('◀', 440, y + 11, 20, [90, 90, 80], 1); if (i < 3) { text(r[1], i === 2 ? 565 : 570, y + 7, i === 2 ? 22 : 28, [190, 60, 40], 1); if (i !== 1) text('▶', 672, y + 11, 20, [90, 90, 80], 1); } });
     text('▲▼ えらぶ   ◀▶ 段位・道すじ   決定: ながす   戻る: もどる', SW / 2, 436, 16, [210, 225, 205], 1);
   }
   function promoKey(k) {
@@ -984,7 +984,7 @@
     if (k === 'back') { S.mode = 'menu'; S.promo = null; NSND.home(); dirty(); return; }
     if (k === 'up') P.row = wrap(P.row - 1, 6); else if (k === 'down') P.row = wrap(P.row + 1, 6);
     else if ((k === 'left' || k === 'right') && P.row === 2) { S.mapSet = wrap(mapSetNo() + (k === 'left' ? -1 : 1), MAP2.sets.length); }
-    else if ((k === 'left' || k === 'right') && P.row < 2) { const d = k === 'left' ? -1 : 1; if (P.row === 0) { P.from = Math.max(0, Math.min(10, P.from + d)); if (P.to <= P.from) P.to = P.from + 1; } else P.to = Math.max(P.from + 1, Math.min(11, P.to + d)); }
+    else if ((k === 'left' || k === 'right') && P.row < 2) { const d = k === 'left' ? -1 : 1; if (P.row === 0) { P.from = Math.max(0, Math.min(10, P.from + d)); P.to = P.from + 1; } }
     else if (k === 'ok') {
       if (P.row === 3) { S.mode = 'menu'; startCert({ dan: MJ.DAN_NAME(P.to), from: P.from, to: P.to, promoted: true }, back); }
       else if (P.row === 4) { S.mode = 'menu'; startMap({ from: 11, to: 11, congrats: true }, back); }
@@ -1630,7 +1630,7 @@
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
-  window.__openPromo = () => { if (S.game) return false; S.promo = S.promo || { from: 0, to: 3, row: 0 }; S.mode = 'promo'; S.rankScr = null; dirty(); return true; }; // シミュレーターのボタンから、昇段の演出テストを開く
+  window.__openPromo = () => { if (S.game) return false; S.promo = S.promo || { from: 0, to: 1, row: 0 }; S.mode = 'promo'; S.rankScr = null; dirty(); return true; }; // シミュレーターのボタンから、昇段の演出テストを開く
   window.__startMap = (a, b, c, ms) => { if (ms != null) S.mapSet = ms; S.mode = 'menu'; startMap({ from: a || 0, to: b || 3, congrats: !!c }, () => { S.mode = 'menu'; dirty(); }); }; window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, dice: !!S.dice, ros: S.ros ? [S.ros.sel, (S.ros.pick || []).length, S.ros.menu ? S.ros.menu.idx : -1] : null, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
@@ -2124,7 +2124,7 @@
         if (!S.hidP || nw - (S.hidT2 || 0) > 2500) S.hidP = 0; S.hidT2 = nw; if (k === PERFSEQ[S.hidP]) S.hidP++; else S.hidP = k === PERFSEQ[0] ? 1 : 0;
         if (S.hidP >= PERFSEQ.length) { S.hidP = 0; try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } perf.flash = __now() + 3000; dirty(); return; }
         if (!S.hidQ || nw - (S.hidT3 || 0) > 2500) S.hidQ = 0; S.hidT3 = nw; if (k === PROMOSEQ[S.hidQ]) S.hidQ++; else S.hidQ = k === PROMOSEQ[0] ? 1 : 0;
-        if (S.hidQ >= PROMOSEQ.length) { S.hidQ = 0; S.promo = S.promo || { from: 0, to: 3, row: 0 }; S.mode = 'promo'; dirty(); return; }
+        if (S.hidQ >= PROMOSEQ.length) { S.hidQ = 0; S.promo = S.promo || { from: 0, to: 1, row: 0 }; S.mode = 'promo'; dirty(); return; }
         if (S.hidQ === PROMOSEQ.length - 1) return;
         if (S.hidP === PERFSEQ.length - 1) return;
       }
