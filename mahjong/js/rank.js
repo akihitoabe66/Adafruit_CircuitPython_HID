@@ -1,5 +1,5 @@
 /* 段位・対戦成績・認定証と、自動セーブ(つづき)。
-   段位: 無段から始まり、初段〜九段、その先(10段め)が名人。東南戦は 1位+30 / 2位+15 / 3位+5 / 4位-10、東風戦はその半分。麻雀クイズ10問正解で+2点(1日+6点まで)、点数計算の勉強は、各カテゴリの最初のチャレンジ正解で+3点。
+   段位: 無段から始まり、初段〜九段、その先(10段め)が名人、さらに上が永世名人。東南戦は 1位+30 / 2位+15 / 3位+5 / 4位-10、東風戦はその半分。麻雀クイズ10問正解で+2点(1日+6点まで)、点数計算の勉強は、各カテゴリの最初のチャレンジ正解で+3点。
    降段: 三段以上は、その段の入口から40点下回ると1つ下がる(初段・二段は下がらない。初段になったあとは、無段に戻らない)。
    セーブ: 局のはじめごとに自動で保存し、「つづきから」で、その局のはじめから再開する(牌は配り直す)。 */
 (function (G) {
@@ -9,7 +9,7 @@
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
   /* 段位の表: [名前, 必要な累計点]。無段(0点)から始まる */
-  const DAN = [['無段', 0], ['初段', 100], ['二段', 250], ['三段', 450], ['四段', 700], ['五段', 1000], ['六段', 1350], ['七段', 1750], ['八段', 2150], ['九段', 2550], ['名人', 2950]];
+  const DAN = [['無段', 0], ['初段', 100], ['二段', 250], ['三段', 450], ['四段', 700], ['五段', 1000], ['六段', 1350], ['七段', 1750], ['八段', 2150], ['九段', 2550], ['名人', 2950], ['永世名人', 99999]]; // 永世名人: 点では 上がれない(名人のあと、徳川家康と水戸黄門が そろう「天下分け目」の対局で 1位になったとき)
   const PTS = { south: [30, 15, 5, -10], east: [15, 8, 3, -5] }; // 東風戦は、東南戦の半分
   const DEMOTE_FROM = 3, DEMOTE_GAP = 40; // 三段以上は、入口から40点下回ると降段
   /* 実機版(MJ.RankScale = true のとき): ポイントに「相手の強さ」をかける。 基準の強さ=1+0.8×段位。 相手3人の★の平均が高いほど、勝ち(1・2位)は増え、負け(4位)は減りかたが小さい。
@@ -24,6 +24,7 @@
   const addPt = (s, delta) => {
     const before = s.dan;
     s.pt = Math.max(0, s.pt + delta);
+    if (before >= DAN.length - 1) return { before, after: before }; // 永世名人は、降段しない
     let d = s.dan;
     while (d < DAN.length - 1 && s.pt >= DAN[d + 1][1]) d++;
     while (d >= DEMOTE_FROM && s.pt < DAN[d][1] - DEMOTE_GAP) d--;
@@ -59,6 +60,7 @@
       }
       s.hist = (s.hist || []).concat({ p: delta, r: me.rank, o: avg == null ? null : Math.round(avg * 10) / 10 }).slice(-30);
       const ch = addPt(s, delta); s.games++; s.ranks[me.rank - 1]++;
+      if (game.tenka && me.rank === 1 && ch.after === DAN.length - 2) { s.dan = DAN.length - 1; s.maxdan = DAN.length - 1; ch.after = DAN.length - 1; } // 天下分け目(名人+徳川家康+水戸黄門)で 1位 → 永世名人
       final.results.forEach((r) => {
         if (r.p.seat === 0 || !r.p.char || !r.p.char.id) return;
         const o = (s.opp[r.p.char.id] = s.opp[r.p.char.id] || { n: 0, w: 0 });

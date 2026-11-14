@@ -237,6 +237,7 @@
     const f = S.side ? S.side.idx : -1;
     sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 765, 14, 15, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
     sbtn(796, 6, 30, 32, [50, 90, 160], [25, 50, 100], [''], f === 3, 13); fill(803, 17, 4, 10, WHITE); fill(807, 14, 3, 16, WHITE); fill(810, 11, 3, 22, WHITE); fill(816, 17, 2, 10, WHITE);
+    if (g.tenka) { rrect(728, 92, 98, 22, 8, [190, 40, 40]); text('天下分け目', 777, 94, 14, WHITE, 1); } // 家康と黄門が そろった 一戦
     if (g.practice) { rrect(728, 92, 98, 22, 8, [160, 70, 140]); text(g.watching ? '観戦(記録なし)' : '練習(記録なし)', 777, 94, 14, WHITE, 1); } // 練習対局のしるし
     { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 44, 24, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 70, 16, [200, 215, 200], 1); }
     {
@@ -876,7 +877,7 @@
     }
     if (pg > 0) gPoly([[14, 198], [14, 242], [0, 220]], YEL, 200);
     const c = L[R.sel], st = state(c), px = 612, py = 64, pw = 200; panel(px, py, pw, 348, 14, [6, 28, 18], [140, 190, 130], 3, 255);
-    if (R.dan) { text('あなたの段位', px + pw / 2, py + 18, 18, YEL, 1); text(MJ.DAN_NAME(dan), px + pw / 2, py + 52, 46, WHITE, 1); const nx2 = (() => { try { return MJ.Rank.newIds(dan, dan + 1).length; } catch (e) { return 0; } })(); if (dan < 10) { text(MJ.DAN_NAME(dan + 1) + 'に なると', px + pw / 2, py + 130, 17, WHITE, 1); text(nx2 ? 'あと ' + nx2 + '人 登場します' : 'つよく なります', px + pw / 2, py + 156, 18, [255, 214, 120], 1); } text('決定ボタンで 段位の画面へ', px + pw / 2, py + 300, 15, [200, 215, 205], 1); }
+    if (R.dan) { text('あなたの段位', px + pw / 2, py + 18, 18, YEL, 1); text(MJ.DAN_NAME(dan), px + pw / 2, py + 52, 46, WHITE, 1); const nx2 = (() => { try { return MJ.Rank.newIds(dan, dan + 1).length; } catch (e) { return 0; } })(); if (dan < 11) { text(MJ.DAN_NAME(dan + 1) + 'に なると', px + pw / 2, py + 130, 17, WHITE, 1); text(nx2 ? 'あと ' + nx2 + '人 登場します' : 'つよく なります', px + pw / 2, py + 156, 18, [255, 214, 120], 1); } text('決定ボタンで 段位の画面へ', px + pw / 2, py + 300, 15, [200, 215, 205], 1); }
     else if (st === 2) { rrect(px + 43, py + 13, 114, 114, 8, WHITE); gfx.image(skin(c.face), px + 44, py + 14, 112, 112, 255); text(c.short || c.name, px + pw / 2, py + 134, fitSz(c.short || c.name, 22, 180, 14), YEL, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', px + pw / 2, py + 166, 14, WHITE, 1); const el = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; if (el > c.level) text('いまの段位では ' + MJ.starStr(el), px + pw / 2, py + 186, 14, YEL, 1); text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), px + pw / 2, py + (el > c.level ? 206 : 188), 14, WHITE, 1); const f = fitRich(c.desc || '', [15, 14, 13], 176, 104); richDraw(f.lines, px + 12, py + 232, f.sz, [230, 240, 225], 0); }
     else { gfx.image('img/sil/' + pad(c.id) + '.webp', px + 44, py + 14, 112, 112, 255); frame(px + 43, py + 13, 114, 114, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', px + 77, py + 45, 46, 64, 255); text('？？？？', px + pw / 2, py + 134, 22, YEL, 1); const m = st === 0 ? MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'になると、\n登場します。' : 'まだ 出会っていません。\n4局以上 最後まで 対局すると、\n出会えます。'; const f = fitRich(m, [15, 14, 13], 176, 120); richDraw(f.lines, px + 12, py + 176, f.sz, [230, 240, 225], 0); }
     for (let k = 0; k < pages; k++) { const cx = 190 + k * 26; rrect(cx - 7, 424, 14, 14, 7, k === pg ? YEL : [80, 100, 90]); }
@@ -912,57 +913,54 @@
   /* ---------- 段位の画面(背景の絵の座標は、絵のピクセル 1404x768) ---------- */
   /* ---------- 昇段のおいわい: 認定証(あなたの絵・判子つき)→ 新しい雀士の登場 ---------- */
   /* ---------- 昇段の地図(源平討魔伝ふう): 段位が上がると、ずんだもんが 九州から 関東へ 歩いていく ---------- */
-  const MAP_POS = {0:[228,600],1:[249,466],2:[513,460],3:[488,302],4:[678,339],5:[779,442],6:[858,337],7:[972,391],8:[994,217],9:[1159,284],10:[1181,298]};
-  const MAP_ROUTE = {1:[[230,586],[232,573],[239,559],[245,546],[249,533],[252,519],[253,506],[253,492],[247,479],[249,466]],2:[[275,474],[301,484],[328,489],[354,492],[381,494],[407,492],[433,487],[460,484],[486,478],[513,460]],3:[[510,444],[502,428],[496,412],[494,396],[492,381],[491,365],[490,349],[490,333],[490,317],[488,302]],4:[[507,306],[526,311],[545,314],[564,317],[583,320],[602,324],[621,328],[640,332],[659,335],[678,339]],5:[[688,349],[698,359],[712,369],[728,380],[739,390],[748,400],[756,411],[763,421],[769,431],[779,442]],6:[[787,431],[797,421],[804,410],[811,400],[818,389],[826,379],[834,368],[842,358],[850,347],[858,337]],7:[[869,342],[880,348],[892,352],[903,358],[915,364],[926,369],[937,374],[949,379],[960,386],[972,391]],8:[[989,373],[988,356],[988,338],[988,321],[989,304],[989,286],[989,269],[991,251],[992,234],[994,217]],9:[[1010,223],[1027,230],[1043,237],[1060,244],[1076,250],[1093,257],[1109,264],[1126,271],[1142,277],[1159,284]],10:[[1181,298]]}; // ユーザーが 地図に描いた 点と道すじ(1376x768の地図の座標)
-  const MAP_DAN = ['無段', '初段', '二段', '三段', '四段', '五段', '六段', '七段', '八段', '九段', '名人'];
+  const MAP_DAN = ['無段', '初段', '二段', '三段', '四段', '五段', '六段', '七段', '八段', '九段', '名人', '永世名人'];
+  const MAP_PLACE = ['肥後国(熊本)', '筑前国(福岡)', '讃岐国(香川)', '安芸国(広島)', '山城国(京都)', '摂津国(大阪)', '信濃国(長野)', '越後国(新潟)', '駿河国(静岡)の手前', '駿河国(静岡)', '江戸(東京)', '奥州'];
   const MAP_SAY = [ // 段位ごとの、ずんだもんの ひとこと(その段位に 着いたとき)
-    'ここは 熊本。ぼくの 麻雀の旅が はじまるのだ!', '初段! 福岡で 腕だめしなのだ。博多ラーメンが 食べたいのだ', '二段! 海を わたって 四国へ。うどんが おいしそうなのだ', '三段! 中国路を 歩くのだ。強い相手が ふえてきたのだ',
-    '四段! 近畿に とうちゃく! 都は 人が いっぱいなのだ', '五段! 近畿の 奥まで 来たのだ。やっと 一人前なのだ', '六段! 東海道を 江戸へ。富士山が 見えるのだ', '七段! 東海道も 終盤なのだ。達人たちの うわさを 聞くのだ',
-    '八段! 山を こえて 中部へ。ここからが 本番なのだ', '九段! ついに 関東へ! 名人は もうすぐなのだ', '名人! 天下一の 雀士に なったのだ!'];
-  // 地図(巻物)の置きかた: 元の絵(1376x768)から (45,20)-(1331,692) を切り出して、画面で 720x376 に出す
-  const MAP_SC = { x0: 56, y0: 22, w: 720, h: 376, sx: 45, sy: 20, k: 720 / 1286 };
-  const mapPt = (q) => [MAP_SC.x0 + (q[0] - MAP_SC.sx) * MAP_SC.k, MAP_SC.y0 + (q[1] - MAP_SC.sy) * MAP_SC.k];
-  const MAP_T = { slide: 1300, hold: 1100, walk: 3500, dwell: 1400 };
-  function startMap(rk, then) { // 昇段のあと、認定証のあとに 出す。 rk.from → rk.to を、1段ずつ 歩く
-    const from = Math.max(0, Math.min(10, rk.from || 0)), to = Math.max(from, Math.min(10, rk.to || 0)), steps = [];
-    for (let d = from + 1; d <= to; d++) { const pts = [MAP_POS[d - 1]].concat(MAP_ROUTE[d] || [MAP_POS[d]]).map(mapPt); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d, pts, seg, len }); }
-    let tt = MAP_T.slide + MAP_T.hold; const tl = steps.map((st, i) => { const a = tt; tt += MAP_T.walk; const b = tt; tt += i < steps.length - 1 ? MAP_T.dwell : 0; return { a, b }; });
+    'ここは 肥後国、熊本。ぼくの 麻雀の旅が はじまるのだ!', '初段! 筑前国、福岡で 腕だめしなのだ。博多ラーメンが 食べたいのだ', '二段! 海を わたって 讃岐国へ。うどんが おいしそうなのだ', '三段! 安芸国、広島に とうちゃく。強い相手が ふえてきたのだ',
+    '四段! 山城国、京の都なのだ。人が いっぱいなのだ', '五段! 摂津国、大阪に 来たのだ。やっと 一人前なのだ', '六段! 信濃国、長野の 山あいなのだ。空気が おいしいのだ', '七段! 北の 越後国、新潟まで 来たのだ。海が きれいなのだ',
+    '八段! 駿河国の 手前まで 来たのだ。富士山が 近いのだ', '九段! 駿河国、静岡に とうちゃく。江戸は もうすぐなのだ', '名人! ついに 江戸、東京なのだ! 天下は もう目の前なのだ', '永世名人! 奥州まで 平定して 天下統一なのだ!'];
+  // 地図(巻物)の置きかた: 元の絵(1375x768)から 巻物の部分を切り出し、画面の 780x392 に 収まる大きさで出す
+  const MAP_V = (() => { const k = Math.min(780 / MAP2.bw, 392 / MAP2.bh), w = MAP2.bw * k, h = MAP2.bh * k; return { k, w, h, x0: Math.round((SW - w) / 2), y0: 8 }; })();
+  const mapPt = (q) => [MAP_V.x0 + (q[0] - MAP2.ox) * MAP_V.k, MAP_V.y0 + (q[1] - MAP2.oy) * MAP_V.k];
+  const mapStop = (d) => mapPt(d <= 0 ? MAP2.legs[0][0] : MAP2.legs[d - 1][MAP2.legs[d - 1].length - 1]);
+  const MAP_T = { slide: 1400, hold: 1100, dwell: 1500 };
+  function startMap(rk, then) { // 昇段のあと、認定証のあとに 出す。 rk.from → rk.to を、1段ずつ 歩く(行き止まりの枝は、分かれ道まで 戻って 次へ)
+    const from = Math.max(0, Math.min(11, rk.from || 0)), to = Math.max(from, Math.min(11, rk.to || 0)), steps = [];
+    for (let d = from + 1; d <= to; d++) { const pts = MAP2.legs[d - 1].map(mapPt); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d, pts, seg, len, dur: Math.max(2400, Math.min(9000, len / 38 * 1000)) }); }
+    let tt = MAP_T.slide + MAP_T.hold; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; tt += i < steps.length - 1 ? MAP_T.dwell : 0; return { a, b }; });
     try { NSND.mapOn(); } catch (e) { /* ignore */ }
-    S.map = { congrats: !!rk.congrats, rk, from, to, steps, tl, endT: steps.length ? tt : MAP_T.slide + MAP_T.hold, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
+    S.map = { congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: steps.length ? tt : MAP_T.slide + MAP_T.hold, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
   }
   function mapAlong(st, u) { const dist = st.len * u; let i = 1; while (i < st.pts.length - 1 && st.seg[i] < dist) i++; const a = st.pts[i - 1], b = st.pts[i], sl = st.seg[i] - st.seg[i - 1] || 1, v = Math.max(0, Math.min(1, (dist - st.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v]; }
+  function drawWater(t) { // 水面: 横長の帯を、少しずつ ずらして 波うたせる(2枚 重ねて、きらめき)
+    gfx.clear(20, 40, 56);
+    for (let i = 0; i < 14; i++) { const y = Math.round(i * 33.4), x = -64 + Math.round(Math.sin(t / 1000 + i * 0.55) * 20 + Math.sin(t / 1700 + i * 1.3) * 10); gfx.image('img/map/wa' + i + '.webp', x, y, 960, 36, 255); }
+    for (let i = 0; i < 14; i++) { const y = Math.round(i * 33.4) + 5, x = -64 + Math.round(Math.sin(t / 820 + i * 0.9 + 2) * 18 + Math.sin(t / 1300 + i * 0.4) * 12); gfx.image('img/map/wa' + ((i + 5) % 14) + '.webp', x, y, 960, 36, 70); }
+  }
   function drawMap() {
-    const M = S.map, t = __now() - M.t0, arrived = t >= M.endT, ease = Math.min(1, t / MAP_T.slide), eo = 1 - Math.pow(1 - ease, 3), ox = Math.round(-(1 - eo) * (SW - MAP_SC.x0 + 40));
-    gfx.clear(150, 200, 232); fill(0, 0, SW, 200, [176, 214, 240]); fill(0, 200, SW, SH - 200, [196, 226, 244]); // 水色の背景
-    [[90, 70, 150, 34], [420, 48, 190, 40], [640, 120, 130, 30], [230, 430, 160, 30], [560, 440, 150, 30]].forEach((c, i) => { const cx = ((c[0] + t / 90 * (1 + i % 3 * 0.4)) % (SW + 300)) - 150; rrect(cx, c[1], c[2], c[3], c[3] / 2, [255, 255, 255], 200); rrect(cx + c[2] * 0.2, c[1] - c[3] * 0.5, c[2] * 0.5, c[3], c[3] / 2, [255, 255, 255], 200); }); // ゆっくり流れる雲
-    const X = MAP_SC.x0 + ox, Y = MAP_SC.y0, W2 = MAP_SC.w, H2 = MAP_SC.h;
-    fill(X + 6, Y + 8, W2, H2 + 4, [60, 90, 120], 90); // 巻物の影
-    gfx.image('img/map/scroll.webp', X, Y, W2, H2, 255); frame(X, Y, W2, H2, [120, 84, 40], 2);
-    [X - 16, X + W2 - 2].forEach((rx, ri) => { fill(rx, Y - 10, 18, H2 + 20, [92, 58, 28]); fill(rx + 3, Y - 10, 5, H2 + 20, [150, 100, 52]); rrect(rx - 3, Y - 16, 24, 10, 4, [214, 168, 60]); rrect(rx - 3, Y + H2 + 6, 24, 10, 4, [214, 168, 60]); }); // 巻物の 軸(左右)
+    const M = S.map, t = __now() - M.t0, arrived = t >= M.endT, ease = Math.min(1, t / MAP_T.slide), eo = 1 - Math.pow(1 - ease, 3), ox = Math.round((1 - eo) * (SW - MAP_V.x0 + 40)); // 巻物は 右から入ってくる
+    drawWater(__now());
+    gfx.image('img/map/scroll2.webp', MAP_V.x0 + ox, MAP_V.y0, Math.round(MAP_V.w), Math.round(MAP_V.h), 255);
     const shift = (q) => [q[0] + ox, q[1]];
     // いまの位置(歩いている途中か、段位に着いたあと)
-    let pos, walking = false, curDan = M.from, stepIdx = -1;
-    if (!M.steps.length) { pos = mapPt(MAP_POS[M.from]); } else {
-      pos = M.steps[0].pts[0];
-      M.steps.forEach((st, i) => { const w = M.tl[i]; if (t >= w.b) { pos = st.pts[st.pts.length - 1]; curDan = st.d; } else if (t >= w.a) { pos = mapAlong(st, (t - w.a) / MAP_T.walk); walking = true; stepIdx = i; } });
-    }
+    let pos = mapStop(M.from), walking = false, curDan = M.from, stepIdx = -1;
+    M.steps.forEach((st, i) => { const w = M.tl[i]; if (t >= w.b) { pos = st.pts[st.pts.length - 1]; curDan = st.d; } else if (t >= w.a) { pos = mapAlong(st, (t - w.a) / st.dur); walking = true; stepIdx = i; } });
     // 足あと(歩いたところ)
-    M.steps.forEach((st, i) => { const w = M.tl[i]; const u = t >= w.b ? 1 : t >= w.a ? (t - w.a) / MAP_T.walk : 0; for (let d = 12; d < st.len * u; d += 12) { const q = shift(mapAlong(st, d / st.len)); fill(Math.round(q[0]) - 1, Math.round(q[1]) - 1, 3, 3, [196, 52, 40], 210); } });
+    M.steps.forEach((st, i) => { const w = M.tl[i]; const u = t >= w.b ? 1 : t >= w.a ? (t - w.a) / st.dur : 0; for (let d = 11; d < st.len * u; d += 11) { const q = shift(mapAlong(st, d / st.len)); fill(Math.round(q[0]) - 1, Math.round(q[1]) - 1, 3, 3, [196, 52, 40], 210); } });
     const p2 = shift(pos), sx = Math.round(p2[0]), sy = Math.round(p2[1]), fr = walking ? [1, 2, 3, 2][Math.floor(t / 130) % 4] : 0, bob = walking ? Math.round(Math.sin(t / 65) * 1.5) : 0;
     if (walking && __now() - M.tapT > 260) { M.tapT = __now(); NSND.sfx('select', 0.16); }
-    fill(sx - 14, sy - 3, 28, 7, [0, 0, 0], 70); fill(sx - 11, sy - 2, 22, 5, [0, 0, 0], 120); fill(sx - 7, sy - 1, 14, 3, [0, 0, 0], 170); // 足もとの 丸い影
-    gfx.image('img/map/w' + fr + '.webp', sx - 15, sy - 52 + bob, 30, 56, 255);
-    { const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); gPoly([[sx - 7, sy - 78 - bob2], [sx + 7, sy - 78 - bob2], [sx, sy - 66 - bob2]], [255, 224, 60], 240); } // 頭の上の ▼(ずっと出して、どこにいるか分かるように)
+    fill(sx - 13, sy - 3, 26, 7, [0, 0, 0], 70); fill(sx - 10, sy - 2, 20, 5, [0, 0, 0], 120); fill(sx - 6, sy - 1, 12, 3, [0, 0, 0], 170); // 足もとの 丸い影
+    gfx.image('img/map/w' + fr + '.webp', sx - 14, sy - 48 + bob, 28, 52, 255);
+    { const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); gPoly([[sx - 7, sy - 72 - bob2], [sx + 7, sy - 72 - bob2], [sx, sy - 60 - bob2]], [255, 224, 60], 240); } // 頭の上の ▼(ずっと出して、どこにいるか分かるように)
     // 左上のわく: 段位
-    const dn = curDan; fill(MAP_SC.x0 + ox + 20, Y + 10, 56, 26, [244, 232, 200]); frame(MAP_SC.x0 + ox + 20, Y + 10, 56, 26, [120, 84, 40], 2); text(MAP_DAN[dn], MAP_SC.x0 + ox + 48, Y + 14, 19, [150, 30, 20], 1);
-    if (stepIdx !== M.lastStep) { M.lastStep = stepIdx; }
-    if (M.congrats) { const k = 1 + Math.sin(t / 220) * 0.03, w = Math.round(600 * k), h = Math.round(w * 0.1404), cy = 200; fill(0, cy - 56, SW, 112, [10, 8, 14], 130); gfx.image('img/map/congrats.webp', Math.round(SW / 2 - w / 2), Math.round(cy - h / 2), w, h, 255); for (let i = 0; i < 14; i++) { const a = t / 600 + i * 1.7, qx = Math.round(SW / 2 + Math.cos(a * 1.3 + i) * 290), qy = Math.round(cy + Math.sin(a * 2.1 + i * 2) * 48), sz = 3 + (i % 3); if (Math.sin(t / 130 + i * 2.3) > -0.2) { fill(qx - sz, qy, sz * 2 + 1, 1, [255, 240, 150], 230); fill(qx, qy - sz, 1, sz * 2 + 1, [255, 240, 150], 230); } } }
+    const dn = curDan, lw = Math.max(56, gfx.measure(MAP_DAN[dn], 19) + 14); fill(MAP_V.x0 + ox + 22, MAP_V.y0 + 16, lw, 26, [244, 232, 200]); frame(MAP_V.x0 + ox + 22, MAP_V.y0 + 16, lw, 26, [120, 84, 40], 2); text(MAP_DAN[dn], MAP_V.x0 + ox + 22 + lw / 2, MAP_V.y0 + 20, 19, [150, 30, 20], 1);
+    if (M.congrats || (M.tenka && arrived)) { const tt2 = M.congrats ? t : t - M.endT, k = 1 + Math.sin(tt2 / 220) * 0.03, w = Math.round(600 * k), h = Math.round(w * 0.1404), cy = 190; fill(0, cy - 66, SW, 146, [10, 8, 14], 150); gfx.image('img/map/congrats.webp', Math.round(SW / 2 - w / 2), Math.round(cy - h / 2) - 18, w, h, 255); text('天下統一!', SW / 2, cy + 34, 32, [255, 224, 90], 1); for (let i = 0; i < 14; i++) { const a = tt2 / 600 + i * 1.7, qx = Math.round(SW / 2 + Math.cos(a * 1.3 + i) * 290), qy = Math.round(cy + Math.sin(a * 2.1 + i * 2) * 52), sz = 3 + (i % 3); if (Math.sin(tt2 / 130 + i * 2.3) > -0.2) { fill(qx - sz, qy, sz * 2 + 1, 1, [255, 240, 150], 230); fill(qx, qy - sz, 1, sz * 2 + 1, [255, 240, 150], 230); } } }
     // 下の 帯: ずんだもんの ひとこと(1段ずつ)
     panel(24, 408, 784, 54, 12, [252, 246, 228], [120, 84, 40], 3, 245);
     gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]);
-    let msg; if (M.congrats) msg = '名人(水戸黄門)を 倒したのだ! 天下一の 雀士なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = M.steps.length ? MAP_SAY[M.from] : MAP_SAY[M.from]; else if (walking) msg = MAP_DAN[M.steps[stepIdx].d] + 'を めざして テクテク 歩くのだ…'; else msg = MAP_SAY[curDan];
+    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = MAP_SAY[M.from]; else if (walking) msg = MAP_DAN[M.steps[stepIdx].d] + 'を めざして ' + MAP_PLACE[M.steps[stepIdx].d] + 'へ テクテク…'; else msg = MAP_SAY[curDan];
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
-    if (arrived && t - M.endT > 600) text('決定ボタンで つづける', 700, 6, 14, [40, 70, 100], 1);
+    if (arrived && t - M.endT > 600) text('決定ボタンで つづける', 700, 6, 14, [220, 235, 245], 1);
     if (arrived && !M.fin) { M.fin = true; NSND.sfx('start', 0.7); }
     dirty();
   }
@@ -971,7 +969,7 @@
   function drawPromo() {
     const P = S.promo; gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
     text('昇段の演出テスト', SW / 2, 10, 30, YEL, 1); text('記録には、のこりません', SW / 2, 48, 16, [205, 224, 212], 1);
-    const rows = [['昇段前の段位', MJ.DAN_NAME(P.from)], ['昇段後の段位', MJ.DAN_NAME(P.to)], ['認定証から ながす', ''], ['名人に勝った お祝い', ''], ['もどる', '']];
+    const rows = [['昇段前の段位', MJ.DAN_NAME(P.from)], ['昇段後の段位', MJ.DAN_NAME(P.to)], ['認定証から ながす', ''], ['天下統一の お祝いだけ', ''], ['もどる', '']];
     rows.forEach((r, i) => { const y = 84 + i * 62, sel = P.row === i; panel(140, y, 552, 54, 12, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2); text(r[0], i < 2 ? 170 : SW / 2, y + 12, 26, BLACK, i < 2 ? 0 : 1); if (i < 2) { text('◀', 470, y + 14, 22, [90, 90, 80], 1); text(r[1], 570, y + 10, 28, [190, 60, 40], 1); text('▶', 664, y + 14, 22, [90, 90, 80], 1); } });
     text('▲▼ えらぶ   ◀▶ 段位   決定: ながす   戻る: もどる', SW / 2, 420, 16, [210, 225, 205], 1);
   }
@@ -980,10 +978,10 @@
     const back = () => { S.mode = 'promo'; dirty(); };
     if (k === 'back') { S.mode = 'menu'; S.promo = null; NSND.home(); dirty(); return; }
     if (k === 'up') P.row = wrap(P.row - 1, 5); else if (k === 'down') P.row = wrap(P.row + 1, 5);
-    else if ((k === 'left' || k === 'right') && P.row < 2) { const d = k === 'left' ? -1 : 1; if (P.row === 0) { P.from = Math.max(0, Math.min(9, P.from + d)); if (P.to <= P.from) P.to = P.from + 1; } else P.to = Math.max(P.from + 1, Math.min(10, P.to + d)); }
+    else if ((k === 'left' || k === 'right') && P.row < 2) { const d = k === 'left' ? -1 : 1; if (P.row === 0) { P.from = Math.max(0, Math.min(10, P.from + d)); if (P.to <= P.from) P.to = P.from + 1; } else P.to = Math.max(P.from + 1, Math.min(11, P.to + d)); }
     else if (k === 'ok') {
       if (P.row === 2) { S.mode = 'menu'; startCert({ dan: MJ.DAN_NAME(P.to), from: P.from, to: P.to, promoted: true }, back); }
-      else if (P.row === 3) { S.mode = 'menu'; let dn = 10; startMap({ from: dn, to: dn, congrats: true }, back); }
+      else if (P.row === 3) { S.mode = 'menu'; startMap({ from: 11, to: 11, congrats: true }, back); }
       else if (P.row === 4) { S.mode = 'menu'; S.promo = null; NSND.home(); }
     }
     dirty();
@@ -1001,7 +999,7 @@
     const sh = (t > 1160 && t < 1480) ? Math.round(Math.sin((t - 1160) / 22) * 4 * (1 - (t - 1160) / 320)) : 0;
     fill(cx + 6, 10, CW, CH - 8, [0, 0, 0], 120); gfx.image('img/cert.webp', cx + sh, 0, CW, CH, 255);
     const K = CW / 809, px = (x) => cx + sh + Math.round(CW * x), py = (y) => Math.round(CH * y);
-    text(C.rk.dan || '', px(0.37), py(0.434) - 14, 25, [17, 17, 17], 1); text('あなた', px(0.445), py(0.48) - 11, 21, [17, 17, 17], 1);
+    text(C.rk.dan || '', px(0.37), py(0.434) - 14 + ((C.rk.dan || '').length > 3 ? 3 : 0), (C.rk.dan || '').length > 3 ? 19 : 25, [17, 17, 17], 1); text('あなた', px(0.445), py(0.48) - 11, 21, [17, 17, 17], 1);
     rrect(px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 2, [122, 163, 179]); if (!gfx.imageTop('img/certface/01.webp', px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139))) gfx.image(youSrc(), px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 255); // 証明写真: 背景を切りぬいた絵を、画面の本当の解像度で(くっきり)
     if (t > 700) { const k = Math.min(1, (t - 700) / 420), z = Math.round(CW * 0.15 * (1 + (1 - k) * 1.6)), a = Math.round(255 * Math.min(1, k * 1.5)); gfx.image('img/cert_stamp.webp', px(0.645) - Math.round(z / 2), py(0.775) - Math.round(z / 2), z, z, a); }
     if (t >= 1120 && !C.snd) { C.snd = true; NSND.sfx('slam'); }
@@ -2346,7 +2344,7 @@
     },
     gameEnd(g, f) { if (g.practice) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({}, f, { rk: null, done }); }); } // 練習対局: 記録・順位・認定証なし
  try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { if (g.length !== 'single' && (g.handCount || 0) >= 4) metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } /* 列伝に出るのは、4局以上 最後まで対局した相手だけ */ NSND.sfx('end'); // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
- try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const cg = (() => { try { const me = f.results.find((x) => x.p.isHuman); return !!me && me.rank === 1 && g.players.some((p) => p.char && p.char.id === 1); } catch (e) { return false; } })(); const go = () => { const after = () => { S.rankScr = { rk, done }; dirty(); }; if (cg) { const dn = (() => { try { return MJ.Rank.get().dan || 0; } catch (e) { return 0; } })(); startMap({ from: dn, to: dn, congrats: true }, after); } else after(); }; /* 最後の名人(水戸黄門)がいる対局で 1位なら、地図の画面で お祝い */ if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
+ try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go = () => { S.rankScr = { rk, done }; dirty(); }; if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
   };
 
   const AI_T = [0, 1, 2, 3, 3, 4, 4, 5, 5, 5, 5];
@@ -2356,6 +2354,8 @@
   }
   function pickChars() {
     let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (!ok || !ok.length || ok.includes(c.id))); const out = [];
+    let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ }
+    if (dn === 10 && Math.random() < 0.2) { const a = pool.find((c) => c.id === 7), b = pool.find((c) => c.id === 1); if (a && b) { out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); } } // 名人のあと 5回に1回: 徳川家康と水戸黄門が そろう「天下分け目」
     while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
     return out;
   }
@@ -2374,6 +2374,7 @@
     S.mode = 'game'; dirty(); opt = opt || {};
     const chars = opt.practice ? opt.chars : sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
     const g = new MJ.Game({ chars: opt.practice ? (opt.watch ? chars.slice(1) : chars) : liftChars(chars.length === 3 ? chars : pickChars()), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
+    try { g.tenka = !opt.practice && (MJ.Rank.get().dan === 10) && g.players.some((p) => p.char && p.char.id === 1) && g.players.some((p) => p.char && p.char.id === 7); } catch (e) { g.tenka = false; } // 天下分け目(名人 + 徳川家康 + 水戸黄門)
     if (opt.practice) { g.practice = true; g.watching = !!opt.watch; if (opt.watch) { const c0 = chars[0]; g.players[0].char = c0; g.players[0].name = c0.short; } } // 練習対局: 記録しない。観戦: 1人めの席(下)の手牌を見る
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; if (sn.mid) g.resumeMid = sn.mid; }
     if (!opt.watch) g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
