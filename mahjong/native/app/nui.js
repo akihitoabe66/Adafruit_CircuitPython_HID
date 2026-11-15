@@ -1010,7 +1010,7 @@
     panel(24, 408, 784, 54, 12, [252, 246, 228], [120, 84, 40], 3, 245);
     gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]);
     const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
-    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? '他の街に戻って、修行し直すのだ！' : walkMsg(M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
+    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? (M.capSay ? '修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。' : '他の街に戻って、修行し直すのだ！') : walkMsg(M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) NSND.speak([pk]); } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
     if (M.view) { const hl = M.sel > 0 ? '◀ ' : '   ', hr = M.sel < M.maxd ? ' ▶' : '   ', ht = M.go != null ? 'あるいています…  (決定で スキップ)' : hl + '行き先を えらぶ' + hr + '   決定: そこへ あるく   戻る: もどる'; fill(236, 4, 470, 30, [10, 30, 22], 190); text(ht, 471, 8, fitSz(ht, 17, 450, 12), [255, 236, 170], 1); if (M.sel === M.cur && M.go == null) { rrect(716, 6, 100, 26, 10, [200, 50, 40]); text('いま ここ', 766, 9, 17, WHITE, 1); } else if (M.sel < M.cur && M.go == null) { rrect(716, 6, 100, 26, 10, [40, 110, 170]); text('修行の街', 766, 9, 17, WHITE, 1); } }
@@ -1025,12 +1025,17 @@
     startMap({ from: d, to: d }, () => { dirty(); });
     const M = S.map; M.view = true; M.vd = -1; M.maxd = mx; M.cur = cur; M.sel = d; M.go = null; M.ask = null; dirty();
   }
-  function mapTick(M) { if (M.view && M.go != null && __now() - M.t0 >= M.endT) { M.from = M.go; M.go = null; M.back = false; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = -1; M.ask = { idx: 0 }; } } // 着いたら、「この街で 対戦する?」
+  function mapTick(M) { if (M.view && M.go != null && __now() - M.t0 >= M.endT) { M.from = M.go; M.go = null; M.back = false; M.capSay = false; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = -1; M.ask = { idx: 0 }; } } // 着いたら、「この街で 対戦する?」
   function mapGo(M, dest) { // ▼で えらんだ街へ、ずんだもんが 歩いて行く(戻るときは、道を 逆に歩く)
     const steps = [], fwd = dest > M.from;
     for (let k = M.from; k !== dest; k += fwd ? 1 : -1) { const d = fwd ? k + 1 : k, pts = M.L[d - 1].map(mapPt); if (!fwd) pts.reverse(); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d: fwd ? d : d - 1, pts, seg, len, dur: len < 4 ? 1500 : Math.max(2400, Math.min(9000, len / 38 * 1000)) }); }
     let tt = MAP_T.slide + MAP_T.hold; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; tt += i < steps.length - 1 ? MAP_T.dwell : 0; return { a, b }; });
-    M.steps = steps; M.tl = tl; M.endT = tt; M.t0 = __now() - (MAP_T.slide + MAP_T.hold); M.go = dest; M.ask = null; M.back = dest < M.from; NSND.sfx('select', 0.6); if (M.back && NSND.has('v:modoru')) NSND.speak(['v:modoru']); /* 下の街へ戻るときの声 */ dirty();
+    M.steps = steps; M.tl = tl; M.endT = tt; M.t0 = __now() - (MAP_T.slide + MAP_T.hold); M.go = dest; M.ask = null; M.back = dest < M.from; M.capSay = false; NSND.sfx('select', 0.6);
+    if (M.back) { // 下の街(修行)へ歩き出すとき、声を出す。 歩きは そのまま続く。 修行のポイントが上限のときは、段位ごとに はじめての1回だけ「これ以上は成長しない」を話す
+      let capped = false, dk = 0; try { const r = MJ.Rank.get(), nx = MJ.Rank.DAN[r.dan + 1]; dk = r.dan; capped = !!nx && r.pt >= nx[1] - 1; } catch (e) { /* ignore */ }
+      let pl = []; try { pl = JSON.parse(localStorage.getItem('mj_capvoice') || '[]'); } catch (e) { pl = []; }
+      if (capped && !pl.includes(dk) && NSND.has('v:shugyo')) { pl.push(dk); try { localStorage.setItem('mj_capvoice', JSON.stringify(pl)); } catch (e) { /* ignore */ } M.capSay = true; NSND.speak(['v:shugyo']); } else if (NSND.has('v:modoru')) NSND.speak(['v:modoru']);
+    } dirty();
   }
   function mapPlay(M) { const d = M.from; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } S.rankScr = null; S.mode = 'menu'; startGame(null, { town: d }); } // 地図から、その街で 対局(いまの段位の街=ふつう / 下の街=修行)
   function mapKey(k) { const M = S.map; if (!M) return; const t = __now() - M.t0, arrived = t >= M.endT;
@@ -2486,7 +2491,7 @@
     },
     gameEnd(g, f) { if (g.practice) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({}, f, { rk: null, done }); }); } // 練習対局: 記録・順位・認定証なし
  try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { if (g.length !== 'single' && (g.handCount || 0) >= 4) metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } /* 列伝に出るのは、4局以上 最後まで対局した相手だけ */ NSND.sfx('end'); // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
- try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } try { if (rk && rk.capped && NSND.has('v:shugyo')) { let pl = []; try { pl = JSON.parse(localStorage.getItem('mj_capvoice') || '[]'); } catch (e) { pl = []; } const dk = MJ.Rank.get().dan; if (!pl.includes(dk)) { pl.push(dk); try { localStorage.setItem('mj_capvoice', JSON.stringify(pl)); } catch (e) { /* ignore */ } setTimeout(() => NSND.speak(['v:shugyo']), 900); } } } catch (e) { /* ignore */ } /* 修行の上限の声: 段位ごとに、はじめて上限に着いたときの1回だけ(あとは文字だけ) */ return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go = () => { S.rankScr = { rk, done }; dirty(); }; if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
+ try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go = () => { S.rankScr = { rk, done }; dirty(); }; if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
   };
 
   const AI_T = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]; // js/chars.js の mk() と同じ
