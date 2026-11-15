@@ -19,7 +19,14 @@
   MJ.effFloor = (dan) => MJ.EFF_FLOOR[Math.max(0, Math.min(11, dan | 0))];
   MJ.effLevel = (lv, dan) => Math.max(lv, MJ.effFloor(dan));
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
-  const base = () => ({ hist: [], pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '', dan: 0, maxdan: 0, v: 2, qc: 0, qday: '', qpt: 0, st: {} });
+  const base = () => ({ hist: [], pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '', dan: 0, maxdan: 0, v: 2, qc: 0, qday: '', qpt: 0, st: {}, ease: 0 });
+  /* 不調の目安(この段位での直近5局。修行はのぞく): 順位の合計が17以上=2(2段ぶん)、19以上=4(4段ぶん)。 4位が4連続でも4。 5局たまるまでは0 */
+  const easeTarget = (s) => {
+    const h = (s.hist || []).filter((x) => x.d === s.dan && !x.t), l5 = h.slice(-5), l4 = h.slice(-4);
+    if (l4.length >= 4 && l4.every((x) => x.r === 4)) return 4;
+    if (l5.length < 5) return 0;
+    const sum = l5.reduce((a, x) => a + x.r, 0); return sum >= 19 ? 4 : sum >= 17 ? 2 : 0;
+  };
   const idxOf = (pt) => { let k = 0; DAN.forEach((d, i) => { if (pt >= d[1]) k = i; }); return k; };
   /* 点を足して、昇段・降段を決める。{ before, after } は段位の番号 */
   const addPt = (s, delta) => {
@@ -63,7 +70,8 @@
       const tr = game.town != null && game.town < s.dan; let capped = false, note = ''; // 修行(地図で、低い段位の街を選んだ対局): ポイントは半分、4位でも減らない。昇段も降段もしない(次の段位の1点手前まで)
       if (tr) { const want = delta > 0 ? Math.max(1, Math.round(delta / 2)) : 0, nx = DAN[s.dan + 1], room = nx ? Math.max(0, nx[1] - 1 - s.pt) : want; delta = Math.min(want, room); capped = !!nx && (room === 0 || delta < want); /* 上限にいる(これ以上 増えない) */ note = capped ? '' : '修行の対局(ポイント半分)'; }
       s.hist = (s.hist || []).concat({ p: delta, r: me.rank, o: avg == null ? null : Math.round(avg * 10) / 10, d: s.dan, t: tr ? 1 : 0 }).slice(-30); // d=その対局のときの段位 t=修行
-      const ch = addPt(s, delta); s.games++; s.ranks[me.rank - 1]++;
+      const ch = addPt(s, delta); s.games++;
+      if (!tr) { const tg = easeTarget(s), cu = s.ease || 0; s.ease = ch.after !== ch.before ? 0 : tg >= cu ? tg : Math.max(tg, cu - 1); } // やさしさ: 上がるのは すぐ、戻るのは 1局ごとに 1段ずつ(階段)。 昇段・降段で リセット s.ranks[me.rank - 1]++;
       if (game.tenka && me.rank === 1 && ch.after === DAN.length - 2) { s.dan = DAN.length - 1; s.maxdan = DAN.length - 1; ch.after = DAN.length - 1; } // 天下分け目(名人+徳川家康+水戸黄門)で 1位 → 永世名人
       final.results.forEach((r) => {
         if (r.p.seat === 0 || !r.p.char || !r.p.char.id) return;
@@ -74,13 +82,8 @@
       const f = R.info();
       return { delta, avg, mult, pt: s.pt, name: f.name, next: f.next, left: f.left, from: ch.before, to: ch.after, promoted: ch.after > ch.before, demoted: ch.after < ch.before, msg: tr ? note : msgOf(ch), train: tr, capped, dan: ch.after > ch.before ? DAN[ch.after][0] : null };
     },
-    /* 不調のときの「やさしさ」(0=ふつう 1・2=やさしく): この段位での、直近5局(修行はのぞく)の順位の合計が17以上で1、19以上で2。 4位が4連続なら2。 5局(4位連続のときは4局)たまるまでは 0。 昇段すると、数え直し */
-    ease() {
-      const s = R.get(), h = (s.hist || []).filter((x) => x.d === s.dan && !x.t), l5 = h.slice(-5), l4 = h.slice(-4);
-      if (l4.length >= 4 && l4.every((x) => x.r === 4)) return 2;
-      if (l5.length < 5) return 0;
-      const sum = l5.reduce((a, x) => a + x.r, 0); return sum >= 19 ? 2 : sum >= 17 ? 1 : 0;
-    },
+    /* 次の対局の「やさしさ」: 何段ぶん下の相手にするか(0=ふつう 〜4)。 record() が、不調ならすぐ上げ、よくなったら 1局ごとに 1段ずつ下げる */
+    ease() { return Math.max(0, Math.min(4, R.get().ease || 0)); },
     /* 相手の解放: これまでに到達した最高の段位までの人が使える(降段しても、出てきた人は使えたまま) */
     unlocked(id) { return MJ.unlockDan(id) <= R.get().maxdan; },
     unlockedIds() { const m = R.get().maxdan; return MJ.CHARS.filter((c) => MJ.unlockDan(c.id) <= m).map((c) => c.id); },

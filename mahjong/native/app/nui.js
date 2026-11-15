@@ -2495,18 +2495,19 @@
   };
 
   const AI_T = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]; // js/chars.js の mk() と同じ
-  function liftChars(chars, town) { // 段位が上がると、★の低いキャラも、最低でも その段位の「★の最低値」まで強くなる
+  function liftChars(chars, town, realFirst) { // 段位が上がると、★の低いキャラも、最低でも その段位の「★の最低値」まで強くなる
     let dan = 0; try { dan = MJ.Rank.get().dan; } catch (e) { /* ignore */ } if (town != null) dan = town; // 修行の街では、その段位のときの強さ
-    return chars.map((c) => { const L = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; return L === c.level ? c : Object.assign({}, c, { level: L, ai: AI_T[Math.min(10, L)] }); });
+    let real = dan; try { real = MJ.Rank.get().dan; } catch (e) { /* ignore */ }
+    return chars.map((c, i) => { const L = MJ.effLevel ? MJ.effLevel(c.level, realFirst && i === 0 ? real : dan) : c.level; /* やさしい対局でも、1人目(新顔)は ほんらいの強さ */ return L === c.level ? c : Object.assign({}, c, { level: L, ai: AI_T[Math.min(10, L)] }); });
   }
-  function pickChars(town) { // 3人: 新顔1(まだ出会っていない人を優先)+おなじみ2(昔の人)。前の対局と同じ顔ぶれが続きにくい
-    let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (town != null ? MJ.unlockDan(c.id) <= town : (!ok || !ok.length || ok.includes(c.id)))); const out = [];
+  function pickChars(town, easy) { // 3人: 新顔1(まだ出会っていない人を優先)+おなじみ2(昔の人)。前の対局と同じ顔ぶれが続きにくい
+    let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (town != null ? MJ.unlockDan(c.id) <= town : (!ok || !ok.length || ok.includes(c.id)))); const out = [], real = easy ? MJ.CHARS.filter((c) => c.id !== 0 && (!ok || !ok.length || ok.includes(c.id))) : pool; // easy: 新顔は ほんらいの段位の人から、のこり2人だけ やさしく
     let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ } if (town != null) dn = -1; // 修行の街: その時代までの人だけ
     if (dn === 10 && Math.random() < 0.2) { const a = pool.find((c) => c.id === 7), b = pool.find((c) => c.id === 1); if (a && b) { out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); } } // 名人のあと 5回に1回: 徳川家康と水戸黄門が そろう「天下分け目」
     let met = []; try { met = metLoad(); } catch (e) { /* ignore */ } const last = S.lastOpp || [], tier = (c) => MJ.unlockDan(c.id), mx = pool.reduce((m, c) => Math.max(m, tier(c)), 0);
     const wpick = (list, wf) => { // 重みつき抽選(同じ時代が重ならないように、前の対局に出た人は出にくく)
-      const w = list.map((c) => Math.max(0.01, wf(c) * (last.includes(c.id) ? 0.3 : 1) * (out.some((o) => MJ.eraOf(o.id) === MJ.eraOf(c.id)) ? 0.25 : 1))); let r = Math.random() * w.reduce((a, b) => a + b, 0), i = 0; while (i < list.length - 1 && (r -= w[i]) > 0) i++; const c = list[i]; pool.splice(pool.indexOf(c), 1); out.push(c); };
-    if (out.length < 3 && pool.length) { const un = pool.filter((c) => !met.includes(c.id)); const nw = un.length ? un : pool.filter((c) => tier(c) >= mx - 1); wpick(nw.length ? nw : pool, (c) => 1 + tier(c)); } // 新顔枠
+      const w = list.map((c) => Math.max(0.01, wf(c) * (last.includes(c.id) ? 0.3 : 1) * (out.some((o) => MJ.eraOf(o.id) === MJ.eraOf(c.id)) ? 0.25 : 1))); let r = Math.random() * w.reduce((a, b) => a + b, 0), i = 0; while (i < list.length - 1 && (r -= w[i]) > 0) i++; const c = list[i]; { const k = pool.indexOf(c); if (k >= 0) pool.splice(k, 1); } out.push(c); };
+    if (out.length < 3 && real.length) { const mxr = real.reduce((m, c) => Math.max(m, tier(c)), 0), un = real.filter((c) => !met.includes(c.id)); const nw = un.length ? un : real.filter((c) => tier(c) >= mxr - 1); wpick(nw.length ? nw : real, (c) => 1 + tier(c)); } // 新顔枠
     while (out.length < 3 && pool.length) { const old = pool.filter((c) => tier(c) < mx - 1); wpick(old.length ? old : pool, () => 1); } // おなじみ枠
     S.lastOpp = out.map((c) => c.id);
     return out;
@@ -2524,10 +2525,10 @@
   const startIntro = (g) => new Promise((res) => { if (g.resumed || g.fast) { res(); return; } S.intro = { t0: __now(), done: () => { S.skipBanner = true; res(); } }; NSND.sfx('slam'); dirty(); });
   async function startGame(sn, opt) {
     S.ura = null; S.mode = 'game'; dirty(); opt = opt || {}; let town = opt.town != null ? opt.town : sn && sn.town; try { if (opt.practice || town == null || town >= (MJ.Rank.get().dan || 0)) town = null; } catch (e) { town = null; }
-    let ease = 0, ctown = town; if (!opt.practice && town == null) { try { ease = sn && sn.ease != null ? sn.ease : MJ.Rank.ease(); const dn0 = MJ.Rank.get().dan || 0, ct = Math.max(0, dn0 - ease * 2); if (ease > 0 && ct < dn0) ctown = ct; else ease = 0; } catch (e) { ease = 0; } } // 不調のときは、2段(ひどいときは4段)ぶん やさしい相手(ポイントは そのまま)。 画面には 出さない // 修行: 地図で、いまの段位より下の街を選んだとき
+    let ease = 0, ctown = town; if (!opt.practice && town == null) { try { ease = sn && sn.ease != null ? sn.ease : MJ.Rank.ease(); const dn0 = MJ.Rank.get().dan || 0, ct = Math.max(0, dn0 - ease); if (ease > 0 && ct < dn0) ctown = ct; else ease = 0; } catch (e) { ease = 0; } } // 不調のときは、2段(ひどいときは4段)ぶん やさしい相手(ポイントは そのまま)。 画面には 出さない // 修行: 地図で、いまの段位より下の街を選んだとき
     const chars = opt.practice ? opt.chars : sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
-    const g = new MJ.Game({ chars: opt.practice ? (opt.watch ? chars.slice(1) : chars) : liftChars(chars.length === 3 ? chars : pickChars(ctown), ctown), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
-    g.town = town == null ? undefined : town; g.ease = ease || undefined; if (ease) print('ease ' + ease + ' -> 相手は ' + MJ.DAN_NAME(ctown) + ' ぶん'); try { g.tenka = town == null && !opt.practice && (MJ.Rank.get().dan === 10) && g.players.some((p) => p.char && p.char.id === 1) && g.players.some((p) => p.char && p.char.id === 7); } catch (e) { g.tenka = false; } // 天下分け目(名人 + 徳川家康 + 水戸黄門)
+    const g = new MJ.Game({ chars: opt.practice ? (opt.watch ? chars.slice(1) : chars) : liftChars(chars.length === 3 ? chars : pickChars(ctown, ease > 0), ctown, ease > 0), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
+    g.town = town == null ? undefined : town; g.ease = ease || undefined; if (ease) print('ease ' + ease + '段下(' + MJ.DAN_NAME(ctown) + 'ぶん): ' + g.players.slice(1).map((p) => p.char.short + '★' + p.char.level).join(' ')); try { g.tenka = town == null && !opt.practice && (MJ.Rank.get().dan === 10) && g.players.some((p) => p.char && p.char.id === 1) && g.players.some((p) => p.char && p.char.id === 7); } catch (e) { g.tenka = false; } // 天下分け目(名人 + 徳川家康 + 水戸黄門)
     if (opt.practice) { g.practice = true; g.watching = !!opt.watch; if (opt.watch) { const c0 = chars[0]; g.players[0].char = c0; g.players[0].name = c0.short; } } // 練習対局: 記録しない。観戦: 1人めの席(下)の手牌を見る
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; if (sn.mid) g.resumeMid = sn.mid; }
     if (!opt.watch) g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
