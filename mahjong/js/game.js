@@ -87,7 +87,7 @@
     }
 
     /* 続きから始めるための、最小限の状態(局・本場・点数・相手) */
-    snapshot() { return { v: 1, length: this.length, chars: this.players.slice(1).map((p) => p.char.id), dealer: this.dealer, kyoku: this.kyoku, honba: this.honba, kyotaku: this.kyotaku, roundWind: this.roundWind, handCount: this.handCount, scores: this.players.map((p) => p.score), wc: this.winCnt.slice() }; }
+    snapshot() { return { v: 1, length: this.length, chars: this.players.slice(1).map((p) => p.char.id), dealer: this.dealer, kyoku: this.kyoku, honba: this.honba, kyotaku: this.kyotaku, roundWind: this.roundWind, handCount: this.handCount, scores: this.players.map((p) => p.score), wc: this.winCnt.slice(), town: this.town }; }
 
     /* 局の途中の記憶(番のはじまりの状態)。牌は番号(id)だけで持つ */
     capture(cur, drawMode) {

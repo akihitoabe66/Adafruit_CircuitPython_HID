@@ -238,6 +238,7 @@
     sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 765, 14, 15, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
     sbtn(796, 6, 30, 32, [50, 90, 160], [25, 50, 100], [''], f === 3, 13); fill(803, 17, 4, 10, WHITE); fill(807, 14, 3, 16, WHITE); fill(810, 11, 3, 22, WHITE); fill(816, 17, 2, 10, WHITE);
     if (g.tenka) { rrect(728, 92, 98, 22, 8, [190, 40, 40]); text('天下分け目', 777, 94, 14, WHITE, 1); } // 家康と黄門が そろった 一戦
+    if (g.town != null && !g.practice) { rrect(728, 92, 98, 22, 8, [40, 110, 170]); text('修行の対局', 777, 94, 14, WHITE, 1); }
     if (g.practice) { rrect(728, 92, 98, 22, 8, [160, 70, 140]); text(g.watching ? '観戦(記録なし)' : '練習(記録なし)', 777, 94, 14, WHITE, 1); } // 練習対局のしるし
     { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 44, 24, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 70, 16, [200, 215, 200], 1); }
     {
@@ -985,7 +986,7 @@
     for (let i = 0; i < 14; i++) { const y = Math.round(i * 33.4) + 5, x = -64 + Math.round(Math.sin(t / 820 + i * 0.9 + 2) * 18 + Math.sin(t / 1300 + i * 0.4) * 12); gfx.image('img/map/wa' + ((i + 5) % 14) + '.webp', x, y, 960, 36, 70); }
   }
   function drawMap() {
-    const M = S.map, t = __now() - M.t0, arrived = t >= M.endT, ease = Math.min(1, t / MAP_T.slide), eo = 1 - Math.pow(1 - ease, 3), ox = Math.round((1 - eo) * (SW - MAP_V.x0 + 40)); // 巻物は 右から入ってくる
+    const M = S.map; mapTick(M); const t = __now() - M.t0, arrived = t >= M.endT, ease = Math.min(1, t / MAP_T.slide), eo = 1 - Math.pow(1 - ease, 3), ox = Math.round((1 - eo) * (SW - MAP_V.x0 + 40)); // 巻物は 右から入ってくる
     drawWater(__now());
     gfx.image('img/map/scroll2.webp', MAP_V.x0 + ox, MAP_V.y0, Math.round(MAP_V.w), Math.round(MAP_V.h), 255);
     const shift = (q) => [q[0] + ox, q[1]];
@@ -998,32 +999,47 @@
     if (walking && __now() - M.tapT > 260) { M.tapT = __now(); NSND.sfx('select', 0.16); }
     fill(sx - 17, sy - 3, 34, 8, [0, 0, 0], 70); fill(sx - 13, sy - 2, 26, 6, [0, 0, 0], 120); fill(sx - 8, sy - 1, 16, 4, [0, 0, 0], 170); // 足もとの 丸い影
     gfx.image('img/map/w' + fr + (face < 0 ? 'f' : '') + 'g.webp', sx - 23, sy - 70 + bob, 46, 78, 255); /* 画面と同じ大きさで作った絵(拡大しない = ぼやけない)。 白+こげ茶のふち */ // 左へ歩くときは、左右反転
-    { const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); gPoly([[sx - 7, sy - 87 - bob2], [sx + 7, sy - 87 - bob2], [sx, sy - 75 - bob2]], [255, 224, 60], 240); } // 頭の上の ▼(ずっと出して、どこにいるか分かるように)
+    { const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); let mx = sx, my = sy;
+      if (M.view && !walking && M.go == null) { const q = shift(mapStop(M.sel, M.L)), nw = __now(), k = M.ml ? Math.min(1, (nw - M.ml) / 90) : 1; M.ml = nw; if (M.mx == null) { M.mx = sx; M.my = sy; } M.mx += (q[0] - M.mx) * k; M.my += (q[1] - M.my) * k; mx = Math.round(M.mx); my = Math.round(M.my); } else { M.mx = sx; M.my = sy; M.ml = 0; } // 見る画面: ▼を 左右で動かして、行き先を えらぶ。 歩いている間は ずんだもんの頭の上
+      if (M.view && M.sel !== M.from && !walking) rrect(mx - 15, my - 5, 30, 11, 5, [255, 224, 60], 150);
+      const big = M.view && M.sel !== M.from && !walking ? 1 : 0, hw = 7 + big * 4, hh = 12 + big * 6, ty = big ? my - 46 - bob2 : my - 92 - bob2; gPoly([[mx - hw - 3, ty - 3], [mx + hw + 3, ty - 3], [mx, ty + hh + 4]], [70, 40, 10], 255); gPoly([[mx - hw, ty], [mx + hw, ty], [mx, ty + hh]], [255, 224, 60], 255); } // 縁どり(こげ茶)つき。 行き先を えらんでいる間は、少し大きく // 頭の上の ▼(ずっと出して、どこにいるか分かるように)
     // 左上のわく: 段位
-    const dn = M.view ? curDan : Math.max(curDan, M.to), lw = Math.max(64, gfx.measure(MAP_DAN[dn], -21) + 18); fill(MAP_V.x0 + ox + 22, MAP_V.y0 + 14, lw, 30, [244, 232, 200]); frame(MAP_V.x0 + ox + 22, MAP_V.y0 + 14, lw, 30, [120, 84, 40], 2); text(MAP_DAN[dn], MAP_V.x0 + ox + 22 + lw / 2, MAP_V.y0 + 17, -21, [150, 30, 20], 1); /* 段位の札: 太字(字が細いと見づらい) */
+    const dn = M.view ? (walking || M.go != null ? curDan : M.sel) : Math.max(curDan, M.to), lw = Math.max(64, gfx.measure(MAP_DAN[dn], -21) + 18); fill(MAP_V.x0 + ox + 22, MAP_V.y0 + 14, lw, 30, [244, 232, 200]); frame(MAP_V.x0 + ox + 22, MAP_V.y0 + 14, lw, 30, [120, 84, 40], 2); text(MAP_DAN[dn], MAP_V.x0 + ox + 22 + lw / 2, MAP_V.y0 + 17, -21, [150, 30, 20], 1); /* 段位の札: 太字(字が細いと見づらい) */
     if (M.congrats || (M.tenka && arrived)) { if (!M.vsaid) { M.vsaid = true; NSND.speak(['v:eisei']); } /* 永世名人の声 */ const tt2 = M.congrats ? t : t - M.endT, k = 1 + Math.sin(tt2 / 220) * 0.03, w = Math.round(600 * k), h = Math.round(w * 0.1404), cy = 190; fill(0, cy - 66, SW, 146, [10, 8, 14], 150); gfx.image('img/map/congrats.webp', Math.round(SW / 2 - w / 2), Math.round(cy - h / 2) - 18, w, h, 255); text('天下統一!', SW / 2, cy + 34, 32, [255, 224, 90], 1); for (let i = 0; i < 14; i++) { const a = tt2 / 600 + i * 1.7, qx = Math.round(SW / 2 + Math.cos(a * 1.3 + i) * 290), qy = Math.round(cy + Math.sin(a * 2.1 + i * 2) * 52), sz = 3 + (i % 3); if (Math.sin(tt2 / 130 + i * 2.3) > -0.2) { fill(qx - sz, qy, sz * 2 + 1, 1, [255, 240, 150], 230); fill(qx, qy - sz, 1, sz * 2 + 1, [255, 240, 150], 230); } } }
     // 下の 帯: ずんだもんの ひとこと(1段ずつ)
     panel(24, 408, 784, 54, 12, [252, 246, 228], [120, 84, 40], 3, 245);
     gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]);
     const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
-    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = walkMsg(M.steps[stepIdx].d); else msg = MAP_SETS[M.ms].say[curDan];
+    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = walkMsg(M.steps[stepIdx].d); else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) NSND.speak([pk]); } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
-    if (M.view) { const hl = M.from > 0 ? '◀ ' : '   ', hr = M.from < M.maxd ? ' ▶' : '   '; fill(300, 4, 400, 30, [10, 30, 22], 190); text(hl + 'ほかの場所の セリフを 読む' + hr + '    戻る: もどる', 500, 8, 17, [255, 236, 170], 1); if (M.from === M.cur) { rrect(716, 6, 100, 26, 10, [200, 50, 40]); text('いま ここ', 766, 9, 17, WHITE, 1); } }
+    if (M.view) { const hl = M.sel > 0 ? '◀ ' : '   ', hr = M.sel < M.maxd ? ' ▶' : '   ', ht = M.go != null ? 'あるいています…  (決定で スキップ)' : hl + '行き先を えらぶ' + hr + '   決定: そこへ あるく   戻る: もどる'; fill(236, 4, 470, 30, [10, 30, 22], 190); text(ht, 471, 8, fitSz(ht, 17, 450, 12), [255, 236, 170], 1); if (M.sel === M.cur && M.go == null) { rrect(716, 6, 100, 26, 10, [200, 50, 40]); text('いま ここ', 766, 9, 17, WHITE, 1); } else if (M.sel < M.cur && M.go == null) { rrect(716, 6, 100, 26, 10, [40, 110, 170]); text('修行の街', 766, 9, 17, WHITE, 1); } }
     else if (arrived && t - M.endT > 600) text('決定ボタンで つづける', 700, 6, 14, [220, 235, 245], 1);
+    if (M.ask) { const d = M.from, tr = d < M.cur, nm = MAP_SETS[M.ms].place[d], ai = M.ask.idx; fill(0, 0, SW, SH, [0, 0, 0], 110); panel(196, 96, 440, 232, 14, [252, 246, 228], [120, 84, 40], 4, 250); text(MAP_DAN[d] + '  ' + nm, 416, 106, fitSz(MAP_DAN[d] + '  ' + nm, 26, 400, 16), [150, 30, 20], 1); text(tr ? 'そのころの 相手と 戦います。' : 'いまの 段位の 相手と 戦います。', 416, 150, 20, [60, 40, 20], 1); text(tr ? 'ポイントは 半分。4位でも へりません。' : 'ポイントは ふつうに もらえます。', 416, 182, 18, [90, 66, 40], 1); if (tr) text('昇段は、いまの段位の街で。', 416, 208, 18, [90, 66, 40], 1); ['この街で ' + (tr ? '修行する' : '対戦する'), 'やめる'].forEach((l, i) => { const w = i ? 170 : 230, x2 = i ? 452 : 206, sel = ai === i; panel(x2, 252, w, 50, 10, sel ? YEL : [235, 235, 225], sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2, 255); text(l, x2 + w / 2, 264, 22, BLACK, 1); }); }
     if (arrived && !M.fin) { M.fin = true; if (!M.view) NSND.sfx('start', 0.7); }
     dirty();
   }
   function startMapView(d0) { // 成績の画面から: いま 地図のどこに居るか見る。 ◀ ▶ で、これまでに着いた場所(無段から)の セリフを 読み返せる
-    let mx = 0, cur = 0; try { const r = MJ.Rank.get(); mx = Math.max(r.maxdan || 0, r.dan || 0); cur = r.dan || 0; } catch (e) { /* ignore */ }
+    let mx = 0, cur = 0; try { const r = MJ.Rank.get(); mx = r.dan || 0; cur = r.dan || 0; /* 今の段位より先の街へは 行けない */ } catch (e) { /* ignore */ }
     const d = Math.max(0, Math.min(mx, d0 == null ? cur : d0));
     startMap({ from: d, to: d }, () => { dirty(); });
-    const M = S.map; M.view = true; M.vd = -1; M.maxd = mx; M.cur = cur; dirty();
+    const M = S.map; M.view = true; M.vd = -1; M.maxd = mx; M.cur = cur; M.sel = d; M.go = null; M.ask = null; dirty();
   }
+  function mapTick(M) { if (M.view && M.go != null && __now() - M.t0 >= M.endT) { M.from = M.go; M.go = null; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = -1; M.ask = { idx: 0 }; } } // 着いたら、「この街で 対戦する?」
+  function mapGo(M, dest) { // ▼で えらんだ街へ、ずんだもんが 歩いて行く(戻るときは、道を 逆に歩く)
+    const steps = [], fwd = dest > M.from;
+    for (let k = M.from; k !== dest; k += fwd ? 1 : -1) { const d = fwd ? k + 1 : k, pts = M.L[d - 1].map(mapPt); if (!fwd) pts.reverse(); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d: fwd ? d : d - 1, pts, seg, len, dur: len < 4 ? 1500 : Math.max(2400, Math.min(9000, len / 38 * 1000)) }); }
+    let tt = MAP_T.slide + MAP_T.hold; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; tt += i < steps.length - 1 ? MAP_T.dwell : 0; return { a, b }; });
+    M.steps = steps; M.tl = tl; M.endT = tt; M.t0 = __now() - (MAP_T.slide + MAP_T.hold); M.go = dest; M.ask = null; NSND.sfx('select', 0.6); dirty();
+  }
+  function mapPlay(M) { const d = M.from; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } S.rankScr = null; S.mode = 'menu'; startGame(null, { town: d }); } // 地図から、その街で 対局(いまの段位の街=ふつう / 下の街=修行)
   function mapKey(k) { const M = S.map; if (!M) return; const t = __now() - M.t0, arrived = t >= M.endT;
-    if (M.view) { // 地図を見る(成績の画面から)
-      if (k === 'left' || k === 'right') { const d = Math.max(0, Math.min(M.maxd, M.from + (k === 'left' ? -1 : 1))); if (d !== M.from) { NSND.sfx('select', 0.5); M.from = d; M.to = d; M.vd = -1; M.t0 = __now() - (MAP_T.slide + MAP_T.hold + 1); } dirty(); return; }
-      if (k === 'ok' || k === 'back') { S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); }
+    if (M.view) { // 地図を見る(成績の画面から): ▼を 左右で動かして、決定で そこへ 歩く
+      if (M.ask) { if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { M.ask.idx = 1 - M.ask.idx; NSND.sfx('select', 0.5); } else if (k === 'back') M.ask = null; else if (k === 'ok') { if (M.ask.idx === 1) M.ask = null; else { mapPlay(M); return; } } dirty(); return; }
+      if (M.go != null) { if (k === 'ok' || k === 'back') M.t0 = __now() - M.endT - 1; dirty(); return; }
+      if (k === 'left' || k === 'right') { const d = Math.max(0, Math.min(M.maxd, M.sel + (k === 'left' ? -1 : 1))); if (d !== M.sel) { NSND.sfx('select', 0.5); M.sel = d; } dirty(); return; }
+      if (k === 'ok') { if (M.sel !== M.from) mapGo(M, M.sel); else { M.ask = { idx: 0 }; NSND.sfx('select', 0.5); } dirty(); return; }
+      if (k === 'back') { S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); }
       dirty(); return;
     } if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
   /* ---------- 昇段の演出テスト(隠しコマンドで開く): 認定証 → 地図 → 新しい雀士 を、いつでも見られる ---------- */
@@ -2473,13 +2489,13 @@
   };
 
   const AI_T = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]; // js/chars.js の mk() と同じ
-  function liftChars(chars) { // 段位が上がると、★の低いキャラも、最低でも その段位の「★の最低値」まで強くなる
-    let dan = 0; try { dan = MJ.Rank.get().dan; } catch (e) { /* ignore */ }
+  function liftChars(chars, town) { // 段位が上がると、★の低いキャラも、最低でも その段位の「★の最低値」まで強くなる
+    let dan = 0; try { dan = MJ.Rank.get().dan; } catch (e) { /* ignore */ } if (town != null) dan = town; // 修行の街では、その段位のときの強さ
     return chars.map((c) => { const L = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; return L === c.level ? c : Object.assign({}, c, { level: L, ai: AI_T[Math.min(10, L)] }); });
   }
-  function pickChars() { // 3人: 新顔1(まだ出会っていない人を優先)+おなじみ2(昔の人)。前の対局と同じ顔ぶれが続きにくい
-    let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (!ok || !ok.length || ok.includes(c.id))); const out = [];
-    let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ }
+  function pickChars(town) { // 3人: 新顔1(まだ出会っていない人を優先)+おなじみ2(昔の人)。前の対局と同じ顔ぶれが続きにくい
+    let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (town != null ? MJ.unlockDan(c.id) <= town : (!ok || !ok.length || ok.includes(c.id)))); const out = [];
+    let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ } if (town != null) dn = -1; // 修行の街: その時代までの人だけ
     if (dn === 10 && Math.random() < 0.2) { const a = pool.find((c) => c.id === 7), b = pool.find((c) => c.id === 1); if (a && b) { out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); } } // 名人のあと 5回に1回: 徳川家康と水戸黄門が そろう「天下分け目」
     let met = []; try { met = metLoad(); } catch (e) { /* ignore */ } const last = S.lastOpp || [], tier = (c) => MJ.unlockDan(c.id), mx = pool.reduce((m, c) => Math.max(m, tier(c)), 0);
     const wpick = (list, wf) => { // 重みつき抽選(同じ時代が重ならないように、前の対局に出た人は出にくく)
@@ -2501,10 +2517,10 @@
   /* 親が決まったあと: 「東一局!」「勝負!」(顔・文字・声)。そのあと、すぐ配牌へ */
   const startIntro = (g) => new Promise((res) => { if (g.resumed || g.fast) { res(); return; } S.intro = { t0: __now(), done: () => { S.skipBanner = true; res(); } }; NSND.sfx('slam'); dirty(); });
   async function startGame(sn, opt) {
-    S.ura = null; S.mode = 'game'; dirty(); opt = opt || {};
+    S.ura = null; S.mode = 'game'; dirty(); opt = opt || {}; let town = opt.town != null ? opt.town : sn && sn.town; try { if (opt.practice || town == null || town >= (MJ.Rank.get().dan || 0)) town = null; } catch (e) { town = null; } // 修行: 地図で、いまの段位より下の街を選んだとき
     const chars = opt.practice ? opt.chars : sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
-    const g = new MJ.Game({ chars: opt.practice ? (opt.watch ? chars.slice(1) : chars) : liftChars(chars.length === 3 ? chars : pickChars()), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
-    try { g.tenka = !opt.practice && (MJ.Rank.get().dan === 10) && g.players.some((p) => p.char && p.char.id === 1) && g.players.some((p) => p.char && p.char.id === 7); } catch (e) { g.tenka = false; } // 天下分け目(名人 + 徳川家康 + 水戸黄門)
+    const g = new MJ.Game({ chars: opt.practice ? (opt.watch ? chars.slice(1) : chars) : liftChars(chars.length === 3 ? chars : pickChars(town), town), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
+    g.town = town == null ? undefined : town; try { g.tenka = town == null && !opt.practice && (MJ.Rank.get().dan === 10) && g.players.some((p) => p.char && p.char.id === 1) && g.players.some((p) => p.char && p.char.id === 7); } catch (e) { g.tenka = false; } // 天下分け目(名人 + 徳川家康 + 水戸黄門)
     if (opt.practice) { g.practice = true; g.watching = !!opt.watch; if (opt.watch) { const c0 = chars[0]; g.players[0].char = c0; g.players[0].name = c0.short; } } // 練習対局: 記録しない。観戦: 1人めの席(下)の手牌を見る
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; if (sn.mid) g.resumeMid = sn.mid; }
     if (!opt.watch) g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型

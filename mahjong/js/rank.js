@@ -60,6 +60,8 @@
         const lv = final.results.filter((r) => r.p.seat !== 0 && r.p.char).map((r) => r.p.char.level || 1); avg = lv.length ? lv.reduce((a, b) => a + b, 0) / lv.length : null;
         if (avg != null) { const d = avg - (1 + 0.8 * s.dan); mult = me.rank <= 2 ? clampN(1 + 0.15 * d, 0.5, 2) : me.rank === 4 ? clampN(1 - 0.15 * d, 0.5, 2) : 1; delta = Math.round(delta * mult); }
       }
+      const tr = game.town != null && game.town < s.dan; let capped = false, note = ''; // 修行(地図で、低い段位の街を選んだ対局): ポイントは半分、4位でも減らない。昇段も降段もしない(次の段位の1点手前まで)
+      if (tr) { const want = delta > 0 ? Math.max(1, Math.round(delta / 2)) : 0, nx = DAN[s.dan + 1], room = nx ? Math.max(0, nx[1] - 1 - s.pt) : want; delta = Math.min(want, room); capped = delta < want || (nx && room === 0 && want > 0); note = capped ? '修行は ここまで! 昇段は 本番で' : '修行の対局(ポイント半分)'; }
       s.hist = (s.hist || []).concat({ p: delta, r: me.rank, o: avg == null ? null : Math.round(avg * 10) / 10 }).slice(-30);
       const ch = addPt(s, delta); s.games++; s.ranks[me.rank - 1]++;
       if (game.tenka && me.rank === 1 && ch.after === DAN.length - 2) { s.dan = DAN.length - 1; s.maxdan = DAN.length - 1; ch.after = DAN.length - 1; } // 天下分け目(名人+徳川家康+水戸黄門)で 1位 → 永世名人
@@ -70,7 +72,7 @@
       });
       save(RK, s);
       const f = R.info();
-      return { delta, avg, mult, pt: s.pt, name: f.name, next: f.next, left: f.left, from: ch.before, to: ch.after, promoted: ch.after > ch.before, demoted: ch.after < ch.before, msg: msgOf(ch), dan: ch.after > ch.before ? DAN[ch.after][0] : null };
+      return { delta, avg, mult, pt: s.pt, name: f.name, next: f.next, left: f.left, from: ch.before, to: ch.after, promoted: ch.after > ch.before, demoted: ch.after < ch.before, msg: tr ? note : msgOf(ch), train: tr, capped, dan: ch.after > ch.before ? DAN[ch.after][0] : null };
     },
     /* 相手の解放: これまでに到達した最高の段位までの人が使える(降段しても、出てきた人は使えたまま) */
     unlocked(id) { return MJ.unlockDan(id) <= R.get().maxdan; },
