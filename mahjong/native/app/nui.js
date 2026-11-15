@@ -1010,7 +1010,7 @@
     panel(24, 408, 784, 54, 12, [252, 246, 228], [120, 84, 40], 3, 245);
     gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]);
     const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
-    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = walkMsg(M.steps[stepIdx].d); else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
+    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? '他の街に戻って、修行し直すのだ！' : walkMsg(M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) NSND.speak([pk]); } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
     if (M.view) { const hl = M.sel > 0 ? '◀ ' : '   ', hr = M.sel < M.maxd ? ' ▶' : '   ', ht = M.go != null ? 'あるいています…  (決定で スキップ)' : hl + '行き先を えらぶ' + hr + '   決定: そこへ あるく   戻る: もどる'; fill(236, 4, 470, 30, [10, 30, 22], 190); text(ht, 471, 8, fitSz(ht, 17, 450, 12), [255, 236, 170], 1); if (M.sel === M.cur && M.go == null) { rrect(716, 6, 100, 26, 10, [200, 50, 40]); text('いま ここ', 766, 9, 17, WHITE, 1); } else if (M.sel < M.cur && M.go == null) { rrect(716, 6, 100, 26, 10, [40, 110, 170]); text('修行の街', 766, 9, 17, WHITE, 1); } }
@@ -1025,12 +1025,12 @@
     startMap({ from: d, to: d }, () => { dirty(); });
     const M = S.map; M.view = true; M.vd = -1; M.maxd = mx; M.cur = cur; M.sel = d; M.go = null; M.ask = null; dirty();
   }
-  function mapTick(M) { if (M.view && M.go != null && __now() - M.t0 >= M.endT) { M.from = M.go; M.go = null; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = -1; M.ask = { idx: 0 }; } } // 着いたら、「この街で 対戦する?」
+  function mapTick(M) { if (M.view && M.go != null && __now() - M.t0 >= M.endT) { M.from = M.go; M.go = null; M.back = false; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = -1; M.ask = { idx: 0 }; } } // 着いたら、「この街で 対戦する?」
   function mapGo(M, dest) { // ▼で えらんだ街へ、ずんだもんが 歩いて行く(戻るときは、道を 逆に歩く)
     const steps = [], fwd = dest > M.from;
     for (let k = M.from; k !== dest; k += fwd ? 1 : -1) { const d = fwd ? k + 1 : k, pts = M.L[d - 1].map(mapPt); if (!fwd) pts.reverse(); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d: fwd ? d : d - 1, pts, seg, len, dur: len < 4 ? 1500 : Math.max(2400, Math.min(9000, len / 38 * 1000)) }); }
     let tt = MAP_T.slide + MAP_T.hold; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; tt += i < steps.length - 1 ? MAP_T.dwell : 0; return { a, b }; });
-    M.steps = steps; M.tl = tl; M.endT = tt; M.t0 = __now() - (MAP_T.slide + MAP_T.hold); M.go = dest; M.ask = null; NSND.sfx('select', 0.6); dirty();
+    M.steps = steps; M.tl = tl; M.endT = tt; M.t0 = __now() - (MAP_T.slide + MAP_T.hold); M.go = dest; M.ask = null; M.back = dest < M.from; NSND.sfx('select', 0.6); if (M.back && NSND.has('v:modoru')) NSND.speak(['v:modoru']); /* 下の街へ戻るときの声 */ dirty();
   }
   function mapPlay(M) { const d = M.from; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } S.rankScr = null; S.mode = 'menu'; startGame(null, { town: d }); } // 地図から、その街で 対局(いまの段位の街=ふつう / 下の街=修行)
   function mapKey(k) { const M = S.map; if (!M) return; const t = __now() - M.t0, arrived = t >= M.endT;
