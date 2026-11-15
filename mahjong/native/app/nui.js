@@ -1244,13 +1244,14 @@
     });
     const rk = f.rk, yb = Y0 + 4 * (RH + GAP) + 2;
     if (rk) {
-      rrect(60, yb, 600, 64, 8, [10, 58, 38]);
+      rrect(60, yb, 600, rk.capped ? 92 : 64, 8, [10, 58, 38]);
       const d = rk.delta, col = d > 0 ? [140, 240, 150] : d < 0 ? [255, 130, 120] : WHITE;
       text('段位ポイント', 80, yb + 8, 24, WHITE); text((d > 0 ? '+' : '') + d + ' 点', 290, yb + 5, 32, col);
-      text(rk.msg ? rk.msg.replace('🎉 ', '') : (rk.name + (rk.next ? '   あと ' + rk.left + ' 点で ' + rk.next : '')), 640, yb + 10, fitSz(rk.msg || rk.name, 22, 330, 14), YEL, 2);
+      text(rk.msg ? rk.msg.replace('🎉 ', '') : (rk.name + (rk.next ? '   あと ' + rk.left + ' 点で ' + rk.next : '')), 640, yb + 10, fitSz(rk.msg || rk.name, 22, 262, 12), YEL, 2);
+      if (rk.capped) { text('修行でこれ以上は成長しないのだ。', 80, yb + 38, 19, YEL); text('段位を上げたいなら上位と対戦するのだ。', 80, yb + 64, 19, YEL); } else // 修行の上限(次の段位の1点手前)
       if (rk.avg != null) text('相手の強さ ★' + rk.avg.toFixed(1) + (Math.abs(rk.mult - 1) >= 0.05 ? '  →  ポイント ×' + rk.mult.toFixed(2) + (rk.mult > 1 ? '(強い相手ボーナス)' : '(弱い相手)') : '(ふつう)'), 80, yb + 41, 16, [200, 225, 205]);
     }
-    text('決定ボタンで ホームへ', 360, 398, 24, WHITE, 1);
+    text('決定ボタンで ホームへ', 360, rk && rk.capped ? 424 : 398, 24, WHITE, 1);
   }
 
 
@@ -1726,7 +1727,7 @@
   }
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
   window.__startMapView = (d) => { S.mode = 'menu'; startMapView(d); }; // 試験用
-  window.__newGame = () => { startGame(null, {}); }; // 試験用
+  window.__newGame = (o) => { startGame(null, o || {}); }; // 試験用
   window.__uraDemo = (n) => { const g = S.game; if (!g || !g.doraInd || !g.uraAll) return false; n = n || 1; while (g.doraInd.length < n) g.doraInd.push(g.doraInd[0]); while (g.uraAll.length < n) g.uraAll.push(g.uraAll[0]); g.doraInd = g.doraInd.slice(0, n); g.uraAll = g.uraAll.slice(0, n); ui.uraReveal(g, []).then(() => print('URA done')); return true; }; // 試験用
   window.__uraDemoStart = (n) => { if (S.game) return window.__uraDemo(n); startGame(null, {}); const iv = setInterval(() => { const g = S.game; if (g && g.doraInd && g.players && g.players[0].hand && g.live && g.live.length < 70 && !S.deal && S.mode === 'game' && !S.ura && !S.result) { clearInterval(iv); setTimeout(() => window.__uraDemo(n), 800); } }, 500); return true; }; // シミュレーターのボタン: 対局を始めて、配牌がおわったら、裏ドラの確認アニメを見せる
   window.__openSettings = () => { if (S.game) return false; S.mode = 'settings'; S.setIdx = 0; S.rankScr = null; dirty(); return true; }; // 試験用
