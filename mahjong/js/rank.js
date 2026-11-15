@@ -62,7 +62,7 @@
       }
       const tr = game.town != null && game.town < s.dan; let capped = false, note = ''; // 修行(地図で、低い段位の街を選んだ対局): ポイントは半分、4位でも減らない。昇段も降段もしない(次の段位の1点手前まで)
       if (tr) { const want = delta > 0 ? Math.max(1, Math.round(delta / 2)) : 0, nx = DAN[s.dan + 1], room = nx ? Math.max(0, nx[1] - 1 - s.pt) : want; delta = Math.min(want, room); capped = !!nx && (room === 0 || delta < want); /* 上限にいる(これ以上 増えない) */ note = capped ? '' : '修行の対局(ポイント半分)'; }
-      s.hist = (s.hist || []).concat({ p: delta, r: me.rank, o: avg == null ? null : Math.round(avg * 10) / 10 }).slice(-30);
+      s.hist = (s.hist || []).concat({ p: delta, r: me.rank, o: avg == null ? null : Math.round(avg * 10) / 10, d: s.dan, t: tr ? 1 : 0 }).slice(-30); // d=その対局のときの段位 t=修行
       const ch = addPt(s, delta); s.games++; s.ranks[me.rank - 1]++;
       if (game.tenka && me.rank === 1 && ch.after === DAN.length - 2) { s.dan = DAN.length - 1; s.maxdan = DAN.length - 1; ch.after = DAN.length - 1; } // 天下分け目(名人+徳川家康+水戸黄門)で 1位 → 永世名人
       final.results.forEach((r) => {
@@ -73,6 +73,13 @@
       save(RK, s);
       const f = R.info();
       return { delta, avg, mult, pt: s.pt, name: f.name, next: f.next, left: f.left, from: ch.before, to: ch.after, promoted: ch.after > ch.before, demoted: ch.after < ch.before, msg: tr ? note : msgOf(ch), train: tr, capped, dan: ch.after > ch.before ? DAN[ch.after][0] : null };
+    },
+    /* 不調のときの「やさしさ」(0=ふつう 1・2=やさしく): この段位での、直近5局(修行はのぞく)の順位の合計が17以上で1、19以上で2。 4位が4連続なら2。 5局(4位連続のときは4局)たまるまでは 0。 昇段すると、数え直し */
+    ease() {
+      const s = R.get(), h = (s.hist || []).filter((x) => x.d === s.dan && !x.t), l5 = h.slice(-5), l4 = h.slice(-4);
+      if (l4.length >= 4 && l4.every((x) => x.r === 4)) return 2;
+      if (l5.length < 5) return 0;
+      const sum = l5.reduce((a, x) => a + x.r, 0); return sum >= 19 ? 2 : sum >= 17 ? 1 : 0;
     },
     /* 相手の解放: これまでに到達した最高の段位までの人が使える(降段しても、出てきた人は使えたまま) */
     unlocked(id) { return MJ.unlockDan(id) <= R.get().maxdan; },
