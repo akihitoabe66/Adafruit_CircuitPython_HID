@@ -28,6 +28,7 @@
     let d = s.dan;
     while (d < DAN.length - 1 && s.pt >= DAN[d + 1][1]) d++;
     while (d >= DEMOTE_FROM && s.pt < DAN[d][1] - DEMOTE_GAP) d--;
+    if (d > before + 1) d = before + 1; // 1回の対局で上がるのは1段まで(点数表を変えた直後など、点が先に貯まっていても、認定証と地図を1段ずつ出す)。 のこりの段は、つぎの対局で上がる
     s.dan = d; if (d > (s.maxdan || 0)) s.maxdan = d;
     return { before, after: d };
   };
