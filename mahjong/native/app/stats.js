@@ -18,7 +18,7 @@
   const pct = (x) => Math.round(x * 100) + '%';
 
   const S = (MJ.Stats = {
-    CATN, load, save,
+    CATN, load, save, reset() { D = null; }, // 記録を消したあと、メモリの中も はじめにもどす
     tag(p) { if (p.tag) return p.tag; if (p.cat === 'score') return p.title === '何飜?' ? 'han' : p.title === '何符?' ? 'fu' : 'pts'; return p.cat || 'other'; },
     quiz(p, ok) { // クイズ1問ぶんの結果
       const d = load(), t = S.tag(p), q = d.quiz[t] || (d.quiz[t] = { n: 0, ok: 0, h: [] });

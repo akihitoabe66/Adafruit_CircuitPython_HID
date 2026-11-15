@@ -1721,11 +1721,14 @@
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   /* ---------- リセット(デバッグ用): ゲームを はじめから。 音量・ルール・麻雀先生などの「設定」は残し、成績・段位・雀士・ビデオ・勉強・途中のセーブを消す ---------- */
   const KEEP_PREF = ['mj_vol_', 'mj_teacher', 'mj_dmark', 'mj_swapab', 'mj_cpuspeed', 'mj_rules', 'mj_padid', 'mj_orient', 'mj_perf', 'mj_winfx', 'mj_you', 'mj_think', 'mj_danger_', 'mj_banter'];
-  function resetAll() {
+  function resetAll() { // 設定のしるしは のこして、成績・段位などを けす。 アプリは 閉じない: メモリの中の記録も 初期化して、ホームにもどる
     try { Object.keys(__ls).forEach((k) => { if (k.indexOf('mj_') === 0 && !KEEP_PREF.some((p) => k.indexOf(p) === 0)) delete __ls[k]; }); __lsDirty = true; } catch (e) { /* ignore */ }
     try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ }
     try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ }
-    S.resetDone = { t0: __now() }; dirty();
+    try { if (MJ.Stats && MJ.Stats.reset) MJ.Stats.reset(); } catch (e) { /* ignore */ }   // 成績は、メモリにも おぼえているので、はじめにもどす
+    S.rankScr = null; S.vid = null; S.study = null; S.promo = null; S.ros = null; S.learn = null; S.map = null; S.cert = null; S.reveal = null; S.lay = []; S.statsPg = 0; S.setIdx = 0;
+    S.mode = 'menu'; S.homeBot = false; S.menuIdx = 0; S.toast = { text: 'リセットしました(はじめの状態です)', until: __now() + 1800 }; try { NSND.home(); } catch (e) { /* ignore */ }
+    dirty(); setTimeout(dirty, 1900);
   }
   function startVideo() {
     const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last);
@@ -2156,7 +2159,6 @@
       else if (k === 'ok') { const q = S.playQ; S.playQ = null; S.teachQ = { idx: teacherOn() ? 1 : 0, snap: q.idx === 0 ? q.snap : null }; }
       return;
     }
-    if (S.resetDone) return;
     if (S.resetQ) { // リセットの確認(はじめは「やめる」)
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') S.resetQ.idx = 1 - S.resetQ.idx;
       else if (k === 'back') S.resetQ = null; else if (k === 'ok') { const i = S.resetQ.idx; S.resetQ = null; if (i === 0) resetAll(); }
@@ -2583,7 +2585,6 @@
     if (S.playQ) drawDialog('麻雀をはじめます', ['つづきから(' + kyokuText(S.playQ.snap) + ')', 'はじめから'], S.playQ.idx, '');
     if (S.confirmQ) drawDialog('このまま ゲームが 終了しますが よろしいですか?', ['終了', 'もどる'], S.confirmQ.idx, '');
     if (S.resetQ) drawDialog('ゲームを はじめから にしますか?', ['リセットする', 'やめる'], S.resetQ.idx, '成績・段位・雀士・ビデオ・勉強の進みが 消えます');
-    if (S.resetDone) { fill(0, 0, SW, SH, [0, 0, 0], 225); text('リセットしました', SW / 2, 170, 40, YEL, 1); text('ゲームを 終了します。 もう一度 起動してください', SW / 2, 240, 24, WHITE, 1); if (__now() - S.resetDone.t0 > 1800 && typeof __quit === 'function') __quit(); dirty(); }
     gfx.view(0, 0);
     return true;
   };
