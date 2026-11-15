@@ -3,7 +3,7 @@
   const MJ = (G.MJ = G.MJ || {});
   const mk = (n, name, short, level, style, voice, desc, riichi, win, lose) => ({
     id: n, voice, img: `img/chars/${String(n).padStart(2, '0')}.webp`, face: `img/chars/face/${String(n).padStart(2, '0')}.webp`, name, short, level, style, desc,
-    ai: [0, 1, 2, 3, 3, 4, 4, 5, 5, 5, 5][level], // 打ち方の強さ(1〜5)。表示の★(1〜10)とは別
+    ai: [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5][level], // 打ち方の強さ(1〜5)。表示の★(1〜10)とは別
     lines: { riichi, win, lose },
   });
   const STYLE_JP = { attack: '攻め', defense: '守り', balanced: 'バランス' };

@@ -2472,16 +2472,21 @@
  try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go = () => { S.rankScr = { rk, done }; dirty(); }; if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
   };
 
-  const AI_T = [0, 1, 2, 3, 3, 4, 4, 5, 5, 5, 5];
+  const AI_T = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]; // js/chars.js の mk() と同じ
   function liftChars(chars) { // 段位が上がると、★の低いキャラも、最低でも その段位の「★の最低値」まで強くなる
     let dan = 0; try { dan = MJ.Rank.get().dan; } catch (e) { /* ignore */ }
     return chars.map((c) => { const L = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; return L === c.level ? c : Object.assign({}, c, { level: L, ai: AI_T[Math.min(10, L)] }); });
   }
-  function pickChars() {
+  function pickChars() { // 3人: 新顔1(まだ出会っていない人を優先)+おなじみ2(昔の人)。前の対局と同じ顔ぶれが続きにくい
     let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (!ok || !ok.length || ok.includes(c.id))); const out = [];
     let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ }
     if (dn === 10 && Math.random() < 0.2) { const a = pool.find((c) => c.id === 7), b = pool.find((c) => c.id === 1); if (a && b) { out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); } } // 名人のあと 5回に1回: 徳川家康と水戸黄門が そろう「天下分け目」
-    while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    let met = []; try { met = metLoad(); } catch (e) { /* ignore */ } const last = S.lastOpp || [], tier = (c) => MJ.unlockDan(c.id), mx = pool.reduce((m, c) => Math.max(m, tier(c)), 0);
+    const wpick = (list, wf) => { // 重みつき抽選(同じ時代が重ならないように、前の対局に出た人は出にくく)
+      const w = list.map((c) => Math.max(0.01, wf(c) * (last.includes(c.id) ? 0.3 : 1) * (out.some((o) => MJ.eraOf(o.id) === MJ.eraOf(c.id)) ? 0.25 : 1))); let r = Math.random() * w.reduce((a, b) => a + b, 0), i = 0; while (i < list.length - 1 && (r -= w[i]) > 0) i++; const c = list[i]; pool.splice(pool.indexOf(c), 1); out.push(c); };
+    if (out.length < 3 && pool.length) { const un = pool.filter((c) => !met.includes(c.id)); const nw = un.length ? un : pool.filter((c) => tier(c) >= mx - 1); wpick(nw.length ? nw : pool, (c) => 1 + tier(c)); } // 新顔枠
+    while (out.length < 3 && pool.length) { const old = pool.filter((c) => tier(c) < mx - 1); wpick(old.length ? old : pool, () => 1); } // おなじみ枠
+    S.lastOpp = out.map((c) => c.id);
     return out;
   }
   function stopGame() { // ゲームを途中でやめて、ホームへ

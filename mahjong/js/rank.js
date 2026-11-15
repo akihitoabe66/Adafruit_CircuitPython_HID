@@ -15,7 +15,8 @@
   /* 実機版(MJ.RankScale = true のとき): ポイントに「相手の強さ」をかける。 基準の強さ=1+0.8×段位。 相手3人の★の平均が高いほど、勝ち(1・2位)は増え、負け(4位)は減りかたが小さい。
      段位が上がると、★の低いキャラも、最低でも FLOOR(段位) まで強くなる(MJ.effLevel) */
   const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-  MJ.effFloor = (dan) => Math.min(6, 1 + Math.floor(dan / 2));
+  MJ.EFF_FLOOR = [1, 1, 2, 3, 3, 4, 5, 6, 6, 7, 7, 8]; // 段位ごとの「★の最低値」: 無段のキャラも、後半は★7ぐらいまで 成長して登場する
+  MJ.effFloor = (dan) => MJ.EFF_FLOOR[Math.max(0, Math.min(11, dan | 0))];
   MJ.effLevel = (lv, dan) => Math.max(lv, MJ.effFloor(dan));
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
   const base = () => ({ hist: [], pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '', dan: 0, maxdan: 0, v: 2, qc: 0, qday: '', qpt: 0, st: {} });
