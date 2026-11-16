@@ -41,11 +41,15 @@ class Debounce:
         return None
 
 
-def to_state(btn):
+def to_state(btn, prev=None):
     """押しているボタン → (X軸, Y軸, [8個のボタンの 0/1])"""
     if (btn['left'] and btn['right']) or (btn['up'] and btn['down']): return None   # 左右・上下が 同時は ありえない(読みまちがい)
     x = (1 if btn['right'] else 0) - (1 if btn['left'] else 0)
     y = (1 if btn['down'] else 0) - (1 if btn['up'] else 0)
+    if x and y:   # 斜め: この互換品は「左」を押すと「上」も 一瞬 触れてしまう(実機で確認)。 斜めは 使わないので、どちらか1つにする
+        px, py = (prev[0], prev[1]) if prev else (0, 0)
+        if py and not px: x = 0      # すでに 縦を押している → 縦をつづける
+        else: y = 0                  # すでに 横を押している・どちらも新しい → 横を優先
     ks = [0] * 8
     ks[0] = 1 if btn['b'] else 0
     ks[1] = 1 if btn['a'] else 0
@@ -144,10 +148,14 @@ def selftest():
         return w
     assert to_state(decode(press('a'))) == (0, 0, [0, 1, 0, 0, 0, 0, 0, 0])
     assert to_state(decode(press('b'))) == (0, 0, [1, 0, 0, 0, 0, 0, 0, 0])
-    assert to_state(decode(press('left', 'up'))) == (-1, -1, [0] * 8)
-    assert to_state(decode(press('right', 'down'))) == (1, 1, [0] * 8)
+    assert to_state(decode(press('left', 'up'))) == (-1, 0, [0] * 8)   # 斜めは 横だけ
+    assert to_state(decode(press('right', 'down'))) == (1, 0, [0] * 8)
     assert to_state(decode(press('select', 'start'))) == (0, 0, [0, 0, 0, 0, 0, 0, 1, 1])
     assert to_state(decode(press('left', 'right'))) is None and to_state(decode(press('up', 'down'))) is None
+    assert to_state(decode(press('left', 'up')))[:2] == (-1, 0)                       # 斜め(どちらも新しい) → 横
+    assert to_state(decode(press('left', 'up')), (-1, 0, [0] * 8))[:2] == (-1, 0)     # 左を押している途中に 上が混じる → 左のまま
+    assert to_state(decode(press('left', 'up')), (0, -1, [0] * 8))[:2] == (0, -1)     # 上を押している途中に 左が混じる → 上のまま
+    assert to_state(decode(press('right', 'down')), (1, 0, [0] * 8))[:2] == (1, 0)
     d = Debounce(2); A, B = (0, 0, [0] * 8), (-1, 0, [0] * 8)
     assert d.feed(A) is None and d.feed(A) == A and d.feed(A) is None   # 2回つづいて はじめて A
     assert d.feed(B) is None and d.feed(A) is None and d.feed(A) is None   # 1回だけの B(読みまちがい)は 通らない
@@ -218,7 +226,7 @@ def main():
                 bad += 1
                 if bad >= 20: raise OSError('読みまちがいが つづいた')
             else:
-                bad = 0; st = to_state(b)
+                bad = 0; st = to_state(b, pad.last)
                 if st is not None:
                     out = deb.feed(st)
                     if out is not None: pad.send(out)
