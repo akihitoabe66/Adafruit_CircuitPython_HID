@@ -492,7 +492,7 @@
     drawFly(); drawTeacher(g);
     const now = __now();
     const BUB = BUBP; // 上家・下家は、同じ高さ(麻雀先生の帯(y268〜)に かさならない高さ)。吹き出しは、いつも同じ大きさ(顔も、いつも同じ大きさ)
-    const calling = (S.banner && S.banner.call) || S.ryu || S.ura; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
+    const calling = (S.banner && S.banner.call) || S.ryu || S.ura || S.winRv; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; } if (calling) continue;
       const pos = BUB[k] || [300, 200], tw = BW - FSZ - 34; let bsz = 20, lines = wrapText(b.text, bsz, tw);
       for (const z of [20, 19, 18, 17, 16]) { bsz = z; lines = wrapText(b.text, z, tw); if (lines.length <= 3) break; } lines = lines.slice(0, 3);
@@ -770,12 +770,12 @@
     if (t > 0) { wf(650, 150, 112); face(P[1], 650, 150, 112, 112); pl(P[1], 706, 268, st(P[1])); wc(P[1], 774, 154); }
     if (t > 0) { wf(60, 336, 92); try { gfx.imageTop(youSrc(), 60, 336, 92, 92); } catch (e) { /* ignore */ } pl(P[0], 246, 366, 0); wc(P[0], 18, 340); }
     const T1 = it.t1 || 1700; // 「勝負!」を出す時刻(局の読み上げが、ながいときは、おわるまで待つ)
-    if (t > 400 && !it.v1) { it.v1 = 1; S.skipKyokuVoice = true; try { const d = NSND.readKyoku(g); it.t1 = Math.max(1700, 400 + Math.round((d || 0) * 1000) + 350); } catch (e) { /* ignore */ } }
-    if (t >= T1 && !it.v2) { it.v2 = 1; NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }
-    if (t > 400 && t < T1) { const k = Math.min(1, (t - 400) / 160), sz = k < 0.5 ? 96 : 78; fill(192, 190, 448, 90, [0, 0, 0], 170); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz / 2, sz, YEL, 1); }
-    if (t >= T1 && t < T1 + 1200) { const k = Math.min(1, (t - T1) / 160), sz = k < 0.5 ? 110 : 90; fill(192, 180, 448, 110, [0, 0, 0], 170); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((dd) => text('勝負!', SW / 2 + dd[0], 235 - sz / 2 + dd[1], sz, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz / 2, sz, [225, 40, 30], 1); }
+    if (t > 400 && !it.v1) { it.v1 = 1; S.skipKyokuVoice = true; try { const d = NSND.readKyoku(g, () => { it.kyDone = true; }); it.t1 = Math.max(1700, 400 + Math.round((d || 0) * 1000) + 350); } catch (e) { /* ignore */ } }
+    if (t >= T1 && !it.v2 && (it.kyDone || t > T1 + 3500)) { it.v2 = 1; it.t1 = t; NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } } // 「局」の読み上げが、実際に おわってから「勝負!」(画面が止まって 声が おくれても、重ならない)
+    if (t > 400 && !it.v2) { const k = Math.min(1, (t - 400) / 160), sz = k < 0.5 ? 96 : 78; fill(192, 190, 448, 90, [0, 0, 0], 170); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz / 2, sz, YEL, 1); }
+    if (it.v2 && t < it.t1 + 1200) { const k = Math.min(1, (t - it.t1) / 160), sz = k < 0.5 ? 110 : 90; fill(192, 180, 448, 110, [0, 0, 0], 170); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((dd) => text('勝負!', SW / 2 + dd[0], 235 - sz / 2 + dd[1], sz, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz / 2, sz, [225, 40, 30], 1); }
     if (t > 300) shotOnce('intro1'); if (t > 1000) shotOnce('intro2'); if (t > 2200) shotOnce('intro3');
-    if (t >= T1 + 1200) { S.intro = null; it.done(); }
+    if (it.v2 && t >= it.t1 + 1200) { S.intro = null; it.done(); }
     dirty();
   }
   const PIP = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
@@ -840,10 +840,10 @@
     const P = g.players, counting = d.settled && now >= cStart && now < revealAt, done = d.settled && now >= revealAt;
     if (done && !d.revealT) { d.revealT = now; NSND.sfx('start', 0.8); NSND.sfx('slam', 0.8); }
     const rt = d.revealT ? now - d.revealT : -1; // 親が決まってからの経過(ミリ秒): 〜1500 親を見せる / 〜2900「東一局」/ 〜4100「勝負!」
-    if (rt > 1500 && !d.v1) { d.v1 = 1; afterPresent(() => { NSND.sfx('slam'); try { const dur = NSND.readKyoku(g); d.T2 = Math.max(2900, 1500 + Math.round((dur || 0) * 1000) + 350); } catch (e) { /* ignore */ } }); } // 声は、文字が画面に出たあとに(描くのが遅い実機で、声だけ先に出ないように) // 「勝負!」は、局の読み上げが おわってから
+    if (rt > 1500 && !d.v1) { d.v1 = 1; afterPresent(() => { NSND.sfx('slam'); try { const dur = NSND.readKyoku(g, () => { d.kyDone = true; }); d.T2 = Math.max(2900, 1500 + Math.round((dur || 0) * 1000) + 350); } catch (e) { /* ignore */ } }); } // 声は、文字が画面に出たあとに(描くのが遅い実機で、声だけ先に出ないように) // 「勝負!」は、局の読み上げが おわってから
     const T2 = d.T2 || 2900;
-    if (rt > T2 && !d.v2) { d.v2 = 1; afterPresent(() => { NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }); }
-    if (rt > T2 + 1200 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); }
+    if (rt > T2 && !d.v2 && (d.kyDone || rt > T2 + 3500)) { d.v2 = 1; d.T2 = rt; afterPresent(() => { NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }); }
+    if (d.v2 && rt > d.T2 + 1200 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); }
     const step = counting ? Math.floor((now - cStart) / cStep) + 1 : 0, hiSeat = counting ? (step - 1) % 4 : -1;
     if (counting && d._lastStep !== step) { d._lastStep = step; NSND.sfx('select', 0.5); }
     const winds = (sd) => (done ? ['東', '南', '西', '北'][(sd - d.target + 4) % 4] : '');
@@ -860,7 +860,7 @@
       else if (!done) T2('合計 ' + total + ' …  あなたから 左回りに 数えます', 268, 19, WHITE);
       else T2(P[d.target].name + ' が 親です', 265, 24, YEL);
       if (!globalThis.__nodice) drawDice2(d, now); // サイコロは、黒い帯より上を通る(最後に描く) // サイコロは、黒い帯より上を通る(最後に描く)
-    } else if (rt < T2) { const k = Math.min(1, (rt - 1500) / 160), sz2 = k < 0.5 ? 96 : 78; fill(192, 174, 448, 122, [0, 0, 0], 200); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz2 / 2, sz2, YEL, 1); }
+    } else if (!d.v2) { const k = Math.min(1, (rt - 1500) / 160), sz2 = k < 0.5 ? 96 : 78; fill(192, 174, 448, 122, [0, 0, 0], 200); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz2 / 2, sz2, YEL, 1); }
     else { const k = Math.min(1, (rt - T2) / 160), sz2 = k < 0.5 ? 110 : 90; fill(192, 174, 448, 122, [0, 0, 0], 200); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((dd) => text('勝負!', SW / 2 + dd[0], 235 - sz2 / 2 + dd[1], sz2, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz2 / 2, sz2, [225, 40, 30], 1); }
     if (globalThis.__nodice && globalThis.__shotDir && !d._snapped) { d._snapped = 1; gfx.snap(globalThis.__shotDir + '/dicefull.bmp'); } // 試験用
     if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
@@ -2311,7 +2311,7 @@
       else if (k === 'back') { /* ホームでBボタンは、何もしない */ }
       else if (k === 'ok') {
         const it = items[S.menuIdx]; if (!it || it.off) return;
-        if (it.act === 'play') later(() => { const l = slotRead(); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else S.teachQ = { idx: teacherOn() ? 1 : 0, snap: null }; });
+        if (it.act === 'play') later(() => { tl('play-pressed'); const l = slotRead(); tl('slots-read'); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else S.teachQ = { idx: teacherOn() ? 1 : 0, snap: null }; });
         else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => weightedGens(RCATS), n: 10 }));
         else if (it.act === 'study') later(() => startStudy());
         else if (it.act === 'settings') later(() => { S.mode = 'settings'; S.setIdx = 0; });
@@ -2418,6 +2418,7 @@
     },
     banner(g, p, t) { tl('banner ' + t + ' ' + (p && p.name)); S.banner = { text: t, t0: __now(), p, call: true }; if (p && p.isHuman) setMood({ 'リーチ': 'fight', 'ポン': 'call', 'チー': 'call', 'カン': 'call', 'ロン': 'point', 'ツモ': 'happy' }[t] || 'normal', 4000); dirty(); if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
     handStart(g) {
+      tl('handStart');
       try { const me = g.players[0]; S.prevRank = 1 + g.players.filter((q) => q.score > me.score).length; } catch (e) { S.prevRank = 0; } // この局のはじめの、あなたの順位(対局が終わったとき、「逆転」の声に使う)
       S.curIdx = null; if (teacherOn() && !S.tmsgShown && !g.watching && (g.handCount || 0) === 0 && !g.resumed) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
       S.game = g; if (!g.fast) NSND.hold(); NSND.game(g); NSND.sfx('slam');
@@ -2435,7 +2436,7 @@
       return sleep(bms + DEAL_END + 80);
     },
     padHand() {},
-    dice(g, first) { if (g.fast) return Promise.resolve(null); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { id: (S.diceSeq = (S.diceSeq || 0) + 1), a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done: (tg) => { g.dealer = tg; S.skipBanner = true; S.skipKyokuVoice = true; done(tg); } }; dirty(); }); },
+    dice(g, first) { if (g.fast) return Promise.resolve(null); tl('dice-start'); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { id: (S.diceSeq = (S.diceSeq || 0) + 1), a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done: (tg) => { g.dealer = tg; S.skipBanner = true; S.skipKyokuVoice = true; done(tg); } }; dirty(); }); },
     askSelf(g, p, opts, st) {
       (S.thT || []).forEach(clearTimeout); S.thT = []; // 悩んでいるとき: 30秒・60秒・120秒、それ以降は3分ごとに、CPUがひとこと(Edge版と同じ)
       if (!p.riichi && !g.fast && MJ.Banter) { const say = (i) => { if (S.self && S.self.p === p && S.game === g) { try { MJ.Banter.think(g, i); } catch (e) { /* ignore */ } } }; S.thT = [30, 60, 120].map((sec, i) => setTimeout(() => say(i), sec * 1000)); const loop = () => { say(3); S.thT.push(setTimeout(loop, 180000)); }; S.thT.push(setTimeout(loop, 180000)); }
@@ -2569,7 +2570,7 @@
   /* 親が決まったあと: 「東一局!」「勝負!」(顔・文字・声)。そのあと、すぐ配牌へ */
   const startIntro = (g) => new Promise((res) => { if (g.resumed || g.fast) { res(); return; } S.intro = { t0: __now(), done: () => { S.skipBanner = true; res(); } }; NSND.sfx('slam'); dirty(); });
   async function startGame(sn, opt) {
-    S.ura = null; S.mode = 'game'; S.tmsgShown = 0; dirty(); opt = opt || {}; let town = opt.town != null ? opt.town : sn && sn.town; try { if (opt.practice || town == null || town >= (MJ.Rank.get().dan || 0)) town = null; } catch (e) { town = null; }
+    tl('startGame'); S.ura = null; S.mode = 'game'; S.tmsgShown = 0; dirty(); opt = opt || {}; let town = opt.town != null ? opt.town : sn && sn.town; try { if (opt.practice || town == null || town >= (MJ.Rank.get().dan || 0)) town = null; } catch (e) { town = null; }
     let ease = 0, ctown = town; if (!opt.practice && town == null) { try { ease = sn && sn.ease != null ? sn.ease : MJ.Rank.ease(); const dn0 = MJ.Rank.get().dan || 0, ct = Math.max(0, dn0 - ease); if (ease > 0 && ct < dn0) ctown = ct; else ease = 0; } catch (e) { ease = 0; } } // 不調のときは、2段(ひどいときは4段)ぶん やさしい相手(ポイントは そのまま)。 画面には 出さない // 修行: 地図で、いまの段位より下の街を選んだとき
     const chars = opt.practice ? opt.chars : sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
     const g = new MJ.Game({ chars: opt.practice ? (opt.watch ? chars.slice(1) : chars) : liftChars(chars.length === 3 ? chars : pickChars(ctown, ease > 0), ctown, ease > 0), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
@@ -2577,7 +2578,7 @@
     if (opt.practice) { g.practice = true; g.watching = !!opt.watch; if (opt.watch) { const c0 = chars[0]; g.players[0].char = c0; g.players[0].name = c0.short; } } // 練習対局: 記録しない。観戦: 1人めの席(下)の手牌を見る
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; g.bgmResume = sn.bgm; if (sn.mid) g.resumeMid = sn.mid; }
     if (!opt.watch) g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
-    S.game = g;
+    S.game = g; tl('game-built');
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
     S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; S.homeBot = false; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
@@ -2605,7 +2606,7 @@
     const q = S.sayQ || []; const now = __now();
     while (q.length && (now - q[0].t0 > 4000 || q[0].g !== S.game)) q.shift(); // 古くなったセリフは出さない
     if (!q.length) return;
-    const busy = (S.banner && S.banner.call) || S.ura || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
+    const busy = (S.banner && S.banner.call) || S.ura || S.winRv || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
     if (busy) { S.sayT = setTimeout(() => { S.sayT = null; pumpSay(); }, 250); return; }
     const x = q.shift(); tl('say-show ' + x.p.name + ' ' + x.ms + 'ms'); S.bub[x.p.seat] = { name: x.p.name, text: x.t, p: x.p, until: __now() + x.ms }; dirty();
     S.sayT = setTimeout(() => { S.sayT = null; dirty(); pumpSay(); }, x.ms + 120);
@@ -2675,6 +2676,7 @@
   window.__draw = function () {
     S.drawSeq = (S.drawSeq || 0) + 1;
     const t0 = __now(); const r = drawBody(); const dt = __now() - t0; perf.n++; perf.ms += dt; if (dt > (perf.mx || 0)) perf.mx = dt;
+    if (dt >= 300) tl('slow-draw ' + Math.round(dt) + 'ms ' + perfCtx()); // 0.3秒以上かかった描きは、出来事の記録(mj_tl)にも残す
     if (dt >= 80) { (perf.slow = perf.slow || []).unshift(Math.round(dt) + 'ms  ' + perfCtx()); perf.slow.length = Math.min(perf.slow.length, 4); }
     if (t0 - perf.t0 >= 1000) { perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; }
     if (perfOn() || (perf.flash || 0) > t0) { // 遅れの診断(写真に とれるように、左上に 大きめに)

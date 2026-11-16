@@ -111,14 +111,14 @@
       const wait = Math.max(1100, (A.callEnd || 0) - __now() + 500); setTimeout(() => A.speak(keys), wait); // 掛け声と重ならないように
     },
     /* 局のはじまり: 「トン、イッキョク!」など */
-    readKyoku(game) {
+    readKyoku(game, cb) { // cb: 読み上げが 実際に 終わったときに 呼ぶ(つぎの「勝負!」の声を、それまで 待たせる)
       const W = ['トン', 'ナン', 'シャー', 'ペー'], KY = ['イッキョク', 'ニキョク', 'サンキョク', 'ヨンキョク'];
       const keys = ['x:' + W[game.roundWind % 4], '.', 'x:' + (KY[game.kyoku % 4] || 'イッキョク')]; // 「トン」「二局」: ほんの少し間をあけて、重ならないように
       const HB = { 1: 'イッポンバ', 2: 'ニホンバ', 3: 'サンボンバ', 4: 'ヨンホンバ', 5: 'ゴホンバ', 6: 'ロッポンバ', 7: 'ナナホンバ', 8: 'ハッポンバ', 9: 'キュウホンバ', 10: 'ジュッポンバ' };
       const hb = Math.min(19, game.honba || 0); // 10本場までは、そのまま。11本場からは「じゅう」+「1〜9本場」(19本場まで)
       if (hb >= 1 && hb <= 10) keys.push(null, 'x:' + HB[hb]); else if (hb > 10) keys.push(null, 'x:ジュウ', '+', 'x:' + HB[hb - 10]);
       if (game.isOras && game.isOras()) keys.push(null, 'x:オーラス'); // 最終局
-      return A.speak(keys);
+      return A.speak(keys, cb);
     },
   });
 })();
