@@ -663,12 +663,10 @@
     if (pressing() || typeof gfx.layerBegin !== 'function') { drawHomeBody(); return; }
     cached(homeSlot(), homeKey(), drawHomeBody);
   }
-  function homeWarm() { // タイトルが出ているあいだに、ホームの 全部の状態の絵を、画面に出さずに 先に描いておく(押してから切りかわるときの 重さを なくす)
-    if (typeof gfx.layerBegin !== 'function') return;
-    const sv = [S.menuIdx, S.homeBot, S.homeBotIdx];
+  function homeWarmJobs() { /* ホームの全部の状態の絵を、画面に出さずに先に描いておく(起動の画面のあいだに済ませる) */
+    if (typeof gfx.layerBegin !== 'function') return [];
     const st = [[false, 0, 0], [false, 1, 0], [false, 2, 0], [false, 3, 0], [true, 0, 0], [true, 0, 1], [true, 0, 2]];
-    const quiet = (fn, ms) => { const go = () => { if (S.lastKeyT && __now() - S.lastKeyT < 1500) { setTimeout(go, 400); return; } fn(); }; setTimeout(go, ms); }; // ボタンを押して 1.5秒のあいだは 先読みしない(タイトルで 方向キーが効かない、をなくす)
-    st.forEach((q, k) => quiet(() => { if (S.mode !== 'title' && S.mode !== 'menu') return; const keep = [S.menuIdx, S.homeBot, S.homeBotIdx]; try { S.homeBot = q[0]; if (q[0]) S.homeBotIdx = q[2]; else S.menuIdx = q[1]; lay(homeSlot(), homeKey(), drawHomeBody); } catch (e) { /* ignore */ } S.menuIdx = keep[0]; S.homeBot = keep[1]; S.homeBotIdx = keep[2]; }, 1200 + k * 350));
+    return st.map((q) => () => { const keep = [S.menuIdx, S.homeBot, S.homeBotIdx]; try { S.homeBot = q[0]; if (q[0]) S.homeBotIdx = q[2]; else S.menuIdx = q[1]; lay(homeSlot(), homeKey(), drawHomeBody); } catch (e) { /* ignore */ } S.menuIdx = keep[0]; S.homeBot = keep[1]; S.homeBotIdx = keep[2]; });
   }
   function drawHomeBody() {
     gfx.clear(32, 74, 60);
@@ -2156,6 +2154,7 @@
 
   /* ---------- 入力 ---------- */
   window.__key = function (k) {
+    if (S.mode === 'boot') return; /* 準備のあいだは ボタンを受けつけない */
     if (__now() - (S.tlKey || 0) > 700) { S.tlKey = __now(); tl('key ' + k); } S.lastKeyT = __now(); // 最後にボタンを押した時刻(先に絵を描いておく処理は、ボタンを押しているあいだは しない)
     if (S.winRv) { if ((k === 'ok' || k === 'back') && __now() - S.winRv.t0 > 600) winRvDone(); dirty(); return; } // CPUの手牌を見せているあいだ(決定で すぐ 次へ)
     if (S.ura) { if (k === 'ok' || k === 'back') uraSkip(); dirty(); return; } // 裏ドラ確認のアニメ中
@@ -2612,6 +2611,7 @@
     S.sayT = setTimeout(() => { S.sayT = null; dirty(); pumpSay(); }, x.ms + 120);
   }
   const drawBody = function () {
+    if (S.mode === 'boot') { drawBoot(); return true; }
     // カーソルだけが動いたとき: 画面ぜんたいは描きなおさず、手牌のあたりだけ描く(キビキビ動かすため)
     if (S.partialKey && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.ryu && !Object.keys(S.bub).length && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
       S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [32, 74, 60]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
@@ -2689,8 +2689,8 @@
   };
 
   /* 初回(新しくはじめた最初の対局)で、文字をはじめて作る重さが 出ないように、よく出る文字を 先に作っておく(画面には出さない)。 タイトルのあいだに、少しずつ */
-  function warmText() {
-    if (typeof gfx.dry !== 'function') return;
+  function warmTextJobs() { /* 文字の下ごしらえ(画面には出さない)を、3つずつの仕事に分ける */
+    if (typeof gfx.dry !== 'function') return [];
     const W = [255, 255, 255], Y = [255, 220, 40], L = [];
     const add = (s, sz, c) => L.push([s, sz, c[0], c[1], c[2]]);
     [['東一局', 96, Y], ['東一局', 78, Y], ['東一局', 28, W], ['東一局', 24, W], ['勝負!', 110, W], ['勝負!', 110, [225, 40, 30]], ['勝負!', 90, W], ['勝負!', 90, [225, 40, 30]], ['東風戦', 16, [200, 215, 200]], ['東南戦', 16, [200, 215, 200]], ['解説', 22, W], ['麻雀先生', 19, W], ['なし', 19, W], ['あり', 19, W], ['親', 24, W],
@@ -2705,11 +2705,25 @@
     for (let n = 0; n <= 70; n++) add(String(n), 34, Y); // 山の残り枚数
     add('あなた', 21, W); add('あなた', 21, [35, 26, 0]); add('あなた', 20, W); add('あなた', 20, [27, 27, 18]);
     try { MJ.CHARS.forEach((c) => { const nm = c.short || c.name; add(nm, 21, W); add(nm, 20, W); add(nm, 20, [27, 27, 18]); add(nm, 17, [80, 90, 86]); }); } catch (e) { /* ignore */ }
-    let i = 0;
-    tl('warm-start ' + L.length);
-    const step = () => { if (S.mode === 'game') { if (!S._wp) { S._wp = 1; tl('warm-paused-by-game at ' + i + '/' + L.length); } setTimeout(step, 1000); return; } /* 対局中は 先読みを しない(対局中の止まりを 増やさない) */ if (S.lastKeyT && __now() - S.lastKeyT < 1500) { setTimeout(step, 400); return; } /* ボタンを押して 1.5秒のあいだは あとまわし */ gfx.dry(1); try { for (let k = 0; k < 2 && i < L.length; k++, i++) { const e = L[i]; gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0); } } catch (e) { /* ignore */ } finally { gfx.dry(0); } if (i < L.length) setTimeout(step, 40); else tl('warm-done'); };
-    setTimeout(step, 1200);
+    const jobs = []; for (let k = 0; k < L.length; k += 3) { const part = L.slice(k, k + 3); jobs.push(() => { gfx.dry(1); try { part.forEach((e) => gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0)); } catch (e) { /* ignore */ } finally { gfx.dry(0); } }); }
+    return jobs;
   }
-  NSND.home(); homeWarm(); warmText();
+  function drawBoot() {
+    gfx.view(0, 0); gfx.clear(14, 60, 44); const bx = Math.round((SW - 360) / 2), P = S.bootP || 0;
+    text('準備しています…', SW / 2, 250, 30, [255, 240, 200], 1);
+    fill(bx, 300, 360, 20, [20, 50, 38]); fill(bx, 300, Math.round(360 * P), 20, [222, 184, 96]);
+    text(Math.round(P * 100) + '%', SW / 2, 330, 20, [255, 240, 200], 1);
+  }
+  function bootRun() { /* 最初の対局で要る準備を、起動の画面(進み具合の棒)のあいだに すべて済ませる */
+    const jobs = warmTextJobs().concat(homeWarmJobs()), total = jobs.length || 1, t0 = __now(); let done = 0;
+    S.mode = 'boot'; S.bootP = 0; tl('boot-start ' + total); dirty();
+    const run = () => {
+      const t1 = __now(); while (jobs.length && __now() - t1 < 80) { jobs.shift()(); done++; }
+      S.bootP = done / total; dirty();
+      if (jobs.length) setTimeout(run, 0); else { S.mode = 'title'; NSND.home(); tl('boot-done ' + Math.round(__now() - t0) + 'ms'); dirty(); }
+    };
+    setTimeout(run, 30);
+  }
+  bootRun();
   print('ネイティブ版 準備できました');
 })();
