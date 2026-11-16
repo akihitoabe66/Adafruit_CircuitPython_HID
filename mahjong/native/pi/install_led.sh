@@ -1,9 +1,11 @@
 #!/bin/sh
-# LED(GPIO16)とファン(GPIO17)の制御を入れる。  使い方: sudo sh install_led.sh        (ファンも使うとき: sudo sh install_led.sh --fan)
+# LED(GPIO16)とファン(GPIO17)の制御を入れる。  使い方: sudo sh install_led.sh
+#   ファンも使うとき: sudo sh install_led.sh --fan       (CPU温度で回る)
+#                     sudo sh install_led.sh --fan-game  (麻雀が動いている間だけ回る)
 set -e
 [ "$(id -u)" = 0 ] || { echo "sudo を付けて実行してください: sudo sh install_led.sh"; exit 1; }
 cd "$(dirname "$0")"
-FAN=""; [ "$1" = "--fan" ] && FAN="--fan"
+FAN=""; [ "$1" = "--fan" ] && FAN="--fan"; [ "$1" = "--fan-game" ] && FAN="--fan-game"
 CFG=/boot/config.txt; [ -f /boot/firmware/config.txt ] && CFG=/boot/firmware/config.txt
 # 前に入れた設定(カーネルがGPIO16を使ってしまい、この制御と衝突する)を取り除く。元のファイルは .bak_led に残す
 cp "$CFG" "$CFG.bak_led"
