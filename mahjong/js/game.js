@@ -87,7 +87,7 @@
     }
 
     /* 続きから始めるための、最小限の状態(局・本場・点数・相手) */
-    snapshot() { return { v: 1, length: this.length, chars: this.players.slice(1).map((p) => p.char.id), dealer: this.dealer, kyoku: this.kyoku, honba: this.honba, kyotaku: this.kyotaku, roundWind: this.roundWind, handCount: this.handCount, scores: this.players.map((p) => p.score), wc: this.winCnt.slice(), town: this.town, ease: this.ease }; }
+    snapshot() { return { v: 1, length: this.length, chars: this.players.slice(1).map((p) => p.char.id), dealer: this.dealer, kyoku: this.kyoku, honba: this.honba, kyotaku: this.kyotaku, roundWind: this.roundWind, handCount: this.handCount, scores: this.players.map((p) => p.score), wc: this.winCnt.slice(), town: this.town, ease: this.ease, bgm: this.ui && this.ui.bgmTrack ? this.ui.bgmTrack() : undefined }; }
 
     /* 局の途中の記憶(番のはじまりの状態)。牌は番号(id)だけで持つ */
     capture(cur, drawMode) {
@@ -665,6 +665,8 @@
     }
 
     async finishWin(wins, delta, extra = {}) {
+      // CPUが上がったら、手牌を「ダッ」と倒して見せる(少し間をおいて、そのあと 裏ドラ・結果の画面へ)
+      if (this.ui && this.ui.winReveal && !this.fast && wins.some((w) => !w.winner.isHuman)) { try { await this.ui.winReveal(this, wins); } catch (e) { /* ignore */ } }
       // 裏ドラの権利がある人(リーチ者)が上がったら、結果の画面の前に、裏ドラを見せるアニメ(画面側にあるときだけ)
       if (this.ui && this.ui.uraReveal && !this.fast && MJ.RULES.ura && this.uraAll && this.doraInd && wins.some((w) => w.winner.riichi)) { try { await this.ui.uraReveal(this, wins); } catch (e) { /* ignore */ } }
       wins.forEach((w) => { this.winCnt[w.winner.seat]++; });

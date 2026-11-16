@@ -3,9 +3,9 @@
   const MJ = window.MJ;
   const GAME = ['game1', 'game2', 'game3', 'game4', 'game5', 'game6', 'game7', 'game10', 'game11'].map((n) => 'audio/' + n + '.mp3');
   const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3', 'audio/game15.mp3'], HOME = 'audio/home.mp3';
-  const SFX = ['click', 'select', 'draw', 'deal4', 'deal1', 'sort1', 'sort2', 'deal', 'discard', 'call', 'kan', 'riichi', 'ron', 'tsumo', 'win', 'lose', 'drawgame', 'slam', 'start', 'end', 'ok', 'ng', 'error', 'dice_hit', 'dice_clack', 'ura_slide', 'ura_tap'];
-  const D = { bgm: 0.22 * 6 / 5, sfx: 0.7 * 8 / 5, voice: 0.85, read: 0.6 }; // 初期値(音量の目盛り5のとき)。 目盛り5 = 前の版の「BGM6・効果音8・読み上げ5」のバランス
-  try { if (localStorage.getItem('mj_vol_v') !== '2') { ['bgm', 'sfx', 'voice'].forEach((k) => localStorage.removeItem('mj_vol_' + k)); localStorage.setItem('mj_vol_v', '2'); } } catch (e) { /* ignore */ } // 前の版の目盛りで保存された音量は、1回だけ 5 にもどす
+  const SFX = ['click', 'select', 'draw', 'deal4', 'deal1', 'sort1', 'sort2', 'deal', 'discard', 'call', 'kan', 'riichi', 'ron', 'tsumo', 'win', 'lose', 'drawgame', 'slam', 'start', 'end', 'ok', 'ng', 'error', 'dice_hit', 'dice_clack', 'ura_slide', 'ura_tap', 'hand_open'];
+  const D = { bgm: 0.22 * 6 / 5 * 6 / 5, sfx: 0.7 * 8 / 5, voice: 0.85, read: 0.6 }; // 初期値(音量の目盛り5のとき)。 目盛り5 = 前の版の「BGM6・効果音8・読み上げ5」のバランス。 さらに BGMは、ほかの音とのバランスで、もう1段(×1.2)大きく
+  try { const vv = localStorage.getItem('mj_vol_v'); if (vv !== '3') { (vv === '2' ? ['bgm'] : ['bgm', 'sfx', 'voice']).forEach((k) => localStorage.removeItem('mj_vol_' + k)); localStorage.setItem('mj_vol_v', '3'); } } catch (e) { /* ignore */ } // 前の版の目盛りで保存された音量は、1回だけ 5 にもどす
   const V = { bgm: D.bgm, sfx: D.sfx, voice: D.voice, read: D.read };
   const lvlOf = (k) => { let v = 5; try { const s = localStorage.getItem('mj_vol_' + k); if (s !== null) v = Math.max(0, Math.min(10, parseInt(s, 10))); } catch (e) { /* ignore */ } return isNaN(v) ? 5 : v; };
   const applyLvl = (k) => { const l = lvlOf(k); V[k] = Math.min(1, D[k] * l / 5); if (k === 'voice') V.read = Math.min(1, D.read * l / 5); };
@@ -27,7 +27,9 @@
     revealOff() { const q = A._rcur; A._rcur = null; if (q) { cur = ''; A.music(q); } },
     mapOff() { const q = A._pcur; A._pcur = null; if (q) { cur = ''; A.music(q); } },
     home() { A.holding = false; A._pend = null; A.scale = 1; A.music(HOME); },
+    track() { return A.gtrack; }, // いま(または さいごに)流している対局の曲(セーブに入れて、つづきから再開したとき 同じ曲を 頭から流す)
     game(g) {
+      if (g && g.bgmResume) { const q = g.bgmResume; g.bgmResume = null; if (GAME.concat(LATE, FINAL).indexOf(q) >= 0) { last = q; A.gtrack = q; A.scale = 1; cur = ''; A.music(q); return; } } // つづきから: そのときの曲を、頭から
       // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」から選ぶ
       const isGameTrack = GAME.indexOf(cur) >= 0 || LATE.indexOf(cur) >= 0 || FINAL.indexOf(cur) >= 0;
       const finalHand = !!g && g.kyoku % 4 === 3;
@@ -37,7 +39,7 @@
       const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []).filter((x) => x !== last);
       const fin = FINAL.filter((x) => x !== last);
       const pool = finalHand && Math.random() < 0.6 && fin.length ? fin : cand;
-      last = pool[Math.floor(Math.random() * pool.length)]; cur = ''; A.music(last);
+      last = pool[Math.floor(Math.random() * pool.length)]; A.gtrack = last; cur = ''; A.music(last);
     },
     resultCpuRon() { A.scale = 0.65; cur = ''; A.music('audio/result_cpu.mp3'); }, /* CPU同士の「ロン」(人は関係ない): かならず、この曲に切りかえる */
     result(kind) { const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm') return; /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ A.scale = 0.65; cur = ''; A.music('audio/' + n + '.mp3'); },

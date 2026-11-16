@@ -13,7 +13,7 @@
   MJ.MEMO_CAP = 30000; // 計算の記憶表の上限(メモリを食いすぎないように)
   if (globalThis.__teacherEnv) { try { localStorage.setItem('mj_teacher', globalThis.__teacherEnv); } catch (e) { /* ignore */ } } // 例: MJ_TEACHER=1 ./mj .
   MJ.AI_BUDGET = 3; // CPUの思考の時間上限: 相手の番はコントローラーを受け付けないので、PCの約3倍の時間をかけて、きちんと考えさせる(Pi Zeroは遅いので、これで、ふつうのPCと同じくらい)。自分の番の解説の計算は、下で短くする
-  if (globalThis.__cpuEnv && MJ.CPU_SPEEDS.includes(globalThis.__cpuEnv)) MJ.setCpuSpeed(globalThis.__cpuEnv); // 例: MJ_CPU=fast ./mj .
+  if (globalThis.__cpuEnv && MJ.CPU_SPEEDS.includes(globalThis.__cpuEnv)) { let sv = null; try { sv = localStorage.getItem('mj_cpuspeed'); } catch (e) { /* ignore */ } if (sv === null || globalThis.__cpuForce) MJ.setCpuSpeed(globalThis.__cpuEnv); } // 例: MJ_CPU=fast ./mj .(保存された設定が ないときだけ。 起動のたびに 上書きして「高速に戻る」のを防ぐ)
 
 
   /* ---------- セーブ(手動・最新から5件) ---------- */
@@ -412,6 +412,7 @@
     for (let i = 0; i < 7; i++) uraTile(URA_X(i), URA_YL, 'down');
     for (let i = 0; i < 7; i++) uraTile(URA_X(i), URA_YU, isInd[i] ? 'up' : 'down', isInd[i]);
   }
+  function winRvDone() { const W = S.winRv; if (!W) return; S.winRv = null; dirty(); try { W.res(); } catch (e) { /* ignore */ } }
   function uraDone() { const U = S.ura; if (!U) return; S.ura = null; dirty(); try { U.res(); } catch (e) { /* ignore */ } }
   function uraSkip() { // 決定ボタン: 「トンッ」と置かれたところまで すぐ進む。 もう一度 押すと 結果の画面へ
     const U = S.ura; if (!U) return;
@@ -483,6 +484,11 @@
     // 自分の手牌
     drawHand(g);
     // 吹き出し
+    if (S.winRv) { // CPUが上がった: 手牌を、伏せ牌の位置に、表にして 倒す(上がり牌は すこし はなして、黄色い枠)
+      const POS = { 2: (i) => [265 + i * 17, 32], 3: (i) => [3, 66 + i * 17], 1: (i) => [692, 66 + i * 17] }, ROT = { 2: 180, 3: 90, 1: 270 };
+      S.winRv.ws.forEach((w) => { const sd = w.winner.seat; if (!POS[sd]) return; const tl = w.view.concealed.slice(); tl.forEach((h, i) => { const q = POS[sd](i); tileR(h.t, q[0], q[1], 16, 24, h.red, false, ROT[sd]); });
+        if (w.winTile) { const n = tl.length, q = POS[sd](n), dx = sd === 2 ? 8 : 0, dy = sd === 2 ? 0 : 8, x = q[0] + dx, y = q[1] + dy; tileR(w.winTile.t, x, y, 16, 24, w.winTile.red, false, ROT[sd]); if (sd === 2) frame(x - 1, y - 1, 18, 26, YEL, 2); else frame(x - 1, y - 1, 26, 18, YEL, 2); } });
+    }
     drawFly(); drawTeacher(g);
     const now = __now();
     const BUB = BUBP; // 上家・下家は、同じ高さ(麻雀先生の帯(y268〜)に かさならない高さ)。吹き出しは、いつも同じ大きさ(顔も、いつも同じ大きさ)
@@ -1066,7 +1072,7 @@
       if (M.go != null) { if (k === 'ok' || k === 'back') M.t0 = __now() - M.endT - 1; dirty(); return; }
       if (k === 'left' || k === 'right') { const d = Math.max(0, Math.min(M.maxd, M.sel + (k === 'left' ? -1 : 1))); if (d !== M.sel) { NSND.sfx('select', 0.5); M.sel = d; } dirty(); return; }
       if (k === 'ok') { if (M.sel !== M.from) mapGo(M, M.sel); else { M.ask = { idx: 0 }; NSND.sfx('select', 0.5); } dirty(); return; }
-      if (k === 'back') { S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); }
+      if (k === 'back') { S.map = null; try { NSND.mapOff(); NSND.home(); } catch (e) { /* ignore */ } M.then(); } // 成績の画面から 見ていた地図を とじる: ホームの曲にもどす
       dirty(); return;
     } if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
   /* ---------- 昇段の演出テスト(隠しコマンドで開く): 認定証 → 地図 → 新しい雀士 を、いつでも見られる ---------- */
@@ -1766,6 +1772,7 @@
   window.__startMap = (a, b, c, ms) => { if (ms != null) S.mapSet = ms; S.mode = 'menu'; startMap({ from: a || 0, to: b || 3, congrats: !!c }, () => { S.mode = 'menu'; dirty(); }); }; window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, dice: !!S.dice, ros: S.ros ? [S.ros.sel, (S.ros.pick || []).length, S.ros.menu ? S.ros.menu.idx : -1] : null, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
+  window.__winRvDemo = (sd) => { const g = S.game; if (!g) return false; const p = g.players[sd == null ? 2 : sd], tl = p.hand.slice().sort((a, b) => a.t - b.t); S.bub = {}; S.winRv = { ws: [{ winner: p, view: { concealed: tl.slice(0, 13) }, winTile: tl[13] || tl[0] }], t0: __now(), res() {} }; NSND.sfx('hand_open'); dirty(); return true; }; // 試験用: CPUの手牌を倒して見せる
   window.__riichiDemo = () => { const g = S.game; if (!g) return false; [1, 2, 3].forEach((i) => { g.players[i].riichi = true; }); dirty(); return true; }; // 試験用: 3人ともリーチの見えかた
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   /* ---------- リセット(デバッグ用): ゲームを はじめから。 音量・ルール・麻雀先生などの「設定」は残し、成績・段位・雀士・ビデオ・勉強・途中のセーブを消す ---------- */
@@ -2150,6 +2157,7 @@
   /* ---------- 入力 ---------- */
   window.__key = function (k) {
     if (__now() - (S.tlKey || 0) > 700) { S.tlKey = __now(); tl('key ' + k); } S.lastKeyT = __now(); // 最後にボタンを押した時刻(先に絵を描いておく処理は、ボタンを押しているあいだは しない)
+    if (S.winRv) { if ((k === 'ok' || k === 'back') && __now() - S.winRv.t0 > 600) winRvDone(); dirty(); return; } // CPUの手牌を見せているあいだ(決定で すぐ 次へ)
     if (S.ura) { if (k === 'ok' || k === 'back') uraSkip(); dirty(); return; } // 裏ドラ確認のアニメ中
     S.dirty = true; if (S.locked) return;
     if (S.guardUntil && __now() < S.guardUntil) return; // 保存のあと、次の画面に変わった直後の押しまちがいを無視する
@@ -2398,6 +2406,13 @@
   const ui = {
     render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; tl('discard seat' + ld.by); try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
     sfx(name) { NSND.sfx(name); },
+    bgmTrack() { try { return NSND.track(); } catch (e) { return undefined; } }, // セーブに入れる(つづきから 同じ曲を流す)
+    winReveal(g, wins) { // CPUが上がったとき: 手牌を「ダッ」と倒して見せる → 少し間 → (裏ドラ →) 結果の画面
+      return new Promise((res) => {
+        const ws = wins.filter((w) => !w.winner.isHuman && w.view && w.view.concealed); if (!ws.length) { res(); return; }
+        S.bub = {}; S.sayQ = []; S.winRv = { ws, t0: __now(), res }; NSND.sfx('hand_open'); dirty(); setTimeout(() => { if (S.winRv && S.winRv.res === res) winRvDone(); }, 2400);
+      });
+    },
     speak(g, p, t, ms) { // セリフは、ポン・チー・リーチなどの宣言や、ほかの人のセリフが終わるまで待ってから、1人ずつ出す(かぶらないように)
       ms = ms || Math.max(2800, Math.min(4800, 1300 + String(t).length * 110)); tl('say-queue ' + (p && p.name)); (S.sayQ || (S.sayQ = [])).push({ g, p, t, ms, t0: __now() }); pumpSay();
     },
@@ -2521,7 +2536,7 @@
     },
     gameEnd(g, f) { if (g.practice) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({}, f, { rk: null, done }); }); } // 練習対局: 記録・順位・認定証なし
  try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { if (g.length !== 'single' && (g.handCount || 0) >= 4) metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } /* 列伝に出るのは、4局以上 最後まで対局した相手だけ */ try { const mine0 = f.results.find((x) => x.p.isHuman); if (mine0) { const ks = mine0.rank === 1 ? ['v:end_win1', '.', 'v:end_win2'] : (mine0.rank === 3 && S.prevRank === 4) ? ['v:end_close1', '.', 'v:end_close2'] : mine0.rank === 4 ? ['v:end_lose1', '.', 'v:end_lose2'] : null; if (ks && ks.every((k) => k === '.' || NSND.has(k))) setTimeout(() => { try { NSND.speak(ks); } catch (e) { /* ignore */ } }, 900); } } catch (e) { /* ignore */ } /* 対局終了の声: 1位=勝った!やったね! / 4位から3位に逆転=ふぅ、あぶない / 4位=負けた、ざんねん */ NSND.sfx('end'); // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
- try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go = () => { S.rankScr = { rk, done }; dirty(); }; if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
+ try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go = () => { try { NSND.home(); } catch (e) { /* ignore */ } S.rankScr = { rk, done }; dirty(); }; /* 結果の曲のまま あなたの段位の画面に来ない(ホームの曲に) */ if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
   };
 
   const AI_T = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]; // js/chars.js の mk() と同じ
@@ -2545,7 +2560,7 @@
   function stopGame() { // ゲームを途中でやめて、ホームへ
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
     if (g.cp && !g.practice && !S.result && !S.end && !S.rankP && !S.rankScr) { try { slotWrite(Object.assign({}, g.cp.snap, { mid: g.cp })); } catch (e) { /* ignore */ } } // 局の途中でホームへ戻るときは、いまの局の途中をセーブ(つづきから、同じ牌・同じ番で再開できる)
-    S.ura = null; g.stopped = true; MJ.paused = false; S.tmsgShown = 0; S.side = S.coach = null;
+    S.ura = null; if (S.winRv) { const W = S.winRv; S.winRv = null; try { W.res(); } catch (e) { /* ignore */ } } g.stopped = true; MJ.paused = false; S.tmsgShown = 0; S.side = S.coach = null;
     const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.map) { const q = S.map; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } q.then(); } if (S.cert) { const q = S.cert; S.cert = null; q.then(); } if (S.reveal) { const q = S.reveal; S.reveal = null; q.then(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
     S.self = S.react = S.result = S.end = S.saveP = null;
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
@@ -2560,7 +2575,7 @@
     const g = new MJ.Game({ chars: opt.practice ? (opt.watch ? chars.slice(1) : chars) : liftChars(chars.length === 3 ? chars : pickChars(ctown, ease > 0), ctown, ease > 0), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
     g.town = town == null ? undefined : town; g.ease = ease || undefined; if (ease) print('ease ' + ease + '段下(' + MJ.DAN_NAME(ctown) + 'ぶん): ' + g.players.slice(1).map((p) => p.char.short + '★' + p.char.level).join(' ')); try { g.tenka = town == null && !opt.practice && (MJ.Rank.get().dan === 10) && g.players.some((p) => p.char && p.char.id === 1) && g.players.some((p) => p.char && p.char.id === 7); } catch (e) { g.tenka = false; } // 天下分け目(名人 + 徳川家康 + 水戸黄門)
     if (opt.practice) { g.practice = true; g.watching = !!opt.watch; if (opt.watch) { const c0 = chars[0]; g.players[0].char = c0; g.players[0].name = c0.short; } } // 練習対局: 記録しない。観戦: 1人めの席(下)の手牌を見る
-    if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; if (sn.mid) g.resumeMid = sn.mid; }
+    if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; g.bgmResume = sn.bgm; if (sn.mid) g.resumeMid = sn.mid; }
     if (!opt.watch) g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
     S.game = g;
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
@@ -2678,12 +2693,18 @@
     const add = (s, sz, c) => L.push([s, sz, c[0], c[1], c[2]]);
     [['東一局', 96, Y], ['東一局', 78, Y], ['東一局', 28, W], ['東一局', 24, W], ['勝負!', 110, W], ['勝負!', 110, [225, 40, 30]], ['勝負!', 90, W], ['勝負!', 90, [225, 40, 30]], ['東風戦', 16, [200, 215, 200]], ['東南戦', 16, [200, 215, 200]], ['解説', 22, W], ['麻雀先生', 19, W], ['なし', 19, W], ['あり', 19, W], ['親', 24, W],
       ['サイコロを振ります  (Aボタンで スキップ)', 20, Y], ['…', 22, W], ['あなた が 親です', 24, Y], ['25,000', 22, Y], ['25,000', 22, [120, 60, 0]], ['供託 0', 17, [200, 215, 200]], ['残り', 18, W], ['枚', 18, W], ['MENU', 15, W]].forEach((e) => add(e[0], e[1], e[2]));
+    { // 局の名前(東二局〜北四局)と、ポン・チー・リーチ・ロン・ツモの大きな文字: はじめて作ると 0.2秒ほど止まり、そのあいだ 声が切れる/飛ぶ。 先に作っておく
+      const KY = ['一', '二', '三', '四'], WD = ['東', '南', '西', '北'], BS = (typeof CALL_V !== 'undefined' && CALL_V === 4 && gfx.bold) ? -76 : 76;
+      WD.forEach((w) => KY.forEach((k) => { add(w + k + '局', 96, Y); add(w + k + '局', 78, Y); add(w + k + '局', 28, W); }));
+      ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'].forEach((n) => { if (n) add(n + '本場', 17, [200, 215, 200]); });
+      ['リーチ', 'ポン', 'チー', 'カン', 'ロン', 'ツモ'].forEach((t) => [[30, 56, 46], [14, 30, 24], [0, 0, 0], [255, 255, 255], [225, 36, 28], [230, 0, 18], [196, 139, 255]].forEach((c) => add(t, BS, c)));
+    }
     ['東', '南', '西', '北'].forEach((w) => { add(w, 28, W); add(w, 18, W); });
     for (let n = 0; n <= 70; n++) add(String(n), 34, Y); // 山の残り枚数
     add('あなた', 21, W); add('あなた', 21, [35, 26, 0]); add('あなた', 20, W); add('あなた', 20, [27, 27, 18]);
     try { MJ.CHARS.forEach((c) => { const nm = c.short || c.name; add(nm, 21, W); add(nm, 20, W); add(nm, 20, [27, 27, 18]); add(nm, 17, [80, 90, 86]); }); } catch (e) { /* ignore */ }
     let i = 0;
-    const step = () => { if (S.lastKeyT && __now() - S.lastKeyT < 1500) { setTimeout(step, 400); return; } /* ボタンを押して 1.5秒のあいだは あとまわし */ gfx.dry(1); try { for (let k = 0; k < 2 && i < L.length; k++, i++) { const e = L[i]; gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0); } } catch (e) { /* ignore */ } finally { gfx.dry(0); } if (i < L.length) setTimeout(step, 40); };
+    const step = () => { if (S.mode === 'game') { setTimeout(step, 1000); return; } /* 対局中は 先読みを しない(対局中の止まりを 増やさない) */ if (S.lastKeyT && __now() - S.lastKeyT < 1500) { setTimeout(step, 400); return; } /* ボタンを押して 1.5秒のあいだは あとまわし */ gfx.dry(1); try { for (let k = 0; k < 2 && i < L.length; k++, i++) { const e = L[i]; gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0); } } catch (e) { /* ignore */ } finally { gfx.dry(0); } if (i < L.length) setTimeout(step, 40); };
     setTimeout(step, 1200);
   }
   NSND.home(); homeWarm(); warmText();
