@@ -685,7 +685,7 @@
   const perfOn = () => { try { const v = localStorage.getItem('mj_perf'); return v === '1' ? true : v === '0' ? false : !!globalThis.__perfEnv; } catch (e) { return false; } }; // 隠しコマンド・設定で切りかえたら、それを優先(MJ_PERF=1 で起動しても、オフにできる)
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'reset', label: 'リセット(デバッグ用)' }, { k: 'back', label: 'もどる' },
+    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'perf', label: '遅れの診断(調べる用)' }, { k: 'reset', label: 'リセット(デバッグ用)' }, { k: 'back', label: 'もどる' },
   ];
   /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
   const RULE_ROWS = [
@@ -724,8 +724,8 @@
     gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
     text('設定', SW / 2, 8, 30, YEL, 1);
     SETS.forEach((s, i) => {
-      const y = 38 + i * 35.5 | 0, sel = S.setIdx === i; panel(110, y, 612, 33, 9, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2);
-      text(s.label, 130, y + 2, 24, BLACK);
+      const y = 36 + i * 33 | 0, sel = S.setIdx === i; panel(110, y, 612, 31, 9, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2); // 13項目が 画面におさまる並び
+      text(s.label, 130, y + 1, 24, BLACK);
       if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 7, 24, 21, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 4, 24, BLACK, 2); }
       else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 4, 24, BLACK, 1);
