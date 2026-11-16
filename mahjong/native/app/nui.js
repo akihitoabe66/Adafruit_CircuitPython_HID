@@ -46,9 +46,9 @@
     if (!teacherOn() || !dmarkOn() || g.fast || S.deal) return null;
     const rii = g.players.filter((q) => q !== p && q.riichi); if (!rii.length) return null;
     const key = g.seq + ':' + p.hand.map((h) => h.id).join(',') + ':' + rii.length; if (S._dm && S._dm.key === key && S._dmw && !S._dmw.todo.length) return S._dm.map;
-    // 重い計算は、1コマに2種類ずつだけ(カーソルや描画を、待たせない)。できた印から、順に出す
+    // 計算は軽いので、手牌ぶん まとめて 1回で(印が、左から順に ぱたぱた出ない)
     let w = S._dmw; if (!w || w.key !== key) { let vis = null; try { vis = MJ.AI.visible(g, p); } catch (e) { vis = null; } w = S._dmw = { key, map: {}, todo: [...new Set(p.hand.map((h) => h.t))], vis, ss: {} }; S._dm = { key, map: w.map, hc: g.handCount }; }
-    let n = 0; while (w.todo.length && n < 2 && w.vis) { const t = w.todo.shift(); n++; try { const A = MJ.AI; const per = rii.map((q) => A.danger1(g, w.vis, t, q, w.ss[q.name] || (w.ss[q.name] = A.safeSet(g, q)), 2)); const wo = per.reduce((m, x) => (x.score > m.score ? x : m), per[0]), sc = per.reduce((a, x) => a + x.score, 0), r = MJ.Coach.rate(sc); w.map[t] = { tag: DTAG(wo.tag), cls: r.cls }; } catch (e) { /* ignore */ } }
+    while (w.todo.length && w.vis) { const t = w.todo.shift(); /* 1牌あたり 0.002ms ほど(測定)なので、全部まとめて計算する。 前は1コマに2種類ずつで、実機では 左から ぱたぱたと出ていた */ try { const A = MJ.AI; const per = rii.map((q) => A.danger1(g, w.vis, t, q, w.ss[q.name] || (w.ss[q.name] = A.safeSet(g, q)), 2)); const wo = per.reduce((m, x) => (x.score > m.score ? x : m), per[0]), sc = per.reduce((a, x) => a + x.score, 0), r = MJ.Coach.rate(sc); w.map[t] = { tag: DTAG(wo.tag), cls: r.cls }; } catch (e) { /* ignore */ } }
     if (w.todo.length && w.vis) dirty(); // まだ計算していない牌があるあいだは、次のコマも描く(印が、途中で止まって、カーソルを動かすまで出ない、をなくす)
     return w.map;
   }
@@ -71,9 +71,10 @@
   const frame = (x, y, w, h, c, t) => gfx.frame(x, y, w, h, c[0], c[1], c[2], t || 1);
   const text = (s, x, y, sz, c, al) => gfx.text(String(s), x, y, sz, c[0], c[1], c[2], al || 0);
   const WHITE = [255, 255, 255], BLACK = [20, 20, 20], YEL = [255, 220, 40], GREY = [170, 190, 175], RED = [235, 70, 60];
+  const TSZ = { '44x58': 't44', '26x33': 't26', '15x20': 't15', '20x27': 't20', '36x48': 't36' };
   function tile(t, x, y, w, h, red, dim) {
     fill(x + 1, y + 1, w, h, [0, 0, 0], 70);
-    const sz = (w === 44 && h === 58) ? 't44' : (w === 26 && h === 33) ? 't26' : null; // あらかじめ縮小した絵があれば、それを使う(毎回の拡大縮小をなくす)
+    const sz = TSZ[w + 'x' + h] || null; // あらかじめ縮小した絵があれば、それを使う(毎回の拡大縮小をなくす。小さい牌は、模様がつぶれないよう きれいに縮めてある)
     let src = MJ.tileSrc(t, red); if (sz) src = src.replace('img/tiles/', 'img/' + sz + '/');
     if (!gfx.image(src, x, y, w, h, dim ? 100 : 255) && !(sz && gfx.image(MJ.tileSrc(t, red), x, y, w, h, dim ? 100 : 255))) { fill(x, y, w, h, [240, 240, 230]); text(MJ.tileName(t), x + w / 2, y + 2, 10, BLACK, 1); }
   }
@@ -286,7 +287,8 @@
   /* 麻雀先生の顔(Edge版と同じ表情の組み合わせ)。key が同じあいだは、同じ顔のまま */
   const TM = { ok: ['21', '22', '31', '32', '35'], pass: ['15', '25', '24', '34', '12'], advice: ['26', '36', '16', '13', '12'], aim: ['16', '13', '26', '36', '12'], warn: ['24', '34', '25', '15'], cheer: ['35', '31', '21', '32', '22'], greet: ['14', '21', '11', '36'] };
   const tPick = (mood, key) => { const c = S._tp || (S._tp = {}), k = mood + ':' + key; if (!c[k]) { const a = TM[mood] || TM.advice, last = S._tpLast || (S._tpLast = {}); let n = a[Math.floor(Math.random() * a.length)]; if (a.length > 1 && n === last[mood]) n = a[(a.indexOf(n) + 1) % a.length]; last[mood] = n; const ks = Object.keys(c); if (ks.length > 60) delete c[ks[0]]; c[k] = n; } return 'img/teacher/t' + c[k] + '.webp'; };
-  const tFace = (mood, key, x, y, h) => { const w = Math.round(h * 0.95); if (h >= 48) gfx.imageTop(tPick(mood, key), x, y, w, h); else gfx.image(tPick(mood, key), x, y, w, h); return w; };
+  const TW = {"11": 229, "12": 219, "13": 243, "14": 234, "15": 177, "16": 221, "21": 228, "22": 191, "23": 237, "24": 215, "25": 195, "26": 176, "31": 214, "32": 205, "33": 235, "34": 225, "35": 236, "36": 187}; // 先生の顔の絵の、高さ240のときの幅(ゆがめず出すため)
+  const tFace = (mood, key, x, y, h) => { const bw = Math.round(h * 0.95), pth = tPick(mood, key), tw = TW[(pth.match(/t(\d+)\.webp/) || [])[1]] || 228, w = Math.round(h * tw / 240); gfx.image(pth, x + Math.round((bw - w) / 2), y, w, h); return bw; }; // gfx.image で描く(imageTop は 先に描いた絵のうえに出る札で、カーソルを動かして手牌だけ描きなおすとき、消えてしまっていた)
   function drawCoach() {
     panel(10, 8, 700, 412, 18, [14, 40, 32], [240, 210, 120], 3, 247);
     const c = S.coach, cards = c.cards;
@@ -321,7 +323,7 @@
       text(l1, 80, 218, fitSz(l1, 24, 484, 18), YEL); wr(h.say, 19, 484).forEach((ln, i) => text(ln, 80, 250 + i * 26, 19, WHITE));
       return;
     }
-    const l2 = (h.sh === 0 ? 'テンパイです' : 'あと' + h.sh + '歩で テンパイ') + (h.n ? '。 前に進める牌が あと' + h.n + '枚' : ''); // むずかしい言葉(受け入れ)は使わない
+    const l2 = (h.sh === 0 ? 'テンパイです' : 'あと' + h.sh + '歩で テンパイ') + (h.n && h.sh <= 1 ? '。 前に進める牌が あと' + h.n + '枚' : ''); // 数が大きすぎるとき(まだ遠いとき)は 出さない // むずかしい言葉(受け入れ)は使わない
     panel(6, 268, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('ok', 'h' + h.t + (h.riichi ? 'r' : ''), 12, 270, 60);
     text(l1, 80, 272, fitSz(l1, 24, 484, 18), YEL); text(l2, 80, 301, fitSz(l2, 19, 484, 14), WHITE);
   }
@@ -395,7 +397,7 @@
   /* ---------- 裏ドラ確認のアニメ(王牌の7本のうえに かさねて描く) ---------- */
   const URA_T = { start: 0.5, slide: 0.28, hold1: 0.6, hold2: 0.5, lift: 0.12, drop: 0.11, gap: 0.45, end: 2.2 }; // 秒
   const URA_C = { BLUE: [74, 140, 222], BLUE_L: [140, 190, 246], CREAM: [240, 234, 212], FACE: [252, 249, 238] };
-  const URA_X = (i) => 357 + i * 19, /* 1牌ずつ、すきま2pxで 均等に */ URA_YU = 191, URA_YL = 205, URA_W = 17, URA_HS = 22, URA_HC = 7, URA_SLIDE = 23, URA_LIFT = 3;
+  const URA_X = (i) => 356 + i * 18, /* 1牌ずつ、すきま1pxで 均等に(右端は481。下家のリーチ棒(x=484〜)に 重ならない) */ URA_YU = 191, URA_YL = 205, URA_W = 17, URA_HS = 22, URA_HC = 7, URA_SLIDE = 23, URA_LIFT = 3;
   function uraTile(x, y, kind, tl) { // 牌1枚: 上の面(伏せ=青 / 表=数字)+ 手前の白い側面(表の牌は いちばん下の縁だけ 青い線)
     const hh = URA_HS + URA_HC, fy = y + 9;
     rrect(x, y + 1, URA_W, hh, 3, [0, 0, 0], 60);
@@ -577,7 +579,7 @@
       else if (o.hl) rrect(x - 3, y - 3, HW + 6, HH + 6, 4, YEL);
       if (o.rot === 90) tileR(h.t, x + (HW - HH) / 2, y + (HH - HW) / 2, HW, HH, h.red, false, 90);
       else if (o.rot === 180 || o.flip) tileR(h.t, x, y, HW, HH, h.red, false, 180); else tile(h.t, x, y, HW, HH, h.red, o.dim && !o.hl); // 配られている間は、ときどき逆さの牌がまじる(並べかえると、そろう)
-      if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, DM && DM[h.t] && !o.rot && !o.flip ? y - 36 : y - 20, 16, YEL, 1);
+      if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, y + HH + 2, 16, YEL, 1); /* 星は牌の下(上は 安全牌の印や「あなた」の帯と重なって見えない) */
       if (DM && DM[h.t] && !o.rot && !o.flip) { const m = DM[h.t], c = DCOL[m.cls] || DCOL.warn, w = Math.max(30, gfx.measure(m.tag, 13) + 10); const cx = x + Math.round((HW - w) / 2); rrect(cx - 1, y - 14, w, 17, 6, [255, 255, 255]); rrect(cx, y - 13, w - 2, 15, 5, c[0]); text(m.tag, cx + (w - 2) / 2, y - 13, 13, c[1], 1); } // 麻雀先生の印: 牌の左上に
     };
     (DS.fly && DS.fly[0] || []).forEach((f) => { drawBlock(f, (handX(f.from, false) + handX(f.from + f.cnt - 1, false) + HW) / 2, HY + HH / 2); }); // 山から取った牌が、となりあわせのまま飛んでくる
@@ -593,7 +595,7 @@
     }
     if (S.react) {
       const r = S.react; const ld = g.lastDiscard; const who = ld ? g.players[ld.by].name : '';
-      if (ld) { { const tn = MJ.tileName(ld.tile.t); panel(8, 328, 182, 46, 6, [6, 44, 26], [90, 140, 110], 2, 235); tile(ld.tile.t, 14, 335, 26, 34, ld.tile.red); text(who + ' の', 46, 331, fitSz(who + ' の', 16, 138, 11), [200, 225, 205]); text(tn, 46, 350, fitSz(tn, 20, 138, 14), WHITE); } } // ボタン(x=196〜)に かくれないよう、名前と牌を 2行にして、せまい枠に収める
+      if (ld) { { const tn = MJ.tileName(ld.tile.t); panel(8, 328, 182, 46, 6, [6, 44, 26], [90, 140, 110], 2, 235); tile(ld.tile.t, 14, 335, 26, 33, ld.tile.red); text(who + ' の', 46, 331, fitSz(who + ' の', 16, 138, 11), [200, 225, 205]); text(tn, 46, 350, fitSz(tn, 20, 138, 14), WHITE); } } // ボタン(x=196〜)に かくれないよう、名前と牌を 2行にして、せまい枠に収める
       let bx = 196; r.btns.forEach((b, i) => { actBtn(bx, 332, 124, 40, b.label, b.sub || '', r.idx === i && !r.pick, b.pass); bx += 124 + 14; });
       if (r.note) text(r.note, 246, 340, 20, YEL);
       if (r.pick) { // チーの組み合わせ
@@ -657,7 +659,8 @@
     if (typeof gfx.layerBegin !== 'function') return;
     const sv = [S.menuIdx, S.homeBot, S.homeBotIdx];
     const st = [[false, 0, 0], [false, 1, 0], [false, 2, 0], [false, 3, 0], [true, 0, 0], [true, 0, 1], [true, 0, 2]];
-    st.forEach((q, k) => setTimeout(() => { if (S.mode !== 'title' && S.mode !== 'menu') return; const keep = [S.menuIdx, S.homeBot, S.homeBotIdx]; try { S.homeBot = q[0]; if (q[0]) S.homeBotIdx = q[2]; else S.menuIdx = q[1]; lay(homeSlot(), homeKey(), drawHomeBody); } catch (e) { /* ignore */ } S.menuIdx = keep[0]; S.homeBot = keep[1]; S.homeBotIdx = keep[2]; }, 1200 + k * 350));
+    const quiet = (fn, ms) => { const go = () => { if (S.lastKeyT && __now() - S.lastKeyT < 1500) { setTimeout(go, 400); return; } fn(); }; setTimeout(go, ms); }; // ボタンを押して 1.5秒のあいだは 先読みしない(タイトルで 方向キーが効かない、をなくす)
+    st.forEach((q, k) => quiet(() => { if (S.mode !== 'title' && S.mode !== 'menu') return; const keep = [S.menuIdx, S.homeBot, S.homeBotIdx]; try { S.homeBot = q[0]; if (q[0]) S.homeBotIdx = q[2]; else S.menuIdx = q[1]; lay(homeSlot(), homeKey(), drawHomeBody); } catch (e) { /* ignore */ } S.menuIdx = keep[0]; S.homeBot = keep[1]; S.homeBotIdx = keep[2]; }, 1200 + k * 350));
   }
   function drawHomeBody() {
     gfx.clear(32, 74, 60);
@@ -2381,7 +2384,8 @@
         else if (k === 'back' || k === 'up') r.pick = null;
         else if (k === 'ok') { const c = r.chis[r.pick.idx]; S.react = null; r.res({ act: 'chi', use: c.use }); }
       }
-      else if (k === 'left' || k === 'right') r.idx = Math.max(0, Math.min(r.btns.length - 1, r.idx + (k === 'left' ? -1 : 1))); // はしで止まる(右の列へは行かない。Edge版と同じ)
+      else if (k === 'right' && r.idx === r.btns.length - 1) { S.side = { idx: 1 }; S.dirty = true; S.full = true; } // いちばん右のボタン(見送る)から、さらに右: 「解説」へ(このポンをどうしたらいいか、先生に聞ける)
+      else if (k === 'left' || k === 'right') r.idx = Math.max(0, Math.min(r.btns.length - 1, r.idx + (k === 'left' ? -1 : 1)));
       else if (k === 'down') { if (r.btns[r.idx].pick) r.pick = { idx: 0 }; } // ▼ で、チーの牌えらびへ
       else if (k === 'ok') { const b = r.btns[r.idx]; if (b.pick) r.pick = { idx: 0 }; else { S.react = null; r.res(b.d); } }
     }
@@ -2675,7 +2679,7 @@
     add('あなた', 21, W); add('あなた', 21, [35, 26, 0]); add('あなた', 20, W); add('あなた', 20, [27, 27, 18]);
     try { MJ.CHARS.forEach((c) => { const nm = c.short || c.name; add(nm, 21, W); add(nm, 20, W); add(nm, 20, [27, 27, 18]); add(nm, 17, [80, 90, 86]); }); } catch (e) { /* ignore */ }
     let i = 0;
-    const step = () => { gfx.dry(1); try { for (let k = 0; k < 4 && i < L.length; k++, i++) { const e = L[i]; gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0); } } catch (e) { /* ignore */ } finally { gfx.dry(0); } if (i < L.length) setTimeout(step, 40); };
+    const step = () => { if (S.lastKeyT && __now() - S.lastKeyT < 1500) { setTimeout(step, 400); return; } /* ボタンを押して 1.5秒のあいだは あとまわし */ gfx.dry(1); try { for (let k = 0; k < 2 && i < L.length; k++, i++) { const e = L[i]; gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0); } } catch (e) { /* ignore */ } finally { gfx.dry(0); } if (i < L.length) setTimeout(step, 40); };
     setTimeout(step, 1200);
   }
   NSND.home(); homeWarm(); warmText();

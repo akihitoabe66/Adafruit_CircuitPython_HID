@@ -287,6 +287,7 @@
         ms = swap ? 1100 + r * 1000 : 700 + r * 600;
         if (r > 0.88) ms += 1200 + Math.random() * 1200;
       }
+      if (sp !== 'fast' && this.ui && this.players.every((q) => q.discards.length === 0)) ms += 700; // この局の はじめの1枚: 配牌のあと、セリフ → 少し間 → 「タン!」と捨てる(すぐ捨てない)
       if (this.watching && (p.seat === 0 || this.openHands) && this.ui && this.ui.watchNote) { try { this.ui.watchNote(this, p, act); } catch (e) { /* ignore */ } ms = Math.max(ms, 3600); } // 観戦: 下の席の打牌は、理由を読む時間をとる
       await this.wait(Math.max(60, ms - took));
       return act;

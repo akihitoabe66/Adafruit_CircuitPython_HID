@@ -4,7 +4,8 @@
   const GAME = ['game1', 'game2', 'game3', 'game4', 'game5', 'game6', 'game7', 'game10', 'game11'].map((n) => 'audio/' + n + '.mp3');
   const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3'], HOME = 'audio/home.mp3';
   const SFX = ['click', 'select', 'draw', 'deal4', 'deal1', 'sort1', 'sort2', 'deal', 'discard', 'call', 'kan', 'riichi', 'ron', 'tsumo', 'win', 'lose', 'drawgame', 'slam', 'start', 'end', 'ok', 'ng', 'error', 'dice_hit', 'dice_clack', 'ura_slide', 'ura_tap'];
-  const D = { bgm: 0.22, sfx: 0.7, voice: 0.85, read: 0.6 }; // 初期値(音量の目盛り5のとき)
+  const D = { bgm: 0.22 * 6 / 5, sfx: 0.7 * 8 / 5, voice: 0.85, read: 0.6 }; // 初期値(音量の目盛り5のとき)。 目盛り5 = 前の版の「BGM6・効果音8・読み上げ5」のバランス
+  try { if (localStorage.getItem('mj_vol_v') !== '2') { ['bgm', 'sfx', 'voice'].forEach((k) => localStorage.removeItem('mj_vol_' + k)); localStorage.setItem('mj_vol_v', '2'); } } catch (e) { /* ignore */ } // 前の版の目盛りで保存された音量は、1回だけ 5 にもどす
   const V = { bgm: D.bgm, sfx: D.sfx, voice: D.voice, read: D.read };
   const lvlOf = (k) => { let v = 5; try { const s = localStorage.getItem('mj_vol_' + k); if (s !== null) v = Math.max(0, Math.min(10, parseInt(s, 10))); } catch (e) { /* ignore */ } return isNaN(v) ? 5 : v; };
   const applyLvl = (k) => { const l = lvlOf(k); V[k] = Math.min(1, D[k] * l / 5); if (k === 'voice') V.read = Math.min(1, D.read * l / 5); };
@@ -54,16 +55,25 @@
     stopSpeak() { token++; },
     /* 'y:ツモ' などの並び(null は短い間)を、録音をつなげて鳴らす。 BGMは読み上げの間だけ小さくする */
     speak(keys, cb, lead) {
-      const id = ++token; let t = lead == null ? 0.05 : lead; const known = keys.filter((k) => !k || k === '+' || yk[k]);
+      const id = ++token, lead0 = lead == null ? 0.05 : lead, known = keys.filter((k) => !k || k === '+' || k === '.' || yk[k]);
+      const segs = []; let extra = 0, plus = false;
       known.forEach((k) => {
-        if (k === '+') { t -= 0.06; return; } // 「+」: 前の声に、ほとんど間をあけずに つなげる(じゅう + いっぽんば)
-        if (!k) { t += 0.4; return; } // 間(null)は、少し長め: 声が重なって聞こえないように
+        if (k === '+') { plus = true; return; } // 「+」: 前の声に、ほとんど間をあけずに つなげる(じゅう + いっぽんば)
+        if (k === '.') { extra += 0.18; return; } // 「.」: ほんの少しの間(トン・二局)
+        if (!k) { extra += 0.4; return; } // 間(null)は、少し長め: 声が重なって聞こえないように
         const p = 'audio/yk/' + yk[k]; const len = snd.len(p); if (!len) return;
-        setTimeout(() => { if (id === token) snd.play(p, V.read); }, t * 1000); t += len + 0.07;
+        const prev = segs.length ? segs[segs.length - 1] : null;
+        segs.push({ p, len, wait: prev ? prev.len + (plus ? 0.01 : 0.07) + extra : lead0 + extra }); extra = 0; plus = false;
       });
+      /* 声のあいだの間は、「前の声が実際に鳴りはじめた時刻」から数える。 画面が一瞬止まって、タイマーがおくれても、声と声が重ならない(トン→二局) */
+      const run = (i) => {
+        if (i >= segs.length) { if (cb) setTimeout(cb, 0); return; }
+        const sg = segs[i];
+        setTimeout(() => { if (id !== token) return; snd.play(sg.p, V.read); if (i + 1 < segs.length) run(i + 1); else if (cb) setTimeout(cb, (sg.len + 0.07) * 1000); }, sg.wait * 1000);
+      };
+      if (segs.length) run(0); else if (cb) setTimeout(cb, lead0 * 1000);
       /* 声のたびに、BGMの音量を 上げ下げしない(新しい声は はっきり聞こえる。音量の切りかえで、BGMがガサガサするのを防ぐ) */
-      if (cb) setTimeout(cb, t * 1000);
-      return t; // 読み上げにかかる秒数
+      return segs.reduce((t, sg) => t + sg.wait, 0) + (segs.length ? segs[segs.length - 1].len + 0.07 : 0); // 読み上げにかかる秒数
     },
     has(k) { return !!yk[k]; },
     /* 上がったときの、役と点数の読み上げ(ブラウザ版 ui.js と同じ組み立て) */
@@ -101,7 +111,7 @@
     /* 局のはじまり: 「トン、イッキョク!」など */
     readKyoku(game) {
       const W = ['トン', 'ナン', 'シャー', 'ペー'], KY = ['イッキョク', 'ニキョク', 'サンキョク', 'ヨンキョク'];
-      const keys = ['x:' + W[game.roundWind % 4], null, 'x:' + (KY[game.kyoku % 4] || 'イッキョク')];
+      const keys = ['x:' + W[game.roundWind % 4], '.', 'x:' + (KY[game.kyoku % 4] || 'イッキョク')]; // 「トン」「二局」: ほんの少し間をあけて、重ならないように
       const HB = { 1: 'イッポンバ', 2: 'ニホンバ', 3: 'サンボンバ', 4: 'ヨンホンバ', 5: 'ゴホンバ', 6: 'ロッポンバ', 7: 'ナナホンバ', 8: 'ハッポンバ', 9: 'キュウホンバ', 10: 'ジュッポンバ' };
       const hb = Math.min(19, game.honba || 0); // 10本場までは、そのまま。11本場からは「じゅう」+「1〜9本場」(19本場まで)
       if (hb >= 1 && hb <= 10) keys.push(null, 'x:' + HB[hb]); else if (hb > 10) keys.push(null, 'x:ジュウ', '+', 'x:' + HB[hb - 10]);
