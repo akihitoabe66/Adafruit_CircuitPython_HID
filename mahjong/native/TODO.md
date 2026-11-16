@@ -160,3 +160,4 @@
 - (実機の結果: IDは a4200101 で応答するが、ボタンの読みで Remote I/O error → 待ち時間を 1〜20ms で順に試す・番地4(2バイト)と番地0(6バイト)を試す方式に変更。 動いた組みあわせは「mjpad: read ok ptr=… wait=…ms」と記録される)
 - コントローラーが「NES用クラシックコントローラーのレプリカ(互換品)」のとき: 合図の返事の ID が 純正と ちがっても 使う(ゆるくした)。 古い合図(0x40 0x00)も 試す。 調べる用: `sudo systemctl stop mjpad` のあと `sudo python3 /usr/local/bin/mjpad.py --probe`(返事・ID・生の値を 0.5秒ごとに 20秒ぶん出す)。 終わったら `sudo systemctl start mjpad`。 ※ プログラムを更新したら `sudo sh native/pi/install_pad.sh` を もう一度。
 - 配線: Wiiソケットは、3.3Vの端子が 2つ(端1と中央3)。 コントローラーのプラグは 中央3だけから電気を受ける(raphnet・ZX-NUNCHUK の図)。 中央3(緑)を 必ず 3.3V に。 SDA=端子5(赤)→物理3番 / SCL=端子2(黄)→物理5番 / GND=端子6(白)→物理6番 / 端子4は 未使用。
+- コントローラー(mjpad)にしてから、タイトルで操作が遅れる・ホームのカーソル上下でコマ落ち、との報告 → 読む回数を 60回→30回/秒に(MJPAD_HZ で変えられる)。 確認: 設定の「遅れの診断」(画面左上に 描く回数・平均・最大ms)/ `top` で python3(mjpad)の CPU% / `sudo systemctl stop mjpad` にして キーボードで 同じ操作をして 遅れが消えるか(消えれば mjpad の負担)。

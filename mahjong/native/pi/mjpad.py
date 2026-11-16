@@ -11,7 +11,7 @@ import fcntl, os, struct, sys, time
 
 ADDR = 0x52
 I2C_SLAVE = 0x0703
-HZ = 60
+HZ = int(os.environ.get('MJPAD_HZ', '30'))   # 1秒に読む回数。 Pi Zero は CPU が1つだけで、ゲームと取りあうので、30回(約33ms)に。 反応は これで十分
 # uinput
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT = 0x40045564, 0x40045565, 0x40045567
 UI_DEV_SETUP, UI_ABS_SETUP, UI_DEV_CREATE, UI_DEV_DESTROY = 0x405c5503, 0x401c5504, 0x5501, 0x5502
