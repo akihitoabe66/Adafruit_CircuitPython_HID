@@ -48,13 +48,14 @@
     // 重い計算は、1コマに2種類ずつだけ(カーソルや描画を、待たせない)。できた印から、順に出す
     let w = S._dmw; if (!w || w.key !== key) { let vis = null; try { vis = MJ.AI.visible(g, p); } catch (e) { vis = null; } w = S._dmw = { key, map: {}, todo: [...new Set(p.hand.map((h) => h.t))], vis, ss: {} }; S._dm = { key, map: w.map, hc: g.handCount }; }
     let n = 0; while (w.todo.length && n < 2 && w.vis) { const t = w.todo.shift(); n++; try { const A = MJ.AI; const per = rii.map((q) => A.danger1(g, w.vis, t, q, w.ss[q.name] || (w.ss[q.name] = A.safeSet(g, q)), 2)); const wo = per.reduce((m, x) => (x.score > m.score ? x : m), per[0]), sc = per.reduce((a, x) => a + x.score, 0), r = MJ.Coach.rate(sc); w.map[t] = { tag: DTAG(wo.tag), cls: r.cls }; } catch (e) { /* ignore */ } }
+    if (w.todo.length) dirty(); // まだ計算していない牌があるあいだは、次のコマも描く(印が、途中で止まって、カーソルを動かすまで出ない、をなくす)
     return w.map;
   }
   function staleMarks(g, p) { // 相手の番: 自分の番に計算した印を、そのまま使う(同じ局で、リーチをかけた人がいるあいだだけ)
     if (!teacherOn() || !dmarkOn() || !S._dm || !S._dm.map || S._dm.hc !== g.handCount || g.fast || S.deal) return null;
     return g.players.some((q) => q !== p && q.riichi) ? S._dm.map : null;
   }
-  const toggleTeacher = () => { try { localStorage.setItem('mj_teacher', teacherOn() ? '0' : '1'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; };
+  const toggleTeacher = () => { try { localStorage.setItem('mj_teacher', teacherOn() ? '0' : '1'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; if (teacherOn() && S.game && !S.game.watching) { S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); } }; // あいさつは、はじめの1局めか、途中で先生を つけた直後だけ
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
   const COMMON_RULES = { yakitori: false, length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: true, doubleRon: true, sanchahou: true, kuikae: false, kazoe: true, flower: false, start: 25000 }; // 全国的な(一般的な)ルール。ただし赤ドラは、はじめはなし
   try { if (localStorage.getItem('mj_rules_ver') !== '3') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '3'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
@@ -210,7 +211,14 @@
     const stc = an.opps.length ? A.stance(g, p, an, 'balance') : null;
     const pick = stc && stc.pick ? stc.pick : A.byEff(an.evals)[0];
     const rch = opts.riichi.includes(pick.t) && pick.sh === 0 && (stc ? (stc.kind === 'push' && A.wantRiichi(g, p, pick, an)) : A.wantRiichi(g, p, pick, an));
-    return { tile: pick.tile, t: pick.t, sh: pick.sh, n: pick.ukeire ? pick.ukeire.n : 0, label: stc ? stc.label : '', why: stc ? stc.why : '', riichi: rch, minSh: an.minSh };
+    let say = ''; // 初心者に分かるひとこと(リーチを受けているとき)
+    if (stc) {
+      const tg = pick.danger ? pick.danger.tag : '', tn = MJ.tileName(pick.t), ip = an.opps.some((q) => q.ippatsu);
+      const tgJ = /^現物/.test(tg) ? '現物(相手が捨てた牌)なので 安全です' : /^全見え/.test(tg) ? '全部見えているので 安全です' : /^字牌/.test(tg) ? '字牌なので わりと安全です' : /^スジ/.test(tg) ? 'スジなので わりと安全です' : /^(半スジ|カベ|ワンチャンス)/.test(tg) ? 'あまり危なくない牌です' : tg ? 'すこし危ない牌ですが、これが いちばんマシです' : '';
+      const head = ip ? '一発(リーチのすぐあと)は 危険です。' : 'リーチを受けています。';
+      say = stc.kind === 'fold' ? head + (tgJ ? tn + 'は' + tgJ + '。' : '') + '今回は 安全に おりましょう。' : stc.kind === 'mid' ? head + (tgJ ? tn + 'は' + tgJ + '。' : '') + '危なくない牌を選んで、手を進めましょう。' : head + '手が整っているので、思い切って 勝負しましょう。';
+    }
+    return { tile: pick.tile, t: pick.t, sh: pick.sh, n: pick.ukeire ? pick.ukeire.n : 0, label: stc ? stc.label : '', why: stc ? stc.why : '', say, riichi: rch, minSh: an.minSh };
   }
   function waitInfoOf(g) { // いまの手牌がテンパイなら、あたり牌と、見えていない残りの枚数
     const p = g.players[0]; let hand = p.hand.filter((h) => h !== p.drawn), plan = false;
@@ -305,8 +313,15 @@
      if (S.wnote && __now() < S.wnote.until && S.game && S.game.watching) { const w = S.wnote; panel(6, 262, 700, 74, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生の解説', 18, 266, 16, YEL); text(w.a, 18, 286, fitSz(w.a, 21, 676, 15), WHITE); text(w.b, 18, 312, fitSz(w.b, 18, 676, 14), [200, 225, 205]); return; } // 観戦中: CPUが捨てた理由
      if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 268, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('advice', 'm' + S.tmsg.until, 12, 270, 60); text('麻雀先生', 80, 272, 16, YEL); text(S.tmsg.text, 80, 294, fitSz(S.tmsg.text, 21, 480, 16), WHITE); return; }
     if (!h || !s || s.row !== 0) return;
+    const l1 = '★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る');
+    if (h.say) { // リーチを受けているとき: 理由を 分かりやすく 2行で
+      const wr = (str, sz, mw) => { const o = []; let c = ''; for (const ch of str) { if (gfx.measure(c + ch, sz) > mw) { o.push(c); c = ch; } else c += ch; } if (c) o.push(c); return o.slice(0, 3); };
+      panel(6, 214, 566, 118, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('ok', 'h' + h.t + (h.riichi ? 'r' : ''), 12, 220, 60);
+      text(l1, 80, 218, fitSz(l1, 24, 484, 18), YEL); wr(h.say, 19, 484).forEach((ln, i) => text(ln, 80, 250 + i * 26, 19, WHITE));
+      return;
+    }
+    const l2 = (h.sh === 0 ? 'テンパイです' : 'あと' + h.sh + '歩で テンパイ') + (h.n ? '(ほしい牌は あと' + h.n + '枚)' : ''); // むずかしい言葉(受け入れ)は使わない
     panel(6, 268, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('ok', 'h' + h.t + (h.riichi ? 'r' : ''), 12, 270, 60);
-    const l1 = '★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る'), l2 = (h.sh === 0 ? 'テンパイ' : 'テンパイまであと' + h.sh + '歩') + ' 受け入れ' + h.n + '枚  ' + (h.label || '');
     text(l1, 80, 272, fitSz(l1, 24, 484, 18), YEL); text(l2, 80, 301, fitSz(l2, 19, 484, 14), WHITE);
   }
 
@@ -379,7 +394,7 @@
   /* ---------- 裏ドラ確認のアニメ(王牌の7本のうえに かさねて描く) ---------- */
   const URA_T = { start: 0.4, slide: 0.28, hold1: 0.5, hold2: 0.35, lift: 0.12, drop: 0.11, gap: 0.4, end: 1.0 }; // 秒
   const URA_C = { BLUE: [74, 140, 222], BLUE_L: [140, 190, 246], CREAM: [240, 234, 212], FACE: [252, 249, 238] };
-  const URA_X = (i) => Math.round(358 + i * 17.58), URA_YU = 191, URA_YL = 205, URA_W = 17, URA_HS = 22, URA_HC = 7, URA_SLIDE = 23, URA_LIFT = 3;
+  const URA_X = (i) => 357 + i * 19, /* 1牌ずつ、すきま2pxで 均等に */ URA_YU = 191, URA_YL = 205, URA_W = 17, URA_HS = 22, URA_HC = 7, URA_SLIDE = 23, URA_LIFT = 3;
   function uraTile(x, y, kind, tl) { // 牌1枚: 上の面(伏せ=青 / 表=数字)+ 手前の白い側面(表の牌は いちばん下の縁だけ 青い線)
     const hh = URA_HS + URA_HC, fy = y + 9;
     rrect(x, y + 1, URA_W, hh, 3, [0, 0, 0], 60);
@@ -560,7 +575,7 @@
       else if (o.hl) rrect(x - 3, y - 3, HW + 6, HH + 6, 4, YEL);
       if (o.rot === 90) tileR(h.t, x + (HW - HH) / 2, y + (HH - HW) / 2, HW, HH, h.red, false, 90);
       else if (o.rot === 180 || o.flip) tileR(h.t, x, y, HW, HH, h.red, false, 180); else tile(h.t, x, y, HW, HH, h.red, o.dim && !o.hl); // 配られている間は、ときどき逆さの牌がまじる(並べかえると、そろう)
-      if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, y - 20, 16, YEL, 1);
+      if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, DM && DM[h.t] && !o.rot && !o.flip ? y - 36 : y - 20, 16, YEL, 1);
       if (DM && DM[h.t] && !o.rot && !o.flip) { const m = DM[h.t], c = DCOL[m.cls] || DCOL.warn, w = Math.max(30, gfx.measure(m.tag, 13) + 10); const cx = x + Math.round((HW - w) / 2); rrect(cx - 1, y - 14, w, 17, 6, [255, 255, 255]); rrect(cx, y - 13, w - 2, 15, 5, c[0]); text(m.tag, cx + (w - 2) / 2, y - 13, 13, c[1], 1); } // 麻雀先生の印: 牌の左上に
     };
     (DS.fly && DS.fly[0] || []).forEach((f) => { drawBlock(f, (handX(f.from, false) + handX(f.from + f.cnt - 1, false) + HW) / 2, HY + HH / 2); }); // 山から取った牌が、となりあわせのまま飛んでくる
@@ -576,7 +591,7 @@
     }
     if (S.react) {
       const r = S.react; const ld = g.lastDiscard; const who = ld ? g.players[ld.by].name : '';
-      if (ld) { { const lt = who + ' の ' + MJ.tileName(ld.tile.t); panel(8, 328, 230, 46, 6, [6, 44, 26], [90, 140, 110], 2, 235); tile(ld.tile.t, 14, 335, 26, 34, ld.tile.red); text(lt, 46, 338, fitSz(lt, 21, 186, 15), WHITE); } }
+      if (ld) { { const tn = MJ.tileName(ld.tile.t); panel(8, 328, 182, 46, 6, [6, 44, 26], [90, 140, 110], 2, 235); tile(ld.tile.t, 14, 335, 26, 34, ld.tile.red); text(who + ' の', 46, 331, fitSz(who + ' の', 16, 138, 11), [200, 225, 205]); text(tn, 46, 350, fitSz(tn, 20, 138, 14), WHITE); } } // ボタン(x=196〜)に かくれないよう、名前と牌を 2行にして、せまい枠に収める
       let bx = 196; r.btns.forEach((b, i) => { actBtn(bx, 332, 124, 40, b.label, b.sub || '', r.idx === i && !r.pick, b.pass); bx += 124 + 14; });
       if (r.note) text(r.note, 246, 340, 20, YEL);
       if (r.pick) { // チーの組み合わせ
@@ -1733,6 +1748,7 @@
   const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
   window.__startMapView = (d) => { S.mode = 'menu'; startMapView(d); }; // 試験用
   window.__newGame = (o) => { startGame(null, o || {}); }; // 試験用
+  window.__hintDemo = (say) => { const g = S.game; if (!g) return false; const p = g.players[0], t = p.hand[0].t; S.tmsg = null; S.self = { row: 0, idx: 0, p, opts: { riichi: [], forbid: [], tsumo: false }, st: {}, tiles: p.hand.slice(), btns: [], rm: false, back: 0, res() {} }; S.hint = { tile: p.hand[0], t, sh: 1, n: 12, label: '回す(降り)', why: '', say: say || '', riichi: false, minSh: 1 }; dirty(); return true; }; // 試験用: 麻雀先生の枠の見えかた
   window.__uraDemo = (n) => { const g = S.game; if (!g || !g.doraInd || !g.uraAll) return false; n = n || 1; while (g.doraInd.length < n) g.doraInd.push(g.doraInd[0]); while (g.uraAll.length < n) g.uraAll.push(g.uraAll[0]); g.doraInd = g.doraInd.slice(0, n); g.uraAll = g.uraAll.slice(0, n); ui.uraReveal(g, []).then(() => print('URA done')); return true; }; // 試験用
   window.__uraDemoStart = (n) => { if (S.game) return window.__uraDemo(n); startGame(null, {}); const iv = setInterval(() => { const g = S.game; if (g && g.doraInd && g.players && g.players[0].hand && g.live && g.live.length < 70 && !S.deal && S.mode === 'game' && !S.ura && !S.result) { clearInterval(iv); setTimeout(() => window.__uraDemo(n), 800); } }, 500); return true; }; // シミュレーターのボタン: 対局を始めて、配牌がおわったら、裏ドラの確認アニメを見せる
   window.__openSettings = () => { if (S.game) return false; S.mode = 'settings'; S.setIdx = 0; S.rankScr = null; dirty(); return true; }; // 試験用
@@ -2375,7 +2391,7 @@
     },
     banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; if (p && p.isHuman) setMood({ 'リーチ': 'fight', 'ポン': 'call', 'チー': 'call', 'カン': 'call', 'ロン': 'point', 'ツモ': 'happy' }[t] || 'normal', 4000); dirty(); if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
     handStart(g) {
-      S.curIdx = null; if (teacherOn() && !S.tmsgShown && !g.watching) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
+      S.curIdx = null; if (teacherOn() && !S.tmsgShown && !g.watching && (g.handCount || 0) === 0 && !g.resumed) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
       S.game = g; if (!g.fast) NSND.hold(); NSND.game(g); NSND.sfx('slam');
       { // あなたの表情: 最終局はドキドキ。前の局で振り込んだらむすっ・上がったらくすくす。トップなら余裕・最下位ならやる気
         const me = g.players[0], rk = 1 + g.players.filter((q) => q.score > me.score).length, even = g.players.every((q) => q.score === me.score);
@@ -2524,7 +2540,7 @@
   /* 親が決まったあと: 「東一局!」「勝負!」(顔・文字・声)。そのあと、すぐ配牌へ */
   const startIntro = (g) => new Promise((res) => { if (g.resumed || g.fast) { res(); return; } S.intro = { t0: __now(), done: () => { S.skipBanner = true; res(); } }; NSND.sfx('slam'); dirty(); });
   async function startGame(sn, opt) {
-    S.ura = null; S.mode = 'game'; dirty(); opt = opt || {}; let town = opt.town != null ? opt.town : sn && sn.town; try { if (opt.practice || town == null || town >= (MJ.Rank.get().dan || 0)) town = null; } catch (e) { town = null; }
+    S.ura = null; S.mode = 'game'; S.tmsgShown = 0; dirty(); opt = opt || {}; let town = opt.town != null ? opt.town : sn && sn.town; try { if (opt.practice || town == null || town >= (MJ.Rank.get().dan || 0)) town = null; } catch (e) { town = null; }
     let ease = 0, ctown = town; if (!opt.practice && town == null) { try { ease = sn && sn.ease != null ? sn.ease : MJ.Rank.ease(); const dn0 = MJ.Rank.get().dan || 0, ct = Math.max(0, dn0 - ease); if (ease > 0 && ct < dn0) ctown = ct; else ease = 0; } catch (e) { ease = 0; } } // 不調のときは、2段(ひどいときは4段)ぶん やさしい相手(ポイントは そのまま)。 画面には 出さない // 修行: 地図で、いまの段位より下の街を選んだとき
     const chars = opt.practice ? opt.chars : sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
     const g = new MJ.Game({ chars: opt.practice ? (opt.watch ? chars.slice(1) : chars) : liftChars(chars.length === 3 ? chars : pickChars(ctown, ease > 0), ctown, ease > 0), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
