@@ -5,6 +5,7 @@
   const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, pressT: -9999, locked: false, lay: [], teachQ: null, homeBot: false, homeBotIdx: 0, playQ: null, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   window.__S = S; // 試験用(説明ページ用の画面を撮るのに使う)
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const tl = (ev) => { try { const t = __now(); (S.tl || (S.tl = [])).push(Math.round(t % 1000000) + ' ' + ev); if (S.tl.length > 120) S.tl.shift(); S.tlDirty = true; } catch (e) { /* ignore */ } }; // 待ちが長いときの調査用: 出来事の時刻を、最近の120件だけ 覚えておく(save.json の mj_tl に、数秒ごとに書く)
   const dirty = () => { S.dirty = true; S.full = true; }; // full: 画面ぜんたいを描きなおす(カーソルだけのときは、手牌のところだけ描く)
   const openMenu = () => { S.menuP = { idx: 0 }; MJ.paused = true; dirty(); }; // ゲーム中のメニュー(対局を止める)
   const WIND = ['東', '南', '西', '北'];
@@ -2142,7 +2143,7 @@
 
   /* ---------- 入力 ---------- */
   window.__key = function (k) {
-    S.lastKeyT = __now(); // 最後にボタンを押した時刻(先に絵を描いておく処理は、ボタンを押しているあいだは しない)
+    if (__now() - (S.tlKey || 0) > 700) { S.tlKey = __now(); tl('key ' + k); } S.lastKeyT = __now(); // 最後にボタンを押した時刻(先に絵を描いておく処理は、ボタンを押しているあいだは しない)
     if (S.ura) { if (k === 'ok' || k === 'back') uraSkip(); dirty(); return; } // 裏ドラ確認のアニメ中
     S.dirty = true; if (S.locked) return;
     if (S.guardUntil && __now() < S.guardUntil) return; // 保存のあと、次の画面に変わった直後の押しまちがいを無視する
@@ -2388,12 +2389,12 @@
 
   /* ---------- ゲームの頭脳から呼ばれる「ui」 ---------- */
   const ui = {
-    render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
+    render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; tl('discard seat' + ld.by); try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
     sfx(name) { NSND.sfx(name); },
     speak(g, p, t, ms) { // セリフは、ポン・チー・リーチなどの宣言や、ほかの人のセリフが終わるまで待ってから、1人ずつ出す(かぶらないように)
-      ms = ms || Math.max(2800, Math.min(4800, 1300 + String(t).length * 110)); (S.sayQ || (S.sayQ = [])).push({ g, p, t, ms, t0: __now() }); pumpSay();
+      ms = ms || Math.max(2800, Math.min(4800, 1300 + String(t).length * 110)); tl('say-queue ' + (p && p.name)); (S.sayQ || (S.sayQ = [])).push({ g, p, t, ms, t0: __now() }); pumpSay();
     },
-    banner(g, p, t) { S.banner = { text: t, t0: __now(), p, call: true }; if (p && p.isHuman) setMood({ 'リーチ': 'fight', 'ポン': 'call', 'チー': 'call', 'カン': 'call', 'ロン': 'point', 'ツモ': 'happy' }[t] || 'normal', 4000); dirty(); if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
+    banner(g, p, t) { tl('banner ' + t + ' ' + (p && p.name)); S.banner = { text: t, t0: __now(), p, call: true }; if (p && p.isHuman) setMood({ 'リーチ': 'fight', 'ポン': 'call', 'チー': 'call', 'カン': 'call', 'ロン': 'point', 'ツモ': 'happy' }[t] || 'normal', 4000); dirty(); if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
     handStart(g) {
       S.curIdx = null; if (teacherOn() && !S.tmsgShown && !g.watching && (g.handCount || 0) === 0 && !g.resumed) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
       S.game = g; if (!g.fast) NSND.hold(); NSND.game(g); NSND.sfx('slam');
@@ -2422,13 +2423,13 @@
         opts.ankan.forEach((t) => btns.push({ label: 'カン ' + MJ.tileName(t), act: 'ankan', t }));
         opts.kakan.forEach((t) => btns.push({ label: '加カン ' + MJ.tileName(t), act: 'kakan', t }));
         S.side = null; S.coach = null;
-        S.hint = null; if (teacherOn() && !p.riichi && !g.fast) { try { S.hint = teacherAdvice(g, p, opts); } catch (e) { print('teacher err ' + e); } }
+        tl('self-start'); S.hint = null; if (teacherOn() && !p.riichi && !g.fast) { const ta = __now(); try { S.hint = teacherAdvice(g, p, opts); } catch (e) { print('teacher err ' + e); } tl('advice ' + Math.round(__now() - ta) + 'ms'); }
         S.self = { p, opts, st: st || {}, res, tiles, btns, rm: false, back: (S.curIdx != null && !p.riichi ? Math.min(S.curIdx, tiles.length - 1) : tiles.length - 1), row: (opts.tsumo || btns.some((b) => b.act === 'riichi')) ? 1 : 0, idx: opts.tsumo ? 0 : btns.some((b) => b.act === 'riichi') ? btns.findIndex((b) => b.act === 'riichi') : (S.curIdx != null && !p.riichi ? Math.min(S.curIdx, tiles.length - 1) : tiles.length - 1) };
         dirty();
       });
     },
     askReact(g, q, o) {
-      S.reactArgs = { q, o };
+      tl('react-start'); S.reactArgs = { q, o };
       return new Promise((res) => {
         const btns = [];
         if (o.ron) btns.push({ label: 'ロン', d: { act: 'ron' } });
@@ -2564,6 +2565,7 @@
   let nextAuto = 0, lastSave = 0, nextSide = 0, coachShots = 0;
   window.__frame = function (now) {
     __runTimers(now);
+    if (S.tlDirty && now - (S.tlLast || 0) > 4000) { S.tlLast = now; S.tlDirty = false; try { localStorage.setItem('mj_tl', S.tl.join('|')); } catch (e) { /* ignore */ } }
     while (postQ.length) { const f = postQ.shift(); try { f(); } catch (e) { /* ignore */ } }
     if (S.mode === 'video') vTick(now);
     if (__auto && globalThis.__teacherEnv && S.self && !S.side && !S.coach && now > nextSide) { nextSide = now + 3300; window.__key('right'); window.__key('ok'); setTimeout(() => window.__key('ok'), 1500); } // 試験用: 解説の窓を、ときどき開く
@@ -2582,7 +2584,7 @@
     if (!q.length) return;
     const busy = (S.banner && S.banner.call) || S.ura || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
     if (busy) { S.sayT = setTimeout(() => { S.sayT = null; pumpSay(); }, 250); return; }
-    const x = q.shift(); S.bub[x.p.seat] = { name: x.p.name, text: x.t, p: x.p, until: __now() + x.ms }; dirty();
+    const x = q.shift(); tl('say-show ' + x.p.name + ' ' + x.ms + 'ms'); S.bub[x.p.seat] = { name: x.p.name, text: x.t, p: x.p, until: __now() + x.ms }; dirty();
     S.sayT = setTimeout(() => { S.sayT = null; dirty(); pumpSay(); }, x.ms + 120);
   }
   const drawBody = function () {
