@@ -2708,11 +2708,9 @@
     const jobs = []; for (let k = 0; k < L.length; k += 3) { const part = L.slice(k, k + 3); jobs.push(() => { gfx.dry(1); try { part.forEach((e) => gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0)); } catch (e) { /* ignore */ } finally { gfx.dry(0); } }); }
     return jobs;
   }
-  function drawBoot() {
-    gfx.view(0, 0); gfx.clear(14, 60, 44); const bx = Math.round((SW - 360) / 2), P = S.bootP || 0;
-    text('準備しています…', SW / 2, 250, 30, [255, 240, 200], 1);
-    fill(bx, 300, 360, 20, [20, 50, 38]); fill(bx, 300, Math.round(360 * P), 20, [222, 184, 96]);
-    text(Math.round(P * 100) + '%', SW / 2, 330, 20, [255, 240, 200], 1);
+  function drawBoot() { /* C側の起動画面(img/boot.webp + 棒)と同じ見た目で、棒の70%から続けて100%まで */
+    gfx.view(0, 0); gfx.clear(14, 60, 44); gfx.image('img/boot.webp', 0, 0, SW, SH, 255); const bx = Math.round((SW - 360) / 2);
+    fill(bx, 296, 360, 20, [20, 50, 38]); fill(bx, 296, Math.round(360 * (0.7 + 0.3 * (S.bootP || 0))), 20, [222, 184, 96]);
   }
   function bootRun() { /* 最初の対局で要る準備を、起動の画面(進み具合の棒)のあいだに すべて済ませる */
     const jobs = warmTextJobs().concat(homeWarmJobs()), total = jobs.length || 1, t0 = __now(); let done = 0;
