@@ -174,9 +174,28 @@ def probe():
         time.sleep(0.5)
 
 
+def watch():
+    """調べる用: ボタンの値を 100回/秒で 読み、値が 変わったときだけ、時刻(ミリ秒)つきで 出す。 十字キーを 押して 離して みて、一瞬 ちがう方向が まじらないかを 見る。 20秒で終わる (先に: sudo systemctl stop mjpad)"""
+    bus = Bus()
+    if not (bus.init() or bus.init_old()): print('返事がない'); return
+    print('id=%s  十字キー・A・B を 押して 離してください(20秒)' % bus.ident.hex(), flush=True)
+    last = None; t0 = time.time()
+    while time.time() - t0 < 20:
+        try: w = bus.read()
+        except OSError as e: print('%6.0fms エラー %s' % ((time.time() - t0) * 1000, e), flush=True); time.sleep(0.05); continue
+        b = decode(w)
+        if w != last:
+            last = w
+            names = [k for k, v in b.items() if v] if b else ['(読みまちがい)']
+            warn = '  ←あり得ない(左右か上下が同時)' if b and ((b['left'] and b['right']) or (b['up'] and b['down'])) else ''
+            print('%6.0fms  語=%04x  %s%s' % ((time.time() - t0) * 1000, w, ' '.join(names) or '(なにも押していない)', warn), flush=True)
+        time.sleep(0.01)
+
+
 def main():
     if '--selftest' in sys.argv: selftest(); return
     if '--probe' in sys.argv: probe(); return
+    if '--watch' in sys.argv: watch(); return
     dry = '--dry' in sys.argv
     fake = None
     if '--fake' in sys.argv: fake = [int(x, 16) for x in sys.argv[sys.argv.index('--fake') + 1].split(',')]
