@@ -148,4 +148,4 @@
 - ポン・チーの確認で、いちばん右のボタン(見送る)から右を押すと、「解説」へ行ける(このポンをどうしたらいいか、先生に聞ける)。
 - タイトルで方向キーが効かない: 起動直後の先読み(ホームの絵・文字の絵)が重かった → ボタンを押して1.5秒のあいだは あとまわしにする。
 - 確認: 先読みを あとまわしにしたぶん、最初の対局の「東一局 勝負!」などで、文字を作る重さが出ないか。
-- 対局終了の声: 1位=「勝ったー」(audio/yk/e_win1.mp3, v:end_win1)→少し間→「やったね!」(e_win2.mp3, v:end_win2) 登録済み。 元wav: tools/dan_src/voice_end_katta.wav / voice_end_yatta.wav。 「ふぅ~」(e_close1.mp3 v:end_close1 登録済み)→「あぶない、あぶない」(e_close2.mp3 v:end_close2 登録済み)(4位から3位に逆転)と「負けた、ざんねん」(4位 v:end_lose)は、ファイル待ち(まだ鳴らない)。 結果画面が出て0.9秒あとに鳴る。
+- 対局終了の声: 1位=「勝ったー」(audio/yk/e_win1.mp3, v:end_win1)→少し間→「やったね!」(e_win2.mp3, v:end_win2) 登録済み。 元wav: tools/dan_src/voice_end_katta.wav / voice_end_yatta.wav。 「ふぅ~」(e_close1.mp3 v:end_close1 登録済み)→「あぶない、あぶない」(e_close2.mp3 v:end_close2 登録済み)(4位から3位に逆転)と「負けたー」(e_lose1.mp3 v:end_lose1 登録済み)→「ざんねん」(v:end_lose2 ファイル待ち。4位)は、そろうまで鳴らない。 結果画面が出て0.9秒あとに鳴る。
