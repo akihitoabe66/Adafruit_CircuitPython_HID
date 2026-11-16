@@ -157,3 +157,5 @@
 - 動き: 常駐プログラム(native/pi/mjpad.py)が、I2Cで読んで、仮想のゲームパッド(uinput)にする。 ゲームは USBのゲームパッドと同じに受け取る。 十字キー=軸 / B(左)=ボタン0=戻る / A(右)=ボタン1=決定 / セレクト=ボタン6 / スタート=ボタン7(6+7 長押しでメニュー)。 ゲームの「決定ボタンの入れ替え」を切りかえると、A と B の役目が入れかわる。
 - 確認: `i2cdetect -y 1` で 52 が見える / `sudo evtest` で 'Mahjong Wii Classic Pad' にボタンが出る / ゲームで 十字キー・A・B・スタート+セレクト長押し が効く / 起動前でも後でも つながる(ケーブルを抜き差ししても 復帰する)。 `journalctl -u mjpad` で状態が見える。
 - 注意: この環境(PC)では、uinput も I2C も ないので、実機では まだ動かしていない(読みかたと割り当ては 試験した: `python3 mjpad.py --selftest`)。 ボタンの割り当ては nutki/rpi-nintendo-classic-controller と同じ。 SDLに ゲームパッドとして見えない場合は 教えてほしい(ボタン番号・軸の見えかたを 調べる)。
+- コントローラーが「NES用クラシックコントローラーのレプリカ(互換品)」のとき: 合図の返事の ID が 純正と ちがっても 使う(ゆるくした)。 古い合図(0x40 0x00)も 試す。 調べる用: `sudo systemctl stop mjpad` のあと `sudo python3 /usr/local/bin/mjpad.py --probe`(返事・ID・生の値を 0.5秒ごとに 20秒ぶん出す)。 終わったら `sudo systemctl start mjpad`。 ※ プログラムを更新したら `sudo sh native/pi/install_pad.sh` を もう一度。
+- 配線: Wiiソケットは、3.3Vの端子が 2つ(端1と中央3)。 コントローラーのプラグは 中央3だけから電気を受ける(raphnet・ZX-NUNCHUK の図)。 中央3(緑)を 必ず 3.3V に。 SDA=端子5(赤)→物理3番 / SCL=端子2(黄)→物理5番 / GND=端子6(白)→物理6番 / 端子4は 未使用。

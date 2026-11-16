@@ -85,9 +85,19 @@ class Bus:
     def w(self, *b): os.write(self.fd, bytes(b)); time.sleep(0.005)
 
     def init(self):
-        self.w(0xF0, 0x55); self.w(0xFB, 0x00); self.w(0xFE, 0x01)   # 暗号なし・ふつうの形式
-        os.write(self.fd, b'\xFA'); time.sleep(0.005); ident = os.read(self.fd, 6)   # 機器の ID
-        return len(ident) == 6 and ident[2] == 0xA4 and ident[3] == 0x20
+        """はじめの合図。 互換品(レプリカ)でも動くよう、ゆるく: どれかの合図が通れば よい。 ID は 記録するだけ(ちがっていても 使う)"""
+        self.ident = b''
+        self.w(0xF0, 0x55); self.w(0xFB, 0x00)   # 暗号なし(ふつうの Wii クラシックの合図)
+        try: self.w(0xFE, 0x01)   # ふつうの形式。 互換品が 受けつけなくても 気にしない
+        except OSError: pass
+        os.write(self.fd, b'\xFA'); time.sleep(0.005); self.ident = os.read(self.fd, 6)   # 機器の ID(記録用)
+        return len(self.ident) == 6
+
+    def init_old(self):
+        """古い形の合図(0x40 0x00)。 うえで だめなときの 2番めの試し"""
+        self.w(0x40, 0x00)
+        os.write(self.fd, b'\xFA'); time.sleep(0.005); self.ident = os.read(self.fd, 6)
+        return len(self.ident) == 6
 
     def read(self):
         os.write(self.fd, b'\x04'); time.sleep(0.0003)   # ボタンの2バイトは 4番地から
@@ -111,8 +121,24 @@ def selftest():
     print('selftest OK')
 
 
+def probe():
+    """調べる用: 返事・ID・生の値を 0.5秒ごとに 出す。 ボタンを押すと 値が かわる。 (先に: sudo systemctl stop mjpad)"""
+    bus = Bus()
+    for name, f in (('合図A(0xF0 0x55 ...)', bus.init), ('合図B(0x40 0x00)', bus.init_old)):
+        try: ok = f(); print('%s -> %s  id=%s' % (name, '返事あり' if ok else '返事なし', bus.ident.hex()), flush=True)
+        except OSError as e: print('%s -> エラー %s' % (name, e), flush=True)
+    for _ in range(40):
+        try:
+            os.write(bus.fd, b'\x00'); time.sleep(0.0003); d6 = os.read(bus.fd, 6)
+            w = bus.read(); b = decode(w) if w is not None else None
+            print('6バイト=%s  ボタン語=%s  押している=%s' % (d6.hex(), '%04x' % w if w is not None else '-', [k for k, v in b.items() if v] if b else '(読みまちがい)'), flush=True)
+        except OSError as e: print('エラー %s' % e, flush=True)
+        time.sleep(0.5)
+
+
 def main():
     if '--selftest' in sys.argv: selftest(); return
+    if '--probe' in sys.argv: probe(); return
     dry = '--dry' in sys.argv
     fake = None
     if '--fake' in sys.argv: fake = [int(x, 16) for x in sys.argv[sys.argv.index('--fake') + 1].split(',')]
@@ -128,8 +154,8 @@ def main():
         try:
             if bus is None:
                 bus = Bus()
-                if not bus.init(): raise OSError('ID が ちがう(コントローラーが つながっていない?)')
-                print('mjpad: controller ready', flush=True); bad = 0; ok_once = True
+                if not (bus.init() or bus.init_old()): raise OSError('返事がない(コントローラーが つながっていない?)')
+                print('mjpad: controller ready id=%s' % bus.ident.hex(), flush=True); bad = 0; ok_once = True
             w = bus.read(); b = decode(w) if w is not None else None
             if b is None:
                 bad += 1
