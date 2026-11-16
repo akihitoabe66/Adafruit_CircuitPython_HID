@@ -24,6 +24,8 @@
       this.kyotaku = 0;
       this.roundWind = 0;
       this.handCount = 0;
+      this.winCnt = [0, 0, 0, 0]; // 対局中に上がった回数(焼き鳥の判定に使う)
+      this.yaki = null;
       this.log = [];
       this.stopped = false;
     }
@@ -48,9 +50,11 @@
       for (;;) {
         if (this.ui && MJ.Rank) MJ.Rank.write(this); // 局のはじめごとに、自動セーブ
         if (this.ui && MJ.sdFlush) MJ.sdFlush(); // 1局の区切り: SDカードへ(変更があるときだけ・20秒に1回まで)
-        if (this.handCount > 0 && this.ui) { this.blankTable(); if (this.ui.kyokuSlam) { await this.ui.kyokuSlam(this); if (this.stopped) return null; } } // 次の局の配牌まで、前の局の牌を見せない。局の名前は、サイコロの前に出す
+        if (this.handCount > 0 && this.ui && !this.resumeMid) { this.blankTable(); if (this.ui.kyokuSlam) { await this.ui.kyokuSlam(this); if (this.stopped) return null; } } // 次の局の配牌まで、前の局の牌を見せない。局の名前は、サイコロの前に出す
         const r = await this.playHand();
-        if (this.stopped) return null;
+        this.cp = null; // 局が終わったら、途中の記憶は消す
+        const doneStop = this.stopped && r && r.after; // 結果の画面でホームへ戻った: 局は終わっているので、結果(点数・記録)は、ふつうに残す
+        if (this.stopped && !doneStop) return null;
         this.handCount++;
         if (this.ui) this.logHand(r);
         let renchan;
@@ -65,14 +69,57 @@
         if (this.length === 'east' && this.kyoku >= 4) end = true;
         if (this.length === 'south' && this.kyoku >= 8) end = true;
         this.roundWind = Math.min(1, Math.floor(this.kyoku / 4));
+        if (doneStop) { if (end) { if (MJ.Rank && !this.practice) MJ.Rank.clearSave(); if (this.ui && this.ui.clearSaves && !this.practice) this.ui.clearSaves(); } else if (this.ui && this.ui.askSave) await this.ui.askSave(this); return null; } // 終わった対局は、つづきを消す / そうでなければ、次の局のはじめを、自動セーブ
+        if (!end && this.ui && this.ui.askSave) { await this.ui.askSave(this); if (this.stopped) return null; } // 局の結果のあと: 「セーブして次の局へ」(ネイティブ版だけが持つ画面)
         if (end) {
-          if (this.ui && MJ.Rank) MJ.Rank.clearSave(); // 終わった対局には、戻れない
+          if (this.ui && MJ.Rank && !this.practice) MJ.Rank.clearSave(); // 終わった対局には、戻れない
+          this.yaki = null;
+          if (MJ.RULES.yakitori) { // 焼き鳥: 一度も上がれなかった人は、上がった人に1000点ずつ払う(全員が上がれなかったときは、なし)
+            const yk = this.players.filter((p) => !this.winCnt[p.seat]), ok = this.players.filter((p) => this.winCnt[p.seat]);
+            if (yk.length && ok.length) { const d = [0, 0, 0, 0]; yk.forEach((a) => ok.forEach((b) => { d[a.seat] -= 1000; d[b.seat] += 1000; })); this.players.forEach((p) => { p.score += d[p.seat]; }); this.yaki = { seats: yk.map((p) => p.seat), delta: d }; }
+          }
           const order = this.players.slice().sort((a, b) => b.score - a.score || a.seat - b.seat);
-          const final = { order, results: order.map((p, i) => ({ p, rank: i + 1 })) };
+          const final = { order, results: order.map((p, i) => ({ p, rank: i + 1 })), yaki: this.yaki };
           if (this.ui) await this.ui.gameEnd(this, final);
           return final;
         }
       }
+    }
+
+    /* 続きから始めるための、最小限の状態(局・本場・点数・相手) */
+    snapshot() { return { v: 1, length: this.length, chars: this.players.slice(1).map((p) => p.char.id), dealer: this.dealer, kyoku: this.kyoku, honba: this.honba, kyotaku: this.kyotaku, roundWind: this.roundWind, handCount: this.handCount, scores: this.players.map((p) => p.score), wc: this.winCnt.slice(), town: this.town, ease: this.ease, bgm: this.ui && this.ui.bgmTrack ? this.ui.bgmTrack() : undefined }; }
+
+    /* 局の途中の記憶(番のはじまりの状態)。牌は番号(id)だけで持つ */
+    capture(cur, drawMode) {
+      const id = (t) => (t ? t.id : null), ids = (a) => (a || []).map(id);
+      return {
+        snap: this.snapshot(), cur, drawMode, live: ids(this.live), dead: ids(this.dead), rinCount: this.rinCount, kans: this.kans, seq: this.seq, doraInd: ids(this.doraInd),
+        lastDiscard: this.lastDiscard ? { by: this.lastDiscard.by, seq: this.lastDiscard.d.seq } : null,
+        discardLog: this.discardLog.map((x) => ({ seq: x.seq, tile: x.tile.id, by: x.by })),
+        players: this.players.map((p) => ({
+          hand: ids(p.hand), flowers: ids(p.flowers), drawn: id(p.drawn), melds: p.melds.map((m) => ({ kind: m.kind, t: m.t, tiles: ids(m.tiles), from: m.from, called: id(m.called) })),
+          discards: p.discards.map((d) => ({ tile: d.tile.id, riichi: !!d.riichi, called: !!d.called, seq: d.seq })),
+          riichi: !!p.riichi, riichiPending: !!p.riichiPending, riichiSeq: p.riichiSeq, ippatsu: !!p.ippatsu, tempFuriten: !!p.tempFuriten, riichiFuriten: !!p.riichiFuriten, kuikae: (p.kuikae || []).slice(), score: p.score,
+        })),
+      };
+    }
+    restoreMid(c) {
+      const reg = {}, mk = (i) => (i == null ? null : reg[i] || (reg[i] = i >= 136 ? { id: i, t: 34 + (i - 136), red: false, flower: true } : { id: i, t: i >> 2, red: MJ.isRedId(i) })), mkA = (a) => (a || []).map(mk);
+      this.blank = false; this.live = mkA(c.live); this.dead = mkA(c.dead); this.rin = this.dead.slice(0, 4); this.rinCount = c.rinCount || 0;
+      this.doraAll = [4, 6, 8, 10, 12].map((i) => this.dead[i]); this.uraAll = [5, 7, 9, 11, 13].map((i) => this.dead[i]);
+      this.doraInd = mkA(c.doraInd); this.kans = c.kans || 0; this.seq = c.seq || 0; this.humanReview = null; this.humanLog = []; this.lastFlowers = null;
+      this.discardLog = c.discardLog.map((x) => ({ seq: x.seq, tile: mk(x.tile), by: x.by }));
+      this.lastDiscard = null;
+      this.players.forEach((p, i) => {
+        const q = c.players[i];
+        p.hand = mkA(q.hand); p.flowers = mkA(q.flowers); p.drawn = mk(q.drawn);
+        p.melds = q.melds.map((m) => ({ kind: m.kind, t: m.t, tiles: mkA(m.tiles), from: m.from, called: mk(m.called) }));
+        p.discards = q.discards.map((d) => ({ tile: mk(d.tile), riichi: d.riichi, called: d.called, seq: d.seq }));
+        p.discardTypes = new Set(p.discards.map((d) => d.tile.t));
+        p.riichi = q.riichi; p.riichiPending = q.riichiPending; p.riichiSeq = q.riichiSeq; p.ippatsu = q.ippatsu; p.tempFuriten = q.tempFuriten; p.riichiFuriten = q.riichiFuriten; p.kuikae = q.kuikae || []; p.score = q.score; p.lastSay = '';
+        this.sortHand(p);
+      });
+      if (c.lastDiscard) { const pl = this.players[c.lastDiscard.by], d = pl && pl.discards.find((x) => x.seq === c.lastDiscard.seq); if (d) this.lastDiscard = { tile: d.tile, by: c.lastDiscard.by, d }; }
     }
 
     /* 局と局のあいだ: 前の局の手牌・河・副露・ドラ表示牌を、卓から消す(次の配牌までの間に、前の局の牌が見えて紛らわしいため) */
@@ -221,7 +268,9 @@
 
     async decideSelf(p, opts, st) {
       if (p.isHuman) return this.ui.askSelf(this, p, opts, st);
-      const act = p.coachType ? MJ.AI.coachSelf(this, p, opts, p.coachType, { saki: !!p.coachSaki }) : MJ.AI.chooseSelf(this, p, opts);
+      if (this.ui) await sleep(0); // 重い計算の前に、一度画面と入力を回す(カーソルが引っかからないように)
+      const tk0 = Date.now(); const act = p.coachType ? MJ.AI.coachSelf(this, p, opts, p.coachType, { saki: !!p.coachSaki }) : MJ.AI.chooseSelf(this, p, opts);
+      const took = Date.now() - tk0; // 考えるのにかかった時間は、そのあとの待ちから引く(間が長くなりすぎないように)
       if (this.cfg.cpuDelay != null) { await this.wait(this.cfg.cpuDelay); return act; }
       // 考える時間にゆらぎを持たせる: 引いた牌をそのまま切るときは短め、手を入れかえるときは長め。ときどき、じっくり考える
       const r = Math.random();
@@ -238,7 +287,9 @@
         ms = swap ? 1100 + r * 1000 : 700 + r * 600;
         if (r > 0.88) ms += 1200 + Math.random() * 1200;
       }
-      await this.wait(ms);
+      if (sp !== 'fast' && this.ui && this.players.every((q) => q.discards.length === 0)) ms += 700; // この局の はじめの1枚: 配牌のあと、セリフ → 少し間 → 「タン!」と捨てる(すぐ捨てない)
+      if (this.watching && (p.seat === 0 || this.openHands) && this.ui && this.ui.watchNote) { try { this.ui.watchNote(this, p, act); } catch (e) { /* ignore */ } ms = Math.max(ms, 3600); } // 観戦: 下の席の打牌は、理由を読む時間をとる
+      await this.wait(Math.max(60, ms - took));
       return act;
     }
     /* 思考モード: CPUがためらう場面 → リーチを迷う(テンパイ) / リーチ者がいるときに、現物でない牌を切る */
@@ -254,7 +305,7 @@
     /* 麻雀先生の評価に使う、あなたの1局ぶんの記録(直近20局) */
     logHand(r) {
       try {
-        const me = this.players.find((p) => p.isHuman); if (!me) return;
+        const me = this.players.find((p) => p.isHuman); if (!me || this.practice) return; // 練習対局は 記録しない
         const win = r.type === 'win' ? r.wins.find((w) => w.winner === me) : null;
         const dealt = r.type === 'win' ? r.wins.find((w) => w.loser === me) : null;
         const faced = this.players.some((p) => p !== me && p.riichi);
@@ -268,6 +319,13 @@
     /* ---------- 1局 ---------- */
     async playHand() {
       if (this.ui && MJ.perf) MJ.perf._handAt = performance.now(); // 配牌から、手牌が画面に見えるまでを測る
+      let cur = this.dealer;
+      let drawMode = 'normal'; // normal | none (鳴き後) | rinshan
+      const mid = this.resumeMid; this.resumeMid = null;
+      if (mid) { // 局の途中から、つづける: 山・手牌・河などを、もとにもどす(配牌や、局のはじまりの演出は、とばす)
+        this.restoreMid(mid); cur = mid.cur; drawMode = mid.drawMode; this.resumed = false; this.turn = cur; this.sync();
+        if (this.ui && this.ui.padHand) this.ui.padHand();
+      } else {
       this.setupHand();
       this.turn = -1; // 配牌のあいだは、だれの番でもない(前の局の最後の人が光ったままにならないように)
       if (this.ui) await this.ui.handStart(this);
@@ -278,10 +336,10 @@
       this.resumed = false; // 「つづきから」の印は、最初の1局だけ。2局目以降は、ふつうに配牌のアニメを見せる
       if (this.stopped) return { type: 'draw', dealerTenpai: false };
       if (this.ui && this.ui.padHand) this.ui.padHand(); // コントローラーのカーソルを、手牌に
-      let cur = this.dealer;
-      let drawMode = 'normal'; // normal | none (鳴き後) | rinshan
+      }
       for (;;) {
         if (this.stopped) return { type: 'draw', dealerTenpai: false };
+        if (this.ui) this.cp = this.capture(cur, drawMode); // 番のはじまりごとに、いまの状態を記憶(途中でホームへ戻っても、ここからつづけられる)
         const p = this.players[cur];
         this.turn = cur;
         let rinshan = false;
@@ -478,12 +536,13 @@
         let d;
         if (q.isHuman && (actionable || o.ronBlock)) d = await this.ui.askReact(this, q, o);
         else if (q.isHuman) d = { act: 'pass' };
-        else d = MJ.AI.chooseReact(this, q, o);
+        else { if (this.ui) await sleep(0); d = MJ.AI.chooseReact(this, q, o); }
         if (this.stopped) return { type: 'none' };
         if (o.ron && d.act !== 'ron') { q.tempFuriten = true; if (q.riichi) q.riichiFuriten = true; }
         decs.push({ q, d, o });
       }
       const rons = decs.filter((x) => x.d.act === 'ron');
+      if (rons.length >= 3 && MJ.RULES.doubleRon && MJ.RULES.sanchahou) return { type: 'ron', result: await this.abortDraw('三家和') }; // 3人が同時にロン: 流局(親は連荘)
       if (rons.length) { const rq = rons.map((x) => x.q); return { type: 'ron', result: await this.winRon(p, tile, MJ.RULES.doubleRon ? rq : [rq[0]]) }; }
 
       // リーチ成立
@@ -605,7 +664,12 @@
       return this.finishWin(wins, delta, { review, loseReview });
     }
 
-    finishWin(wins, delta, extra = {}) {
+    async finishWin(wins, delta, extra = {}) {
+      // CPUが上がったら、手牌を「ダッ」と倒して見せる(少し間をおいて、そのあと 裏ドラ・結果の画面へ)
+      if (this.ui && this.ui.winReveal && !this.fast && wins.some((w) => !w.winner.isHuman)) { try { await this.ui.winReveal(this, wins); } catch (e) { /* ignore */ } }
+      // 裏ドラの権利がある人(リーチ者)が上がったら、結果の画面の前に、裏ドラを見せるアニメ(画面側にあるときだけ)
+      if (this.ui && this.ui.uraReveal && !this.fast && MJ.RULES.ura && this.uraAll && this.doraInd && wins.some((w) => w.winner.riichi)) { try { await this.ui.uraReveal(this, wins); } catch (e) { /* ignore */ } }
+      wins.forEach((w) => { this.winCnt[w.winner.seat]++; });
       const before = this.players.map((p) => p.score);
       this.players.forEach((p, i) => { p.score += delta[i]; });
       { let mi = 0; delta.forEach((d, i) => { if (d < delta[mi]) mi = i; }); this.lastLoser = delta[mi] < 0 ? this.players[mi] : null; } // いちばん点を取られた人(セリフで名前を呼ぶ相手に使う)
@@ -614,6 +678,12 @@
     }
 
     /* ---------- 流局 ---------- */
+    async abortDraw(reason) { // 途中流局(三家和など): 点数の移動なし・親は連荘
+      const before = this.players.map((p) => p.score);
+      const result = { type: 'draw', abort: reason, delta: [0, 0, 0, 0], before, after: before.slice(), tenpai: [false, false, false, false], dealerTenpai: true, hands: this.players.map((p) => this.handView(p, null, false)) };
+      if (this.ui) await this.ui.showResult(this, result);
+      return result;
+    }
     async exhaustive() {
       const tenpai = this.players.map((p) => MJ.shanten(MJ.toCounts(p.hand), p.melds.length) === 0);
       const n = tenpai.filter(Boolean).length;
