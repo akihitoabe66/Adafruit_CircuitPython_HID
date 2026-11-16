@@ -149,3 +149,4 @@
 - タイトルで方向キーが効かない: 起動直後の先読み(ホームの絵・文字の絵)が重かった → ボタンを押して1.5秒のあいだは あとまわしにする。
 - 確認: 先読みを あとまわしにしたぶん、最初の対局の「東一局 勝負!」などで、文字を作る重さが出ないか。
 - 対局終了の声: 1位=「勝ったー」(audio/yk/e_win1.mp3, v:end_win1)→少し間→「やったね!」(e_win2.mp3, v:end_win2) 登録済み。 元wav: tools/dan_src/voice_end_katta.wav / voice_end_yatta.wav。 「ふぅ~」(e_close1.mp3 v:end_close1 登録済み)→「あぶない、あぶない」(e_close2.mp3 v:end_close2 登録済み)(4位から3位に逆転)と「負けたー」(e_lose1.mp3 v:end_lose1 登録済み)→「ざんねん」(e_lose2.mp3 v:end_lose2 登録済み)(4位)。 結果画面が出て0.9秒あとに鳴る。
+- 四局(最終局)の曲に「The Fallen Banner's Call」を追加(audio/game15.mp3。元: tools/bgm_src/)。 最終局のとき、game12・13・14・15 から 選ばれる(最終局は、60%の確率で、この4曲から)。 他の曲と同じ形(22kHz・モノラル・48kbps)・同じ大きさ(約-13.6 LUFS)にそろえた。 実機で、読み込みで音が途切れないか・大きさを確認。

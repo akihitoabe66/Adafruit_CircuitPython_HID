@@ -2,7 +2,7 @@
 (function () {
   const MJ = window.MJ;
   const GAME = ['game1', 'game2', 'game3', 'game4', 'game5', 'game6', 'game7', 'game10', 'game11'].map((n) => 'audio/' + n + '.mp3');
-  const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3'], HOME = 'audio/home.mp3';
+  const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3', 'audio/game15.mp3'], HOME = 'audio/home.mp3';
   const SFX = ['click', 'select', 'draw', 'deal4', 'deal1', 'sort1', 'sort2', 'deal', 'discard', 'call', 'kan', 'riichi', 'ron', 'tsumo', 'win', 'lose', 'drawgame', 'slam', 'start', 'end', 'ok', 'ng', 'error', 'dice_hit', 'dice_clack', 'ura_slide', 'ura_tap'];
   const D = { bgm: 0.22 * 6 / 5, sfx: 0.7 * 8 / 5, voice: 0.85, read: 0.6 }; // 初期値(音量の目盛り5のとき)。 目盛り5 = 前の版の「BGM6・効果音8・読み上げ5」のバランス
   try { if (localStorage.getItem('mj_vol_v') !== '2') { ['bgm', 'sfx', 'voice'].forEach((k) => localStorage.removeItem('mj_vol_' + k)); localStorage.setItem('mj_vol_v', '2'); } } catch (e) { /* ignore */ } // 前の版の目盛りで保存された音量は、1回だけ 5 にもどす
