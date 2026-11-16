@@ -41,15 +41,17 @@ class Debounce:
         return None
 
 
-def to_state(btn, prev=None):
+def to_state(btn, prev=None, wait_diag=False):
     """押しているボタン → (X軸, Y軸, [8個のボタンの 0/1])"""
     if (btn['left'] and btn['right']) or (btn['up'] and btn['down']): return None   # 左右・上下が 同時は ありえない(読みまちがい)
     x = (1 if btn['right'] else 0) - (1 if btn['left'] else 0)
     y = (1 if btn['down'] else 0) - (1 if btn['up'] else 0)
-    if x and y:   # 斜め: この互換品は「左」を押すと「上」も 一瞬 触れてしまう(実機で確認)。 斜めは 使わないので、どちらか1つにする
+    if x and y:   # 斜め: この互換品は 左右を押すと 上下も、上下を押すと 左右も 一瞬 触れてしまう(実機で確認)。 斜めは 使わないので、どちらか1つにする
         px, py = (prev[0], prev[1]) if prev else (0, 0)
         if py and not px: x = 0      # すでに 縦を押している → 縦をつづける
-        else: y = 0                  # すでに 横を押している・どちらも新しい → 横を優先
+        elif px and not py: y = 0    # すでに 横を押している → 横をつづける
+        elif wait_diag: return None  # どちらも新しい: すぐには 決めない(しばらく 様子を見て、1方向に落ちついたほうを 使う)
+        else: y = 0                  # 様子を見ても 斜めのまま → 横を優先
     ks = [0] * 8
     ks[0] = 1 if btn['b'] else 0
     ks[1] = 1 if btn['a'] else 0
@@ -152,7 +154,9 @@ def selftest():
     assert to_state(decode(press('right', 'down'))) == (1, 0, [0] * 8)
     assert to_state(decode(press('select', 'start'))) == (0, 0, [0, 0, 0, 0, 0, 0, 1, 1])
     assert to_state(decode(press('left', 'right'))) is None and to_state(decode(press('up', 'down'))) is None
-    assert to_state(decode(press('left', 'up')))[:2] == (-1, 0)                       # 斜め(どちらも新しい) → 横
+    assert to_state(decode(press('left', 'up')))[:2] == (-1, 0)                       # 斜め(どちらも新しい)・様子見をしない → 横
+    assert to_state(decode(press('left', 'up')), None, True) is None                  # 様子を見る間は 決めない
+    assert to_state(decode(press('up', 'right')), (0, 0, [0] * 8), True) is None
     assert to_state(decode(press('left', 'up')), (-1, 0, [0] * 8))[:2] == (-1, 0)     # 左を押している途中に 上が混じる → 左のまま
     assert to_state(decode(press('left', 'up')), (0, -1, [0] * 8))[:2] == (0, -1)     # 上を押している途中に 左が混じる → 上のまま
     assert to_state(decode(press('right', 'down')), (1, 0, [0] * 8))[:2] == (1, 0)
@@ -214,7 +218,7 @@ def main():
             b = decode(w); print('word 0x%04x ->' % w, b and [k for k, v in b.items() if v], flush=True)
             if b: pad.send(to_state(b))
         pad.close(); return
-    bus = None; bad = 0; ok_once = False; deb = Debounce(DEBOUNCE)
+    bus = None; bad = 0; ok_once = False; deb = Debounce(DEBOUNCE); diag_n = 0
     while True:
         try:
             if bus is None:
@@ -226,7 +230,9 @@ def main():
                 bad += 1
                 if bad >= 20: raise OSError('読みまちがいが つづいた')
             else:
-                bad = 0; st = to_state(b, pad.last)
+                bad = 0; dg = b['left'] != b['right'] and b['up'] != b['down']   # 斜め
+                diag_n = diag_n + 1 if dg else 0
+                st = to_state(b, pad.last, wait_diag=diag_n <= 4)   # 斜めが 5回(約0.12秒)つづいたら、横を優先して 決める
                 if st is not None:
                     out = deb.feed(st)
                     if out is not None: pad.send(out)
