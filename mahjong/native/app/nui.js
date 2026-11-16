@@ -2706,7 +2706,8 @@
     add('あなた', 21, W); add('あなた', 21, [35, 26, 0]); add('あなた', 20, W); add('あなた', 20, [27, 27, 18]);
     try { MJ.CHARS.forEach((c) => { const nm = c.short || c.name; add(nm, 21, W); add(nm, 20, W); add(nm, 20, [27, 27, 18]); add(nm, 17, [80, 90, 86]); }); } catch (e) { /* ignore */ }
     let i = 0;
-    const step = () => { if (S.mode === 'game') { setTimeout(step, 1000); return; } /* 対局中は 先読みを しない(対局中の止まりを 増やさない) */ if (S.lastKeyT && __now() - S.lastKeyT < 1500) { setTimeout(step, 400); return; } /* ボタンを押して 1.5秒のあいだは あとまわし */ gfx.dry(1); try { for (let k = 0; k < 2 && i < L.length; k++, i++) { const e = L[i]; gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0); } } catch (e) { /* ignore */ } finally { gfx.dry(0); } if (i < L.length) setTimeout(step, 40); };
+    tl('warm-start ' + L.length);
+    const step = () => { if (S.mode === 'game') { if (!S._wp) { S._wp = 1; tl('warm-paused-by-game at ' + i + '/' + L.length); } setTimeout(step, 1000); return; } /* 対局中は 先読みを しない(対局中の止まりを 増やさない) */ if (S.lastKeyT && __now() - S.lastKeyT < 1500) { setTimeout(step, 400); return; } /* ボタンを押して 1.5秒のあいだは あとまわし */ gfx.dry(1); try { for (let k = 0; k < 2 && i < L.length; k++, i++) { const e = L[i]; gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0); } } catch (e) { /* ignore */ } finally { gfx.dry(0); } if (i < L.length) setTimeout(step, 40); else tl('warm-done'); };
     setTimeout(step, 1200);
   }
   NSND.home(); homeWarm(); warmText();
