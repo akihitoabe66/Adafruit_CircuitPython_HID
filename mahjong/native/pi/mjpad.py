@@ -99,10 +99,27 @@ class Bus:
         os.write(self.fd, b'\xFA'); time.sleep(0.005); self.ident = os.read(self.fd, 6)
         return len(self.ident) == 6
 
+    CFGS = [(ptr, n, dly) for ptr in (0x04, 0x00) for n in ((2,) if ptr == 0x04 else (6,)) for dly in (0.001, 0.003, 0.008, 0.02)]
+
+    def _try(self, ptr, n, dly):
+        """番地 ptr を指定して、n バイト読む。 返事までの待ち dly 秒。 ボタンの語(16bit)を返す"""
+        time.sleep(0.001); os.write(self.fd, bytes([ptr])); time.sleep(dly)
+        d = os.read(self.fd, n)
+        if len(d) != n: raise OSError('短い')
+        return d[0] | (d[1] << 8) if n == 2 else d[4] | (d[5] << 8)   # 6バイトのときは、4・5バイトめが ボタン
+
     def read(self):
-        os.write(self.fd, b'\x04'); time.sleep(0.0003)   # ボタンの2バイトは 4番地から
-        d = os.read(self.fd, 2)
-        return d[0] | (d[1] << 8) if len(d) == 2 else None
+        """ボタンの語を読む。 互換品は 返事が遅いことがあるので、(番地・待ち時間)の組みあわせを 順に試して、動いたものを覚える"""
+        if getattr(self, 'cfg', None):
+            try: return self._try(*self.cfg)
+            except OSError: self.cfg = None   # 動かなくなった: 探しなおす
+        last = None
+        for c in self.CFGS:
+            try:
+                w = self._try(*c)
+                if decode(w) is not None: self.cfg = c; print('mjpad: read ok ptr=0x%02x n=%d wait=%.0fms' % (c[0], c[1], c[2] * 1000), flush=True); return w
+            except OSError as e: last = e
+        raise last or OSError('読めない')
 
 
 def selftest():
@@ -127,11 +144,15 @@ def probe():
     for name, f in (('合図A(0xF0 0x55 ...)', bus.init), ('合図B(0x40 0x00)', bus.init_old)):
         try: ok = f(); print('%s -> %s  id=%s' % (name, '返事あり' if ok else '返事なし', bus.ident.hex()), flush=True)
         except OSError as e: print('%s -> エラー %s' % (name, e), flush=True)
+    print('--- 読みかた(番地・待ち時間)ごとの結果 ---', flush=True)
+    for c in Bus.CFGS:
+        try: w = bus._try(*c); b = decode(w); print('番地0x%02x %dバイト 待ち%3.0fms -> %04x %s' % (c[0], c[1], c[2] * 1000, w, [k for k, v in b.items() if v] if b else '(読みまちがい)'), flush=True)
+        except OSError as e: print('番地0x%02x %dバイト 待ち%3.0fms -> エラー %s' % (c[0], c[1], c[2] * 1000, e), flush=True)
+    print('--- ボタンを押して、値が かわるか(20秒) ---', flush=True)
     for _ in range(40):
         try:
-            os.write(bus.fd, b'\x00'); time.sleep(0.0003); d6 = os.read(bus.fd, 6)
             w = bus.read(); b = decode(w) if w is not None else None
-            print('6バイト=%s  ボタン語=%s  押している=%s' % (d6.hex(), '%04x' % w if w is not None else '-', [k for k, v in b.items() if v] if b else '(読みまちがい)'), flush=True)
+            print('ボタン語=%04x  押している=%s' % (w, [k for k, v in b.items() if v] if b else '(読みまちがい)'), flush=True)
         except OSError as e: print('エラー %s' % e, flush=True)
         time.sleep(0.5)
 
