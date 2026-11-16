@@ -67,7 +67,7 @@
 
 - [ ] ビデオ: 4番に「リーチされたら、この順番で切る」を追加(前の4〜16番は5〜17番に)。 SDカードの動画の番号をずらして(tools/video/shift_numbers.*)、新しい 04_*.mp4 を入れる → 一覧・サムネイル・再生・つづきから が合っているか
 
-- [ ] (要ビルド) 動画を git で配る: リポジトリの mahjong/video/04_reach_order.mp4 が、ビデオの一覧の4番で再生できるか。 ラズパイで、前の動画の番号をずらす: `cd ~/mjdata/video && sh ~/Adafruit_CircuitPython_HID/mahjong/tools/video/shift_numbers.sh`(場所はあなたの環境に合わせて)
+- [ ] (要ビルド) 動画を git で配る: リポジトリの mahjong/video/05_reach_order.mp4 が、ビデオの一覧の4番で再生できるか。 ラズパイで、前の動画の番号をずらす: `cd ~/mjdata/video && sh ~/Adafruit_CircuitPython_HID/mahjong/tools/video/shift_numbers.sh`(場所はあなたの環境に合わせて)
 
 - [ ] 起動画面(img/boot.webp)の緑の背景を、なめらかなグラデーションに作り直した(tools/make_boot_bg.py)。 実機のテレビで、ブロック状のムラ・帯が消えているか
 
@@ -185,3 +185,8 @@
 
 ## クイズの重なり防止
 - [ ] 点数の勉強(入門「点数が決まるしくみ」など)のクイズで、同じ問題が1回のクイズの中で二度出ない。
+
+## ビデオ: 2番に「30分で打てる麻雀ルール」を追加(前の2番以降は3番以降へ)
+- [ ] (JSのみ) `git pull` で、ビデオ一覧の2番に新しい動画(13:38)が出て再生できるか。 前の2〜17番は3〜18番に。 サムネイル・題名・「つづきから」が合っているか(見た記録は自動で番号を引きつぐ)
+- [ ] ラズパイのSDカード側(~/mjdata/video)に動画があるなら、番号をずらす: `cd ~/mjdata/video && sh ~/Adafruit_CircuitPython_HID/mahjong/tools/video/shift_numbers.sh 2`(2番以降が1つずつ後ろへ)。 gitの mahjong/video の 02_rule30.mp4 と 05_reach_order.mp4 は、ずらし済み
+- [ ] 13分の動画が、Pi Zero W でコマ落ち・音ずれなく再生できるか(15コマ/秒・640x360・約100kbps)
