@@ -150,3 +150,10 @@
 - 確認: 先読みを あとまわしにしたぶん、最初の対局の「東一局 勝負!」などで、文字を作る重さが出ないか。
 - 対局終了の声: 1位=「勝ったー」(audio/yk/e_win1.mp3, v:end_win1)→少し間→「やったね!」(e_win2.mp3, v:end_win2) 登録済み。 元wav: tools/dan_src/voice_end_katta.wav / voice_end_yatta.wav。 「ふぅ~」(e_close1.mp3 v:end_close1 登録済み)→「あぶない、あぶない」(e_close2.mp3 v:end_close2 登録済み)(4位から3位に逆転)と「負けたー」(e_lose1.mp3 v:end_lose1 登録済み)→「ざんねん」(e_lose2.mp3 v:end_lose2 登録済み)(4位)。 結果画面が出て0.9秒あとに鳴る。
 - 四局(最終局)の曲に「The Fallen Banner's Call」を追加(audio/game15.mp3。元: tools/bgm_src/)。 最終局のとき、game12・13・14・15 から 選ばれる(最終局は、60%の確率で、この4曲から)。 他の曲と同じ形(22kHz・モノラル・48kbps)・同じ大きさ(約-13.6 LUFS)にそろえた。 実機で、読み込みで音が途切れないか・大きさを確認。
+
+## Wii/NESクラシックのコントローラー(GPIOのI2C)を、ゲームパッドとして使う(実機で確認)
+- つなぎかた: 3.3V=物理1番 / SDA=物理3番(GPIO2) / SCL=物理5番(GPIO3) / GND=物理6番。 コントローラーは I2C のアドレス 0x52。
+- 入れかた(ラズパイで、git pull のあと): `sudo sh ~/(あなたのチェックアウト)/mahjong/native/pi/install_pad.sh` → `sudo reboot`。 読みまちがいが多いときだけ `--slow`(通信を50kHzに)。 JSだけ・本体の再ビルドは いらない。
+- 動き: 常駐プログラム(native/pi/mjpad.py)が、I2Cで読んで、仮想のゲームパッド(uinput)にする。 ゲームは USBのゲームパッドと同じに受け取る。 十字キー=軸 / B(左)=ボタン0=戻る / A(右)=ボタン1=決定 / セレクト=ボタン6 / スタート=ボタン7(6+7 長押しでメニュー)。 ゲームの「決定ボタンの入れ替え」を切りかえると、A と B の役目が入れかわる。
+- 確認: `i2cdetect -y 1` で 52 が見える / `sudo evtest` で 'Mahjong Wii Classic Pad' にボタンが出る / ゲームで 十字キー・A・B・スタート+セレクト長押し が効く / 起動前でも後でも つながる(ケーブルを抜き差ししても 復帰する)。 `journalctl -u mjpad` で状態が見える。
+- 注意: この環境(PC)では、uinput も I2C も ないので、実機では まだ動かしていない(読みかたと割り当ては 試験した: `python3 mjpad.py --selftest`)。 ボタンの割り当ては nutki/rpi-nintendo-classic-controller と同じ。 SDLに ゲームパッドとして見えない場合は 教えてほしい(ボタン番号・軸の見えかたを 調べる)。

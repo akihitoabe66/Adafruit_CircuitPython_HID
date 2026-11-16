@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""Wii/NESクラシックのコントローラー(I2C)を、USBゲームパッドと同じように使えるようにする常駐プログラム。
+ GPIOの I2C(SDA=物理3番 GPIO2 / SCL=物理5番 GPIO3 / 3.3V=物理1番 / GND=物理6番)でつないだコントローラー(アドレス 0x52)を
+ 読んで、Linuxの仮想ゲームパッド(uinput)として見せる。 ゲーム(SDL)は、USBのゲームパッドと同じに受け取る。
+ ボタンの割り当て(SDLのボタン番号。 ゲームの「決定ボタンの入れ替え」は 初期のまま):
+   十字キー → 軸(X・Y)       B(左) → ボタン0 = 戻る       A(右) → ボタン1 = 決定
+   セレクト(-) → ボタン6      スタート(+) → ボタン7        (6+7 の長押しで、ゲームのメニュー)
+ 使うのは 標準ライブラリだけ(追加の部品の インストールは いりません)。
+ 試験用: python3 mjpad.py --selftest  /  python3 mjpad.py --dry --fake FFFF,EFFF,FFFF   (実機・uinputなしで、読みかたの確認)"""
+import fcntl, os, struct, sys, time
+
+ADDR = 0x52
+I2C_SLAVE = 0x0703
+HZ = 60
+# uinput
+UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT = 0x40045564, 0x40045565, 0x40045567
+UI_DEV_SETUP, UI_ABS_SETUP, UI_DEV_CREATE, UI_DEV_DESTROY = 0x405c5503, 0x401c5504, 0x5501, 0x5502
+EV_SYN, EV_KEY, EV_ABS = 0, 1, 3
+ABS_X, ABS_Y = 0, 1
+BTN_BASE = 0x120  # BTN_TRIGGER。 SDLは、BTN_JOYSTICK(0x120)から 小さい順に、ボタン番号 0,1,2… を ふる
+# SDLのボタン番号 → 使うところ: 0=B(戻る) 1=A(決定) 2〜5=使わない(番号を うめるだけ) 6=セレクト 7=スタート
+KEYS = [BTN_BASE + i for i in range(8)]
+# クラシックコントローラーの ボタン(16bit。 0 = 押している)。 nutki/rpi-nintendo-classic-controller と同じ割り当て
+BIT = {'start': 2, 'select': 4, 'down': 6, 'right': 7, 'up': 8, 'left': 9, 'a': 12, 'b': 14}
+
+
+def decode(word):
+    """16bitのボタンの語 → {名前: 押している?}。 読みまちがい(上下どちらかの1バイトが 0)のときは None"""
+    if (word & 0xFF) == 0 or (word & 0xFF00) == 0: return None
+    return {k: ((word >> b) & 1) == 0 for k, b in BIT.items()}
+
+
+def to_state(btn):
+    """押しているボタン → (X軸, Y軸, [8個のボタンの 0/1])"""
+    x = (1 if btn['right'] else 0) - (1 if btn['left'] else 0)
+    y = (1 if btn['down'] else 0) - (1 if btn['up'] else 0)
+    ks = [0] * 8
+    ks[0] = 1 if btn['b'] else 0
+    ks[1] = 1 if btn['a'] else 0
+    ks[6] = 1 if btn['select'] else 0
+    ks[7] = 1 if btn['start'] else 0
+    return x, y, ks
+
+
+class Pad:
+    """uinput の仮想ゲームパッド"""
+    def __init__(self, dry=False):
+        self.dry = dry; self.fd = None; self.last = None
+        if dry: return
+        self.fd = os.open('/dev/uinput', os.O_WRONLY | os.O_NONBLOCK)
+        fcntl.ioctl(self.fd, UI_SET_EVBIT, EV_KEY); fcntl.ioctl(self.fd, UI_SET_EVBIT, EV_ABS); fcntl.ioctl(self.fd, UI_SET_EVBIT, EV_SYN)
+        for k in KEYS: fcntl.ioctl(self.fd, UI_SET_KEYBIT, k)
+        for a in (ABS_X, ABS_Y):
+            fcntl.ioctl(self.fd, UI_SET_ABSBIT, a)
+            fcntl.ioctl(self.fd, UI_ABS_SETUP, struct.pack('<HHiiiiii', a, 0, 0, -1, 1, 0, 0, 0))  # 範囲 -1〜1(SDLが 全部たおした値に そろえる)
+        fcntl.ioctl(self.fd, UI_DEV_SETUP, struct.pack('<HHHH80sI', 3, 0x1209, 0x4D4A, 1, b'Mahjong Wii Classic Pad', 0))  # バス=USB
+        fcntl.ioctl(self.fd, UI_DEV_CREATE)
+
+    def _ev(self, t, c, v):
+        if self.dry: print('  event type=%d code=0x%x value=%d' % (t, c, v), flush=True); return
+        os.write(self.fd, struct.pack('llHHi', int(time.time()), 0, t, c, v))
+
+    def send(self, state):
+        """変わったところだけ送る"""
+        if state == self.last: return
+        x, y, ks = state; lx, ly, lk = self.last if self.last else (None, None, [None] * 8)
+        if x != lx: self._ev(EV_ABS, ABS_X, x)
+        if y != ly: self._ev(EV_ABS, ABS_Y, y)
+        for i in range(8):
+            if ks[i] != lk[i]: self._ev(EV_KEY, KEYS[i], ks[i])
+        self._ev(EV_SYN, 0, 0); self.last = state
+
+    def close(self):
+        if self.fd is not None:
+            try: fcntl.ioctl(self.fd, UI_DEV_DESTROY)
+            except OSError: pass
+            os.close(self.fd)
+
+
+class Bus:
+    """I2Cで クラシックコントローラーを読む(/dev/i2c-1)"""
+    def __init__(self, n=1):
+        self.fd = os.open('/dev/i2c-%d' % n, os.O_RDWR); fcntl.ioctl(self.fd, I2C_SLAVE, ADDR)
+
+    def w(self, *b): os.write(self.fd, bytes(b)); time.sleep(0.005)
+
+    def init(self):
+        self.w(0xF0, 0x55); self.w(0xFB, 0x00); self.w(0xFE, 0x01)   # 暗号なし・ふつうの形式
+        os.write(self.fd, b'\xFA'); time.sleep(0.005); ident = os.read(self.fd, 6)   # 機器の ID
+        return len(ident) == 6 and ident[2] == 0xA4 and ident[3] == 0x20
+
+    def read(self):
+        os.write(self.fd, b'\x04'); time.sleep(0.0003)   # ボタンの2バイトは 4番地から
+        d = os.read(self.fd, 2)
+        return d[0] | (d[1] << 8) if len(d) == 2 else None
+
+
+def selftest():
+    allup = 0xFFFF
+    assert decode(allup) == {k: False for k in BIT}
+    assert decode(0x0000) is None and decode(0xFF00) is None   # 読みまちがい
+    def press(*names):
+        w = allup
+        for n in names: w &= ~(1 << BIT[n])
+        return w
+    assert to_state(decode(press('a'))) == (0, 0, [0, 1, 0, 0, 0, 0, 0, 0])
+    assert to_state(decode(press('b'))) == (0, 0, [1, 0, 0, 0, 0, 0, 0, 0])
+    assert to_state(decode(press('left', 'up'))) == (-1, -1, [0] * 8)
+    assert to_state(decode(press('right', 'down'))) == (1, 1, [0] * 8)
+    assert to_state(decode(press('select', 'start'))) == (0, 0, [0, 0, 0, 0, 0, 0, 1, 1])
+    print('selftest OK')
+
+
+def main():
+    if '--selftest' in sys.argv: selftest(); return
+    dry = '--dry' in sys.argv
+    fake = None
+    if '--fake' in sys.argv: fake = [int(x, 16) for x in sys.argv[sys.argv.index('--fake') + 1].split(',')]
+    pad = Pad(dry)
+    print('mjpad: start dry=%s fake=%s' % (dry, bool(fake)), flush=True)
+    if fake:   # 試験: 並べた値を 1つずつ 読んだことにする
+        for w in fake:
+            b = decode(w); print('word 0x%04x ->' % w, b and [k for k, v in b.items() if v], flush=True)
+            if b: pad.send(to_state(b))
+        pad.close(); return
+    bus = None; bad = 0; ok_once = False
+    while True:
+        try:
+            if bus is None:
+                bus = Bus()
+                if not bus.init(): raise OSError('ID が ちがう(コントローラーが つながっていない?)')
+                print('mjpad: controller ready', flush=True); bad = 0; ok_once = True
+            w = bus.read(); b = decode(w) if w is not None else None
+            if b is None:
+                bad += 1
+                if bad >= 20: raise OSError('読みまちがいが つづいた')
+            else:
+                bad = 0; pad.send(to_state(b))
+        except OSError as e:
+            if ok_once or bad: print('mjpad: %s' % e, flush=True)
+            ok_once = False
+            if bus is not None:
+                try: os.close(bus.fd)
+                except OSError: pass
+                bus = None
+            pad.send((0, 0, [0] * 8))   # つながっていない間は、ボタンを すべて はなした ことにする
+            time.sleep(1.0); continue
+        time.sleep(1.0 / HZ)
+
+
+if __name__ == '__main__':
+    main()
