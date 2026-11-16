@@ -392,7 +392,7 @@
   const lay = (i, key, fn) => { const c = S.lay[i]; if (!c || c.key !== key) { gfx.layerBegin(i); fn(); gfx.layerEnd(); S.lay[i] = { key }; } }; // 絵を、画面に出さずに、キャッシュの面に描いておく(先に用意するとき)
   const cached = (i, key, fn) => { lay(i, key, fn); gfx.layer(i); };
   /* ---------- 裏ドラ確認のアニメ(王牌の7本のうえに かさねて描く) ---------- */
-  const URA_T = { start: 0.4, slide: 0.28, hold1: 0.5, hold2: 0.35, lift: 0.12, drop: 0.11, gap: 0.4, end: 1.0 }; // 秒
+  const URA_T = { start: 0.5, slide: 0.28, hold1: 0.6, hold2: 0.5, lift: 0.12, drop: 0.11, gap: 0.45, end: 2.2 }; // 秒
   const URA_C = { BLUE: [74, 140, 222], BLUE_L: [140, 190, 246], CREAM: [240, 234, 212], FACE: [252, 249, 238] };
   const URA_X = (i) => 357 + i * 19, /* 1牌ずつ、すきま2pxで 均等に */ URA_YU = 191, URA_YL = 205, URA_W = 17, URA_HS = 22, URA_HC = 7, URA_SLIDE = 23, URA_LIFT = 3;
   function uraTile(x, y, kind, tl) { // 牌1枚: 上の面(伏せ=青 / 表=数字)+ 手前の白い側面(表の牌は いちばん下の縁だけ 青い線)
@@ -478,9 +478,10 @@
     // 自分の手牌
     drawHand(g);
     // 吹き出し
+    drawFly(); drawTeacher(g);
     const now = __now();
     const BUB = BUBP; // 上家・下家は、同じ高さ(麻雀先生の帯(y268〜)に かさならない高さ)。吹き出しは、いつも同じ大きさ(顔も、いつも同じ大きさ)
-    const calling = (S.banner && S.banner.call) || S.ryu; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
+    const calling = (S.banner && S.banner.call) || S.ryu || S.ura; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; } if (calling) continue;
       const pos = BUB[k] || [300, 200], tw = BW - FSZ - 34; let bsz = 20, lines = wrapText(b.text, bsz, tw);
       for (const z of [20, 19, 18, 17, 16]) { bsz = z; lines = wrapText(b.text, z, tw); if (lines.length <= 3) break; } lines = lines.slice(0, 3);
@@ -488,7 +489,7 @@
       rrect(pos[0] + 2, pos[1] + 3, BW, BH, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, BH, 10, [240, 243, 238]);
       if (b.p) { face(b.p, pos[0] + 8, pos[1] + 8, FSZ, FSZ); } // 話している人の顔
       text(b.name, pos[0] + FSZ + 20, pos[1] + 8, 17, [80, 90, 86]); lines.forEach((l, i) => text(l, pos[0] + FSZ + 20, ty0 + i * lh, bsz, [30, 34, 32])); }
-    drawFly(); drawTeacher(g);
+
     if (S.ryu) { // 「流局」: 黒い帯に大きな白文字が、左から流れてきて止まる。少し置いて、すっと消える
       const t = __now() - S.ryu.t0, k = Math.min(1, t / 380), e = 1 - (1 - k) * (1 - k), out = t > 1600 ? Math.min(1, (t - 1600) / 350) : 0, a = Math.round(200 * (1 - out));
       for (let i = 0; i < 12; i++) fill(0, 170 + Math.round(i * 9.5), W, 10, [0, 0, 0], a); // 帯
@@ -1215,6 +1216,9 @@
       text(w.winner.name, 120, 28, 30, WHITE); { const nw = gfx.measure(w.winner.name, 30); rrect(120 + nw + 14, 30, 84, 34, 10, w.tsumo ? [60, 130, 200] : [210, 60, 50]); text(w.tsumo ? 'ツモ' : 'ロン', 120 + nw + 56, 35, 22, WHITE, 1);
         const sw = g ? g.seatWindOf(w.winner) : 0, lab = WIND[sw] + '家' + (sw === 0 ? '(親)' : ''), lx = 120 + nw + 112, lw = gfx.measure(lab, 22) + 24;
         rrect(lx, 30, lw, 34, 10, [255, 255, 255]); rrect(lx + 2, 32, lw - 4, 30, 8, WIND_BG[sw]); text(lab, lx + lw / 2, 35, 22, WHITE, 1); }
+      { const di = g && g.doraInd ? g.doraInd.slice(0, 5) : [], ur = w.ura && w.ura.length ? w.ura.slice(0, 5) : null, tw2 = 20, th2 = 27, x0 = 778 - 5 * (tw2 + 2); // 右上に、ドラ表示牌と、(リーチして上がったときは)裏ドラ表示牌
+        const row = (lab, arr, yy) => { text(lab, x0 - 6, yy + 6, 14, GREY, 2); arr.forEach((h, i) => tile(h.t, x0 + i * (tw2 + 2), yy, tw2, th2, h.red)); };
+        if (di.length) row('ドラ表示', di, 14); if (ur) row('裏ドラ表示', ur, 44); }
       if (r.total > 1) text((r.idx + 1) + ' / ' + r.total + ' 人目の上がり', 770, 84, 18, GREY, 2);
       if (res.limit) text(res.limit, 770, 100, 30, [255, 120, 90], 2);
       // 手牌(大きく、中央ぞろえ)
@@ -2441,6 +2445,7 @@
     uraReveal(g, wins) { // 裏ドラを見せる: ドラ表示牌が上へ出る → 下の牌が少し浮いて → トンッと置かれて表になる(左の列から順に)
       return new Promise((res) => {
         const n = Math.min(5, (g.doraInd || []).length, (g.uraAll || []).length); if (!n) { res(); return; }
+        S.bub = {}; S.sayQ = []; // 裏ドラを見せるあいだは、セリフ(吹き出し)を出さない(重なって読めない・欠けて見える、をなくす)
         const cols = []; for (let k = 0; k < n; k++) cols.push(4 - k); cols.sort((x, y) => x - y); // 左の列から
         const items = []; let t = URA_T.start;
         cols.forEach((col, i) => { const k = 4 - col, s0 = t, s1 = s0 + URA_T.slide, l0 = s1 + (i === 0 ? URA_T.hold1 : URA_T.hold2), l1 = l0 + URA_T.lift, d1 = l1 + URA_T.drop; items.push({ col, ind: g.doraInd[k], ura: g.uraAll[k], s0, s1, l0, l1, d1, sp: 0, tp: 0 }); t = d1 + URA_T.gap; });
@@ -2575,7 +2580,7 @@
     const q = S.sayQ || []; const now = __now();
     while (q.length && (now - q[0].t0 > 4000 || q[0].g !== S.game)) q.shift(); // 古くなったセリフは出さない
     if (!q.length) return;
-    const busy = (S.banner && S.banner.call) || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
+    const busy = (S.banner && S.banner.call) || S.ura || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
     if (busy) { S.sayT = setTimeout(() => { S.sayT = null; pumpSay(); }, 250); return; }
     const x = q.shift(); S.bub[x.p.seat] = { name: x.p.name, text: x.t, p: x.p, until: __now() + x.ms }; dirty();
     S.sayT = setTimeout(() => { S.sayT = null; dirty(); pumpSay(); }, x.ms + 120);
