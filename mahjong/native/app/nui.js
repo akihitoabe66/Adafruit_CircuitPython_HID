@@ -1407,7 +1407,9 @@
     setTimeout(() => {
       if (S.mode !== 'quiz' || S.quiz !== q) return;
       const gens = q.gens(); let p = null;
-      for (let i = 0; i < 14 && !p; i++) { try { p = gens[Math.floor(Math.random() * gens.length)](); } catch (e) { print('quiz gen err ' + (e && e.stack || e)); } }
+      const seen = q.seen || (q.seen = new Set()); let dup = null; /* 同じクイズの中では、同じ問題(同じ文章+同じ答え)を二度出さない */
+      for (let i = 0; i < 60 && !p; i++) { try { const c = gens[Math.floor(Math.random() * gens.length)](); const key = String(c.prompt || '') + '|' + String(c.sit || ''); if (!seen.has(key)) { p = c; seen.add(key); } else dup = dup || c; } catch (e) { print('quiz gen err ' + (e && e.stack || e)); } }
+      if (!p && dup) p = dup; /* 問題が足りないときだけ、重なってもよい */
       if (!p) { q.phase = 'fail'; dirty(); return; }
       q.p = p; q.n++; q.phase = 'ask'; q.idx = 0;
       q.disp = (p.hand || []).slice().sort((a, b) => a.t - b.t);
