@@ -11,7 +11,8 @@ import fcntl, os, struct, sys, time
 
 ADDR = 0x52
 I2C_SLAVE = 0x0703
-HZ = int(os.environ.get('MJPAD_HZ', '30'))   # 1秒に読む回数。 Pi Zero は CPU が1つだけで、ゲームと取りあうので、30回(約33ms)に。 反応は これで十分
+HZ = int(os.environ.get('MJPAD_HZ', '40'))   # 1秒に読む回数(40回=25ms)。 Pi Zero は CPU が1つだけで、ゲームと取りあうので、多くしすぎない
+DEBOUNCE = int(os.environ.get('MJPAD_DEBOUNCE', '2'))   # 同じ値が この回数 つづけて読めたときだけ、ゲームに伝える(読みまちがいの 一瞬の「左」などを 通さない)
 # uinput
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT = 0x40045564, 0x40045565, 0x40045567
 UI_DEV_SETUP, UI_ABS_SETUP, UI_DEV_CREATE, UI_DEV_DESTROY = 0x405c5503, 0x401c5504, 0x5501, 0x5502
@@ -30,8 +31,19 @@ def decode(word):
     return {k: ((word >> b) & 1) == 0 for k, b in BIT.items()}
 
 
+class Debounce:
+    """同じ状態が n回つづけて読めたときだけ、新しい状態として 返す"""
+    def __init__(self, n): self.n = n; self.cur = None; self.pend = None; self.cnt = 0
+    def feed(self, st):
+        if st == self.pend: self.cnt += 1
+        else: self.pend = st; self.cnt = 1
+        if self.cnt >= self.n and st != self.cur: self.cur = st; return st
+        return None
+
+
 def to_state(btn):
     """押しているボタン → (X軸, Y軸, [8個のボタンの 0/1])"""
+    if (btn['left'] and btn['right']) or (btn['up'] and btn['down']): return None   # 左右・上下が 同時は ありえない(読みまちがい)
     x = (1 if btn['right'] else 0) - (1 if btn['left'] else 0)
     y = (1 if btn['down'] else 0) - (1 if btn['up'] else 0)
     ks = [0] * 8
@@ -135,6 +147,11 @@ def selftest():
     assert to_state(decode(press('left', 'up'))) == (-1, -1, [0] * 8)
     assert to_state(decode(press('right', 'down'))) == (1, 1, [0] * 8)
     assert to_state(decode(press('select', 'start'))) == (0, 0, [0, 0, 0, 0, 0, 0, 1, 1])
+    assert to_state(decode(press('left', 'right'))) is None and to_state(decode(press('up', 'down'))) is None
+    d = Debounce(2); A, B = (0, 0, [0] * 8), (-1, 0, [0] * 8)
+    assert d.feed(A) is None and d.feed(A) == A and d.feed(A) is None   # 2回つづいて はじめて A
+    assert d.feed(B) is None and d.feed(A) is None and d.feed(A) is None   # 1回だけの B(読みまちがい)は 通らない
+    assert d.feed(B) is None and d.feed(B) == B   # 2回つづけば B
     print('selftest OK')
 
 
@@ -170,7 +187,7 @@ def main():
             b = decode(w); print('word 0x%04x ->' % w, b and [k for k, v in b.items() if v], flush=True)
             if b: pad.send(to_state(b))
         pad.close(); return
-    bus = None; bad = 0; ok_once = False
+    bus = None; bad = 0; ok_once = False; deb = Debounce(DEBOUNCE)
     while True:
         try:
             if bus is None:
@@ -182,7 +199,10 @@ def main():
                 bad += 1
                 if bad >= 20: raise OSError('読みまちがいが つづいた')
             else:
-                bad = 0; pad.send(to_state(b))
+                bad = 0; st = to_state(b)
+                if st is not None:
+                    out = deb.feed(st)
+                    if out is not None: pad.send(out)
         except OSError as e:
             if ok_once or bad: print('mjpad: %s' % e, flush=True)
             ok_once = False
