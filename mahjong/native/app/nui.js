@@ -49,7 +49,7 @@
     // 重い計算は、1コマに2種類ずつだけ(カーソルや描画を、待たせない)。できた印から、順に出す
     let w = S._dmw; if (!w || w.key !== key) { let vis = null; try { vis = MJ.AI.visible(g, p); } catch (e) { vis = null; } w = S._dmw = { key, map: {}, todo: [...new Set(p.hand.map((h) => h.t))], vis, ss: {} }; S._dm = { key, map: w.map, hc: g.handCount }; }
     let n = 0; while (w.todo.length && n < 2 && w.vis) { const t = w.todo.shift(); n++; try { const A = MJ.AI; const per = rii.map((q) => A.danger1(g, w.vis, t, q, w.ss[q.name] || (w.ss[q.name] = A.safeSet(g, q)), 2)); const wo = per.reduce((m, x) => (x.score > m.score ? x : m), per[0]), sc = per.reduce((a, x) => a + x.score, 0), r = MJ.Coach.rate(sc); w.map[t] = { tag: DTAG(wo.tag), cls: r.cls }; } catch (e) { /* ignore */ } }
-    if (w.todo.length) dirty(); // まだ計算していない牌があるあいだは、次のコマも描く(印が、途中で止まって、カーソルを動かすまで出ない、をなくす)
+    if (w.todo.length && w.vis) dirty(); // まだ計算していない牌があるあいだは、次のコマも描く(印が、途中で止まって、カーソルを動かすまで出ない、をなくす)
     return w.map;
   }
   function staleMarks(g, p) { // 相手の番: 自分の番に計算した印を、そのまま使う(同じ局で、リーチをかけた人がいるあいだだけ)
