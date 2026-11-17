@@ -167,7 +167,10 @@ static JSValue j_print(JSContext *c, JSValueConst t, int n, JSValueConst *a){ fo
 static JSValue j_now(JSContext *c, JSValueConst t, int n, JSValueConst *a){ return JS_NewFloat64(c, nowms()); }
 static JSValue j_quit(JSContext *c, JSValueConst t, int n, JSValueConst *a){ quitf = 1; return JS_UNDEFINED; }
 /* 保存(成績など): <root>/save.json を読み書き */
-static JSValue j_load(JSContext *c, JSValueConst t, int n, JSValueConst *a){ char p[1500]; snprintf(p, sizeof p, "%s/save.json", root); FILE *f = fopen(p, "rb"); if (!f) return JS_NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET); char *b = malloc(L + 1); fread(b, 1, L, f); b[L] = 0; fclose(f); JSValue v = JS_NewString(c, b); free(b); return v; }
+static char datadir[1200]; /* セーブの置き場(下で決める) */
+static int save_in_data = 0; /* 環境変数 MJ_DATA があるとき(読みとり専用のOSで使うとき)は、save.json も その置き場に書く */
+static void savejson_path(char *p, size_t n){ if (save_in_data) snprintf(p, n, "%s/save.json", datadir); else snprintf(p, n, "%s/save.json", root); }
+static JSValue j_load(JSContext *c, JSValueConst t, int n, JSValueConst *a){ char p[1500]; savejson_path(p, sizeof p); FILE *f = fopen(p, "rb"); if (!f) return JS_NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET); char *b = malloc(L + 1); fread(b, 1, L, f); b[L] = 0; fclose(f); JSValue v = JS_NewString(c, b); free(b); return v; }
 static JSValue j_save(JSContext *c, JSValueConst t, int n, JSValueConst *a); /* 後で定義(別スレッドで書く) */
 
 
@@ -245,8 +248,7 @@ static void preload(void){
 static char *readfile(const char *p, size_t *n){ FILE *f = fopen(p, "rb"); if (!f) return NULL; fseek(f, 0, SEEK_END); long L = ftell(f); fseek(f, 0, SEEK_SET); char *b = malloc(L + 1); fread(b, 1, L, f); b[L] = 0; fclose(f); *n = L; return b; }
 
 /* ---- セーブの置き場(microSDなど): 環境変数 MJ_DATA、なければ ~/mjdata。save_<連番>.json を、最新から数件ぶん持つ。書くときは、別名で書いてから名前を変える(途中で電源が切れても、前のものは壊れない) ---- */
-static char datadir[1200];
-static void initdata(void){ const char *d = getenv("MJ_DATA"); if (d && *d) strncpy(datadir, d, sizeof datadir - 1); else { const char *h = getenv("HOME"); snprintf(datadir, sizeof datadir, "%s/mjdata", h ? h : "."); } char cmd[1300]; snprintf(cmd, sizeof cmd, "mkdir -p '%s'", datadir); if (system(cmd)) {} }
+static void initdata(void){ const char *d = getenv("MJ_DATA"); if (d && *d) { strncpy(datadir, d, sizeof datadir - 1); save_in_data = 1; } else { const char *h = getenv("HOME"); snprintf(datadir, sizeof datadir, "%s/mjdata", h ? h : "."); } char cmd[1300]; snprintf(cmd, sizeof cmd, "mkdir -p '%s'", datadir); if (system(cmd)) {} }
 static JSValue j_slotlist(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   JSValue arr = JS_NewArray(c); DIR *dp = opendir(datadir); if (!dp) return arr; int seqs[256], m = 0; struct dirent *de;
   while ((de = readdir(dp)) && m < 256) { int q; char tail[8]; if (sscanf(de->d_name, "save_%d.%7s", &q, tail) == 2 && !strcmp(tail, "json")) seqs[m++] = q; }
@@ -265,7 +267,7 @@ static int save2_run(void *u) { SaveJob *j = (SaveJob *)u; FILE *f = fopen(j->q,
 static void save2_wait(void) { if (save2_th) { SDL_WaitThread(save2_th, NULL); save2_th = NULL; } }
 static JSValue j_save(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   SaveJob *j = (SaveJob *)calloc(1, sizeof *j); if (!j) return JS_UNDEFINED;
-  snprintf(j->p, sizeof j->p, "%s/save.json", root); snprintf(j->q, sizeof j->q, "%s.tmp", j->p);
+  savejson_path(j->p, sizeof j->p); snprintf(j->q, sizeof j->q, "%s.tmp", j->p);
   const char *s = JS_ToCString(c, a[0]); if (!s) { free(j); return JS_UNDEFINED; } j->s = strdup(s); JS_FreeCString(c, s);
   save2_wait(); save2_th = SDL_CreateThread(save2_run, "save2", j); if (!save2_th) save2_run(j);
   return JS_UNDEFINED; }

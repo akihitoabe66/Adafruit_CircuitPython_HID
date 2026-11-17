@@ -195,3 +195,11 @@
 
 ## 親決めのカウントダウン
 - [ ] サイコロが止まったら、合計の数字が サイコロの右横に うすく(15%)出て、光が1席進むごとに 1ずつ減り、1になった席が親になるか(数字が薄すぎて見えないときは、nui.js の CD_COL を明るく)
+
+## 家電のように使う設計(native/pi/APPLIANCE.md) ※ 実機でしか確かめられない・順番に
+- [ ] (要ビルド) `git pull` → `cd native/app && sh build.sh`。 そのあと `sh native/pi/appliance_on.sh` → `sudo reboot`
+- [ ] 電源を入れてから、コマンドの文字が出ずに「ゲーム起動中」の絵だけ → ゲーム、になるか(絵が出ない・文字が一瞬出る・黒い時間が長い、などは教えてください)
+- [ ] ゲームを終了 → 「終了の準備中です」→「コンセントを抜いてください」で止まるか(コマンドの画面に戻らないか)
+- [ ] 成績・設定が、boot の mjdata/save.json に残るか(終了して、再起動して、続きがあるか)
+- [ ] 第2段階 `sh native/pi/readonly_on.sh` → 再起動 → 遊んでいる途中でコンセントを抜いて、また入れて、ふつうに起動して成績が残っているか
+- [ ] 更新したいとき: `sh native/pi/readonly_off.sh && sudo reboot` → git pull → `sh native/pi/readonly_on.sh && sudo reboot`
