@@ -1829,21 +1829,26 @@
         const shift = (f) => { const g = sh(f); ['pos', 'done', 'dur'].forEach((fl) => { if (v[fl]) { const o = {}; Object.keys(v[fl]).forEach((k) => { o[g(k)] = v[fl][k]; }); v[fl] = o; } }); if (v.last) v.last = g(v.last); };
         if (!v.vs) { shift(4); v.vs = 1; }
         if (v.vs < 2) { shift(2); v.vs = 2; }
+        if (v.vs < 3) { /* 動画の名前が「番号.mp4」だけになった: 記録の名前を、番号+.mp4 に直す */ const nk = (k) => { const m = String(k).match(/^(\d+)[^.]*\.(?:mp4|m4v|mov|mkv|webm)$/i); return m ? ('0' + parseInt(m[1], 10)).slice(-2) + '.mp4' : k; }; ['pos', 'done', 'dur'].forEach((fl) => { if (v[fl]) { const o = {}; Object.keys(v[fl]).forEach((k) => { o[nk(k)] = v[fl][k]; }); v[fl] = o; } }); if (v.last) v.last = nk(v.last); v.vs = 3; }
         return v;
       }
     } catch (e) { /* ignore */ }
-    return { pos: {}, done: {}, last: '', vs: 2 };
+    return { pos: {}, done: {}, last: '', vs: 3 };
   }
   function vSave() { try { localStorage.setItem('mj_video', JSON.stringify(S.vid.d)); } catch (e) { /* ignore */ } }
-  function vScan() { // 動画の置き場所(いくつか探す)の「番号_題名.mp4」から、一覧を作る。サムネイルは、ゲームの中に入っている
-    const dirs = globalThis.__videoDirs || [(globalThis.__dataDir || '.') + '/video'], files = [], have = {}, seen = {};
+  function vScan() { // 動画は、SDカードの boot の mjdata/video に入れた「01.mp4〜18.mp4」(番号だけの名前)だけを読む。 ほかの場所・ほかの名前の動画は、読まない。 題名とサムネイルは、番号から、ゲームの中のものを使う
+    const dirs = globalThis.__videoDirs || [(globalThis.__dataDir || '.') + '/video'], files = [], have = {};
     const rdir = (d) => (typeof __readdir === 'function' && __readdir(d)) || [];
-    const isRepo = (d) => !/mjdata|^\/boot/.test(d), order = dirs.filter(isRepo).concat(dirs.filter((d) => !isRepo(d))); // 番号が同じ動画は1本だけ出す。 ゲームといっしょに配る(git の video)軽い版を先にして、SDカードに入れた同じ番号の動画(重い元の動画など)は出さない
-    order.forEach((dd) => rdir(dd).forEach((nm) => {
-      if (seen[nm]) return; const m = nm.match(/^(.*)\.(mp4|m4v|mov|mkv|webm)$/i); if (!m) return;
-      const base = m[1], mm = base.match(/^(\d+)[_\-\s　]*(.*)$/), n = mm ? parseInt(mm[1], 10) : 999;
-      if (n !== 999 && have[n]) return; // 同じ番号が すでにある
-      seen[nm] = 1; have[n] = 1; files.push({ n, name: nm, title: VTITLES[n] || (mm && mm[2]) || base, /* 題名は、番号からゲームの中の名前を使う(SDカードのbootの区画は、日本語のファイル名が文字化けするため) */ path: dd + '/' + nm, png: VTITLES[n] ? 'img/video/' + ('0' + n).slice(-2) + '.webp' : null });
+    const bootDirs = dirs.filter((d) => /^\/boot(\/firmware)?\/mjdata\/video$/.test(d)), num = (nm) => { const m = nm.match(/^(\d{1,2})\.mp4$/i); return m ? parseInt(m[1], 10) : 0; };
+    let src = bootDirs.filter((d) => rdir(d).some((nm) => num(nm) > 0)); // 番号だけの名前の動画が、ひとつでもある boot の置き場所
+    let strict = true; if (!src.length) { src = dirs; strict = false; } // boot に無いとき(パソコンでの試験用)は、これまでの探しかた
+    src.forEach((dd) => rdir(dd).forEach((nm) => {
+      let n, title;
+      if (strict) { n = num(nm); if (!n || !VTITLES[n]) return; }
+      else { const m = nm.match(/^(.*)\.(mp4|m4v|mov|mkv|webm)$/i); if (!m) return; const mm = m[1].match(/^(\d+)[_\-\s　]*(.*)$/); n = mm ? parseInt(mm[1], 10) : 999; if (n !== 999 && have[n]) return; }
+      if (have[n]) return; have[n] = 1;
+      const key = ('0' + n).slice(-2) + '.mp4'; // 記録(つづきから・見た印)は、番号だけの名前で持つ
+      files.push({ n, name: strict ? key : nm, title: VTITLES[n] || nm, path: dd + '/' + nm, png: VTITLES[n] ? 'img/video/' + ('0' + n).slice(-2) + '.webp' : null });
     }));
     Object.keys(VTITLES).forEach((k) => { if (!have[k]) files.push({ n: +k, name: 'v' + k, title: VTITLES[k], path: null, png: 'img/video/' + ('0' + k).slice(-2) + '.webp' }); }); // 動画ファイルが まだ無くても、一覧(サムネイル)には出す
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };

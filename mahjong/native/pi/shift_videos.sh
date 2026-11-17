@@ -1,4 +1,5 @@
 #!/bin/sh
+# ※ もう使いません: ゲームは、boot の mjdata/video の「01.mp4〜18.mp4」だけを読むようになりました(番号をずらす必要はありません)。
 # ビデオの番号を、2番以降 1つずつ後ろにずらす(ラズパイの中で完結)。 新しい2番の動画を入れるため。
 # 使い方:  sh ~/Adafruit_CircuitPython_HID/mahjong/native/pi/shift_videos.sh
 # 動画の置き場所(boot の mjdata/video など)を、自動で探します。 1つの置き場所につき、1回だけ(2回目は何もしません)。
