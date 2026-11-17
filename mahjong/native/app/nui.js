@@ -2820,7 +2820,7 @@
   }
   function drawBoot() { /* C側の起動画面(img/boot.webp + 棒)と同じ見た目で、棒の70%から続けて100%まで */
     gfx.view(0, 0); gfx.clear(14, 60, 44); gfx.image('img/boot.webp', 0, 0, SW, SH, 255); const bx = Math.round((SW - 360) / 2);
-    fill(bx, 296, 360, 20, [20, 50, 38]); fill(bx, 296, Math.round(360 * (0.7 + 0.3 * (S.bootP || 0))), 20, [222, 184, 96]);
+    fill(bx - 3, 293, 366, 26, [196, 160, 84]); fill(bx, 296, 360, 20, [6, 20, 14]); fill(bx, 296, Math.round(360 * (0.7 + 0.3 * (S.bootP || 0))), 20, [222, 184, 96]); // 棒の溝: 金色のふち + 暗い地(C側の起動画面と同じ)
   }
   function bootRun() { /* 最初の対局で要る準備を、起動の画面(進み具合の棒)のあいだに すべて済ませる */
     const jobs = warmTextJobs().concat(homeWarmJobs()), total = jobs.length || 1, t0 = __now(); let done = 0;

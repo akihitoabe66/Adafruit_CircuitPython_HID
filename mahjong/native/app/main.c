@@ -227,7 +227,8 @@ static void loading_screen(int done, int total){
   int w, h; SDL_Texture *bg = getimg("img/boot.webp", &w, &h);
   if (bg) { SDL_Rect d = { 0, 0, W, H }; SDL_RenderCopy(ren, bg, NULL, &d); }
   else { SDL_Texture *t = gettext("麻雀ゲーム 起動中", 40, 255, 240, 200, &w, &h); if (t) { SDL_Rect d = { (W - w) / 2, 130, w, h }; SDL_RenderCopy(ren, t, NULL, &d); } }
-  SDL_SetRenderDrawColor(ren, 20, 50, 38, 255); SDL_Rect bar = { (W - 360) / 2, 296, 360, 20 }; SDL_RenderFillRect(ren, &bar);
+  { SDL_SetRenderDrawColor(ren, 196, 160, 84, 255); SDL_Rect fr = { (W - 360) / 2 - 3, 293, 366, 26 }; SDL_RenderFillRect(ren, &fr); } /* 棒の溝: 金色のふち + 暗い地(どこまでで100%か 見えるように) */
+  SDL_SetRenderDrawColor(ren, 6, 20, 14, 255); SDL_Rect bar = { (W - 360) / 2, 296, 360, 20 }; SDL_RenderFillRect(ren, &bar);
   SDL_SetRenderDrawColor(ren, 222, 184, 96, 255); SDL_Rect fg = { (W - 360) / 2, 296, total ? 360 * 70 * done / total / 100 : 0, 20 } /* 画像・音の読み込みは 棒の前の70%。 残り30%は JS 側の準備 */; SDL_RenderFillRect(ren, &fg);
   SDL_RenderPresent(ren); }
 static void preload(void){
