@@ -2506,9 +2506,12 @@
     render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; tl('discard seat' + ld.by); try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
     sfx(name) { NSND.sfx(name); },
     bgmTrack() { try { return NSND.track(); } catch (e) { return undefined; } }, // セーブに入れる(つづきから 同じ曲を流す)
-    winReveal(g, wins) { // CPUが上がったとき: (決めゼリフのカットイン →) 手牌を「ダッ」と倒して見せる → 少し間 → (裏ドラ →) 結果の画面
-      const ci = (() => { try { const w0 = wins.find((w) => !w.winner.isHuman && w.view && w.view.concealed); return w0 && MJ.CutIn ? MJ.CutIn.pick(g, w0) : null; } catch (e) { return null; } })();
-      return (ci ? cutinShow(g, ci) : Promise.resolve()).then(() => new Promise((res) => {
+    preWin(g, p, tsumo, res) { // 上がった人(CPU)が「ロン!」「ツモ!」と言うより先に、決めゼリフのカットイン
+      const ci = (() => { try { return MJ.CutIn ? MJ.CutIn.pick(g, { winner: p, tsumo, res }) : null; } catch (e) { return null; } })();
+      return ci ? cutinShow(g, ci) : Promise.resolve();
+    },
+    winReveal(g, wins) { // CPUが上がったとき: 手牌を「ダッ」と倒して見せる → 少し間 → (裏ドラ →) 結果の画面
+      return Promise.resolve().then(() => new Promise((res) => {
         const ws = wins.filter((w) => !w.winner.isHuman && w.view && w.view.concealed); if (!ws.length) { res(); return; }
         S.bub = {}; S.sayQ = []; S.winRvHold = null; S.winRv = { ws, t0: __now(), res }; NSND.sfx('hand_open'); dirty(); setTimeout(() => { if (S.winRv && S.winRv.res === res) winRvDone(); }, 2400);
       }));

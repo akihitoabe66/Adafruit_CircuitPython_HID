@@ -608,7 +608,12 @@
       return { concealed, melds: p.melds.map((m) => ({ kind: m.kind, t: m.t, tiles: m.tiles.slice() })), flowers: (p.flowers || []).slice(), winTile };
     }
 
+    async preWin(p, tsumo, res) { // 「ロン!」「ツモ!」と言うより先に、決めゼリフのカットイン(画面側にあるときだけ。 出すかどうかは MJ.CutIn が決める)
+      if (this.ui && this.ui.preWin && !this.fast && !p.isHuman) { try { await this.ui.preWin(this, p, tsumo, res); } catch (e) { /* ignore */ } }
+    }
+
     async winTsumo(p, res, rinshan) {
+      await this.preWin(p, true, res);
       if (!(this.ui && this.ui.winFxOn && this.ui.winFxOn() && !this.fast)) this.speak(p, 'win', true); // 派手な演出では、決めゼリフはカットインの中に出す
       this.sync();
       await this.banner(p, 'ツモ');
@@ -636,6 +641,7 @@
       let first = true;
       const fxOn = !!(this.ui && this.ui.winFxOn && this.ui.winFxOn() && !this.fast); // 派手な演出では、決めゼリフはカットインの中に出す
       for (const q of winners) {
+        if (first) { try { await this.preWin(q, false, MJ.evaluate(this.buildCtx(q, tile, false))); } catch (e) { /* ignore */ } }
         if (!fxOn) this.speak(q, 'win');
         this.sync();
         if (first || !fxOn) await this.banner(q, 'ロン', fxOn ? { all: winners } : undefined); // ダブロンの演出は、1回にまとめる

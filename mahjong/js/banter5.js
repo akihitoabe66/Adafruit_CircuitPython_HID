@@ -130,13 +130,14 @@
     32: { ron: ['見切った、一刀両断!', '二天一流、参る!', '勝負あった!'], tsumo: ['無の境地の、ツモ!', '剣の道は、ここにあり。', '巌流島の、風だ!'] }, // 宮本武蔵
   };
   const MAX_TOTAL = 3;
+  const ENABLED = [1]; // カットインを出すキャラ(1=水戸黄門だけ)。 全員に戻すときは null にする(32人ぶんのセリフは、このまま残してある)
   MJ.CutIn = {
     lines: LINES,
     /* 上がったとき(CPUのみ)。 出すなら { p, text, tsumo, big }、出さないなら null。 w: { winner, tsumo, res } */
     pick(game, w) {
       try {
         if (!game || !w || !w.winner || w.winner.isHuman || !w.winner.char || (MJ.Banter && MJ.Banter.on === false)) return null; // セリフをオフにしているときは出さない
-        const set = LINES[w.winner.char.id]; if (!set) return null;
+        const set = LINES[w.winner.char.id]; if (!set || (ENABLED && !ENABLED.includes(w.winner.char.id))) return null;
         const st = game.cutinSt || (game.cutinSt = { total: 0, chars: {}, used: {}, last: -99 }), id = w.winner.char.id, hc = game.handCount || 0;
         if (st.total >= MAX_TOTAL || st.chars[id] || hc - st.last <= 1) return null; // 回数・同じキャラ・出したつぎの1局
         const res = w.res || {}, big = !!(res.limit || res.yakuman || res.han >= 5);
@@ -147,6 +148,6 @@
         return { p: w.winner, text, tsumo: !!w.tsumo, big };
       } catch (e) { return null; }
     },
-    allTexts(ch) { const s = LINES[ch && ch.id]; return s ? s.ron.concat(s.tsumo) : []; },
+    allTexts(ch) { const s = LINES[ch && ch.id]; return s && (!ENABLED || ENABLED.includes(ch.id)) ? s.ron.concat(s.tsumo) : []; }, // 文字の下ごしらえ用(出すキャラだけ)
   };
 })(typeof window !== 'undefined' ? window : globalThis);
