@@ -74,8 +74,9 @@
         if (!pool.length || Math.random() < 0.5) pool = pool.concat(tsumo ? G.bragTsumo : G.brag);
         let text = fresh(pool);
         if (set && set.brag && set.brag.length && Math.random() < 0.4) text = fresh(set.brag); // そのキャラ らしい自慢も、ときどき
-        let sure = false; if (!tsumo && set && set.ron && set.ron.length && Math.random() < 0.85) { text = Math.random() < 0.5 ? set.ron[0] : fresh(set.ron); sure = true; } // ロンで上がったとき: そのキャラの決めゼリフ(水戸黄門の「この紋所が目に入らぬか!」など。 ron の1つめは、いちばんの決めゼリフで、半分はこれを言う)を、ほぼ必ず言う
-        out.push({ p: winner, text: fill(text, o), sure });
+        const cut = game && game._cutinWinner === winner; if (cut) game._cutinWinner = null; // 決めゼリフのカットインを出したあとは、上がった人の吹き出しは出さない(同じことを2回言わない)
+        let sure = false;
+        if (!cut) out.push({ p: winner, text: fill(text, o), sure });
         if (!tsumo && loser && !loser.isHuman) {
           const GL = GEN[gOf(loser)]; let lp = GL.regret;
           if (big) lp = lp.concat(GL.regretBig, GL.regretBig); if (lost[sk(loser)] >= 2) lp = lp.concat(GL.regretAgain, GL.regretAgain);

@@ -416,6 +416,25 @@
     for (let i = 0; i < 7; i++) uraTile(URA_X(i), URA_YL, 'down');
     for (let i = 0; i < 7; i++) uraTile(URA_X(i), URA_YU, isInd[i] ? 'up' : 'down', isInd[i]);
   }
+  /* ---------- 決めゼリフのカットイン(js/banter5.js の MJ.CutIn が、出すかどうかを決める) ---------- */
+  const CI_T = 2800, CI_COL = { ron: { band: [90, 20, 16], edge: [255, 210, 58], tag: 'ロン' }, tsumo: { band: [14, 74, 88], edge: [127, 232, 255], tag: 'ツモ' } };
+  const ciEase = (x) => { x = Math.max(0, Math.min(1, x)); return 1 - Math.pow(1 - x, 3); };
+  const ciSize = (t) => fitSz(t, 42, 520, 18);
+  function cutinShow(g, ci) { return new Promise((res) => { S.bub = {}; S.sayQ = []; g._cutinWinner = ci.p; S.cutin = { ci, t0: __now(), res }; NSND.sfx('slam', 0.7); dirty(); }); }
+  function cutinEnd() { const C = S.cutin; if (!C) return; S.cutin = null; dirty(); try { C.res(); } catch (e) { /* ignore */ } }
+  function drawCutin() {
+    const C = S.cutin, t = __now() - C.t0; if (t >= CI_T) { cutinEnd(); return; }
+    const K = CI_COL[C.ci.tsumo ? 'tsumo' : 'ron'], inn = ciEase(t / 340), out = t > 2400 ? ciEase((t - 2400) / 400) : 0, dimA = Math.round(140 * Math.min(1, t / 250) * (1 - out));
+    gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], dimA); gfx.image('img/cutin_' + (C.ci.tsumo ? 'tsumo' : 'ron') + '.webp', 0, 0, SW, SH, Math.round(220 * Math.min(1, t / 250) * (1 - out)));
+    const bx = Math.round(-SW * (1 - inn) - SW * out), by = 170;
+    fill(bx, by, SW, 128, K.band); fill(bx, by + 4, SW, 20, [20, 12, 6], 150); fill(bx, by + 104, SW, 20, [20, 12, 6], 150); fill(bx, by, SW, 4, K.edge); fill(bx, by + 124, SW, 4, K.edge);
+    const fx = Math.round(44 - 330 * (1 - ciEase((t - 100) / 300)) - 330 * out); // 顔: 左から入る
+    rrect(fx - 8, 88, 206, 206, 6, [26, 18, 8]); rrect(fx - 5, 91, 200, 200, 5, K.edge); rrect(fx - 1, 95, 192, 192, 4, [255, 255, 255]); face(C.ci.p, fx + 1, 97, 188, 188, true);
+    const tx = Math.round(250 + 620 * (1 - ciEase((t - 170) / 330)) + 620 * out), sz = ciSize(C.ci.text);
+    text(C.ci.p.name, tx, by + 10, -19, K.edge, 0); [[-2, -2], [2, -2], [-2, 2], [3, 3]].forEach((d) => text(C.ci.text, tx + d[0], by + 40 + d[1], -sz, [0, 0, 0], 0)); text(C.ci.text, tx, by + 40, -sz, WHITE, 0);
+    if (t > 340 && out < 0.5) { const a = Math.min(255, Math.round((t - 340) * 2.5)); rrect(704, 18, 108, 44, 6, K.edge, a); rrect(707, 21, 102, 38, 5, K.band, a); text(K.tag, 758, 24, -26, WHITE, 1); }
+    dirty();
+  }
   function winRvDone() { const W = S.winRv; if (!W) return; S.winRv = null; S.winRvHold = { ws: W.ws }; /* 裏ドラの確認のあいだも、開いた手牌を 見せたままにする(結果の画面が出るまで) */ dirty(); try { W.res(); } catch (e) { /* ignore */ } }
   function uraDone() { const U = S.ura; if (!U) return; S.ura = null; dirty(); try { U.res(); } catch (e) { /* ignore */ } }
   function uraSkip() { // 決定ボタン: 「トンッ」と置かれたところまで すぐ進む。 もう一度 押すと 結果の画面へ
@@ -498,7 +517,7 @@
     drawFly(); drawTeacher(g);
     const now = __now();
     const BUB = BUBP; // 上家・下家は、同じ高さ(麻雀先生の帯(y268〜)に かさならない高さ)。吹き出しは、いつも同じ大きさ(顔も、いつも同じ大きさ)
-    const calling = (S.banner && S.banner.call) || S.ryu || S.ura || S.winRv; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
+    const calling = (S.banner && S.banner.call) || S.ryu || S.ura || S.winRv || S.cutin; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
     for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; } if (calling) continue;
       const pos = BUB[k] || [300, 200], tw = BW - FSZ - 34; let bsz = 20, lines = wrapText(b.text, bsz, tw);
       for (const z of [20, 19, 18, 17, 16]) { bsz = z; lines = wrapText(b.text, z, tw); if (lines.length <= 3) break; } lines = lines.slice(0, 3);
@@ -2224,6 +2243,7 @@
   window.__key = function (k) {
     if (S.mode === 'boot') return; /* 準備のあいだは ボタンを受けつけない */
     if (__now() - (S.tlKey || 0) > 700) { S.tlKey = __now(); tl('key ' + k); } S.lastKeyT = __now(); // 最後にボタンを押した時刻(先に絵を描いておく処理は、ボタンを押しているあいだは しない)
+    if (S.cutin) { if ((k === 'ok' || k === 'back') && __now() - S.cutin.t0 > 500) cutinEnd(); dirty(); return; } // カットインの最中(決定で すぐ消せる)
     if (S.winRv) { if ((k === 'ok' || k === 'back') && __now() - S.winRv.t0 > 600) winRvDone(); dirty(); return; } // CPUの手牌を見せているあいだ(決定で すぐ 次へ)
     if (S.ura) { if (k === 'ok' || k === 'back') uraSkip(); dirty(); return; } // 裏ドラ確認のアニメ中
     S.dirty = true; if (S.locked) return;
@@ -2486,11 +2506,12 @@
     render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; tl('discard seat' + ld.by); try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
     sfx(name) { NSND.sfx(name); },
     bgmTrack() { try { return NSND.track(); } catch (e) { return undefined; } }, // セーブに入れる(つづきから 同じ曲を流す)
-    winReveal(g, wins) { // CPUが上がったとき: 手牌を「ダッ」と倒して見せる → 少し間 → (裏ドラ →) 結果の画面
-      return new Promise((res) => {
+    winReveal(g, wins) { // CPUが上がったとき: (決めゼリフのカットイン →) 手牌を「ダッ」と倒して見せる → 少し間 → (裏ドラ →) 結果の画面
+      const ci = (() => { try { const w0 = wins.find((w) => !w.winner.isHuman && w.view && w.view.concealed); return w0 && MJ.CutIn ? MJ.CutIn.pick(g, w0) : null; } catch (e) { return null; } })();
+      return (ci ? cutinShow(g, ci) : Promise.resolve()).then(() => new Promise((res) => {
         const ws = wins.filter((w) => !w.winner.isHuman && w.view && w.view.concealed); if (!ws.length) { res(); return; }
         S.bub = {}; S.sayQ = []; S.winRvHold = null; S.winRv = { ws, t0: __now(), res }; NSND.sfx('hand_open'); dirty(); setTimeout(() => { if (S.winRv && S.winRv.res === res) winRvDone(); }, 2400);
-      });
+      }));
     },
     speak(g, p, t, ms) { // セリフは、ポン・チー・リーチなどの宣言や、ほかの人のセリフが終わるまで待ってから、1人ずつ出す(かぶらないように)
       ms = ms || Math.max(2800, Math.min(4800, 1300 + String(t).length * 110)); tl('say-queue ' + (p && p.name)); (S.sayQ || (S.sayQ = [])).push({ g, p, t, ms, t0: __now() }); pumpSay();
@@ -2640,7 +2661,7 @@
   function stopGame() { // ゲームを途中でやめて、ホームへ
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
     if (g.cp && !g.practice && !S.result && !S.end && !S.rankP && !S.rankScr) { try { slotWrite(Object.assign({}, g.cp.snap, { mid: g.cp })); } catch (e) { /* ignore */ } } // 局の途中でホームへ戻るときは、いまの局の途中をセーブ(つづきから、同じ牌・同じ番で再開できる)
-    S.ura = null; if (S.winRv) { const W = S.winRv; S.winRv = null; try { W.res(); } catch (e) { /* ignore */ } } g.stopped = true; S.winRvHold = null; MJ.paused = false; if (globalThis.__menuHold) menuHold(false); S.tmsgShown = 0; S.side = S.coach = null;
+    S.ura = null; if (S.winRv) { const W = S.winRv; S.winRv = null; try { W.res(); } catch (e) { /* ignore */ } } g.stopped = true; S.winRvHold = null; if (S.cutin) { const C = S.cutin; S.cutin = null; try { C.res(); } catch (e) { /* ignore */ } } MJ.paused = false; if (globalThis.__menuHold) menuHold(false); S.tmsgShown = 0; S.side = S.coach = null;
     const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.map) { const q = S.map; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } q.then(); } if (S.cert) { const q = S.cert; S.cert = null; q.then(); } if (S.reveal) { const q = S.reveal; S.reveal = null; q.then(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
     S.self = S.react = S.result = S.end = S.saveP = null;
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
@@ -2658,6 +2679,7 @@
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; g.bgmResume = sn.bgm; if (sn.mid) g.resumeMid = sn.mid; }
     if (!opt.watch) g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
     S.game = g; tl('game-built');
+    try { if (typeof gfx.dry === 'function' && MJ.CutIn && !g.fast) { /* 決めゼリフの文字を、対局のはじめのうちに、すこしずつ下ごしらえ(はじめて出すとき止まらないように) */ const L = []; g.players.forEach((q) => { if (!q.isHuman) MJ.CutIn.allTexts(q.char).forEach((t) => L.push([t, ciSize(t)])); }); let i = 0; const st = () => { if (i >= L.length || g.stopped || S.game !== g) return; if (S.mode !== 'game' || S.cutin || (S.lastKeyT && __now() - S.lastKeyT < 1500)) { setTimeout(st, 800); return; } gfx.dry(1); try { gfx.text(L[i][0], 0, 0, -L[i][1], 255, 255, 255, 0); gfx.text(L[i][0], 0, 0, -L[i][1], 0, 0, 0, 0); } catch (e) { /* ignore */ } gfx.dry(0); i++; setTimeout(st, 220); }; setTimeout(st, 7000); } } catch (e) { /* ignore */ }
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
     S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; S.homeBot = false; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
@@ -2676,7 +2698,7 @@
     if (__auto && now > nextAuto && !S.coach && !S.side) { nextAuto = now + 90; window.__key('ok'); }
     if (__lsDirty && now - lastSave > 1500) { lastSave = now; __lsDirty = false; try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ } }
     /* 画面の入れかえ(ダブル/トリプルバッファ)で、古い絵が交互に出て点滅しないよう、変化のあとは3回続けて描く */
-    if (pressing() || S.intro || S.dice || S.fly || (S.deal && now >= S.deal.t0 - 50) || S.ryu || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
+    if (pressing() || S.intro || S.dice || S.cutin || S.fly || (S.deal && now >= S.deal.t0 - 50) || S.ryu || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
     if (!S.dirty) return false;
     S.dirty = false; return true;
   };
@@ -2686,7 +2708,7 @@
     const q = S.sayQ || []; const now = __now();
     while (q.length && (now - q[0].t0 > 4000 || q[0].g !== S.game)) q.shift(); // 古くなったセリフは出さない
     if (!q.length) return;
-    const busy = !!S.menuP || (S.banner && S.banner.call) || S.ura || S.winRv || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
+    const busy = !!S.menuP || !!S.cutin || (S.banner && S.banner.call) || S.ura || S.winRv || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
     if (busy) { S.sayT = setTimeout(() => { S.sayT = null; pumpSay(); }, 250); return; }
     const x = q.shift(); tl('say-show ' + x.p.name + ' ' + x.ms + 'ms'); S.bub[x.p.seat] = { name: x.p.name, text: x.t, p: x.p, until: __now() + x.ms }; dirty();
     S.sayT = setTimeout(() => { S.sayT = null; dirty(); pumpSay(); }, x.ms + 120);
@@ -2694,7 +2716,7 @@
   const drawBody = function () {
     if (S.mode === 'boot') { drawBoot(); return true; }
     // カーソルだけが動いたとき: 画面ぜんたいは描きなおさず、手牌のあたりだけ描く(キビキビ動かすため)
-    if (S.partialKey && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.ryu && !Object.keys(S.bub).length && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
+    if (S.partialKey && !S.cutin && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.ryu && !Object.keys(S.bub).length && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
       S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [32, 74, 60]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;
@@ -2736,6 +2758,7 @@
       if (toastOn) { rrect(110, 187, 500, 54, 8, [0, 0, 0], 225); text(S.toast.text, 360, 200, 24, YEL, 1); }
     }
     gfx.view(S.vx, S.vy);
+    if (S.cutin) drawCutin(); // 決めゼリフのカットイン(いちばん手前)
     if (S.menuP) drawDialog('メニュー', menuItems(), S.menuP.idx, '');
     if (S.soundP) drawSound();
     if (S.teachQ) drawTeachQ();
