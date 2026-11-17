@@ -116,8 +116,9 @@
   /* 顔の向き: 右向きの人は下家(右の席)で、左向きの人は上家(左の席)で、左右反転する(正面向きと対面は、そのまま)。番号はキャラクターの番号 */
   const FACE_R = new Set([1, 2, 3, 10, 11, 23, 25, 26, 27, 29, 30]), FACE_L = new Set([4, 5, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 24, 28, 31, 32]); // 6・19は正面向き
   const faceFlip = (ch, seat) => !!ch && ((seat === 1 && FACE_R.has(ch.id)) || (seat === 3 && FACE_L.has(ch.id)));
+  const overlayOn = () => !!(S.menuP || S.soundP || S.teachQ || S.playQ || S.confirmQ || S.resetQ || S.saveP || S.side || S.coach); // 窓・メニューが開いている間は、顔(必ず手前に出る描き方)を、窓の下に描く
   function face(p, x, y, w, h, low) {
-    const ch = p.char; const src = skin(p.isHuman ? youSrc() : (MJ.faceSrc ? MJ.faceSrc(ch, faceFlip(ch, p.seat)) : ch.face));
+    low = low || overlayOn(); const ch = p.char; const src = skin(p.isHuman ? youSrc() : (MJ.faceSrc ? MJ.faceSrc(ch, faceFlip(ch, p.seat)) : ch.face));
     if (w >= 48 && !low) { fill(x, y, w, h, [90, 110, 100]); gfx.imageTop(src, x, y, w, h); return; } // 大きな顔は、窓の解像度でくっきり描く(縦横の比は、切り取って合わせる)
     if (!gfx.image(src, x, y, w, h)) fill(x, y, w, h, [90, 110, 100]);
   }
