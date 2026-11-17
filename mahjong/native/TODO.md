@@ -190,3 +190,4 @@
 - [ ] (JSのみ) `git pull` で、ビデオ一覧の2番に新しい動画(13:38)が出て再生できるか。 前の2〜17番は3〜18番に。 サムネイル・題名・「つづきから」が合っているか(見た記録は自動で番号を引きつぐ)
 - [ ] ラズパイのSDカード側(~/mjdata/video)に動画があるなら、番号をずらす: `cd ~/mjdata/video && sh ~/Adafruit_CircuitPython_HID/mahjong/tools/video/shift_numbers.sh 2`(2番以降が1つずつ後ろへ)。 gitの mahjong/video の 02_rule30.mp4 と 05_reach_order.mp4 は、ずらし済み
 - [ ] 13分の動画が、Pi Zero W でコマ落ち・音ずれなく再生できるか(15コマ/秒・640x360・約100kbps)
+- [ ] Windows: SDカードの boot の mjdata\video に `tools/video/shift_from2.bat` を入れてダブルクリック → 2番以降の動画が1つずつ後ろにずれるか(2回目は「すでにずらしてあります」で何もしない)
