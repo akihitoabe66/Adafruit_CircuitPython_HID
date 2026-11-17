@@ -736,14 +736,15 @@
       } else if (i === RULE_ROWS.length) text('おすすめの設定に もどす', SW / 2, y + 6, 20, BLACK, 1);
       else { rrect(300, y + 6, 24, 24, 12, [255, 255, 255]); rrect(302, y + 8, 20, 20, 10, [230, 184, 48]); text('A', 312, y + 10, -13, [42, 26, 0], 1); text('決定する', SW / 2 + 12, y + 6, -21, [42, 26, 0], 1); }
     }
-    const note = i0 < RULE_ROWS.length ? RULE_ROWS[i0].note : (i0 === RULE_ROWS.length ? 'すべてのルールを、おすすめ(全国的な設定・赤ドラなし)にもどします。' : (any ? '変えた値は、「決定する」を押すまで 使われません。 B: 変更をやめて もどる' : '変えた所は ありません。 Aで もどります'));
+    const note = i0 < RULE_ROWS.length ? RULE_ROWS[i0].note : (i0 === RULE_ROWS.length ? 'すべてのルールを、おすすめ(全国的な設定・赤ドラなし)にもどします。' : (any ? '変えた値は、「決定する」(または A)で決めるまで 使われません。' : '変えた所は ありません。 Aで もどります'));
     panel(70, 392, 692, 40, 8, [6, 44, 26], [90, 140, 110], 2, 235); text(note, SW / 2, 402, fitSz(note, 18, 670, 13), WHITE, 1);
-    text('変えたルールは、次の対局から使われます', SW / 2, 438, 19, [205, 224, 212], 1);
-    if (dlg) { // 確認の窓
-      overlay(170); const D = S.ruleDlg, big = D.type === 'confirm', ttl = big ? 'この変更で よろしいですか?' : '変更を やめて もどりますか?', sub = big ? '' : '変えた値は、保存されません。', yes = big ? 'はい' : 'やめて もどる', no = big ? 'いいえ' : 'つづける';
-      panel(150, 130, 532, 190, 14, [20, 60, 42], [240, 210, 120], 3); text(ttl, 416, 148, 26, YEL, 1); if (sub) text(sub, 416, 192, 19, [210, 225, 212], 1);
-      const bw = big ? 150 : 190, bx1 = 416 - bw - 14, bx2 = 416 + 14;
-      [[bx1, yes, [255, 216, 48], 'A'], [bx2, no, [235, 235, 225], 'B']].forEach((b) => { panel(b[0], 236, bw, 54, 10, b[2], [154, 110, 0], 3); rrect(b[0] + 10, 251, 24, 24, 12, [255, 255, 255]); rrect(b[0] + 12, 253, 20, 20, 10, b[3] === 'A' ? [230, 184, 48] : [201, 206, 210]); text(b[3], b[0] + 22, 255, -13, [42, 26, 0], 1); text(b[1], b[0] + bw / 2 + 14, 248, -22, BLACK, 1); });
+    { const ft = any ? '◀ ▶ で変える　A: この設定に決める　B: 変更をやめて もどる' : '変えたルールは、次の対局から使われます'; text(ft, SW / 2, 438, 19, any ? YEL : [205, 224, 212], 1); }
+    if (dlg) { // 確認の窓: ◀ ▶ で えらんで、A で決める(B は「いいえ・つづける」)
+      overlay(170); const D = S.ruleDlg, big = D.type === 'confirm', ttl = big ? 'この変更で よろしいですか?' : '変更を やめて もどりますか?', sub = big ? '変えた値を 保存して、次の対局から使います。' : '変えた値は、保存されません。', labs = big ? ['はい', 'いいえ'] : ['やめて もどる', 'つづける'];
+      panel(150, 130, 532, 190, 14, [20, 60, 42], [240, 210, 120], 3); text(ttl, 416, 148, 26, YEL, 1); text(sub, 416, 192, 19, [210, 225, 212], 1);
+      const bw = big ? 150 : 190, bx = [416 - bw - 14, 416 + 14];
+      labs.forEach((l, j) => { const on = D.idx === j; panel(bx[j], 236, bw, 54, 10, on ? [255, 216, 48] : [235, 235, 225], on ? [154, 110, 0] : [120, 120, 110], on ? 4 : 2); text(l, bx[j] + bw / 2, 248, -22, BLACK, 1); });
+      text('◀ ▶ で えらんで、 A で 決定', 416, 296, 16, [210, 225, 212], 1);
     }
     if (S.ruleToast && __now() < S.ruleToast) { rrect(206, 172, 420, 96, 16, [255, 255, 255]); rrect(209, 175, 414, 90, 14, [44, 138, 77]); text('✓ 設定しました', 416, 186, -32, WHITE, 1); text('次の対局から使われます', 416, 230, 18, [225, 245, 230], 1); dirty(); }
   }
@@ -2317,22 +2318,24 @@
     if (S.mode === 'rules') { // 麻雀のルール(下書き → 決定する → 確認 → 保存)
       const n = RULE_ROWS.length + 2, i = S.ruleIdx || 0, any = ruleAnyChanged();
       if (S.ruleToast && __now() < S.ruleToast) { S.ruleToast = 0; S.mode = 'settings'; S.ruleDraft = null; dirty(); return; } // 「設定しました」の表示中は、どのボタンでも すぐ もどる
-      if (S.ruleDlg) {
+      if (S.ruleDlg) { // 確認の窓: ◀ ▶(↑↓も)で えらんで、A で決める。 B は「いいえ・つづける」
         const D = S.ruleDlg;
-        if (k === 'ok') {
+        if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { D.idx = 1 - D.idx; NSND.sfx('select', 0.5); }
+        else if (k === 'ok' && D.idx === 0) {
           if (D.type === 'confirm') { RULE_ROWS.forEach((r) => { if (S.ruleDraft && r.k in S.ruleDraft) MJ.RULES[r.k] = S.ruleDraft[r.k]; }); MJ.saveRules(); S.ruleDraft = null; S.ruleDlg = null; NSND.sfx('start', 0.5); S.ruleToast = __now() + 1800; setTimeout(() => { if (S.mode === 'rules' && S.ruleToast) { S.ruleToast = 0; S.mode = 'settings'; dirty(); } }, 1850); }
           else { S.ruleDraft = null; S.ruleDlg = null; S.mode = 'settings'; }
-        } else if (k === 'back') S.ruleDlg = null;
+        } else if (k === 'back' || k === 'ok') S.ruleDlg = null;
         dirty(); return;
       }
       if (k === 'up' || k === 'down') S.ruleIdx = wrap(i + (k === 'up' ? -1 : 1), n);
-      else if (k === 'back') { if (any) S.ruleDlg = { type: 'discard' }; else { S.mode = 'settings'; S.ruleDraft = null; } }
+      else if (k === 'back') { if (any) S.ruleDlg = { type: 'discard', idx: 1 }; else { S.mode = 'settings'; S.ruleDraft = null; } }
       else if (i < RULE_ROWS.length && (k === 'left' || k === 'right')) {
         const row = RULE_ROWS[i], ev = ruleEff(row.k), cur = row.vals.findIndex((v) => String(v[0]) === String(ev)), nx = row.vals[wrap(cur + (k === 'left' ? -1 : 1), row.vals.length)];
         (S.ruleDraft || (S.ruleDraft = {}))[row.k] = nx[0]; NSND.sfx('select', 0.5);
       }
       else if (k === 'ok' && i === RULE_ROWS.length) { S.ruleDraft = S.ruleDraft || {}; RULE_ROWS.forEach((r) => { S.ruleDraft[r.k] = (r.k in COMMON_RULES) ? COMMON_RULES[r.k] : MJ.RULE_DEFAULTS[r.k]; }); NSND.sfx('select', 0.5); }
-      else if (k === 'ok' && i === RULE_ROWS.length + 1) { if (any) S.ruleDlg = { type: 'confirm' }; else { S.mode = 'settings'; S.ruleDraft = null; } }
+      else if (k === 'ok' && i === RULE_ROWS.length + 1) { if (any) S.ruleDlg = { type: 'confirm', idx: 0 }; else { S.mode = 'settings'; S.ruleDraft = null; } }
+      else if (k === 'ok' && i < RULE_ROWS.length && any) S.ruleDlg = { type: 'confirm', idx: 0 }; // 値を変えたあと、どの行でも A で「この変更で よろしいですか?」
       dirty(); return;
     }
     if (S.mode === 'settings') {
