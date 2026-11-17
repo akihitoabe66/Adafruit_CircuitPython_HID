@@ -716,22 +716,36 @@
     { k: 'flower', label: '季節牌(花牌)', vals: [[false, 'なし'], [true, 'あり']], note: '春夏秋冬の4枚を山に入れます。持つと1飜。' },
     { k: 'start', label: '持ち点', vals: [[25000, '25,000点'], [30000, '30,000点'], [35000, '35,000点']], note: 'はじめの持ち点です。' },
   ];
+  /* ルールの設定: ◀ ▶ では「下書き」を変えるだけ。 いちばん下の「決定する」を A で押して、「この変更で よろしいですか?」→ はい で、はじめて保存する */
+  const ruleEff = (k) => (S.ruleDraft && k in S.ruleDraft) ? S.ruleDraft[k] : MJ.RULES[k];
+  const ruleChanged = (k) => !!(S.ruleDraft && k in S.ruleDraft) && String(S.ruleDraft[k]) !== String(MJ.RULES[k]);
+  const ruleAnyChanged = () => RULE_ROWS.some((r) => ruleChanged(r.k));
   function drawRules() {
     gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
     text('麻雀のルール', SW / 2, 6, 28, YEL, 1);
-    const n = RULE_ROWS.length + 2, i0 = S.ruleIdx || 0, VIS = 9, top = Math.max(0, Math.min(n - VIS, i0 - 4));
+    const n = RULE_ROWS.length + 2, i0 = S.ruleIdx || 0, VIS = 9, top = Math.max(0, Math.min(n - VIS, i0 - 4)), any = ruleAnyChanged(), dlg = !!S.ruleDlg;
     for (let v = 0; v < VIS; v++) {
-      const i = top + v, y = 44 + v * 38, sel = i === i0; if (i >= n) break;
-      panel(70, y, 692, 35, 8, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2);
+      const i = top + v, y = 44 + v * 38, sel = i === i0 && !dlg; if (i >= n) break;
+      const last = i === RULE_ROWS.length + 1;
+      panel(70, y, 692, 35, 8, sel || (last && any && !dlg) ? YEL : WHITE, sel ? [160, 110, 0] : last && any ? [200, 140, 20] : [110, 110, 110], sel ? 3 : 2);
       if (i < RULE_ROWS.length) {
-        const r = RULE_ROWS[i], cur = r.vals.find((q) => String(q[0]) === String(MJ.RULES[r.k])) || r.vals[0], common = String(COMMON_RULES[r.k]) === String(cur[0]);
-        text(r.label, 90, y + 6, 20, BLACK); text('◀', 440, y + 7, 18, [90, 90, 80], 1); text(cur[1], 580, y + 6, 20, BLACK, 1); text('▶', 724, y + 7, 18, [90, 90, 80], 1);
-        if (common) { rrect(290, y + 7, 72, 22, 4, [60, 140, 90]); text('おすすめ', 326, y + 6, 16, WHITE, 1); }
-      } else text(i === RULE_ROWS.length ? 'おすすめの設定に もどす' : 'もどる', SW / 2, y + 6, 20, BLACK, 1);
+        const r = RULE_ROWS[i], ev = ruleEff(r.k), cur = r.vals.find((q) => String(q[0]) === String(ev)) || r.vals[0], common = String(COMMON_RULES[r.k]) === String(cur[0]), ch = ruleChanged(r.k);
+        text(r.label, 90, y + 6, 20, BLACK); text('◀', 440, y + 7, 18, [90, 90, 80], 1); text(cur[1], 580, y + 6, 20, ch ? [212, 101, 26] : BLACK, 1); text('▶', 724, y + 7, 18, [90, 90, 80], 1);
+        if (ch) { rrect(290, y + 7, 72, 22, 4, [232, 115, 28]); text('変更あり', 326, y + 6, 15, WHITE, 1); }
+        else if (common) { rrect(290, y + 7, 72, 22, 4, [60, 140, 90]); text('おすすめ', 326, y + 6, 16, WHITE, 1); }
+      } else if (i === RULE_ROWS.length) text('おすすめの設定に もどす', SW / 2, y + 6, 20, BLACK, 1);
+      else { rrect(300, y + 6, 24, 24, 12, [255, 255, 255]); rrect(302, y + 8, 20, 20, 10, [230, 184, 48]); text('A', 312, y + 10, -13, [42, 26, 0], 1); text('決定する', SW / 2 + 12, y + 6, -21, [42, 26, 0], 1); }
     }
-    const cur = i0 < RULE_ROWS.length ? RULE_ROWS[i0].note : (i0 === RULE_ROWS.length ? 'すべてのルールを、おすすめ(全国的な設定・赤ドラなし)にもどします。' : '');
-    panel(70, 392, 692, 40, 8, [6, 44, 26], [90, 140, 110], 2, 235); text(cur, SW / 2, 402, 18, WHITE, 1);
+    const note = i0 < RULE_ROWS.length ? RULE_ROWS[i0].note : (i0 === RULE_ROWS.length ? 'すべてのルールを、おすすめ(全国的な設定・赤ドラなし)にもどします。' : (any ? '変えた値は、「決定する」を押すまで 使われません。 B: 変更をやめて もどる' : '変えた所は ありません。 Aで もどります'));
+    panel(70, 392, 692, 40, 8, [6, 44, 26], [90, 140, 110], 2, 235); text(note, SW / 2, 402, fitSz(note, 18, 670, 13), WHITE, 1);
     text('変えたルールは、次の対局から使われます', SW / 2, 438, 19, [205, 224, 212], 1);
+    if (dlg) { // 確認の窓
+      overlay(170); const D = S.ruleDlg, big = D.type === 'confirm', ttl = big ? 'この変更で よろしいですか?' : '変更を やめて もどりますか?', sub = big ? '' : '変えた値は、保存されません。', yes = big ? 'はい' : 'やめて もどる', no = big ? 'いいえ' : 'つづける';
+      panel(150, 130, 532, 190, 14, [20, 60, 42], [240, 210, 120], 3); text(ttl, 416, 148, 26, YEL, 1); if (sub) text(sub, 416, 192, 19, [210, 225, 212], 1);
+      const bw = big ? 150 : 190, bx1 = 416 - bw - 14, bx2 = 416 + 14;
+      [[bx1, yes, [255, 216, 48], 'A'], [bx2, no, [235, 235, 225], 'B']].forEach((b) => { panel(b[0], 236, bw, 54, 10, b[2], [154, 110, 0], 3); rrect(b[0] + 10, 251, 24, 24, 12, [255, 255, 255]); rrect(b[0] + 12, 253, 20, 20, 10, b[3] === 'A' ? [230, 184, 48] : [201, 206, 210]); text(b[3], b[0] + 22, 255, -13, [42, 26, 0], 1); text(b[1], b[0] + bw / 2 + 14, 248, -22, BLACK, 1); });
+    }
+    if (S.ruleToast && __now() < S.ruleToast) { rrect(206, 172, 420, 96, 16, [255, 255, 255]); rrect(209, 175, 414, 90, 14, [44, 138, 77]); text('✓ 設定しました', 416, 186, -32, WHITE, 1); text('次の対局から使われます', 416, 230, 18, [225, 245, 230], 1); dirty(); }
   }
   function drawSettings() {
     gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
@@ -2300,17 +2314,26 @@
       return;
     }
     if (S.mode === 'promo') { promoKey(k); return; }
-    if (S.mode === 'rules') { // 麻雀のルール
-      const n = RULE_ROWS.length + 2, i = S.ruleIdx || 0;
-      if (k === 'up' || k === 'down') S.ruleIdx = wrap(i + (k === 'up' ? -1 : 1), n);
-      else if (k === 'back') S.mode = 'settings';
-      else if (i < RULE_ROWS.length && (k === 'left' || k === 'right' || k === 'ok')) {
-        const row = RULE_ROWS[i], cur = row.vals.findIndex((v) => String(v[0]) === String(MJ.RULES[row.k])), nx = row.vals[wrap(cur + (k === 'left' ? -1 : 1), row.vals.length)];
-        MJ.RULES[row.k] = nx[0]; MJ.saveRules(); NSND.sfx('select', 0.5);
+    if (S.mode === 'rules') { // 麻雀のルール(下書き → 決定する → 確認 → 保存)
+      const n = RULE_ROWS.length + 2, i = S.ruleIdx || 0, any = ruleAnyChanged();
+      if (S.ruleToast && __now() < S.ruleToast) { S.ruleToast = 0; S.mode = 'settings'; S.ruleDraft = null; dirty(); return; } // 「設定しました」の表示中は、どのボタンでも すぐ もどる
+      if (S.ruleDlg) {
+        const D = S.ruleDlg;
+        if (k === 'ok') {
+          if (D.type === 'confirm') { RULE_ROWS.forEach((r) => { if (S.ruleDraft && r.k in S.ruleDraft) MJ.RULES[r.k] = S.ruleDraft[r.k]; }); MJ.saveRules(); S.ruleDraft = null; S.ruleDlg = null; NSND.sfx('start', 0.5); S.ruleToast = __now() + 1800; setTimeout(() => { if (S.mode === 'rules' && S.ruleToast) { S.ruleToast = 0; S.mode = 'settings'; dirty(); } }, 1850); }
+          else { S.ruleDraft = null; S.ruleDlg = null; S.mode = 'settings'; }
+        } else if (k === 'back') S.ruleDlg = null;
+        dirty(); return;
       }
-      else if (k === 'ok' && i === RULE_ROWS.length) { Object.assign(MJ.RULES, MJ.RULE_DEFAULTS, COMMON_RULES); MJ.saveRules(); }
-      else if (k === 'ok') S.mode = 'settings';
-      return;
+      if (k === 'up' || k === 'down') S.ruleIdx = wrap(i + (k === 'up' ? -1 : 1), n);
+      else if (k === 'back') { if (any) S.ruleDlg = { type: 'discard' }; else { S.mode = 'settings'; S.ruleDraft = null; } }
+      else if (i < RULE_ROWS.length && (k === 'left' || k === 'right')) {
+        const row = RULE_ROWS[i], ev = ruleEff(row.k), cur = row.vals.findIndex((v) => String(v[0]) === String(ev)), nx = row.vals[wrap(cur + (k === 'left' ? -1 : 1), row.vals.length)];
+        (S.ruleDraft || (S.ruleDraft = {}))[row.k] = nx[0]; NSND.sfx('select', 0.5);
+      }
+      else if (k === 'ok' && i === RULE_ROWS.length) { S.ruleDraft = S.ruleDraft || {}; RULE_ROWS.forEach((r) => { S.ruleDraft[r.k] = (r.k in COMMON_RULES) ? COMMON_RULES[r.k] : MJ.RULE_DEFAULTS[r.k]; }); NSND.sfx('select', 0.5); }
+      else if (k === 'ok' && i === RULE_ROWS.length + 1) { if (any) S.ruleDlg = { type: 'confirm' }; else { S.mode = 'settings'; S.ruleDraft = null; } }
+      dirty(); return;
     }
     if (S.mode === 'settings') {
       const it = SETS[S.setIdx];
@@ -2325,7 +2348,7 @@
           const t = teacherOn(), d = dmarkOn(); const nx = !t ? [1, 1] : d ? [1, 0] : [0, 1]; try { localStorage.setItem('mj_teacher', nx[0] ? '1' : '0'); localStorage.setItem('mj_dmark', nx[1] ? '1' : '0'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; S._dm = null; }
         else if (it.k === 'swap') { try { localStorage.setItem('mj_swapab', swapOn() ? '0' : '1'); } catch (e) { /* ignore */ } __swapab(swapOn() ? 1 : 0); }
         else if (it.k === 'perf') { try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } }
-        else if (it.k === 'rules' && k !== 'left') { S.mode = 'rules'; S.ruleIdx = 0; }
+        else if (it.k === 'rules' && k !== 'left') { S.mode = 'rules'; S.ruleIdx = 0; S.ruleDraft = null; S.ruleDlg = null; S.ruleToast = 0; }
         else if (it.k === 'credits' && k !== 'left') { S.mode = 'credits'; }
         else if (it.k === 'help' && k !== 'left') startHow();
         else if (it.k === 'reset' && k === 'ok') S.resetQ = { idx: 1 };
