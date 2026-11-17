@@ -74,7 +74,8 @@
         if (!pool.length || Math.random() < 0.5) pool = pool.concat(tsumo ? G.bragTsumo : G.brag);
         let text = fresh(pool);
         if (set && set.brag && set.brag.length && Math.random() < 0.4) text = fresh(set.brag); // そのキャラ らしい自慢も、ときどき
-        out.push({ p: winner, text: fill(text, o) });
+        let sure = false; if (!tsumo && set && set.ron && set.ron.length && Math.random() < 0.85) { text = Math.random() < 0.5 ? set.ron[0] : fresh(set.ron); sure = true; } // ロンで上がったとき: そのキャラの決めゼリフ(水戸黄門の「この紋所が目に入らぬか!」など。 ron の1つめは、いちばんの決めゼリフで、半分はこれを言う)を、ほぼ必ず言う
+        out.push({ p: winner, text: fill(text, o), sure });
         if (!tsumo && loser && !loser.isHuman) {
           const GL = GEN[gOf(loser)]; let lp = GL.regret;
           if (big) lp = lp.concat(GL.regretBig, GL.regretBig); if (lost[sk(loser)] >= 2) lp = lp.concat(GL.regretAgain, GL.regretAgain);
@@ -94,6 +95,6 @@
       }
     } catch (e) { /* ignore */ }
     // いつも言うわけではない: 1つめ(上がった人の自慢など)は 7割、2つめ(悔しがり・返事)は 5割の確率で出す
-    return out.slice(0, 2).filter((l, i) => Math.random() < (i === 0 ? 0.7 : 0.5));
+    return out.slice(0, 2).filter((l, i) => l.sure || Math.random() < (i === 0 ? 0.7 : 0.5)); // 決めゼリフ(sure)は、かならず出す
   };
 })(typeof window !== 'undefined' ? window : globalThis);
