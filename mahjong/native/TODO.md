@@ -192,3 +192,6 @@
 - [ ] 13分の動画が、Pi Zero W でコマ落ち・音ずれなく再生できるか(15コマ/秒・640x360・約100kbps)
 - [ ] Windows: SDカードの boot の mjdata\video に `tools/video/shift_from2.bat` を入れてダブルクリック → 2番以降の動画が1つずつ後ろにずれるか(2回目は「すでにずらしてあります」で何もしない)
 - [ ] ラズパイの中で番号をずらす: `sh ~/Adafruit_CircuitPython_HID/mahjong/native/pi/shift_videos.sh`(boot の mjdata/video なども自動で探す。1回だけ。2回目は何もしない)
+
+## 親決めのカウントダウン
+- [ ] サイコロが止まったら、合計の数字が サイコロの右横に うすく(15%)出て、光が1席進むごとに 1ずつ減り、1になった席が親になるか(数字が薄すぎて見えないときは、nui.js の CD_COL を明るく)

@@ -831,6 +831,7 @@
       if (o.mix > 0) gfx.imageRotTop(A, o.x, cy, o.sz, o.sz, Math.round(255 * o.mix), o.ang);
     });
   }
+  const CD_SZ = gfx.bold ? -112 : 112, CD_COL = [64, 111, 93];
   function drawDice() {
     const d = S.dice, g = S.game, now = __now();
     const dtf = d._ln ? now - d._ln : 0; d._ln = now; { const cl = (d.vstr || 0) < 1200 ? Math.min(dtf, 50) : dtf; d.vstr = (d.vstr || 0) + (dtf - cl); d.vt = (d.vt || 0) + cl; } // 動きの時計: 1コマが重くても、50msぶんしか進めない(最初の数コマが飛んで、いきなり終わりに見えるのを防ぐ)
@@ -853,6 +854,7 @@
     if (!d.pat) d.pat = DICEPAT[Math.floor(Math.random() * DICEPAT.length)]; // 転がり方は、数種類から ランダムに
     if (d.started && d.rolling && (d.vt - d.rt0) * 24 / 1000 >= d.pat.n + 2) { d.rolling = false; d.settled = true; d.t1 = now; }
     const big = rt > 1500; // 「東一局」「勝負!」のあいだは、サイコロと案内の帯を消して、そのまま中央に大きく出す(画面は切り替えない)
+    if (!big && d.settled && !done) { const left = counting ? total - step + 1 : total; text(String(left), 595, 150, CD_SZ, CD_COL, 1); } /* 親決めのカウントダウン: 出た目の合計を、サイコロの右横に うすく出し、光が1つ進むごとに 1ずつ減らす(1になった席が親)。 15%の濃さ(背景と白を混ぜた色) */
     if (!big) {
       gfx.fillTop(190, 262, 452, 32, 0, 0, 0, 190); const T2 = (str, y, sz2, c) => gfx.textTop(str, SW / 2, y, sz2, c[0], c[1], c[2], 1);
       if (!d.started) T2('サイコロを振ります  (Aボタンで スキップ)', 267, 20, YEL);
@@ -2708,6 +2710,7 @@
     }
     ['東', '南', '西', '北'].forEach((w) => { add(w, 28, W); add(w, 18, W); });
     for (let n = 0; n <= 70; n++) add(String(n), 34, Y); // 山の残り枚数
+    for (let n = 1; n <= 12; n++) add(String(n), CD_SZ, CD_COL); // 親決めのカウントダウン(サイコロの合計 2〜12)
     add('あなた', 21, W); add('あなた', 21, [35, 26, 0]); add('あなた', 20, W); add('あなた', 20, [27, 27, 18]);
     try { MJ.CHARS.forEach((c) => { const nm = c.short || c.name; add(nm, 21, W); add(nm, 20, W); add(nm, 20, [27, 27, 18]); add(nm, 17, [80, 90, 86]); }); } catch (e) { /* ignore */ }
     const jobs = []; for (let k = 0; k < L.length; k += 3) { const part = L.slice(k, k + 3); jobs.push(() => { gfx.dry(1); try { part.forEach((e) => gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0)); } catch (e) { /* ignore */ } finally { gfx.dry(0); } }); }
