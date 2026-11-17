@@ -30,6 +30,7 @@
 
 static SDL_Texture *tgt = NULL; static SDL_Texture *lay[32];  /* 画面の絵のキャッシュ(0〜3は対局の卓、4〜19は 動かないページ用) */ static SDL_Rect curview = { 0, 0, 832, 468 };
 static SDL_Window *win; static SDL_Renderer *ren; static JSContext *ctx; static JSRuntime *rt;
+static int quit_dev = 0; /* Ctrl+Q で終えたとき 1(開発・更新用)。 このときは 終了コード 10 を返し、kiosk.sh が普通のコマンド画面に戻す */
 static char root[1024] = "."; static int quitf = 0; static TTF_Font *fonts[200]; static int fsz[200]; static int nfonts = 0;
 static char fontpath[1024];
 #define W 832
@@ -308,7 +309,7 @@ static void handle_event(SDL_Event *ep){
       case SDLK_LEFT: callkey("left"); setheld(1); break; case SDLK_RIGHT: callkey("right"); setheld(2); break; case SDLK_UP: callkey("up"); setheld(3); break; case SDLK_DOWN: callkey("down"); setheld(4); break;
       case SDLK_RETURN: case SDLK_SPACE: case SDLK_z: callkey("ok"); break;
       case SDLK_ESCAPE: case SDLK_BACKSPACE: case SDLK_x: callkey("back"); break;
-      case SDLK_q: if (e.key.keysym.mod & KMOD_CTRL) quitf = 1; break; }
+      case SDLK_q: if (e.key.keysym.mod & KMOD_CTRL) { quitf = 1; quit_dev = 1; } break; }
   }
   else if (e.type == SDL_KEYUP) { int k = e.key.keysym.sym; if ((k == SDLK_LEFT && held == 1) || (k == SDLK_RIGHT && held == 2) || (k == SDLK_UP && held == 3) || (k == SDLK_DOWN && held == 4)) held = 0; }
   else if (e.type == SDL_JOYHATMOTION) { if (e.jhat.value & SDL_HAT_LEFT) { callkey("left"); setheld(1); } else if (e.jhat.value & SDL_HAT_RIGHT) { callkey("right"); setheld(2); } else if (e.jhat.value & SDL_HAT_UP) { callkey("up"); setheld(3); } else if (e.jhat.value & SDL_HAT_DOWN) { callkey("down"); setheld(4); } else held = 0; }
@@ -422,5 +423,5 @@ int main(int argc, char **argv){
     if (perf && nowms() - perf_t0 > 3000) { printf("fonts=%d\n", nfonts); printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); { long rss = 0; FILE *sf = fopen("/proc/self/statm", "r"); if (sf) { long a; if (fscanf(sf, "%ld %ld", &a, &rss) < 2) rss = 0; fclose(sf); } JSMemoryUsage mu; JS_ComputeMemoryUsage(rt, &mu); printf("perf2: 思考・進行 合計%.0fms 最大%.0fms / JS %ldMB / 全体 %ldMB / 絵%d 文字%d\n", perf_logic, perf_logicmax, (long)(mu.malloc_size / 1048576), rss * 4 / 1024, nimg, ntxt); } fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = perf_logic = perf_logicmax = 0; perf_n = perf_p = 0; }
   }
   save_wait(); save2_wait(); /* 書きかけのセーブがあれば、終わるのを待つ */
-  return 0;
+  return quit_dev ? 10 : 0;
 }

@@ -2,7 +2,8 @@
 # 家電のように使うための起動スクリプト(電源を入れる → ゲーム、 ゲームを終了 → コンセントを抜く)。
 #   ・ゲームが始まるまで、文字(コマンド)は見せず、「ゲーム起動中」の絵だけを出す
 #   ・ゲームを終えたら「終了の準備中」→(書きこみが終わったら)「コンセントを抜いてください」の絵を出す(コマンドの画面には戻らない)
-# 開発用に、普通の画面(ターミナル)へ戻りたいときは、セーブの置き場に DEV という名前の空のファイルを作る:  touch /boot/firmware/mjdata/DEV
+# 更新・保守のとき: ゲーム中に Ctrl+Q を押すと、ふつうのコマンド画面に戻る(メニューの「終了」は、抜く画面)。
+# 常にコマンド画面にしたいとき(開発): セーブの置き場に DEV という名前の空のファイルを作る  touch /boot/firmware/mjdata/DEV
 D="$(cd "$(dirname "$0")/../.." && pwd)"; SP="$D/native/pi/splash"
 
 # セーブの置き場: SDカードの boot の領域(Windowsからも見える所)。 OSを読みとり専用にしても、ここには書ける
@@ -29,7 +30,14 @@ while :; do
   [ $rc -ge 128 ] && [ $try -lt 2 ] && { try=$((try+1)); show "$SP/booting.png"; sleep 1; continue; }
   break
 done
-[ -n "$DEV" ] && exit $rc
+# Ctrl+Q(終了コード10)・開発用の印(DEV)のときは、更新などのために、ふつうのコマンド画面へ戻る
+if [ -n "$DEV" ] || [ $rc -eq 10 ]; then
+  hide; printf '\033[?25h\033[2J\033[H'
+  echo "== 更新・保守用の画面です(Ctrl+Q で出てきました) =="
+  echo "  ゲームを更新する:  sh $D/native/pi/update.sh      (終わると自動で再起動します)"
+  echo "  そのまま遊びに戻る: sudo reboot"
+  cd "$D" 2>/dev/null; exec "${SHELL:-/bin/bash}"
+fi
 
 # 終了: 書きこみを終えて、安全にしてから、「抜いてください」
 show "$SP/shutting.png"

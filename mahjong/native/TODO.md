@@ -203,3 +203,4 @@
 - [ ] 成績・設定が、boot の mjdata/save.json に残るか(終了して、再起動して、続きがあるか)
 - [ ] 第2段階 `sh native/pi/readonly_on.sh` → 再起動 → 遊んでいる途中でコンセントを抜いて、また入れて、ふつうに起動して成績が残っているか
 - [ ] 更新したいとき: `sh native/pi/readonly_off.sh && sudo reboot` → git pull → `sh native/pi/readonly_on.sh && sudo reboot`
+- [ ] (要ビルド) ゲーム中に Ctrl+Q → コマンド画面(更新・保守用の案内が出る)。 メニューの「終了」は「抜いてください」の画面。 読みとり専用のとき `sh native/pi/update.sh` で git pull できて、再起動後に新しい版になるか(元のディスクの場所 /media/root-ro は、環境で違うかもしれません)

@@ -21,14 +21,12 @@ sudo reboot
 sh native/pi/readonly_on.sh
 sudo reboot
 ```
-## ゲームを更新したい・設定を変えたい(読みとり専用のとき)
-```
-sh native/pi/readonly_off.sh && sudo reboot       # 読みとり専用をやめる
-# (再起動後、SSHでつないで) cd ~/Adafruit_CircuitPython_HID/mahjong && git pull ...
-sh native/pi/readonly_on.sh && sudo reboot        # また読みとり専用に
-```
-## 開発用に、普通の画面へ戻りたい
-`touch /boot/firmware/mjdata/DEV` を作る(kiosk.sh が、終了のとき普通のターミナルに戻る)。 消せば、また家電の動き。
+## ゲームを更新したい(読みとり専用のままでOK)
+1. ゲーム中に **Ctrl+Q**(キーボード)→ 「更新・保守用の画面」(コマンド画面)になる。 メニューの「終了」は、抜く画面になる(区別されます)。
+2. `sh ~/Adafruit_CircuitPython_HID/mahjong/native/pi/update.sh` → 読みとり専用の元のディスクを いっとき書きこみ可にして `git pull` → 自動で再起動(5秒後)。
+   (読みとり専用でないときは、ふつうの `git pull` をして再起動)
+- main.c を変えた更新のときは、ビルドも要る: 先に `sh native/pi/readonly_off.sh && sudo reboot` で読みとり専用をやめて、`cd native/app && sh build.sh`、そのあと `sh native/pi/readonly_on.sh && sudo reboot`。
+- 常にコマンド画面にしておきたいとき(開発): `touch /boot/firmware/mjdata/DEV`
 
 ## 元に戻す
 ```
