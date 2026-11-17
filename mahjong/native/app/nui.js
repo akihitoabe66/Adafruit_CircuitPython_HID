@@ -608,7 +608,8 @@
     if (S.react) {
       const r = S.react; const ld = g.lastDiscard; const who = ld ? g.players[ld.by].name : '';
       if (ld) { { const tn = MJ.tileName(ld.tile.t); panel(8, 328, 182, 46, 6, [6, 44, 26], [90, 140, 110], 2, 235); tile(ld.tile.t, 14, 335, 26, 33, ld.tile.red); text(who + ' の', 46, 331, fitSz(who + ' の', 16, 138, 11), [200, 225, 205]); text(tn, 46, 350, fitSz(tn, 20, 138, 14), WHITE); } } // ボタン(x=196〜)に かくれないよう、名前と牌を 2行にして、せまい枠に収める
-      let bx = 196; r.btns.forEach((b, i) => { actBtn(bx, 332, 124, 40, b.label, b.sub || '', r.idx === i && !r.pick, b.pass); bx += 124 + 14; });
+      const nb = r.btns.length, bgap = nb <= 3 ? 14 : 8, bww = nb <= 3 ? 124 : Math.floor((516 - (nb - 1) * bgap) / nb); // 4つ以上(カン・ポン・チー・見送る)でも、右の端(x=712)に はみ出さない
+      let bx = 196; r.btns.forEach((b, i) => { actBtn(bx, 332, bww, 40, b.label, b.sub || '', r.idx === i && !r.pick && !S.side, b.pass); bx += bww + bgap; }); // 解説にカーソルがあるときは、ボタンの選択を消す
       if (r.note) text(r.note, 246, 340, 20, YEL);
       if (r.pick) { // チーの組み合わせ
         const n = r.chis.length, gw = 118, pw = 150 + n * (gw + 8) + 6; panel(8, 268, pw, 58, 6, [10, 30, 22], [90, 140, 110], 2, 240); text('チーの組み合わせ', 18, 286, 18, YEL);
@@ -865,8 +866,8 @@
       else if (!done) T2('合計 ' + total + ' …  あなたから 左回りに 数えます', 268, 19, WHITE);
       else T2(P[d.target].name + ' が 親です', 265, 24, YEL);
       if (!globalThis.__nodice) drawDice2(d, now); // サイコロは、黒い帯より上を通る(最後に描く) // サイコロは、黒い帯より上を通る(最後に描く)
-    } else if (!d.v2) { const k = Math.min(1, (rt - 1500) / 160), sz2 = k < 0.5 ? 96 : 78; fill(192, 174, 448, 122, [0, 0, 0], 200); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz2 / 2, sz2, YEL, 1); }
-    else { const k = Math.min(1, (rt - T2) / 160), sz2 = k < 0.5 ? 110 : 90; fill(192, 174, 448, 122, [0, 0, 0], 200); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((dd) => text('勝負!', SW / 2 + dd[0], 235 - sz2 / 2 + dd[1], sz2, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz2 / 2, sz2, [225, 40, 30], 1); }
+    } else if (!d.v2) { const k = Math.min(1, (rt - 1500) / 160), sz2 = k < 0.5 ? 96 : 78; fill(240, 192, 352, 104, [0, 0, 0], 200); text(g.kyokuLabel().split(' ')[0], SW / 2, 244 - sz2 / 2, sz2, YEL, 1); }
+    else { const k = Math.min(1, (rt - T2) / 160), sz2 = k < 0.5 ? 110 : 90; fill(240, 192, 352, 104, [0, 0, 0], 200); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((dd) => text('勝負!', SW / 2 + dd[0], 244 - sz2 / 2 + dd[1], sz2, [255, 255, 255], 1)); text('勝負!', SW / 2, 244 - sz2 / 2, sz2, [225, 40, 30], 1); }
     if (globalThis.__nodice && globalThis.__shotDir && !d._snapped) { d._snapped = 1; gfx.snap(globalThis.__shotDir + '/dicefull.bmp'); } // 試験用
     if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
     if (d.started || true) dirty();
@@ -2352,6 +2353,7 @@
       else if (k === 'left' && S.side.idx === 3) S.side.idx = 0; // スピーカーから左: MENUへ
       else if (k === 'right' && S.side.idx === 0) S.side.idx = 3; // MENUから右: スピーカーへ
       else if (k === 'left' || k === 'back') { S.side = null; if (S.game && S.game.watching) { /* 観戦: 牌にカーソルは出さない */ } else if (S.self && k === 'left' && S.self.row === 0) S.self.idx = S.self.tiles.length - 1; else if (!S.self && k === 'left' && S.game) S.curIdx = Math.max(0, myTiles(S.game.players[0]).length - 1); } // 左: いちばん右の牌へ
+      else if (k === 'right' && S.react) { S.side = null; S.react.idx = 0; S.dirty = true; S.full = true; } // 鳴きのボタンが出ているとき: 解説から右 → 最初のボタンへ(牌のカーソルは出さない)
       else if (k === 'right') { S.side = null; S.curIdx = S.game && S.game.watching ? null : 0; if (S.self) { S.self.row = 0; S.self.idx = 0; } } // 右: いちばん左の牌へもどる
       else if (k === 'ok') {
         const i = S.side.idx;
