@@ -55,6 +55,7 @@
     nd(mood) { const M = { firm: 'x:なのだ', bright: 'x:なのだ2', flat: 'x:なのだ3' }; if (!yk) return null; if (M[mood] && yk[M[mood]]) return M[mood]; const ks = Object.keys(M).map((m) => M[m]).filter((k) => yk[k]); return ks.length ? ks[Math.floor(Math.random() * ks.length)] : null; },
     nanoda(keys, p, mood) { const k = Math.random() < (p == null ? 0.3 : p) ? A.nd(mood) : null; return k ? keys.concat('+', k) : keys; },
     stopSpeak() { token++; },
+    klen(k) { return yk && yk[k] ? snd.len('audio/yk/' + yk[k]) || 0 : 0; }, // 録音(キー)の長さ(秒)
     /* 'y:ツモ' などの並び(null は短い間)を、録音をつなげて鳴らす。 BGMは読み上げの間だけ小さくする */
     speak(keys, cb, lead) {
       const id = ++token, lead0 = lead == null ? 0.05 : lead, known = keys.filter((k) => !k || k === '+' || k === '.' || yk[k]);

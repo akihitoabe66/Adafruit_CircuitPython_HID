@@ -1005,13 +1005,26 @@
   const mapPt = (q) => [MAP_V.x0 + (q[0] - MAP2.ox) * MAP_V.k, MAP_V.y0 + (q[1] - MAP2.oy) * MAP_V.k];
   const mapStop = (d, L) => mapPt(d <= 0 ? L[0][0] : L[d - 1][L[d - 1].length - 1]);
   const MAP_T = { slide: 1400, hold: 1100, dwell: 1500 };
+  /* 旅のはじまり: ずんだもんのポーズ絵(tools/make_zunda_poses.py で作る img/map/zp_*.webp)。 [幅, 高さ, 足もとの中心x, 足もとの線y](絵の左上から) */
+  const ZP = {stand: [46, 80, 24, 75], arms: [49, 81, 23, 73], jump: [53, 73, 25, 73], fists: [51, 80, 25, 75], hip: [47, 80, 25, 75], shout: [53, 81, 25, 76], fist1: [48, 80, 28, 75]};
+  const zpDraw = (nm, sx, sy, dy) => { const z = ZP[nm]; gfx.image('img/map/zp_' + nm + '.webp', sx - z[2], sy + 4 - z[3] + (dy || 0), z[0], z[1], 255); }; // 足もとの線を、地図の上のずんだもんの足もとに合わせる
+  const INTRO_POSES = [[0, 'stand'], [350, 'hip'], [900, 'shout'], [1500, 'fists'], [1950, 'arms'], [2400, 'jump'], [3000, 'fists'], [3350, 'fist1']]; // [はじまり(ミリ秒), ポーズ]
+  const introSeen = () => { try { return localStorage.getItem('mj_mapintro') === '1'; } catch (e) { return true; } };
+  const introMark = () => { try { localStorage.setItem('mj_mapintro', '1'); } catch (e) { /* ignore */ } };
   function startMap(rk, then) { // 昇段のあと、認定証のあとに 出す。 rk.from → rk.to を、1段ずつ 歩く(行き止まりの枝は、分かれ道まで 戻って 次へ)
     const from = Math.max(0, Math.min(11, rk.from || 0)), to = Math.max(from, Math.min(11, rk.to || 0)), steps = [];
     const ms = mapSetNo(), L = MAP2.sets[ms].legs;
     for (let d = from + 1; d <= to; d++) { const pts = L[d - 1].map(mapPt); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d, pts, seg, len, dur: len < 4 ? 1500 : Math.max(2400, Math.min(9000, len / 38 * 1000)) }); }
     let tt = MAP_T.slide + MAP_T.hold; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; tt += i < steps.length - 1 ? MAP_T.dwell : 0; return { a, b }; });
     try { NSND.mapOn(); } catch (e) { /* ignore */ }
-    S.map = { ms, L, vd: from === 0 ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: steps.length ? tt : MAP_T.slide + MAP_T.hold, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
+    let intro = null;
+    if (rk.intro) { // 旅のはじまり: 熊本から江戸までの道(全部の区間をつなぐ)を、のばしていく
+      const pts = []; for (let d = 1; d <= 10; d++) L[d - 1].map(mapPt).forEach((q, i) => { if (d === 1 || i > 0) pts.push(q); });
+      let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); }
+      const G = Math.max(MAP_T.slide + 1800, Math.round(NSND.klen('m:肥後国') * 1000) + 700), vl = Math.max(3800, Math.round(NSND.klen('v:tenka') * 1000)); // 二つめの一言が はじまる時刻 / 声の長さ
+      intro = { path: { pts, seg, len }, G, end: G + vl + 1000, v: false }; tt = intro.end;
+    }
+    S.map = { intro, ms, L, vd: from === 0 ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: intro ? intro.end : steps.length ? tt : MAP_T.slide + MAP_T.hold, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
   }
   function mapAlong(st, u) { const dist = st.len * u; let i = 1; while (i < st.pts.length - 1 && st.seg[i] < dist) i++; const a = st.pts[i - 1], b = st.pts[i], sl = st.seg[i] - st.seg[i - 1] || 1, v = Math.max(0, Math.min(1, (dist - st.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v, b[0] - a[0]]; }
   function drawWater(t) { // 水面: 横長の帯を、少しずつ ずらして 波うたせる(2枚 重ねて、きらめき)
@@ -1029,10 +1042,16 @@
     M.steps.forEach((st, i) => { const w = M.tl[i]; if (t >= w.b) { pos = st.pts[st.pts.length - 1]; curDan = st.d; } else if (t >= w.a) { pos = mapAlong(st, (t - w.a) / st.dur); walking = st.len > 3; stepIdx = i; if (pos[2] < 0) face = -1; } });
     // 足あと(歩いたところ)
     M.steps.forEach((st, i) => { const w = M.tl[i]; const u = t >= w.b ? 1 : t >= w.a ? (t - w.a) / st.dur : 0; for (let d = 11; d < st.len * u; d += 11) { const q = shift(mapAlong(st, d / st.len)); fill(Math.round(q[0]) - 1, Math.round(q[1]) - 1, 3, 3, [196, 52, 40], 210); } });
+    if (M.intro && t >= M.intro.G) { const I = M.intro, u = t - I.G, k = Math.min(1, u / 2600), ep = shift(mapStop(10, M.L)), pu = 0.5 + 0.5 * Math.sin(u / 110); // 江戸=ゴール: 金色に光り、道が のびる
+      for (let d = 11; d < I.path.len * k; d += 11) { const q = shift(mapAlong(I.path, d / I.path.len)); fill(Math.round(q[0]) - 2, Math.round(q[1]) - 2, 4, 4, [196, 52, 40], 235); }
+      rrect(Math.round(ep[0]) - 44, Math.round(ep[1]) - 56, 88, 64, 30, [255, 200, 40], Math.round(30 + 40 * pu)); rrect(Math.round(ep[0]) - 36, Math.round(ep[1]) - 49, 72, 50, 24, [255, 214, 70], Math.round(40 + 60 * pu));
+      const ty0 = Math.round(ep[1]) - 100 + Math.round((1 - Math.min(1, u / 350)) * -10); if (u > 0) { rrect(Math.round(ep[0]) - 88, ty0 + 2, 84, 30, 6, [90, 12, 8], 120); rrect(Math.round(ep[0]) - 90, ty0, 84, 30, 6, [200, 40, 30]); text('ゴール', Math.round(ep[0]) - 48, ty0 + 4, 22, WHITE, 1); } }
     const p2 = shift(pos), sx = Math.round(p2[0]), sy = Math.round(p2[1]), fr = walking ? [1, 2, 3, 2][Math.floor(t / 130) % 4] : 0, bob = walking ? Math.round(Math.sin(t / 65) * 1.5) : 0;
     if (walking && __now() - M.tapT > 260) { M.tapT = __now(); NSND.sfx('select', 0.16); }
     fill(sx - 17, sy - 3, 34, 8, [0, 0, 0], 70); fill(sx - 13, sy - 2, 26, 6, [0, 0, 0], 120); fill(sx - 8, sy - 1, 16, 4, [0, 0, 0], 170); // 足もとの 丸い影
-    gfx.image('img/map/w' + fr + (face < 0 ? 'f' : '') + 'g.webp', sx - 23, sy - 70 + bob, 46, 78, 255); /* 画面と同じ大きさで作った絵(拡大しない = ぼやけない)。 白+こげ茶のふち */ // 左へ歩くときは、左右反転
+    if (M.intro) { const I = M.intro, u = t - I.G; let pn = 'stand', hop = 0; if (u >= 0) { INTRO_POSES.forEach((q) => { if (u >= q[0]) pn = q[1]; }); if (pn === 'jump') hop = -Math.round(Math.abs(Math.sin((u - 2400) / 140)) * 10); }
+      zpDraw(pn, sx, sy, hop); }
+    else gfx.image('img/map/w' + fr + (face < 0 ? 'f' : '') + 'g.webp', sx - 23, sy - 70 + bob, 46, 78, 255); /* 画面と同じ大きさで作った絵(拡大しない = ぼやけない)。 白+こげ茶のふち */ // 左へ歩くときは、左右反転
     { const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); let mx = sx, my = sy;
       if (M.view && !walking && M.go == null) { const q = shift(mapStop(M.sel, M.L)), nw = __now(), k = M.ml ? Math.min(1, (nw - M.ml) / 90) : 1; M.ml = nw; if (M.mx == null) { M.mx = sx; M.my = sy; } M.mx += (q[0] - M.mx) * k; M.my += (q[1] - M.my) * k; mx = Math.round(M.mx); my = Math.round(M.my); } else { M.mx = sx; M.my = sy; M.ml = 0; } // 見る画面: ▼を 左右で動かして、行き先を えらぶ。 歩いている間は ずんだもんの頭の上
       if (M.view && M.sel !== M.from && !walking) rrect(mx - 15, my - 5, 30, 11, 5, [255, 224, 60], 150);
@@ -1045,12 +1064,13 @@
     gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]);
     const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
     let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? (M.capSay ? '修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。' : '他の街に戻って、修行し直すのだ！') : walkMsg(M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
+    if (M.intro && t >= M.intro.G) { msg = '江戸で 名人を倒し、天下統一するのだ!'; if (!M.intro.v) { M.intro.v = true; try { NSND.speak(['v:tenka']); } catch (e) { /* ignore */ } } } // 旅のはじまり: 二つめの一言(声つき)
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) NSND.speak([pk]); } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
     if (M.view) { const hl = M.sel > 0 ? '◀ ' : '   ', hr = M.sel < M.maxd ? ' ▶' : '   ', ht = M.go != null ? 'あるいています…  (決定で スキップ)' : hl + '行き先を えらぶ' + hr + '   決定: そこへ あるく   戻る: もどる'; fill(236, 4, 470, 30, [10, 30, 22], 190); text(ht, 471, 8, fitSz(ht, 17, 450, 12), [255, 236, 170], 1); if (M.sel === M.cur && M.go == null) { rrect(716, 6, 100, 26, 10, [200, 50, 40]); text('いま ここ', 766, 9, 17, WHITE, 1); } else if (M.sel < M.cur && M.go == null) { rrect(716, 6, 100, 26, 10, [40, 110, 170]); text('修行の街', 766, 9, 17, WHITE, 1); } }
     else if (arrived && t - M.endT > 600) text('決定ボタンで つづける', 700, 6, 14, [220, 235, 245], 1);
     if (M.ask) { const d = M.from, tr = d < M.cur, nm = MAP_SETS[M.ms].place[d], ai = M.ask.idx; fill(0, 0, SW, SH, [0, 0, 0], 110); panel(196, 96, 440, 232, 14, [252, 246, 228], [120, 84, 40], 4, 250); text(MAP_DAN[d] + '  ' + nm, 416, 106, fitSz(MAP_DAN[d] + '  ' + nm, 26, 400, 16), [150, 30, 20], 1); text(tr ? 'そのころの 相手と 戦います。' : 'いまの 段位の 相手と 戦います。', 416, 150, 20, [60, 40, 20], 1); text(tr ? 'ポイントは 半分。4位でも へりません。' : 'ポイントは ふつうに もらえます。', 416, 182, 18, [90, 66, 40], 1); if (tr) text('昇段は、いまの段位の街で。', 416, 208, 18, [90, 66, 40], 1); ['この街で ' + (tr ? '修行する' : '対戦する'), 'やめる'].forEach((l, i) => { const w = i ? 170 : 230, x2 = i ? 452 : 206, sel = ai === i; panel(x2, 252, w, 50, 10, sel ? YEL : [235, 235, 225], sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2, 255); text(l, x2 + w / 2, 264, 22, BLACK, 1); }); }
-    if (arrived && !M.fin) { M.fin = true; if (!M.view) NSND.sfx('start', 0.7); }
+    if (arrived && !M.fin) { M.fin = true; if (!M.view && !M.intro) NSND.sfx('start', 0.7); }
     dirty();
   }
   function startMapView(d0) { // 成績の画面から: いま 地図のどこに居るか見る。 ◀ ▶ で、これまでに着いた場所(無段から)の セリフを 読み返せる
@@ -1059,7 +1079,7 @@
     startMap({ from: d, to: d }, () => { dirty(); });
     const M = S.map; M.view = true; M.vd = -1; M.maxd = mx; M.cur = cur; M.sel = d; M.go = null; M.ask = null; dirty();
   }
-  function mapTick(M) { if (M.view && M.go != null && __now() - M.t0 >= M.endT) { M.from = M.go; M.go = null; M.back = false; M.capSay = false; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = -1; M.ask = { idx: 0 }; } } // 着いたら、「この街で 対戦する?」
+  function mapTick(M) { if (M.intro && !M.fin2 && __now() - M.t0 > M.intro.end) { M.fin2 = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); dirty(); return; } /* 旅のはじまり: 声が終わって1秒たったら、つぎの画面へ */ if (M.view && M.go != null && __now() - M.t0 >= M.endT) { M.from = M.go; M.go = null; M.back = false; M.capSay = false; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = -1; M.ask = { idx: 0 }; } } // 着いたら、「この街で 対戦する?」
   function mapGo(M, dest) { // ▼で えらんだ街へ、ずんだもんが 歩いて行く(戻るときは、道を 逆に歩く)
     const steps = [], fwd = dest > M.from;
     for (let k = M.from; k !== dest; k += fwd ? 1 : -1) { const d = fwd ? k + 1 : k, pts = M.L[d - 1].map(mapPt); if (!fwd) pts.reverse(); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d: fwd ? d : d - 1, pts, seg, len, dur: len < 4 ? 1500 : Math.max(2400, Math.min(9000, len / 38 * 1000)) }); }
@@ -2548,7 +2568,7 @@
     },
     gameEnd(g, f) { if (g.practice) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({}, f, { rk: null, done }); }); } // 練習対局: 記録・順位・認定証なし
  try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { if (g.length !== 'single' && (g.handCount || 0) >= 4) metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } /* 列伝に出るのは、4局以上 最後まで対局した相手だけ */ try { const mine0 = f.results.find((x) => x.p.isHuman); if (mine0) { const ks = mine0.rank === 1 ? ['v:end_win1', '.', 'v:end_win2'] : (mine0.rank === 3 && S.prevRank === 4) ? ['v:end_close1', '.', 'v:end_close2'] : mine0.rank === 4 ? ['v:end_lose1', '.', 'v:end_lose2'] : null; if (ks && ks.every((k) => k === '.' || NSND.has(k))) setTimeout(() => { try { NSND.speak(ks); } catch (e) { /* ignore */ } }, 900); } } catch (e) { /* ignore */ } /* 対局終了の声: 1位=勝った!やったね! / 4位から3位に逆転=ふぅ、あぶない / 4位=負けた、ざんねん */ NSND.sfx('end'); // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
- try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go = () => { try { NSND.home(); } catch (e) { /* ignore */ } S.rankScr = { rk, done }; dirty(); }; /* 結果の曲のまま あなたの段位の画面に来ない(ホームの曲に) */ if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
+ try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go0 = () => { try { NSND.home(); } catch (e) { /* ignore */ } S.rankScr = { rk, done }; dirty(); }; /* はじめて 対局を 最後まで終えたら(無段のあいだ)、一度だけ、旅のはじまり(熊本の地図)を出す */ const go = (g.length !== 'single' && !introSeen() && (!rk || (rk.from || 0) === 0) && !(rk && rk.promoted && (introMark() || true))) ? () => { introMark(); S.mode = 'menu'; try { startMap({ from: 0, to: 0, intro: true }, go0); } catch (e) { go0(); } } : go0; /* 結果の曲のまま あなたの段位の画面に来ない(ホームの曲に) */ if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
   };
 
   const AI_T = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]; // js/chars.js の mk() と同じ
