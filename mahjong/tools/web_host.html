@@ -139,7 +139,7 @@
   Object.keys(COST).forEach((k) => { const o = gfx[k]; if (typeof o !== 'function') return; gfx[k] = function () { cost += COST[k](arguments); return o.apply(this, arguments); }; });
   /* gfx.measure は、描画先と別でも同じ答えになるよう tctx を使う(layerBegin中も使える) */
   const noop = () => {};
-  const snd = { play: noop, len: () => 0, stopAll: noop, music: noop, musicVol: noop };
+  const snd = { play: noop, len: () => 0, stopAll: noop, pauseAll: noop, resumeAll: noop, music: noop, musicVol: noop };
 
   /* ---------- 通常形のシャンテン数(C版 shanten.h と同じ答え) ---------- */
   const tabs = [new Map(), new Map()];
