@@ -71,7 +71,8 @@
       const run = (i) => {
         if (i >= segs.length) { if (cb) setTimeout(cb, 0); return; }
         const sg = segs[i];
-        setTimeout(() => { if (id !== token) return; snd.play(sg.p, V.read); if (i + 1 < segs.length) run(i + 1); else if (cb) setTimeout(cb, (sg.len + 0.07) * 1000); }, sg.wait * 1000);
+        const go = () => { if (id !== token) return; if (globalThis.__menuHold) { setTimeout(go, 100); return; } /* メニューが開いている間は、次の声を鳴らさない */ snd.play(sg.p, V.read); if (i + 1 < segs.length) run(i + 1); else if (cb) setTimeout(cb, (sg.len + 0.07) * 1000); };
+        setTimeout(go, sg.wait * 1000);
       };
       if (segs.length) run(0); else if (cb) setTimeout(cb, lead0 * 1000);
       /* 声のたびに、BGMの音量を 上げ下げしない(新しい声は はっきり聞こえる。音量の切りかえで、BGMがガサガサするのを防ぐ) */

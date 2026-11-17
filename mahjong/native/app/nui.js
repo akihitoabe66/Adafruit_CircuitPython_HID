@@ -7,7 +7,8 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const tl = (ev) => { try { const t = __now(); (S.tl || (S.tl = [])).push(Math.round(t % 1000000) + ' ' + ev); if (S.tl.length > 120) S.tl.shift(); S.tlDirty = true; } catch (e) { /* ignore */ } }; // 待ちが長いときの調査用: 出来事の時刻を、最近の120件だけ 覚えておく(save.json の mj_tl に、数秒ごとに書く)
   const dirty = () => { S.dirty = true; S.full = true; }; // full: 画面ぜんたいを描きなおす(カーソルだけのときは、手牌のところだけ描く)
-  const openMenu = () => { S.menuP = { idx: 0 }; MJ.paused = true; dirty(); }; // ゲーム中のメニュー(対局を止める)
+  const menuHold = (on) => { globalThis.__menuHold = on; try { if (on) snd.pauseAll(); else snd.resumeAll(); } catch (e) { /* ignore */ } }; // メニューを開いている間は、声も、吹き出しの時間も、止める
+  const openMenu = () => { S.menuP = { idx: 0 }; MJ.paused = true; menuHold(true); dirty(); }; // ゲーム中のメニュー(対局を止める)
   const WIND = ['東', '南', '西', '北'];
   try { MJ.loadRules && MJ.loadRules(); } catch (e) { /* ignore */ }
   MJ.MEMO_CAP = 30000; // 計算の記憶表の上限(メモリを食いすぎないように)
@@ -115,9 +116,9 @@
   /* 顔の向き: 右向きの人は下家(右の席)で、左向きの人は上家(左の席)で、左右反転する(正面向きと対面は、そのまま)。番号はキャラクターの番号 */
   const FACE_R = new Set([1, 2, 3, 10, 11, 23, 25, 26, 27, 29, 30]), FACE_L = new Set([4, 5, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 24, 28, 31, 32]); // 6・19は正面向き
   const faceFlip = (ch, seat) => !!ch && ((seat === 1 && FACE_R.has(ch.id)) || (seat === 3 && FACE_L.has(ch.id)));
-  function face(p, x, y, w, h) {
+  function face(p, x, y, w, h, low) {
     const ch = p.char; const src = skin(p.isHuman ? youSrc() : (MJ.faceSrc ? MJ.faceSrc(ch, faceFlip(ch, p.seat)) : ch.face));
-    if (w >= 48) { fill(x, y, w, h, [90, 110, 100]); gfx.imageTop(src, x, y, w, h); return; } // 大きな顔は、窓の解像度でくっきり描く(縦横の比は、切り取って合わせる)
+    if (w >= 48 && !low) { fill(x, y, w, h, [90, 110, 100]); gfx.imageTop(src, x, y, w, h); return; } // 大きな顔は、窓の解像度でくっきり描く(縦横の比は、切り取って合わせる)
     if (!gfx.image(src, x, y, w, h)) fill(x, y, w, h, [90, 110, 100]);
   }
   function star(cx, cy, r, c) { // 星(横線で塗る)
@@ -500,7 +501,7 @@
       for (const z of [20, 19, 18, 17, 16]) { bsz = z; lines = wrapText(b.text, z, tw); if (lines.length <= 3) break; } lines = lines.slice(0, 3);
       const lh = bsz + 5, ty0 = pos[1] + 30 + Math.round((72 - lines.length * lh) / 2) + 0; // 3行より少ないときは、まん中によせる
       rrect(pos[0] + 2, pos[1] + 3, BW, BH, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, BH, 10, [240, 243, 238]);
-      if (b.p) { face(b.p, pos[0] + 8, pos[1] + 8, FSZ, FSZ); } // 話している人の顔
+      if (b.p) { face(b.p, pos[0] + 8, pos[1] + 8, FSZ, FSZ, !!S.menuP); } // 話している人の顔
       text(b.name, pos[0] + FSZ + 20, pos[1] + 8, 17, [80, 90, 86]); lines.forEach((l, i) => text(l, pos[0] + FSZ + 20, ty0 + i * lh, bsz, [30, 34, 32])); }
 
     if (S.ryu) { // 「流局」: 黒い帯に大きな白文字が、左から流れてきて止まる。少し置いて、すっと消える
@@ -2176,8 +2177,8 @@
     if (S.menuP) {
       const items = menuItems();
       if (k === 'up' || k === 'down') S.menuP.idx = wrap(S.menuP.idx + (k === 'up' ? -1 : 1), items.length);
-      else if (k === 'back') { S.menuP = null; MJ.paused = false; }
-      else if (k === 'ok') { const it = items[S.menuP.idx]; S.menuP = null; MJ.paused = false; if (it === 'ホームにもどる') stopGame(); }
+      else if (k === 'back') { S.menuP = null; MJ.paused = false; menuHold(false); }
+      else if (k === 'ok') { const it = items[S.menuP.idx]; S.menuP = null; MJ.paused = false; menuHold(false); if (it === 'ホームにもどる') stopGame(); }
       return;
     }
     if (S.soundP) { // 音のせってい
@@ -2567,7 +2568,7 @@
   function stopGame() { // ゲームを途中でやめて、ホームへ
     const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
     if (g.cp && !g.practice && !S.result && !S.end && !S.rankP && !S.rankScr) { try { slotWrite(Object.assign({}, g.cp.snap, { mid: g.cp })); } catch (e) { /* ignore */ } } // 局の途中でホームへ戻るときは、いまの局の途中をセーブ(つづきから、同じ牌・同じ番で再開できる)
-    S.ura = null; if (S.winRv) { const W = S.winRv; S.winRv = null; try { W.res(); } catch (e) { /* ignore */ } } g.stopped = true; MJ.paused = false; S.tmsgShown = 0; S.side = S.coach = null;
+    S.ura = null; if (S.winRv) { const W = S.winRv; S.winRv = null; try { W.res(); } catch (e) { /* ignore */ } } g.stopped = true; MJ.paused = false; if (globalThis.__menuHold) menuHold(false); S.tmsgShown = 0; S.side = S.coach = null;
     const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.map) { const q = S.map; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } q.then(); } if (S.cert) { const q = S.cert; S.cert = null; q.then(); } if (S.reveal) { const q = S.reveal; S.reveal = null; q.then(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
     S.self = S.react = S.result = S.end = S.saveP = null;
     if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
@@ -2595,6 +2596,7 @@
   let nextAuto = 0, lastSave = 0, nextSide = 0, coachShots = 0;
   window.__frame = function (now) {
     __runTimers(now);
+    { const fdt = S.lastFr ? Math.min(now - S.lastFr, 200) : 0; S.lastFr = now; if (S.menuP && fdt > 0) Object.keys(S.bub || {}).forEach((k) => { S.bub[k].until += fdt; }); } // メニューが開いている間は、吹き出しの表示時間も 止める
     if (S.tlDirty && now - (S.tlLast || 0) > 4000) { S.tlLast = now; S.tlDirty = false; try { localStorage.setItem('mj_tl', S.tl.join('|')); } catch (e) { /* ignore */ } }
     while (postQ.length) { const f = postQ.shift(); try { f(); } catch (e) { /* ignore */ } }
     if (S.mode === 'video') vTick(now);
@@ -2612,7 +2614,7 @@
     const q = S.sayQ || []; const now = __now();
     while (q.length && (now - q[0].t0 > 4000 || q[0].g !== S.game)) q.shift(); // 古くなったセリフは出さない
     if (!q.length) return;
-    const busy = (S.banner && S.banner.call) || S.ura || S.winRv || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
+    const busy = !!S.menuP || (S.banner && S.banner.call) || S.ura || S.winRv || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
     if (busy) { S.sayT = setTimeout(() => { S.sayT = null; pumpSay(); }, 250); return; }
     const x = q.shift(); tl('say-show ' + x.p.name + ' ' + x.ms + 'ms'); S.bub[x.p.seat] = { name: x.p.name, text: x.t, p: x.p, until: __now() + x.ms }; dirty();
     S.sayT = setTimeout(() => { S.sayT = null; dirty(); pumpSay(); }, x.ms + 120);
