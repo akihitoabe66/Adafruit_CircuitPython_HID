@@ -1838,9 +1838,11 @@
   function vScan() { // 動画の置き場所(いくつか探す)の「番号_題名.mp4」から、一覧を作る。サムネイルは、ゲームの中に入っている
     const dirs = globalThis.__videoDirs || [(globalThis.__dataDir || '.') + '/video'], files = [], have = {}, seen = {};
     const rdir = (d) => (typeof __readdir === 'function' && __readdir(d)) || [];
-    dirs.forEach((dd) => rdir(dd).forEach((nm) => {
+    const isRepo = (d) => !/mjdata|^\/boot/.test(d), order = dirs.filter(isRepo).concat(dirs.filter((d) => !isRepo(d))); // 番号が同じ動画は1本だけ出す。 ゲームといっしょに配る(git の video)軽い版を先にして、SDカードに入れた同じ番号の動画(重い元の動画など)は出さない
+    order.forEach((dd) => rdir(dd).forEach((nm) => {
       if (seen[nm]) return; const m = nm.match(/^(.*)\.(mp4|m4v|mov|mkv|webm)$/i); if (!m) return;
       const base = m[1], mm = base.match(/^(\d+)[_\-\s　]*(.*)$/), n = mm ? parseInt(mm[1], 10) : 999;
+      if (n !== 999 && have[n]) return; // 同じ番号が すでにある
       seen[nm] = 1; have[n] = 1; files.push({ n, name: nm, title: VTITLES[n] || (mm && mm[2]) || base, /* 題名は、番号からゲームの中の名前を使う(SDカードのbootの区画は、日本語のファイル名が文字化けするため) */ path: dd + '/' + nm, png: VTITLES[n] ? 'img/video/' + ('0' + n).slice(-2) + '.webp' : null });
     }));
     Object.keys(VTITLES).forEach((k) => { if (!have[k]) files.push({ n: +k, name: 'v' + k, title: VTITLES[k], path: null, png: 'img/video/' + ('0' + k).slice(-2) + '.webp' }); }); // 動画ファイルが まだ無くても、一覧(サムネイル)には出す
@@ -2590,7 +2592,7 @@
       setMood(r.type !== 'win' ? 'relief' : iWon ? 'win' : iLost ? 'shock' : 'focus'); S.carryMood = iLost ? 'grumpy' : iWon ? 'laugh' : null;
       if (r.type !== 'win') {
         return (async () => {
-          if (!g.fast && !r.abort) { await sleep(900); if (g.stopped) return; S.ryu = { t0: __now() }; NSND.sfx('slam'); setTimeout(() => { try { NSND.speak(['x:りゅうきょく']); } catch (e) { /* ignore */ } }, 450); dirty(); await sleep(1950); S.ryu = null; dirty(); if (g.stopped) return; } // 最後の牌のあと、ひと呼吸 → 「流局」が左から流れてきて止まる(Edge版と同じ)
+          if (!g.fast && !r.abort) { await sleep(900); if (g.stopped) return; S.bub = {}; S.sayQ = []; S.ryu = { t0: __now() }; NSND.sfx('slam'); /* 流局のテロップが出るときは、出ているセリフ・待っているセリフを、先に消す(顔だけ消える・声だけ残る、をなくす) */ setTimeout(() => { try { NSND.speak(['x:りゅうきょく']); } catch (e) { /* ignore */ } }, 450); dirty(); await sleep(1950); S.ryu = null; dirty(); if (g.stopped) return; } // 最後の牌のあと、ひと呼吸 → 「流局」が左から流れてきて止まる(Edge版と同じ)
           NSND.sfx('drawgame');
           return new Promise((done) => {
             const rd = r.abort || g.fast ? null : { shown: 0, now: -1, sel: 4, pop: -1, reading: true, token: 0, waits: [] };
@@ -2711,7 +2713,7 @@
     const q = S.sayQ || []; const now = __now();
     while (q.length && (now - q[0].t0 > 4000 || q[0].g !== S.game)) q.shift(); // 古くなったセリフは出さない
     if (!q.length) return;
-    const busy = !!S.menuP || !!S.cutin || (S.banner && S.banner.call) || S.ura || S.winRv || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
+    const busy = !!S.menuP || !!S.cutin || !!S.ryu || (S.banner && S.banner.call) || S.ura || S.winRv || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
     if (busy) { S.sayT = setTimeout(() => { S.sayT = null; pumpSay(); }, 250); return; }
     const x = q.shift(); tl('say-show ' + x.p.name + ' ' + x.ms + 'ms'); S.bub[x.p.seat] = { name: x.p.name, text: x.t, p: x.p, until: __now() + x.ms }; dirty();
     S.sayT = setTimeout(() => { S.sayT = null; dirty(); pumpSay(); }, x.ms + 120);
