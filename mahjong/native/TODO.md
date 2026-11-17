@@ -231,3 +231,4 @@
 - [ ] (要ビルド) 起動の進捗バー: 金色のふちと暗い溝がつき、どこまでで100%かが見える(C側の起動画面・JS側の準備の画面とも同じ)
 - [ ] ビデオを見る: 一覧が出るまで・動画を押してから画面が出るまでの時間を、mj_tl に記録(video-list-start / video-scan / video-list-ready / vopen / vopen-done / vtick-first)。 遅いときは、`grep -o '"mj_tl":"[^"]*"' save.json | tr '|' '\n' | grep -i "video\|vopen\|vtick"` の結果を送る
 - [ ] ビデオの置き場所の調べ・直し: `sh native/pi/video_check.sh`(調べるだけ) / `sh native/pi/video_check.sh --fix`(重い動画・番号が重なった動画を ~/video_heavy に移す。 消さない)
+- [ ] 注意(ビデオ): SDカードの boot の mjdata/video には、手作業でエンコードした大事な動画が入っている。 **消さない**。 番号のずれは、`sh native/pi/shift_videos.sh -n`(動かす内容を見るだけ)で見てから、`sh native/pi/shift_videos.sh`(名前を変えるだけ。 消さない)でなおす。 video_check.sh は、調べるだけ(動かさない)
