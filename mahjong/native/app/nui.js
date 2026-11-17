@@ -1105,21 +1105,22 @@
   function drawPromo() {
     const P = S.promo; gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
     text('昇段の演出テスト', SW / 2, 10, 30, YEL, 1); text('記録には、のこりません', SW / 2, 48, 16, [205, 224, 212], 1);
-    const rows = [['昇段前の段位', MJ.DAN_NAME(P.from)], ['昇段後の段位(自動)', MJ.DAN_NAME(P.to)], ['道すじ', MAP2.sets[mapSetNo()].name], ['認定証から ながす', ''], ['天下統一の お祝いだけ', ''], ['もどる', '']];
-    rows.forEach((r, i) => { const y = 74 + i * 54, sel = P.row === i; panel(140, y, 552, 48, 12, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2); text(r[0], i < 3 ? 170 : SW / 2, y + 9, 24, BLACK, i < 3 ? 0 : 1); if (i < 3 && i !== 1) text('◀', 440, y + 11, 20, [90, 90, 80], 1); if (i < 3) { text(r[1], i === 2 ? 565 : 570, y + 7, i === 2 ? 22 : 28, [190, 60, 40], 1); if (i !== 1) text('▶', 672, y + 11, 20, [90, 90, 80], 1); } });
-    text('▲▼ えらぶ   ◀▶ 段位・道すじ   決定: ながす   戻る: もどる', SW / 2, 436, 16, [210, 225, 205], 1);
+    const rows = [['昇段前の段位', MJ.DAN_NAME(P.from)], ['昇段後の段位(自動)', MJ.DAN_NAME(P.to)], ['道すじ', MAP2.sets[mapSetNo()].name], ['認定証から ながす', ''], ['天下統一の お祝いだけ', ''], ['旅のはじまり(最初の対局のあと)', ''], ['もどる', '']];
+    rows.forEach((r, i) => { const y = 72 + i * 48, sel = P.row === i; panel(140, y, 552, 43, 12, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2); text(r[0], i < 3 ? 170 : SW / 2, y + 9, 24, BLACK, i < 3 ? 0 : 1); if (i < 3 && i !== 1) text('◀', 440, y + 11, 20, [90, 90, 80], 1); if (i < 3) { text(r[1], i === 2 ? 565 : 570, y + 7, i === 2 ? 22 : 28, [190, 60, 40], 1); if (i !== 1) text('▶', 672, y + 11, 20, [90, 90, 80], 1); } });
+    text('▲▼ えらぶ   ◀▶ 段位・道すじ   決定: ながす   戻る: もどる', SW / 2, 444, 16, [210, 225, 205], 1);
   }
   function promoKey(k) {
     const P = S.promo; if (!P) { S.mode = 'menu'; return; }
     const back = () => { S.mode = 'promo'; dirty(); };
     if (k === 'back') { S.mode = 'menu'; S.promo = null; NSND.home(); dirty(); return; }
-    if (k === 'up') P.row = wrap(P.row - 1, 6); else if (k === 'down') P.row = wrap(P.row + 1, 6);
+    if (k === 'up') P.row = wrap(P.row - 1, 7); else if (k === 'down') P.row = wrap(P.row + 1, 7);
     else if ((k === 'left' || k === 'right') && P.row === 2) { S.mapSet = wrap(mapSetNo() + (k === 'left' ? -1 : 1), MAP2.sets.length); }
     else if ((k === 'left' || k === 'right') && P.row < 2) { const d = k === 'left' ? -1 : 1; if (P.row === 0) { P.from = Math.max(0, Math.min(10, P.from + d)); P.to = P.from + 1; } }
     else if (k === 'ok') {
       if (P.row === 3) { S.mode = 'menu'; startCert({ dan: MJ.DAN_NAME(P.to), from: P.from, to: P.to, promoted: true }, back); }
       else if (P.row === 4) { S.mode = 'menu'; startMap({ from: 11, to: 11, congrats: true }, back); }
-      else if (P.row === 5) { S.mode = 'menu'; S.promo = null; NSND.home(); }
+      else if (P.row === 5) { S.mode = 'menu'; startMap({ from: 0, to: 0, intro: true }, back); }
+      else if (P.row === 6) { S.mode = 'menu'; S.promo = null; NSND.home(); }
     }
     dirty();
   }
