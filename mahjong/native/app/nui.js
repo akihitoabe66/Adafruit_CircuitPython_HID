@@ -838,7 +838,7 @@
     const dtf = d._ln ? now - d._ln : 0; d._ln = now; { const cl = (d.vstr || 0) < 1200 ? Math.min(dtf, 50) : dtf; d.vstr = (d.vstr || 0) + (dtf - cl); d.vt = (d.vt || 0) + cl; } // 動きの時計: 1コマが重くても、50msぶんしか進めない(最初の数コマが飛んで、いきなり終わりに見えるのを防ぐ)
     if (!d.t00) d.t00 = now; if (d._ln2 !== undefined) d.calm = dtf < 80 ? (d.calm || 0) + 1 : 0; d._ln2 = 1; // 画面の描きが安定する(軽い コマが 続く)まで、転がしはじめを待つ(最長2.5秒)
     if (!d.started && d.vt > 600 && ((d.calm || 0) >= 5 || now - d.t00 > 2500)) { d.started = true; d.rolling = true; d.t0 = now; d.rt0 = d.vt; NSND.sfx('deal4'); }
-    const total = d.a + d.b, cStart = d.t1 + 700, cStep = 380, revealAt = cStart + (total - 1) * cStep; // 最後の1つで、その席が止まった瞬間に、親が決まる(止まってから光り直さない)
+    const total = d.a + d.b, cStart = d.t1 + 700, cStep = 380, tLast = cStart + (total - 1) * cStep, CD_HOLD = 900, revealAt = tLast + CD_HOLD; // 最後の席(数字は「1」)に光が着いたら、CD_HOLD(0.9秒)そこで止まって脈打ち、そのあと親が大きく出る
     const P = g.players, counting = d.settled && now >= cStart && now < revealAt, done = d.settled && now >= revealAt;
     if (done && !d.revealT) { d.revealT = now; NSND.sfx('start', 0.8); NSND.sfx('slam', 0.8); }
     const rt = d.revealT ? now - d.revealT : -1; // 親が決まってからの経過(ミリ秒): 〜1500 親を見せる / 〜2900「東一局」/ 〜4100「勝負!」
@@ -846,11 +846,12 @@
     const T2 = d.T2 || 2900;
     if (rt > T2 && !d.v2 && (d.kyDone || rt > T2 + 3500)) { d.v2 = 1; d.T2 = rt; afterPresent(() => { NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }); }
     if (d.v2 && rt > d.T2 + 1200 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); }
-    const step = counting ? Math.floor((now - cStart) / cStep) + 1 : 0, hiSeat = counting ? (step - 1) % 4 : -1;
+    const step = counting ? Math.min(total, Math.floor((now - cStart) / cStep) + 1) : 0, hiSeat = counting ? (step - 1) % 4 : -1;
     if (counting && d._lastStep !== step) { d._lastStep = step; NSND.sfx('select', 0.5); }
     const winds = (sd) => (done ? ['東', '南', '西', '北'][(sd - d.target + 4) % 4] : '');
     const seatsStatic = () => { stage(); [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, sd === hiSeat, winds(sd), done && sd === d.target ? now - d.revealT : null, 'static')); };
     if (done) seatsStatic(); else cached(2, 'd' + (d.id || 0) + ':' + hiSeat, seatsStatic); // 動かない部分は、1枚の絵にして貼る(サイコロのアニメを、カクつかせないため)
+    if (counting && now >= tLast) { const sd = hiSeat, x = DPOS[sd][0], y = DPOS[sd][1], pu = 0.5 + 0.5 * Math.sin((now - tLast) / 80); rrect(x - 14, y - 14, 108, 108, 12, [255, 190, 30], Math.round(50 + 120 * pu)); } /* 最後の席で止まっている間: 光が脈打つ(アニメ案どおり) */
     [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, false, '', done && sd === d.target ? now - d.revealT : null, 'face'));
     if (!d.pat) d.pat = DICEPAT[Math.floor(Math.random() * DICEPAT.length)]; // 転がり方は、数種類から ランダムに
     if (d.started && d.rolling && (d.vt - d.rt0) * 24 / 1000 >= d.pat.n + 2) { d.rolling = false; d.settled = true; d.t1 = now; }
