@@ -229,3 +229,5 @@
 - [ ] ビデオの一覧: 同じ番号の動画は1本だけ出る(ゲームと一緒に配る軽い版=git の video を先に使い、SDカードの同じ番号の動画は出さない)。 重い元の動画を、SDカードの mjdata/video から消す
 - [ ] 流局のテロップが出るとき、出ているセリフ・待っているセリフを先に消す(顔だけ消える・声だけ残る、をなくす)。 そのあとの「テンパイ/ノーテン」の読み上げでは、顔つきで1人ずつ出る(これはそのまま)
 - [ ] (要ビルド) 起動の進捗バー: 金色のふちと暗い溝がつき、どこまでで100%かが見える(C側の起動画面・JS側の準備の画面とも同じ)
+- [ ] ビデオを見る: 一覧が出るまで・動画を押してから画面が出るまでの時間を、mj_tl に記録(video-list-start / video-scan / video-list-ready / vopen / vopen-done / vtick-first)。 遅いときは、`grep -o '"mj_tl":"[^"]*"' save.json | tr '|' '\n' | grep -i "video\|vopen\|vtick"` の結果を送る
+- [ ] ビデオの置き場所の調べ・直し: `sh native/pi/video_check.sh`(調べるだけ) / `sh native/pi/video_check.sh --fix`(重い動画・番号が重なった動画を ~/video_heavy に移す。 消さない)

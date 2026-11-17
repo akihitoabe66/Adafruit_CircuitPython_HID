@@ -1874,15 +1874,15 @@
     dirty(); setTimeout(dirty, 1900);
   }
   function startVideo() {
-    const sc = vScan(), d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last);
-    S.vid = { view: 'list', files: sc.files, dir: sc.dir, d, sel: Math.max(0, last), top: 0, hs: 0, last, ask: null }; S.mode = 'video'; vFit(); dirty();
+    const t00 = __now(); tl('video-list-start'); const sc = vScan(); tl('video-scan ' + Math.round(__now() - t00) + 'ms files=' + sc.files.length); const d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last);
+    S.vid = { view: 'list', files: sc.files, dir: sc.dir, d, sel: Math.max(0, last), top: 0, hs: 0, last, ask: null }; S.mode = 'video'; vFit(); dirty(); tl('video-list-ready ' + Math.round(__now() - t00) + 'ms');
   }
   function vFit() { const V = S.vid, n = V.files.length; V.top = n <= 8 ? 0 : Math.max(0, Math.min(V.sel - 5, n - 8)); } // カーソルは6番目で止まり、そこからは一覧のほうが動く(最後の8本のところだけ、カーソルが下へ進む)
   function vPlay(i, from) {
     const V = S.vid, f = V.files[i];
     if (!f.path || typeof __vopen !== 'function') { V.err = f.path ? 'この画面では 再生できません(実機で 見られます)' : 'この動画は まだ 入っていません(mjdata/video に入れてください)'; dirty(); return; }
     try { NSND.music(''); snd.musicVol(vVol()); } catch (e) { /* ignore */ }
-    const r = __vopen(f.path, from || 0); if (!r) { V.view = 'list'; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
+    const tv0 = __now(); tl('vopen ' + f.path); const r = __vopen(f.path, from || 0); tl('vopen-done ' + Math.round(__now() - tv0) + 'ms'); V.tFirst = 0; if (!r) { V.view = 'list'; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
     const now = __now(); V.sel = i; V.view = 'play'; V.p = { f, i, dur: r.dur || 0, ui: now + 2500, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now, st: [from || 0, r.dur || 0, 0, 0, 0], sig: '' };
     V.d.last = f.name; (V.d.dur = V.d.dur || {})[f.name] = r.dur || 0; vSave(); dirty();
   }
@@ -1895,7 +1895,7 @@
   }
   function vTick(now) { // 動画を見ているあいだ、毎コマ呼ばれる
     const V = S.vid; if (!V || V.view !== 'play' || !V.p) return;
-    const p = V.p, st = __vstate(); if (!st) return; p.st = st; p.dur = st[1] || p.dur; p.paused = !!st[2];
+    const p = V.p, st = __vstate(); if (!st) return; if (!V.tFirst) { V.tFirst = 1; tl('vtick-first pos=' + st[0].toFixed(1) + ' dur=' + st[1]); } p.st = st; p.dur = st[1] || p.dur; p.paused = !!st[2];
     if (st[3] && !p.end) { p.end = true; p.ui = now; V.d.done[p.f.name] = true; delete V.d.pos[p.f.name]; vSave(); __vpause(true); }
     if (now - p.save > 8000) { p.save = now; V.d.pos[p.f.name] = Math.floor(st[0]); vSave(); }
     const show = p.paused || p.end || now < p.ui + 3500, sig = (show ? 1 : 0) + '|' + Math.floor(st[0]) + '|' + (p.paused ? 1 : 0) + '|' + (now < p.toastT ? p.toast : '') + '|' + (st[4] ? 1 : 0);
