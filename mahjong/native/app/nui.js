@@ -1034,6 +1034,19 @@
     for (let i = 0; i < 14; i++) { const y = Math.round(i * 33.4), x = -64 + Math.round(Math.sin(t / 1000 + i * 0.55) * 20 + Math.sin(t / 1700 + i * 1.3) * 10); gfx.image('img/map/wa' + i + '.webp', x, y, 960, 36, 255); }
     for (let i = 0; i < 14; i++) { const y = Math.round(i * 33.4) + 5, x = -64 + Math.round(Math.sin(t / 820 + i * 0.9 + 2) * 18 + Math.sin(t / 1300 + i * 0.4) * 12); gfx.image('img/map/wa' + ((i + 5) % 14) + '.webp', x, y, 960, 36, 70); }
   }
+  function mapGuide(M) { // 「◀ ▶ えらぶ  (A) そこへ あるく  (B) もどる」(あるいている間は「(A) スキップ」)。 ◀ ▶ は、動かせない側を うすくする
+    const Y = 382, Hh = 26, F = -16, gap = 8, W1 = (str) => gfx.measure(str, F);
+    const items = M.go != null ? [{ t: 'c', k: 'A', c: [230, 184, 48] }, { t: 'l', s: 'スキップ' }] : [{ t: 'k' }, { t: 'l', s: 'えらぶ' }, { t: 'c', k: 'A', c: [230, 184, 48] }, { t: 'l', s: 'そこへ あるく' }, { t: 'c', k: 'B', c: [201, 206, 210] }, { t: 'l', s: 'もどる' }];
+    const kw = W1('◀') + W1('▶') + 22, wd = (it) => it.t === 'k' ? kw : it.t === 'c' ? 24 : W1(it.s);
+    let tot = 0; items.forEach((it, i) => { tot += wd(it) + (i < items.length - 1 ? (it.t === 'l' && items[i + 1] && items[i + 1].t === 'c' ? gap + 10 : gap) : 0); });
+    const bw = tot + 40, bx = Math.round(SW / 2 - bw / 2); rrect(bx, Y, bw, Hh, 6, [10, 30, 22], 205);
+    let x = bx + 20;
+    items.forEach((it, i) => { const w = wd(it);
+      if (it.t === 'k') { rrect(x, Y + 3, w, 20, 4, [255, 236, 154]); const l = M.sel > 0, r = M.sel < M.maxd; text('◀', x + 8 + W1('◀') / 2, Y + 4, F, l ? [23, 48, 31] : [200, 190, 150], 1); text('▶', x + 14 + W1('◀') + W1('▶') / 2, Y + 4, F, r ? [23, 48, 31] : [200, 190, 150], 1); }
+      else if (it.t === 'c') { rrect(x, Y + 1, 24, 24, 12, [255, 255, 255]); rrect(x + 2, Y + 3, 20, 20, 10, it.c); text(it.k, x + 12, Y + 5, -14, [42, 26, 0], 1); }
+      else text(it.s, x + w / 2, Y + 4, F, [255, 236, 170], 1);
+      x += w + (i < items.length - 1 ? (it.t === 'l' && items[i + 1] && items[i + 1].t === 'c' ? gap + 10 : gap) : 0); });
+  }
   function drawMap() {
     const M = S.map; mapTick(M); const t = __now() - M.t0, arrived = t >= M.endT, ease = Math.min(1, t / MAP_T.slide), eo = 1 - Math.pow(1 - ease, 3), ox = Math.round((1 - eo) * (SW - MAP_V.x0 + 40)); // 巻物は 右から入ってくる
     drawWater(__now());
@@ -1075,7 +1088,7 @@
     if (M.intro && t >= M.intro.G) { msg = '江戸で 名人を倒し、天下統一するのだ!'; if (!M.intro.v) { M.intro.v = true; try { NSND.speak(['v:tenka']); } catch (e) { /* ignore */ } } } // 旅のはじまり: 二つめの一言(声つき)
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) NSND.speak([pk]); } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
-    if (M.view) { const hl = M.sel > 0 ? '◀ ' : '   ', hr = M.sel < M.maxd ? ' ▶' : '   ', ht = M.go != null ? 'あるいています…  (決定で スキップ)' : hl + '行き先を えらぶ' + hr + '   決定: そこへ あるく   戻る: もどる'; fill(346, 4, 474, 30, [10, 30, 22], 190); text(ht, 583, 8, fitSz(ht, 17, 456, 12), [255, 236, 170], 1); }
+    if (M.view) mapGuide(M); /* 操作の案内: 地図の下・画面の中央に、ボタンの絵つきで */
     else if (arrived && t - M.endT > 600) text('決定ボタンで つづける', 700, 6, 14, [220, 235, 245], 1);
     if (M.ask) { const d = M.from, tr = d < M.cur, nm = MAP_SETS[M.ms].place[d], ai = M.ask.idx; fill(0, 0, SW, SH, [0, 0, 0], 110); panel(196, 96, 440, 232, 14, [252, 246, 228], [120, 84, 40], 4, 250); text(MAP_DAN[d] + '  ' + nm, 416, 106, fitSz(MAP_DAN[d] + '  ' + nm, 26, 400, 16), [150, 30, 20], 1); text(tr ? 'そのころの 相手と 戦います。' : 'いまの 段位の 相手と 戦います。', 416, 150, 20, [60, 40, 20], 1); text(tr ? 'ポイントは 半分。4位でも へりません。' : 'ポイントは ふつうに もらえます。', 416, 182, 18, [90, 66, 40], 1); if (tr) text('昇段は、いまの段位の街で。', 416, 208, 18, [90, 66, 40], 1); ['この街で ' + (tr ? '修行する' : '対戦する'), 'やめる'].forEach((l, i) => { const w = i ? 170 : 230, x2 = i ? 452 : 206, sel = ai === i; panel(x2, 252, w, 50, 10, sel ? YEL : [235, 235, 225], sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2, 255); text(l, x2 + w / 2, 264, 22, BLACK, 1); }); }
     if (arrived && !M.fin) { M.fin = true; if (!M.view && !M.intro) NSND.sfx('start', 0.7); }
