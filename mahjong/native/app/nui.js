@@ -717,7 +717,7 @@
   const perfOn = () => { try { const v = localStorage.getItem('mj_perf'); return v === '1' ? true : v === '0' ? false : !!globalThis.__perfEnv; } catch (e) { return false; } }; // 隠しコマンド・設定で切りかえたら、それを優先(MJ_PERF=1 で起動しても、オフにできる)
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'perf', label: '遅れの診断(調べる用)' }, { k: 'reset', label: 'リセット(デバッグ用)' }, { k: 'back', label: 'もどる' },
+    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'perf', label: '遅れの診断(調べる用)' }, { k: 'reset', label: 'リセット(デバッグ用)' }, { k: 'dbg', label: 'デバッグ(あとで消す)' }, { k: 'back', label: 'もどる' },
   ];
   /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
   const RULE_ROWS = [
@@ -771,8 +771,8 @@
     gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
     text('設定', SW / 2, 8, 30, YEL, 1);
     SETS.forEach((s, i) => {
-      const y = 36 + i * 33 | 0, sel = S.setIdx === i; panel(110, y, 612, 31, 9, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2); // 13項目が 画面におさまる並び
-      text(s.label, 130, y + 1, 24, BLACK);
+      const PT = Math.min(33, Math.floor(420 / SETS.length)), y = 36 + i * PT | 0, sel = S.setIdx === i; panel(110, y, 612, PT - 2, 9, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2); // 13項目が 画面におさまる並び
+      text(s.label, 130, y + (PT < 33 ? 0 : 1), PT < 33 ? 22 : 24, BLACK);
       if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 7, 24, 21, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 4, 24, BLACK, 2); }
       else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 4, 24, BLACK, 1);
@@ -782,6 +782,29 @@
       else if (s.k === 'rules' || s.k === 'credits' || s.k === 'help') text('▶', 600, y + 4, 24, BLACK, 1);
     });
   }
+  /* DEBUG-BEGIN(デバッグ用の画面: 設定の「デバッグ」。 あとで、このブロックと、設定の項目 dbg と、rank.js の debugSetPt を消す) */
+  const DBG_ROWS = ['経験値', '昇段の1点前にする', '東風戦 東四局から はじめる', '南風戦 南四局から はじめる', 'もどる'];
+  function drawDbg() {
+    gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
+    text('デバッグ(あとで消します)', SW / 2, 8, 28, YEL, 1);
+    const R = MJ.Rank, st = R.get(), DANS = R.DAN, nx = DANS[st.dan + 1];
+    DBG_ROWS.forEach((l, i) => { const y = 56 + i * 56, sel = (S.dbgIdx || 0) === i; panel(110, y, 612, 48, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2); text(l, 130, y + 9, 24, BLACK);
+      if (i === 0) { text('◀', 470, y + 10, 22, [90, 90, 80], 1); text(st.pt + '点', 560, y + 9, 26, BLACK, 1); text('▶', 664, y + 10, 22, [90, 90, 80], 1); } });
+    text('いまの段位: ' + MJ.DAN_NAME(st.dan) + (nx ? '    つぎの段(' + nx[0] + ')まで あと ' + Math.max(0, nx[1] - st.pt) + '点' : ''), SW / 2, 346, 20, [255, 236, 170], 1);
+    text('経験値: ◀ ▶ で 10点ずつ(長押しで はやく)。 対局は、そのまま はじまります', SW / 2, 384, 17, [205, 224, 212], 1);
+    if (S.dbgMsg && __now() < S.dbgMsg.until) { rrect(206, 410, 420, 34, 10, [44, 138, 77]); text(S.dbgMsg.t, 416, 415, 20, WHITE, 1); dirty(); }
+  }
+  function dbgKey(k) {
+    const n = DBG_ROWS.length, i = S.dbgIdx || 0, R = MJ.Rank;
+    if (k === 'up' || k === 'down') { S.dbgIdx = wrap(i + (k === 'up' ? -1 : 1), n); return; }
+    if (k === 'back') { S.mode = 'settings'; return; }
+    if (i === 0 && (k === 'left' || k === 'right')) { const st = R.get(); R.debugSetPt(st.pt + (k === 'left' ? -10 : 10)); S.dbgMsg = { t: '経験値を ' + R.get().pt + '点 に しました', until: __now() + 1400 }; NSND.sfx('select', 0.4); return; }
+    if (k !== 'ok') return;
+    if (i === 1) { const st = R.get(), nx = R.DAN[st.dan + 1]; if (nx) { R.debugSetPt(nx[1] - 1); S.dbgMsg = { t: '昇段の1点前(' + R.get().pt + '点)に しました', until: __now() + 1600 }; } }
+    else if (i === 2 || i === 3) { const south = i === 3, K = south ? 7 : 3; S.mode = 'menu'; S.rankScr = null; startGame({ length: south ? 'south' : 'east', chars: pickChars(null, false).map((c) => c.id), dealer: 3, kyoku: K, honba: 0, kyotaku: 0, roundWind: south ? 1 : 0, handCount: K, scores: [25000, 25000, 25000, 25000] }, {}); } // 東四局(親は4番めの席)・南四局から。 点は みんな 25000
+    else if (i === 4) S.mode = 'settings';
+  }
+  /* DEBUG-END */
   /* ---------- 対局のはじめの演出: 顔の登場 → 東一局 → 勝負! → サイコロ ---------- */
   const SEATPOS = { 0: [SW / 2 - 28, 372], 1: [SW - 190, 130], 2: [SW / 2 - 28, 16], 3: [110, 130] };
   function seatBox(p, s, x, y, big, wind) {
@@ -2365,6 +2388,7 @@
       else if (k === 'ok' && i < RULE_ROWS.length && any) S.ruleDlg = { type: 'confirm', idx: 0 }; // 値を変えたあと、どの行でも A で「この変更で よろしいですか?」
       dirty(); return;
     }
+    if (S.mode === 'dbg') { dbgKey(k); dirty(); return; } // DEBUG
     if (S.mode === 'settings') {
       const it = SETS[S.setIdx];
       if (k === 'up' || k === 'down') S.setIdx = wrap(S.setIdx + (k === 'up' ? -1 : 1), SETS.length);
@@ -2382,6 +2406,7 @@
         else if (it.k === 'credits' && k !== 'left') { S.mode = 'credits'; }
         else if (it.k === 'help' && k !== 'left') startHow();
         else if (it.k === 'reset' && k === 'ok') S.resetQ = { idx: 1 };
+        else if (it.k === 'dbg' && k !== 'left') { S.mode = 'dbg'; S.dbgIdx = 0; } // DEBUG
         else if (it.k === 'back' && k === 'ok') S.mode = 'menu';
       }
       return;
@@ -2739,11 +2764,11 @@
     if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); drawBack(22); return true; }
     if (S.mode === 'howto') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawHow(); drawBack(24); return true; }
     if (S.mode === 'credits') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawCredits(); return true; }
-    const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'settings' || S.mode === 'rules' || S.mode === 'promo';
+    const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'dbg' || S.mode === 'settings' || S.mode === 'rules' || S.mode === 'promo';
     const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
     if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
     gfx.view(S.vx, S.vy);
-    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'promo') drawPromo(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); drawBack(80); }
+    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'dbg') drawDbg(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'promo') drawPromo(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); drawBack(80); }
     else if (S.game) { gfx.clear(32, 74, 60); drawTable(S.game); drawUra(); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
     if (S.rankP) drawRankP();
     if (S.result) { drawResult(S.result); drawResSay(); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }

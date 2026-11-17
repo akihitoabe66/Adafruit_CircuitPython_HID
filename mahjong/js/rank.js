@@ -52,6 +52,9 @@
       if (!(s.maxdan >= s.dan)) s.maxdan = s.dan;
       return s;
     },
+    /* DEBUG-BEGIN(デバッグ用: あとで消す) */
+    debugSetPt(pt) { const s = R.get(); s.pt = Math.max(0, Math.round(pt)); s.dan = Math.min(idxOf(s.pt), DAN.length - 2); s.maxdan = Math.max(s.maxdan || 0, s.dan); save(RK, s); return s; },
+    /* DEBUG-END */
     info() {
       const s = R.get(), i = s.dan, nxt = DAN[i + 1];
       return { s, i, base: DAN[i][1], next_pt: nxt ? nxt[1] : 0, name: DAN[i][0], next: nxt ? nxt[0] : null, left: nxt ? Math.max(0, nxt[1] - s.pt) : 0, prog: nxt ? Math.max(0, Math.min(1, (s.pt - DAN[i][1]) / (nxt[1] - DAN[i][1]))) : 1 };

@@ -236,3 +236,7 @@
 ## ビデオは「01.mp4〜18.mp4」だけを読む
 - [ ] SDカードの boot の mjdata/video に入れた 01.mp4〜18.mp4(番号だけの名前)だけを、ビデオの一覧に出す。 ほかの名前・ほかの場所(ゲームの video フォルダ・~/mjdata/video など)の動画は読まない。 番号ごとの題名とサムネイルは、ゲームの中のもの。 「つづきから」「見た印」は、番号だけの名前で持つ(前の記録は、自動で引きつぐ)。 調べるコマンド: `sh native/pi/video_check.sh`
 - [ ] 一覧が出るまで・動画を押してから画面が出るまでが遅いときは、mj_tl の video-list-ready / vopen-done / vtick-first を見る
+
+## デバッグ用(あとで消す)
+- 設定 →「デバッグ(あとで消す)」: 経験値 ◀▶(10点ずつ)/ 昇段の1点前 / 東風戦 東四局から / 南風戦 南四局から。
+- 消すとき: nui.js の `DEBUG-BEGIN〜DEBUG-END` ブロック(drawDbg/dbgKey)、SETS の `dbg` 項目、`S.mode === 'dbg'` の3か所(`// DEBUG`印)、rank.js の `debugSetPt`。
