@@ -1025,7 +1025,7 @@
     if (pg > 0) gPoly([[14, 198], [14, 242], [0, 220]], YEL, 200);
     const c = L[R.sel], st = state(c), px = 612, py = 64, pw = 200; panel(px, py, pw, 348, 14, [6, 28, 18], [140, 190, 130], 3, 255);
     if (st === 2) { rrect(px + 43, py + 13, 114, 114, 8, WHITE); gfx.image(skin(c.face), px + 44, py + 14, 112, 112, 255); text(c.short || c.name, px + pw / 2, py + 134, fitSz(c.short || c.name, 22, 180, 14), YEL, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', px + pw / 2, py + 166, 14, WHITE, 1); const el = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; if (el > c.level) text('いまの段位では ' + MJ.starStr(el), px + pw / 2, py + 186, 14, YEL, 1); text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), px + pw / 2, py + (el > c.level ? 206 : 188), 14, WHITE, 1); const f = fitRich(c.desc || '', [15, 14, 13], 176, 104); richDraw(f.lines, px + 12, py + 232, f.sz, [230, 240, 225], 0); }
-    else { gfx.image('img/sil/' + pad(c.id) + '.webp', px + 44, py + 14, 112, 112, 255); frame(px + 43, py + 13, 114, 114, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', px + 77, py + 45, 46, 64, 255); text('？？？？', px + pw / 2, py + 134, 22, YEL, 1); const m = st === 0 ? MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'になると、\n登場します。' : 'まだ 出会っていません。\n4局以上 最後まで 対局すると、\n出会えます。'; const f = fitRich(m, [15, 14, 13], 176, 120); richDraw(f.lines, px + 12, py + 176, f.sz, [230, 240, 225], 0); }
+    else { gfx.image('img/sil/' + pad(c.id) + '.webp', px + 44, py + 14, 112, 112, 255); frame(px + 43, py + 13, 114, 114, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', px + 77, py + 45, 46, 64, 255); text('？？？？', px + pw / 2, py + 134, 22, YEL, 1); const ud = MJ.unlockDan(c.id), m = st === 0 ? MJ.DAN_NAME(ud) + 'になると、\n' + townName(ud) + 'の街に 登場します。' : 'まだ 出会っていません。\n' + townName(ud) + '(' + MJ.DAN_NAME(ud) + ')の街で、\n4局以上 対局すると 出会えます。'; const f = fitRich(m, [15, 14, 13], 176, 120); richDraw(f.lines, px + 12, py + 176, f.sz, [230, 240, 225], 0); }
     for (let k = 0; k < pages; k++) { const cx = 190 + k * 26; rrect(cx - 7, 424, 14, 14, 7, k === pg ? YEL : [80, 100, 90]); }
     text('出会った ' + met.filter((id) => L.some((x) => x.id === id)).length + ' / ' + n + '人', 24, 423, 16, YEL); text((pg + 1) + ' / ' + pages, 280, 423, 16, [200, 220, 205]);
     if (!full) text(R.mode ? '決定: この人を えらぶ・はずす    戻る: やめる' : '◀ ▶ ▲ ▼ で えらぶ    戻る: もどる', SW / 2 + 80, SH - 28, 15, [210, 225, 205], 1);
@@ -1067,6 +1067,7 @@
   const MAP_SETS = [ // 道すじは 2通り(ふだんは 1=おすすめ)(隠しコマンドの演出テストで 切りかえて 見られる)。 0=赤い線どおり 1=おすすめ(伊勢あり)
     { say: MAP_SAY_BASE, place: MAP_PLACE_BASE },
     { say: MAP_SAY_BASE.map((x, i) => (i === 6 ? '六段! 伊勢神宮に お参りなのだ。力が わいてくるのだ' : i === 7 ? '七段! 信濃国、長野の 山あいなのだ。空気が おいしいのだ' : x)), place: MAP_PLACE_BASE.map((x, i) => (i === 6 ? '伊勢国(三重)' : i === 7 ? '信濃国(長野)' : x)) }];
+  const townName = (d) => { const raw = MAP_SETS[mapSetNo()].place[Math.min(Math.max(d, 0), 11)] || '', m = raw.match(/\((.*)\)/); return d >= 10 ? '江戸' : m ? m[1] : raw.replace(/国$/, ''); }; // 段位 d の街の名前(例: 四段 → 京都)
   const mapSetNo = () => (S.mapSet == null ? 1 : S.mapSet) % MAP2.sets.length;
   // 地図(巻物)の置きかた: 元の絵(1375x768)から 巻物の部分を切り出し、画面の 780x392 に 収まる大きさで出す
   const MAP_V = (() => { const k = Math.min(780 / MAP2.bw, 392 / MAP2.bh), w = MAP2.bw * k, h = MAP2.bh * k; return { k, w, h, x0: Math.round((SW - w) / 2), y0: 8 }; })();
