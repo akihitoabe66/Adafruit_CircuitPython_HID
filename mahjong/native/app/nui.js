@@ -197,6 +197,7 @@
       pos += 6;
     }
   }
+  const sideY0 = (p) => { const m = p.melds.length ? meldWH(p, 16, 22) : 0; return m ? Math.min(66, 312 - m - 19 - (13 - 3 * p.melds.length) * 17) : 66; }; // 上家・下家の手牌(伏せ牌)の いちばん上。 副露(下から上へ のびる)と ツモ牌が かさならないように
   function drawRiver(g, p) {
     const fr = []; // 枠は、牌を全部描いたあとに、上から描く(次の牌が重なって、枠の片側が消えないように)
     p.discards.forEach((d, i) => {
@@ -492,13 +493,13 @@
     if (DS.wall) cached(3, 'w' + g.dealer + ':' + DS.sr + ':' + DS.half, () => drawWall(DS.sr, DS.half, g.dealer)); // 配牌の山
     { // 伏せた手牌(小さな牌): 配牌のあいだは1人ずつ増えるので、層の外で毎回描く
       const nHand = (p) => Math.min(p.hand.length, DS.ns[p.seat]);
-      const pos = { 2: (i) => [265 + i * 17, 32], 3: (i) => [3, 66 + i * 17], 1: (i) => [692, 66 + i * 17] }, bk = { 2: [16, 24, undefined], 3: [24, 16, 'l'], 1: [24, 16, 'r'] };
+      const pos = { 2: (i) => [265 + i * 17, 32], 3: (i) => [3, sideY0(P[3]) + i * 17], 1: (i) => [692, sideY0(P[1]) + i * 17] }, bk = { 2: [16, 24, undefined], 3: [24, 16, 'l'], 1: [24, 16, 'r'] };
       const drawBacks = (sd) => { const b = bk[sd]; for (let i = 0; i < nHand(P[sd]); i++) { const q = pos[sd](i); back(q[0], q[1], b[0], b[1], b[2]); } };
       const flying = [2, 3, 1].some((sd) => (DS.fly[sd] || []).length);
       if (g.openHands && !flying && typeof gfx.layerBegin === 'function') { // 全員の手牌を ひらく(練習・観戦): 小さな牌を、1枚の層にして貼る
         const key = 'o' + [2, 3, 1].map((sd) => P[sd].hand.map((h) => h.id).join('.')).join('|');
         cached(5, key, () => [2, 3, 1].forEach((sd) => { const tl = P[sd].hand.filter((h) => h !== P[sd].drawn).sort((a, b) => a.t - b.t); if (P[sd].drawn && P[sd].hand.includes(P[sd].drawn)) tl.push(P[sd].drawn); tl.forEach((h, i) => { const q = pos[sd](i); if (sd === 2) tileR(h.t, q[0], q[1], 16, 24, h.red, false, 180); else tileR(h.t, q[0], q[1], 16, 24, h.red, false, sd === 3 ? 90 : 270); }); }));
-      } else if (!flying && typeof gfx.layerBegin === 'function') cached(4, 'bk' + nHand(P[2]) + ',' + nHand(P[3]) + ',' + nHand(P[1]), () => [2, 3, 1].forEach(drawBacks)); // 配り終わったあとは、他の3人の伏せ牌を1枚の絵にして貼る(毎回 100回以上 描かない)
+      } else if (!flying && typeof gfx.layerBegin === 'function') cached(4, 'bk' + nHand(P[2]) + ',' + nHand(P[3]) + ',' + nHand(P[1]) + ':' + P[3].melds.length + P[1].melds.length, () => [2, 3, 1].forEach(drawBacks)); // 配り終わったあとは、他の3人の伏せ牌を1枚の絵にして貼る(毎回 100回以上 描かない)
       [2, 3, 1].forEach((sd) => {
         const b = bk[sd]; if (flying || typeof gfx.layerBegin !== 'function') drawBacks(sd);
         (DS.fly[sd] || []).forEach((f) => { const q0 = pos[sd](f.from), q1 = pos[sd](f.from + f.cnt - 1); drawBlock(f, (q0[0] + q1[0] + b[0]) / 2, (q0[1] + q1[1] + b[1]) / 2); }); // 山から、となりあわせのまま手元へ
@@ -510,7 +511,7 @@
     if (S.result || S.deal || S.end) S.winRvHold = null; // 結果の画面・つぎの配牌・対局の終わりでは、開いた手牌を もう出さない
     const rvS = S.winRv || S.winRvHold;
     if (rvS) { // CPUが上がった: 手牌を、伏せ牌の位置に、表にして 倒す(上がり牌は すこし はなして、黄色い枠)
-      const POS = { 2: (i) => [265 + i * 17, 32], 3: (i) => [3, 66 + i * 17], 1: (i) => [692, 66 + i * 17] }, ROT = { 2: 180, 3: 90, 1: 270 };
+      const POS = { 2: (i) => [265 + i * 17, 32], 3: (i) => [3, sideY0(P[3]) + i * 17], 1: (i) => [692, sideY0(P[1]) + i * 17] }, ROT = { 2: 180, 3: 90, 1: 270 };
       rvS.ws.forEach((w) => { const sd = w.winner.seat; if (!POS[sd]) return; const tl = w.view.concealed.slice(); tl.forEach((h, i) => { const q = POS[sd](i); tileR(h.t, q[0], q[1], 16, 24, h.red, false, ROT[sd]); });
         if (w.winTile) { const n = tl.length, q = POS[sd](n), dx = sd === 2 ? 8 : 0, dy = sd === 2 ? 0 : 8, x = q[0] + dx, y = q[1] + dy; tileR(w.winTile.t, x, y, 16, 24, w.winTile.red, false, ROT[sd]); if (sd === 2) frame(x - 1, y - 1, 18, 26, YEL, 2); else frame(x - 1, y - 1, 26, 18, YEL, 2); } });
     }
@@ -1251,7 +1252,7 @@
     const at = (x, y, fs, s, c) => { const sz = Math.round(fs * K); text(s, Math.round(x * K), Math.round(y * K) + 6 - Math.round(sz / 2), sz, c, 1); };
     const GOLD = [246, 220, 148], DK = [58, 34, 10], CR = [255, 243, 196];
     at(355, 445, f.name.length > 2 ? 52 : 70, f.name, GOLD); at(705, 349, 40, f.name, DK);
-    if (f.next) { at(1068, 358, 28, f.next, GOLD); at(1093, 446, f.left >= 1000 ? 40 : 48, String(f.left), CR); } else at(1090, 446, 34, 'いちばん上', GOLD);
+    if (f.next) { at(1068, 358, 28, f.next, GOLD); at(1093, 446, f.left >= 1000 ? 40 : 48, String(f.left), CR); } else if (f.tenka) { fill(562, 206, 144, 26, [66, 43, 32]); text('次は 永世名人', 634, 208, 21, GOLD, 1); fill(560, 252, 152, 36, [46, 31, 23]); text('天下分け目で 1位', 636, 259, 18, CR, 1); } // 点では なれない: 「あと ◯ 点」の行を、ことばに かえる else at(1090, 446, 34, 'いちばん上', GOLD);
     const bx = Math.round(531 * K), by = Math.round(506 * K) + 6, bw = Math.round(350 * K), bh = Math.round(46 * K);
     fill(bx, by, bw, bh, [26, 18, 10]); fill(bx, by, Math.round(bw * Math.max(f.prog > 0 ? 0.04 : 0, f.prog)), bh, [235, 200, 110]);
     if (f.next) at(706, 529, 26, (f.s.pt - f.base) + ' / ' + (f.next_pt - f.base), DK);
@@ -1386,7 +1387,7 @@
       rrect(60, yb, 600, rk.capped ? 92 : 64, 8, [10, 58, 38]);
       const d = rk.delta, col = d > 0 ? [140, 240, 150] : d < 0 ? [255, 130, 120] : WHITE;
       text('段位ポイント', 80, yb + 8, 24, WHITE); text((d > 0 ? '+' : '') + d + ' 点', 290, yb + 5, 32, col);
-      text(rk.msg ? rk.msg.replace('🎉 ', '') : (rk.name + (rk.next ? '   あと ' + rk.left + ' 点で ' + rk.next : '')), 640, yb + 10, fitSz(rk.msg || rk.name, 22, 262, 12), YEL, 2);
+      { const rt = rk.msg ? rk.msg.replace('🎉 ', '') : (rk.name + (rk.next ? '   あと ' + rk.left + ' 点で ' + rk.next : rk.tenka ? '   天下分け目で 永世名人' : '')); text(rt, 640, yb + 10, fitSz(rt, 22, 330, 12), YEL, 2); }
       if (rk.capped) { text('修行でこれ以上は成長しないのだ。', 80, yb + 38, 19, YEL); text('段位を上げたいなら上位と対戦するのだ。', 80, yb + 64, 19, YEL); } else // 修行の上限(次の段位の1点手前)
       if (rk.avg != null) text('相手の強さ ★' + rk.avg.toFixed(1) + (Math.abs(rk.mult - 1) >= 0.05 ? '  →  ポイント ×' + rk.mult.toFixed(2) + (rk.mult > 1 ? '(強い相手ボーナス)' : '(弱い相手)') : '(ふつう)'), 80, yb + 41, 16, [200, 225, 205]);
     }
@@ -2160,7 +2161,7 @@
       text('ポイントのうつりかわり', 62, 58, 19, WHITE); text(n ? '(さいきん ' + n + '回)' : '', 270, 62, 14, [200, 220, 205]);
       if (info) { // 段位
         panel(612, 56, 206, 122, 12, CREAM, [160, 110, 0], 3, 255); text('いまの 段位', 626, 64, 15, [90, 90, 80]); text(info.name, 626, 82, 30, INK);
-        fill(626, 122, 178, 12, [210, 210, 200]); fill(626, 122, Math.round(178 * Math.max(0.03, Math.min(1, info.prog))), 12, [214, 150, 0]); text(info.next ? info.next + 'まで あと ' + info.left + ' pt' : 'いちばん上です', 626, 142, 15, [90, 90, 80]);
+        fill(626, 122, 178, 12, [210, 210, 200]); fill(626, 122, Math.round(178 * Math.max(0.03, Math.min(1, info.prog))), 12, [214, 150, 0]); text(info.next ? info.next + 'まで あと ' + info.left + ' pt' : info.tenka ? '天下分け目で 永世名人' : 'いちばん上です', 626, 142, 15, [90, 90, 80]);
       }
       if (!n) { text('まだ 記録が ありません。', 300, 190, 24, WHITE, 1); text('東風戦・東南戦を 最後まで 遊ぶと、ここに 出ます。', 300, 228, 18, [200, 220, 205], 1); diagTabs(1, '◀ ▶ ページ   戻る: ホームへ'); return; }
       const cum = []; let acc = 0; hist.forEach((h) => { acc += h.p; cum.push(acc); });
