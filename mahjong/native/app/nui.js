@@ -1079,6 +1079,8 @@
   const ZP = {stand: [46, 80, 24, 75], arms: [49, 81, 23, 73], jump: [53, 73, 25, 73], fists: [51, 80, 25, 75], hip: [47, 80, 25, 75], shout: [53, 81, 25, 76], fist1: [48, 80, 28, 75]};
   const zpDraw = (nm, sx, sy, dy) => { const z = ZP[nm]; gfx.image('img/map/zp_' + nm + '.webp', sx - z[2], sy + 4 - z[3] + (dy || 0), z[0], z[1], 255); }; // 足もとの線を、地図の上のずんだもんの足もとに合わせる
   const INTRO_POSES = [[0, 'stand'], [350, 'hip'], [900, 'shout'], [1500, 'fists'], [1950, 'arms'], [2400, 'jump'], [3000, 'fists'], [3350, 'fist1']]; // [はじまり(ミリ秒), ポーズ]
+  const ARRIVE_POSES = [[0, 'fists'], [260, 'fist1'], [520, 'fists'], [780, 'fist1'], [1040, 'fists']]; // 昇段で 街に着いたとき: 「がんばるぞ!」のガッツポーズ(ミリ秒, ポーズ)
+  const ARRIVE_T = 1300; // ポーズを とる 長さ(ミリ秒)
   const introSeen = () => { try { return localStorage.getItem('mj_mapintro') === '1'; } catch (e) { return true; } };
   const introMark = () => { try { localStorage.setItem('mj_mapintro', '1'); } catch (e) { /* ignore */ } };
   function startMap(rk, then) { // 昇段のあと、認定証のあとに 出す。 rk.from → rk.to を、1段ずつ 歩く(行き止まりの枝は、分かれ道まで 戻って 次へ)
@@ -1130,10 +1132,14 @@
       rrect(Math.round(ep[0]) - 44, Math.round(ep[1]) - 56, 88, 64, 30, [255, 200, 40], Math.round(30 + 40 * pu)); rrect(Math.round(ep[0]) - 36, Math.round(ep[1]) - 49, 72, 50, 24, [255, 214, 70], Math.round(40 + 60 * pu));
       const ty0 = Math.round(ep[1]) - 100 + Math.round((1 - Math.min(1, u / 350)) * -10); if (u > 0) { rrect(Math.round(ep[0]) - 88, ty0 + 2, 84, 30, 6, [90, 12, 8], 120); rrect(Math.round(ep[0]) - 90, ty0, 84, 30, 6, [200, 40, 30]); text('ゴール', Math.round(ep[0]) - 48, ty0 + 4, 22, WHITE, 1); } }
     const p2 = shift(pos), sx = Math.round(p2[0]), sy = Math.round(p2[1]), fr = walking ? [1, 2, 3, 2][Math.floor(t / 130) % 4] : 0, bob = walking ? Math.round(Math.sin(t / 65) * 1.5) : 0;
+    // 昇段のあと、次の街に 着いたとき(1段ずつの 到着ごと): ガッツポーズ。 (地図を見る画面・旅のはじまりは なし)
+    let arrPose = null;
+    if (!M.view && !M.intro && M.to > M.from && !walking) { let at = -1; M.steps.forEach((st, i) => { if (st.len > 3 && t >= M.tl[i].b) at = i; }); if (at >= 0) { const u = t - M.tl[at].b; if (u < ARRIVE_T) { let n = 'fists'; ARRIVE_POSES.forEach((q) => { if (u >= q[0]) n = q[1]; }); arrPose = { n, hop: -Math.round(Math.abs(Math.sin(u / 130)) * 9 * (1 - u / ARRIVE_T)) }; } } }
     if (walking && __now() - M.tapT > 260) { M.tapT = __now(); NSND.sfx('select', 0.16); }
     fill(sx - 17, sy - 3, 34, 8, [0, 0, 0], 70); fill(sx - 13, sy - 2, 26, 6, [0, 0, 0], 120); fill(sx - 8, sy - 1, 16, 4, [0, 0, 0], 170); // 足もとの 丸い影
     if (M.intro) { const I = M.intro, u = t - I.G; let pn = 'stand', hop = 0; if (u >= 0) { INTRO_POSES.forEach((q) => { if (u >= q[0]) pn = q[1]; }); if (pn === 'jump') hop = -Math.round(Math.abs(Math.sin((u - 2400) / 140)) * 10); }
       zpDraw(pn, sx, sy, hop); }
+    else if (arrPose) zpDraw(arrPose.n, sx, sy, arrPose.hop);
     else gfx.image('img/map/w' + fr + (face < 0 ? 'f' : '') + 'g.webp', sx - 23, sy - 70 + bob, 46, 78, 255); /* 画面と同じ大きさで作った絵(拡大しない = ぼやけない)。 白+こげ茶のふち */ // 左へ歩くときは、左右反転
     { const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); let mx = sx, my = sy;
       if (M.view && !walking && M.go == null) { const q = shift(mapStop(M.sel, M.L)), nw = __now(), k = M.ml ? Math.min(1, (nw - M.ml) / 90) : 1; M.ml = nw; if (M.mx == null) { M.mx = sx; M.my = sy; } M.mx += (q[0] - M.mx) * k; M.my += (q[1] - M.my) * k; mx = Math.round(M.mx); my = Math.round(M.my); } else { M.mx = sx; M.my = sy; M.ml = 0; } // 見る画面: ▼を 左右で動かして、行き先を えらぶ。 歩いている間は ずんだもんの頭の上
