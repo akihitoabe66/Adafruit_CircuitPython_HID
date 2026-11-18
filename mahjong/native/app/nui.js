@@ -23,7 +23,7 @@
   const postQ = []; const afterPresent = (fn) => { postQ.push(fn); }; // 今の絵が画面に出てから(次のコマの はじめに)実行する
   /* 「もどる」ボタン(画面の左上): 戻る(B)だけで出入りしていた画面に、見える「もどる」を足す。 ▲ で、このボタンへ / 決定で戻る / ▼ で元の場所へ */
   const BACKM = new Set(['diag', 'study', 'learn', 'dict', 'video', 'howto', 'stats', 'slots']);
-  function drawBack(x) { x = x === undefined ? 12 : x; const on = !!S.bbf, bw = 3, R = globalThis.__bkR || 9; rrect(x, 11, 124, 36, R, on ? [160, 110, 0] : GREEN, 255); rrect(x + bw, 11 + bw, 124 - 2 * bw, 36 - 2 * bw, R - bw, on ? YEL : CREAM, 255); text('◀ もどる', x + 62, 19, 19, INK, 1); }
+  function drawBack(x, label) { x = x === undefined ? 12 : x; const on = !!S.bbf, bw = 3, R = globalThis.__bkR || 9; rrect(x, 11, 124, 36, R, on ? [160, 110, 0] : GREEN, 255); rrect(x + bw, 11 + bw, 124 - 2 * bw, 36 - 2 * bw, R - bw, on ? YEL : CREAM, 255); text(label || '◀ もどる', x + 62, 19, 19, INK, 1); }
   const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 100; S.locked = true; dirty(); setTimeout(() => { S.pressT = -9999; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 20); }, S.pressMs); }; // 押している間のあと、いちど「もとの形にもどった絵」を描いてから、次の画面へ(描くのがおそい機械でも、へこんだ絵のまま、つぎの画面にならないように) // 押したボタンが光ってから、次へ
   const NSLOT = 5;
   function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
@@ -947,55 +947,67 @@
   }
   /* ---------- 練習対局(記録なし): 雀士列伝で えらんだ人と対戦 / CPU同士を観戦 ---------- */
   const rosState = (c) => (metLoad().includes(c.id) ? 2 : MJ.unlockDan(c.id) > (MJ.Rank.get().maxdan || 0) ? 0 : 1);
-  function rosMenuItems(R) {
-    const L = rosList(), c = L[R.sel], picked = R.pick.includes(c.id), n = R.pick.length, it = [];
-    it.push(picked ? { t: 'えらぶのを やめる', a: 'unpick' } : n === 3 ? { t: '4人めに えらぶ (CPU同士を 観戦)', a: 'pick' } : n < 4 ? { t: '対戦相手に えらぶ', a: 'pick' } : { t: 'もう 4人 えらんでいます', a: 'none' });
-    if (n === 3) it.push({ t: 'あなたが 打つ (この3人)', a: 'play' });
-    if (n === 3 && picked) it.push({ t: 'もう1人 えらんで 観戦する', a: 'more' }); // 4人めを えらぶために、メニューを閉じる
-    if (n === 4) it.push({ t: 'CPU同士を 観戦 (この4人)', a: 'watch' });
-    if (n > 0) it.push({ t: 'えらびなおし', a: 'clear' });
-    it.push({ t: 'やめる', a: 'close' }); return it;
-  }
-  function rosMenuKey(k) {
-    const R = S.ros, m = R.menu, items = rosMenuItems(R), L = rosList(), c = L[R.sel];
-    if (k === 'back') { R.menu = null; dirty(); return; }
-    if (k === 'up') m.idx = wrap(m.idx - 1, items.length); else if (k === 'down') m.idx = wrap(m.idx + 1, items.length);
-    else if (k === 'ok') {
-      const a = items[m.idx].a; R.menu = null;
-      if (a === 'pick') { R.pick.push(c.id); if (R.pick.length >= 3) R.menu = { idx: 1 }; } // 3人めをえらぶと、すぐに 次の選択を出す
-      else if (a === 'unpick') R.pick = R.pick.filter((x) => x !== c.id);
-      else if (a === 'clear') R.pick = [];
-      else if (a === 'more') { /* メニューを閉じるだけ。 カーソルを動かして、4人めを えらぶ */ }
-      else if (a === 'play' || a === 'watch') { const ids = R.pick.slice(); S.ros = null; S.rosFrom = null; startFreeMatch(ids, a === 'watch'); return; }
-    }
-    dirty();
-  }
   function startFreeMatch(ids, watch) { // 記録に残らない対局(段位・成績・出会った雀士・つづきには ふれない)
     const chars = ids.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean);
     S.mode = 'menu'; S.rankScr = null; startGame(null, { practice: true, chars, watch });
   }
+  function rosNeed(R) { return R.mode === 'play' ? 3 : R.mode === 'watch' ? 4 : 0; } // えらぶ人数(フリー対局=3人 / CPUの観戦=4人)
+  function rosEnd(R) { R.mode = null; R.pick = []; R.go = false; R.tb = null; } // えらぶモードを やめる
   function rosKey(k) {
-    const R = S.ros, L = rosList(), n = L.length, pages = Math.ceil(n / ROS_PER), pg = Math.floor(R.sel / ROS_PER), i = R.sel % ROS_PER, c = i % 4, r = Math.floor(i / 4);
+    const R = S.ros, L = rosList(), n = L.length, pages = Math.ceil(n / ROS_PER), pg = Math.floor(R.sel / ROS_PER), i = R.sel % ROS_PER, c = i % 4, r = Math.floor(i / 4), need = rosNeed(R);
     if (!R.pick) R.pick = [];
-    if (R.menu) { rosMenuKey(k); return; }
-    if (S.bbf) { if (k === 'ok' || k === 'back') { S.bbf = false; rosLeave(); return; } if (k === 'down') S.bbf = false; dirty(); return; } // 左上の「もどる」に合わせているとき
-    if (k === 'back') { if (R.pick.length) { R.pick = []; dirty(); return; } rosLeave(); return; }
-    if (k === 'ok') { const ch = L[R.sel]; if (rosState(ch) === 0) { S.toast = { text: 'まだ 登場していません', until: __now() + 1800 }; dirty(); setTimeout(dirty, 1900); return; } R.menu = { idx: 0 }; dirty(); return; }
-    if (k === 'left') { if (c > 0) R.sel--; else if (pg > 0) R.sel = Math.min(n - 1, (pg - 1) * ROS_PER + r * 4 + 3); else { rosLeave(); return; } }
+    if (S.bbf) { // 左上の「もどる」(えらぶモードでは「やめる」)に合わせているとき
+      if (k === 'ok' || k === 'back') { S.bbf = false; if (R.mode) { rosEnd(R); dirty(); return; } rosLeave(); return; }
+      if (k === 'down') { S.bbf = false; R.tb = null; } else if (k === 'right' && !R.mode) { S.bbf = false; R.tb = 1; }
+      dirty(); return;
+    }
+    if (k === 'back') { if (R.mode) { rosEnd(R); dirty(); return; } rosLeave(); return; }
+    if (R.tb) { // 上のバーの、丸い2つのボタン(1=フリー対局 / 2=CPUの観戦)
+      if (k === 'ok') { R.mode = R.tb === 1 ? 'play' : 'watch'; R.pick = []; R.go = false; R.tb = null; NSND.sfx('select', 0.5); }
+      else if (k === 'left') { if (R.tb === 1) { R.tb = null; S.bbf = true; } else R.tb = 1; }
+      else if (k === 'right') { if (R.tb === 1) R.tb = 2; }
+      else if (k === 'down') R.tb = null;
+      dirty(); return;
+    }
+    if (R.go) { // 人数がそろったあとの「この3人で はじめる」
+      if (k === 'ok') { const ids = R.pick.slice(), watch = R.mode === 'watch'; S.ros = null; S.rosFrom = null; startFreeMatch(ids, watch); return; }
+      if (k === 'up' || k === 'left' || k === 'down') R.go = false;
+      dirty(); return;
+    }
+    if (k === 'ok') {
+      const ch = L[R.sel], say = (t) => { S.toast = { text: t, until: __now() + 2200 }; dirty(); setTimeout(dirty, 2300); };
+      if (rosState(ch) === 0) { say('まだ 登場していません'); return; }
+      if (!R.mode) { say('上の「フリー対局」か「CPUの観戦」で えらべます'); return; }
+      const at = R.pick.indexOf(ch.id);
+      if (at >= 0) { R.pick.splice(at, 1); R.go = false; NSND.sfx('select', 0.4); } // もう一度 決定: はずす
+      else if (R.pick.length >= need) { say('もう ' + need + '人 えらんでいます(はずすときは その人で 決定)'); return; }
+      else { R.pick.push(ch.id); NSND.sfx('select', 0.6); if (R.pick.length === need) R.go = true; }
+      dirty(); return;
+    }
+    if (k === 'left') { if (c > 0) R.sel--; else if (pg > 0) R.sel = Math.min(n - 1, (pg - 1) * ROS_PER + r * 4 + 3); else if (!R.mode) { rosLeave(); return; } }
     else if (k === 'right') { if (c < 3 && R.sel + 1 < n) R.sel++; else if (pg < pages - 1) R.sel = Math.min(n - 1, (pg + 1) * ROS_PER + r * 4); }
-    else if (k === 'up') { if (r > 0) R.sel -= 4; else S.bbf = true; }
-    else if (k === 'down') { if (r < 2 && R.sel + 4 < n) R.sel += 4; }
+    else if (k === 'up') { if (r > 0) R.sel -= 4; else if (R.mode) S.bbf = true; else R.tb = 1; }
+    else if (k === 'down') { if (r < 2 && R.sel + 4 < n) R.sel += 4; else if (need && R.pick.length === need) R.go = true; }
     dirty();
   }
   function drawRoster() {
     const R = S.ros, L = rosList(), n = L.length, pages = Math.ceil(n / ROS_PER), pg = Math.floor(R.sel / ROS_PER), met = metLoad(), mx = MJ.Rank.get().maxdan || 0, dan = MJ.Rank.get().dan || 0;
     gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 165); fill(0, 50, SW, 2, [150, 190, 140], 160);
-    text('対戦相手を 見る', SW / 2 - 60, 10, 28, YEL, 1);
-    text('いまの段位', 640, 18, 17, [216, 230, 218], 1); text(MJ.DAN_NAME(dan), 752, 9, 30, YEL, 1); // ただの表示(ボタンではない)
+    const need = rosNeed(R), full = need > 0 && R.pick.length === need;
+    if (!R.mode) {
+      const pill = (x, w, lab, on) => { if (on) { rrect(x - 3, 14, w + 6, 36, 18, [255, 255, 255]); rrect(x, 17, w, 30, 15, [160, 110, 0]); rrect(x + 3, 20, w - 6, 24, 12, YEL); } else { rrect(x, 17, w, 30, 15, GREEN); rrect(x + 3, 20, w - 6, 24, 12, CREAM); } text(lab, x + w / 2, 23, -16, INK, 1); }; // 丸い小さなボタン。 下の線は「もどる」にそろえる
+      pill(140, 118, 'フリー対局', R.tb === 1); pill(268, 128, 'CPUの観戦', R.tb === 2);
+      text('対戦相手を 見る', 498, 11, 24, YEL, 1);
+      text('いまの段位', 664, 18, 16, [216, 230, 218], 1); text(MJ.DAN_NAME(dan), 770, 10, 28, YEL, 1); // ただの表示(ボタンではない)
+    } else { // えらぶモード: 上のバーに、何人えらぶか・いくつ えらんだか
+      fill(130, 3, 692, 46, [10, 40, 28]);
+      const lab = (R.mode === 'play' ? 'フリー対局' : 'CPUの観戦') + ':', msg = full ? need + '人 そろいました' : need + '人 おえらびください';
+      let tx = 150; text(lab, tx, 11, 26, YEL); tx += gfx.measure(lab, 26) + 14; text(msg, tx, 11, 26, full ? [159, 227, 168] : WHITE); tx += gfx.measure(msg, 26) + 22; text(R.pick.length + ' / ' + need, tx, 7, -34, WHITE);
+    }
     const state = (c) => (met.includes(c.id) ? 2 : MJ.unlockDan(c.id) > mx ? 0 : 1); // 2=出会った / 1=まだ(登場はしている) / 0=まだ登場しない(鍵)
     const X0 = 24, DX = 112, Z = 84, pad = (k) => ('0' + k).slice(-2);
     for (let k = 0; k < ROS_PER; k++) {
-      const idx = pg * ROS_PER + k; if (idx >= n) break; const c = L[idx], st = state(c), sel = idx === R.sel && !S.bbf, x = X0 + (k % 4) * DX, y = 64 + Math.floor(k / 4) * 116;
+      const idx = pg * ROS_PER + k; if (idx >= n) break; const c = L[idx], st = state(c), sel = idx === R.sel && !S.bbf && !R.tb && !R.go, x = X0 + (k % 4) * DX, y = 64 + Math.floor(k / 4) * 116;
       if (sel) { rrect(x - 8, y - 8, Z + 16, Z + 40, 10, [160, 110, 0]); rrect(x - 5, y - 5, Z + 10, Z + 34, 8, YEL); }
       if (st === 2) { rrect(x - 3, y - 3, Z + 6, Z + 6, 8, [255, 255, 255]); frame(x - 5, y - 5, Z + 10, Z + 10, [30, 30, 30], 1); gfx.image(skin(c.face), x, y, Z, Z, 255); text((c.short || c.name).slice(0, 7), x + Z / 2, y + Z + 6, 15, sel ? INK : WHITE, 1); }
       else {
@@ -1015,16 +1027,15 @@
     else { gfx.image('img/sil/' + pad(c.id) + '.webp', px + 44, py + 14, 112, 112, 255); frame(px + 43, py + 13, 114, 114, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', px + 77, py + 45, 46, 64, 255); text('？？？？', px + pw / 2, py + 134, 22, YEL, 1); const m = st === 0 ? MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'になると、\n登場します。' : 'まだ 出会っていません。\n4局以上 最後まで 対局すると、\n出会えます。'; const f = fitRich(m, [15, 14, 13], 176, 120); richDraw(f.lines, px + 12, py + 176, f.sz, [230, 240, 225], 0); }
     for (let k = 0; k < pages; k++) { const cx = 190 + k * 26; rrect(cx - 7, 424, 14, 14, 7, k === pg ? YEL : [80, 100, 90]); }
     text('出会った ' + met.filter((id) => L.some((x) => x.id === id)).length + ' / ' + n + '人', 24, 423, 16, YEL); text((pg + 1) + ' / ' + pages, 280, 423, 16, [200, 220, 205]);
-    text(R.pick && R.pick.length === 3 ? '3人 えらびました: もう1人 えらぶと CPU同士の観戦   このままなら 決定 →「あなたが打つ」' : '◀ ▶ ▲ ▼ で えらぶ    決定: 対戦・観戦    戻る: もどる', SW / 2 + 80, SH - 28, R.pick && R.pick.length === 3 ? 13 : 15, R.pick && R.pick.length === 3 ? [255, 224, 120] : [210, 225, 205], 1);
-    if (R.pick && R.pick.length) { // 練習対局に えらんだ人: 金色の枠と番号。上の題も変える
-      fill(0, 0, 540, 50, [10, 40, 28]); text('対戦相手を えらんでいます  ' + R.pick.length + ' / 3〜4人', 354, 14, 24, YEL, 1);
-      R.pick.forEach((id, n2) => { const idx = L.findIndex((q) => q.id === id); if (idx < 0 || Math.floor(idx / ROS_PER) !== pg) return; const kk = idx % ROS_PER, x = X0 + (kk % 4) * DX, y = 64 + Math.floor(kk / 4) * 116; frame(x - 4, y - 4, Z + 8, Z + 8, [255, 214, 0], 4); rrect(x + Z - 22, y - 8, 30, 30, 15, [200, 50, 40]); text(String(n2 + 1), x + Z - 7, y - 6, 22, WHITE, 1); });
+    if (!full) text(R.mode ? '決定: この人を えらぶ・はずす    戻る: やめる' : '◀ ▶ ▲ ▼ で えらぶ    戻る: もどる', SW / 2 + 80, SH - 28, 15, [210, 225, 205], 1);
+    if (R.pick.length) { // えらんだ人: 黄色い枠と、赤い番号の丸。 枠を ぜんぶ描いてから、番号の丸を いちばん上に
+      const pos = (id) => { const idx = L.findIndex((q) => q.id === id); if (idx < 0 || Math.floor(idx / ROS_PER) !== pg) return null; const kk = idx % ROS_PER; return [X0 + (kk % 4) * DX, 64 + Math.floor(kk / 4) * 116]; };
+      R.pick.forEach((id) => { const q = pos(id); if (q) frame(q[0] - 4, q[1] - 4, Z + 8, Z + 8, [255, 214, 0], 4); });
+      R.pick.forEach((id, n2) => { const q = pos(id); if (q) { rrect(q[0] + Z - 22, q[1] - 8, 32, 32, 16, [255, 255, 255]); rrect(q[0] + Z - 20, q[1] - 6, 28, 28, 14, [200, 50, 40]); text(String(n2 + 1), q[0] + Z - 6, q[1] - 4, 21, WHITE, 1); } });
     }
-    if (R.menu) { // 決定を押したメニュー
-      const items = rosMenuItems(R), ch = L[R.sel], w = 460, h = 110 + items.length * 56, x0 = Math.round((SW - w) / 2), y0 = Math.round((SH - h) / 2);
-      fill(0, 0, SW, SH, [0, 0, 0], 150); panel(x0, y0, w, h, 18, [10, 40, 28], [140, 190, 130], 4, 250);
-      text(rosState(ch) === 2 ? ch.short || ch.name : '？？？？', SW / 2, y0 + 14, 32, YEL, 1); text('えらんだ人: ' + R.pick.length + '人', SW / 2, y0 + 56, 18, [200, 220, 205], 1);
-      items.forEach((q, j) => { const on = R.menu.idx === j, yy = y0 + 92 + j * 56; rrect(x0 + 30, yy, w - 60, 48, 12, on ? [160, 110, 0] : GREEN); rrect(x0 + 33, yy + 3, w - 66, 42, 10, on ? YEL : CREAM); text(q.t, SW / 2, yy + 8, 24, q.a === 'none' ? GREY : INK, 1); });
+    if (full) { // 人数がそろったら、右下に「はじめる」
+      const lab = R.mode === 'watch' ? 'この' + need + '人で 観戦する' : 'この' + need + '人で はじめる';
+      if (R.go) rrect(477, 407, 336, 54, 14, [255, 255, 255]); rrect(480, 410, 330, 48, 12, R.go ? [160, 110, 0] : [120, 130, 120]); rrect(483, 413, 324, 42, 10, R.go ? YEL : CREAM); text(lab, 645, 420, -25, INK, 1);
     }
   }
   function drawStats() {
@@ -2761,7 +2772,7 @@
       S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [32, 74, 60]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;
-    if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); drawBack(S.ros ? 12 : 38); return true; }
+    if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); drawBack(S.ros ? 12 : 38, S.ros && S.ros.mode ? 'やめる' : undefined); return true; }
     if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); if (S.quiz && S.quiz.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog(S.quiz.learn ? 'クイズを やめますか?' : 'ホームに もどりますか?', ['つづける', S.quiz.learn ? 'やめる' : 'ホームにもどる'], S.quiz.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
     if (S.mode === 'dict') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDict(); if (S.dict && S.dict.view === 'main') drawBack(14); return true; }
     if (S.mode === 'study') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawStudy(); drawBack(9); return true; }
