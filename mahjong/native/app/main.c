@@ -198,8 +198,30 @@ static JSValue j_play(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   int chn = Mix_PlayChannel(-1, e->ch, 0); if (chn >= 0) Mix_Volume(chn, (int)(v * 128)); return JS_NewFloat64(c, e->len); }
 static JSValue j_len(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (!audio_ok) return JS_NewFloat64(c, 0); const char *p = JS_ToCString(c, a[0]); Snd *e = getsnd(p); JS_FreeCString(c, p); return JS_NewFloat64(c, e ? e->len : 0); }
 static JSValue j_stopall(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (audio_ok) Mix_HaltChannel(-1); return JS_UNDEFINED; }
-static JSValue j_pause(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (audio_ok) Mix_Pause(-1); return JS_UNDEFINED; } /* いま鳴っている声・効果音を一時停止(メニューを開いたとき) */
-static JSValue j_resume(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (audio_ok) Mix_Resume(-1); return JS_UNDEFINED; }
+/* ---- 声の「時刻つき予約」: 声の並び(名前・ロン・役・点数…)を、JSのタイマーでなく、別スレッドの時計で、きっちり鳴らす。
+   画面を描くのに 0.3秒かかっても(JSのタイマーは 描き終わってからしか動かない)、声と声の間が あかない。 メニューを開いている間は 時計も止まる ---- */
+#define NAT 64
+typedef struct { Mix_Chunk *ch; int vol; double due; unsigned gen; int used; } AtItem;
+static AtItem at_q[NAT]; static SDL_mutex *at_mu = NULL; static double at_clock = 0, at_last = 0; static volatile int at_paused = 0; static volatile unsigned at_gen = 0; static SDL_TimerID at_timer = 0; static int at_log = 0;
+static Uint32 at_tick(Uint32 iv, void *u){
+  SDL_LockMutex(at_mu); double now = nowms(), dt = now - at_last; at_last = now; if (!at_paused) at_clock += dt;
+  for (int i = 0; i < NAT; i++) if (at_q[i].used) {
+    if (at_q[i].gen != at_gen) { at_q[i].used = 0; continue; }
+    if (!at_paused && at_q[i].due <= at_clock) { int chn = Mix_PlayChannel(-1, at_q[i].ch, 0); if (chn >= 0) Mix_Volume(chn, at_q[i].vol); if (at_log) fprintf(stderr, "at-play late=%.0fms ch=%d\n", at_clock - at_q[i].due, chn); at_q[i].used = 0; }
+  }
+  SDL_UnlockMutex(at_mu); return 10; }
+static JSValue j_playat(JSContext *c, JSValueConst t, int n, JSValueConst *a){
+  if (!audio_ok || n < 3) return JS_NewFloat64(c, 0);
+  const char *p = JS_ToCString(c, a[0]); double v = 1.0, d = 0; JS_ToFloat64(c, &v, a[1]); JS_ToFloat64(c, &d, a[2]);
+  Snd *e = getsnd(p); JS_FreeCString(c, p); if (!e) return JS_NewFloat64(c, 0);
+  if (!at_mu) { at_mu = SDL_CreateMutex(); at_log = getenv("MJ_ATLOG") != NULL; at_last = nowms(); at_timer = SDL_AddTimer(10, at_tick, NULL); }
+  SDL_LockMutex(at_mu); double cur = at_clock + (at_paused ? 0 : nowms() - at_last); int k = -1;
+  for (int i = 0; i < NAT; i++) if (!at_q[i].used) { k = i; break; }
+  if (k >= 0) { at_q[k].ch = e->ch; at_q[k].vol = (int)(v * 128); at_q[k].due = cur + (d < 1 ? 1 : d); at_q[k].gen = at_gen; at_q[k].used = 1; }
+  SDL_UnlockMutex(at_mu); return JS_NewFloat64(c, e->len); }
+static JSValue j_cancelat(JSContext *c, JSValueConst t, int n, JSValueConst *a){ at_gen++; return JS_UNDEFINED; } /* 予約を ぜんぶ やめる */
+static JSValue j_pause(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (audio_ok) Mix_Pause(-1); at_paused = 1; return JS_UNDEFINED; } /* いま鳴っている声・効果音を一時停止(メニューを開いたとき) */
+static JSValue j_resume(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (audio_ok) Mix_Resume(-1); at_paused = 0; return JS_UNDEFINED; }
 static int bgms_open(const char *path, int loop); static void bgms_close(void); static int bgms_active(void); static int bgms_failed(void); static int bgms_underruns(void); static int bgms_ms(void); /* video.h にある、BGM先読み再生 */
 static int bgm_want = 0, bgm_loop = 1, bgm_restarts = 0; static double bgm_load_max = 0; static char bgm_path[1400];
 static void bgm_log(const char *what, double ms, const char *path); /* あとで定義 */
@@ -371,7 +393,7 @@ int main(int argc, char **argv){
   reg(gfx, "dry", j_dry, 1); reg(gfx, "rrect", j_rrect, 9); reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "fillTop", j_filltop, 8); reg(gfx, "imageRotTop", j_imagerottop, 7); reg(gfx, "textTop", j_texttop, 8); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
   reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
-  JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "pauseAll", j_pause, 0); reg(snd, "resumeAll", j_resume, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1); reg(snd, "musicInfo", j_musicinfo, 0);
+  JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "playAt", j_playat, 3); reg(snd, "cancelAt", j_cancelat, 0); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "pauseAll", j_pause, 0); reg(snd, "resumeAll", j_resume, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1); reg(snd, "musicInfo", j_musicinfo, 0);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1); reg(g, "__readdir", j_readdir, 1); reg(g, "__vopen", j_vopen, 2); reg(g, "__vstate", j_vstate, 0); reg(g, "__vseek", j_vseek, 1); reg(g, "__vpause", j_vpause, 1); reg(g, "__vclose", j_vclose, 0); JS_SetPropertyStr(ctx, g, "__dataDir", JS_NewString(ctx, datadir));
   { /* 動画の置き場所: ~/mjdata/video、SDカードのbootの mjdata(Windowsからも見えるところ)。それぞれ、直下も探す */
     static const char *bases[] = { "/boot/firmware/mjdata", "/boot/mjdata", NULL }; JSValue arr = JS_NewArray(ctx); int k = 0; char b[1400];

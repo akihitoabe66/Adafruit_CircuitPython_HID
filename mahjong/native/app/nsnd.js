@@ -54,7 +54,7 @@
     /* 「なのだ」は3種類: firm=少し暗い・言い切る(x:なのだ) / bright=明るい(x:なのだ2) / flat=フラット(x:なのだ3)。場面に合うものを選ぶ */
     nd(mood) { const M = { firm: 'x:なのだ', bright: 'x:なのだ2', flat: 'x:なのだ3' }; if (!yk) return null; if (M[mood] && yk[M[mood]]) return M[mood]; const ks = Object.keys(M).map((m) => M[m]).filter((k) => yk[k]); return ks.length ? ks[Math.floor(Math.random() * ks.length)] : null; },
     nanoda(keys, p, mood) { const k = Math.random() < (p == null ? 0.3 : p) ? A.nd(mood) : null; return k ? keys.concat('+', k) : keys; },
-    stopSpeak() { token++; },
+    stopSpeak() { token++; if (typeof snd.cancelAt === 'function') snd.cancelAt(); },
     klen(k) { return yk && yk[k] ? snd.len('audio/yk/' + yk[k]) || 0 : 0; }, // 録音(キー)の長さ(秒)
     /* 'y:ツモ' などの並び(null は短い間)を、録音をつなげて鳴らす。 BGMは読み上げの間だけ小さくする */
     speak(keys, cb, lead) {
@@ -75,7 +75,10 @@
         const go = () => { if (id !== token) return; if (globalThis.__menuHold) { setTimeout(go, 100); return; } /* メニューが開いている間は、次の声を鳴らさない */ snd.play(sg.p, V.read); if (i + 1 < segs.length) run(i + 1); else if (cb) setTimeout(cb, (sg.len + 0.07) * 1000); };
         setTimeout(go, sg.wait * 1000);
       };
-      if (segs.length) run(0); else if (cb) setTimeout(cb, lead0 * 1000);
+      if (typeof snd.playAt === 'function') { // 実機版: 声の時刻を、音の側(別スレッドの時計)に 予約する。 画面の描きが重くて JSのタイマーが おくれても、声の間が あかない
+        snd.cancelAt(); let tt = 0; segs.forEach((sg) => { tt += sg.wait; snd.playAt(sg.p, V.read, Math.round(tt * 1000)); });
+        if (segs.length) { if (cb) setTimeout(cb, (tt + segs[segs.length - 1].len + 0.07) * 1000); } else if (cb) setTimeout(cb, lead0 * 1000);
+      } else if (segs.length) run(0); else if (cb) setTimeout(cb, lead0 * 1000);
       /* 声のたびに、BGMの音量を 上げ下げしない(新しい声は はっきり聞こえる。音量の切りかえで、BGMがガサガサするのを防ぐ) */
       return segs.reduce((t, sg) => t + sg.wait, 0) + (segs.length ? segs[segs.length - 1].len + 0.07 : 0); // 読み上げにかかる秒数
     },
