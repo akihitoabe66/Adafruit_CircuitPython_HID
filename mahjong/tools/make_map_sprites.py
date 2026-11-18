@@ -26,10 +26,11 @@ def ring(im, layers):   # くっきりしたふち(外側から重ねる)
         m = a0.filter(ImageFilter.MaxFilter(d * 2 + 1)).point(lambda v: 255 if v > 90 else 0); L = Image.new('RGBA', (w2, h2), col + (255,)); L.putalpha(m); out = Image.alpha_composite(out, L)
     body = Image.new('RGBA', (w2, h2), (0, 0, 0, 0)); body.paste(im, (P, P)); return Image.alpha_composite(out, body)
 STICKER = [(2, (70, 42, 22)), (1, (255, 255, 255))]
+SS = 2; WHITE_W = 1.5; BROWN_W = 1.5   # ふちの太さ(画素): 白1.5 + こげ茶1.5(ポーズの絵 tools/make_zunda_poses.py と そろえる)。 2倍の細かさで作って縮める
 rgba = np.dstack([a, np.zeros(a.shape[:2])]).astype(np.uint8); rgba[..., 3] = (np.clip((dist - 20) / 40, 0, 1) * 255).astype(np.uint8)
 for gi, (x0, y0, x1, y1) in enumerate(boxes):
     fr = Image.new('RGBA', (WMAX, Y1 - Y0 + 1), (0, 0, 0, 0)); crop = Image.fromarray(rgba[Y0:Y1 + 1, x0:x1 + 1], 'RGBA'); fr.paste(crop, ((WMAX - crop.width) // 2, 0))
-    fr = fr.resize((W, H), Image.LANCZOS)
-    g = ring(fr, STICKER); g.save(os.path.join(OUT, 'w%dg.webp' % gi), 'WEBP', quality=94, method=6)
+    fr2 = Image.fromarray(rgba[Y0:Y1 + 1, x0:x1 + 1], 'RGBA'); fr_big = Image.new('RGBA', (WMAX, Y1 - Y0 + 1), (0, 0, 0, 0)); fr_big.paste(fr2, ((WMAX - fr2.width) // 2, 0)); fr_big = fr_big.resize((W * SS, H * SS), Image.LANCZOS)
+    P0 = P; P = P0 * SS; g = ring(fr_big, [(round((BROWN_W + WHITE_W) * SS), (70, 42, 22)), (round(WHITE_W * SS), (255, 255, 255))]); P = P0; g = g.resize((W + 2 * P, H + 2 * P), Image.LANCZOS); g.save(os.path.join(OUT, 'w%dg.webp' % gi), 'WEBP', quality=94, method=6)
     g.transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(OUT, 'w%dfg.webp' % gi), 'WEBP', quality=94, method=6)
 print('size', g.size, 'W', W, 'H', H, 'P', P)
