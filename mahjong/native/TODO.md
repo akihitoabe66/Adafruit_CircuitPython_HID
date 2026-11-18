@@ -295,3 +295,9 @@
 
 - ガッツポーズ・旅のはじまりのポーズの絵(zp_*.webp)の縁を、歩く絵と同じ細さに(白1.5+こげ茶1.5画素。 tools/make_zunda_poses.py の WHITE_W / BROWN_W)。
 - 地図を歩くずんだもんの絵(w*g.webp / w*fg.webp)も、ふちを 白1.5+こげ茶1.5画素 にして、ポーズの絵と そろえた(tools/make_map_sprites.py の WHITE_W / BROWN_W)。 サイズ・位置は同じ。
+
+## コントローラーの入力チェック(実機で)
+- 先に: `sudo systemctl stop mjpad`(ゲームを Ctrl+Q で閉じてから)。
+- `sudo python3 native/pi/mjpad.py --watch 60`(60秒)。 十字キー・A・Bを 押して離すと、値が かわるたびに 時刻つきで出る。 40ms未満で消えた入力は「←一瞬だけ」と出て、おわりに ボタンごとに まとめが出る(Ctrl+Cで とちゅう終了もできる)。
+- おわったら: `sudo systemctl start mjpad`。
+- ゲームが 実際に受けとる 値(読みまちがい対策のあと)を見るには: `sudo evtest`(Mahjong Wii Classic Pad を えらぶ)。 ABS_Y -1=上 / +1=下、ABS_X -1=左 / +1=右。 BTN_TRIGGER=B(戻る) BTN_THUMB=A(決定) BTN_BASE=セレクト BTN_BASE2=スタート。

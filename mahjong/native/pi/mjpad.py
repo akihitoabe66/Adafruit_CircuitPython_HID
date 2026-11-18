@@ -186,28 +186,44 @@ def probe():
         time.sleep(0.5)
 
 
-def watch():
-    """調べる用: ボタンの値を 100回/秒で 読み、値が 変わったときだけ、時刻(ミリ秒)つきで 出す。 十字キーを 押して 離して みて、一瞬 ちがう方向が まじらないかを 見る。 20秒で終わる (先に: sudo systemctl stop mjpad)"""
+def watch(secs=20):
+    """調べる用: ボタンの値を 100回/秒で 読み、値が 変わったときだけ、時刻(ミリ秒)つきで 出す。 十字キーを 押して 離して みて、一瞬 ちがう方向が 混じらないか 見る。
+    40ミリ秒より 短く 消えた入力は 「←一瞬だけ」と しるし、おわりに ボタンごとの 回数を まとめる。 (先に: sudo systemctl stop mjpad / あとで: sudo systemctl start mjpad)"""
     bus = Bus()
     if not (bus.init() or bus.init_old()): print('返事がない'); return
-    print('id=%s  十字キー・A・B を 押して 離してください(20秒)' % bus.ident.hex(), flush=True)
-    last = None; t0 = time.time()
-    while time.time() - t0 < 20:
-        try: w = bus.read()
-        except OSError as e: print('%6.0fms エラー %s' % ((time.time() - t0) * 1000, e), flush=True); time.sleep(0.05); continue
-        b = decode(w)
-        if w != last:
-            last = w
-            names = [k for k, v in b.items() if v] if b else ['(読みまちがい)']
-            warn = '  ←あり得ない(左右か上下が同時)' if b and ((b['left'] and b['right']) or (b['up'] and b['down'])) else ''
-            print('%6.0fms  語=%04x  %s%s' % ((time.time() - t0) * 1000, w, ' '.join(names) or '(なにも押していない)', warn), flush=True)
-        time.sleep(0.01)
+    print('id=%s  十字キー・A・B を 押して 離してください(%d秒)。 Ctrl+C で とちゅう終了' % (bus.ident.hex(), secs), flush=True)
+    last = None; t0 = time.time(); start = {}; total = {}; short = {}; bad = 0; errs = 0
+    try:
+        while time.time() - t0 < secs:
+            now = time.time()
+            try: w = bus.read()
+            except OSError as e: errs += 1; print('%6.0fms エラー %s' % ((now - t0) * 1000, e), flush=True); time.sleep(0.05); continue
+            b = decode(w)
+            if w != last:
+                last = w
+                if b is None: bad += 1
+                names = [k for k, v in b.items() if v] if b else ['(読みまちがい)']
+                warn = '  ←あり得ない(左右か上下が同時)' if b and ((b['left'] and b['right']) or (b['up'] and b['down'])) else ''
+                note = ''
+                if b:
+                    pressed = {k for k, v in b.items() if v}
+                    for k in pressed - set(start): start[k] = now; total[k] = total.get(k, 0) + 1
+                    for k in set(start) - pressed:
+                        d = now - start.pop(k)
+                        if d < 0.04: short[k] = short.get(k, 0) + 1; note += '  ←%s が 一瞬だけ(%.0fms)' % (k, d * 1000)
+                print('%6.0fms  語=%04x  %s%s%s' % ((now - t0) * 1000, w, ' '.join(names) or '(なにも押していない)', warn, note), flush=True)
+            time.sleep(0.01)
+    except KeyboardInterrupt: pass
+    print('--- まとめ(押した回数 / うち 40ms未満の一瞬だけ) ---', flush=True)
+    for k in BIT: print('%-7s %3d回 / 一瞬だけ %d回' % (k, total.get(k, 0), short.get(k, 0)), flush=True)
+    print('読みまちがい %d回 / 読みエラー %d回' % (bad, errs), flush=True)
 
 
 def main():
     if '--selftest' in sys.argv: selftest(); return
     if '--probe' in sys.argv: probe(); return
-    if '--watch' in sys.argv: watch(); return
+    if '--watch' in sys.argv:
+        i = sys.argv.index('--watch'); watch(int(sys.argv[i + 1]) if i + 1 < len(sys.argv) and sys.argv[i + 1].isdigit() else 20); return
     dry = '--dry' in sys.argv
     fake = None
     if '--fake' in sys.argv: fake = [int(x, 16) for x in sys.argv[sys.argv.index('--fake') + 1].split(',')]
