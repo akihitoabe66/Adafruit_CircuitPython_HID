@@ -958,7 +958,7 @@
     if (!R.pick) R.pick = [];
     if (S.bbf) { // 左上の「もどる」(えらぶモードでは「やめる」)に合わせているとき
       if (k === 'ok' || k === 'back') { S.bbf = false; if (R.mode) { rosEnd(R); dirty(); return; } rosLeave(); return; }
-      if (k === 'down') { S.bbf = false; R.tb = null; } else if (k === 'right' && !R.mode) { S.bbf = false; R.tb = 1; }
+      if (k === 'down') { S.bbf = false; R.tb = null; R.sel = Math.min(n - 1, pg * ROS_PER); } /* もどる/やめる → 1段目の左はし */ else if (k === 'right' && !R.mode) { S.bbf = false; R.tb = 1; }
       dirty(); return;
     }
     if (k === 'back') { if (R.mode) { rosEnd(R); dirty(); return; } rosLeave(); return; }
@@ -966,7 +966,7 @@
       if (k === 'ok') { R.mode = R.tb === 1 ? 'play' : 'watch'; R.pick = []; R.go = false; R.tb = null; NSND.sfx('select', 0.5); }
       else if (k === 'left') { if (R.tb === 1) { R.tb = null; S.bbf = true; } else R.tb = 1; }
       else if (k === 'right') { if (R.tb === 1) R.tb = 2; }
-      else if (k === 'down') R.tb = null;
+      else if (k === 'down') { const col = R.tb === 1 ? 1 : 2; R.tb = null; R.sel = Math.min(n - 1, pg * ROS_PER + col); } // フリー対局 → 1段目の左から2列目 / CPUの観戦 → 左から3列目
       dirty(); return;
     }
     if (R.go) { // 人数がそろったあとの「この3人で はじめる」
