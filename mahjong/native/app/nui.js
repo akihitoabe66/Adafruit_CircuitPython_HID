@@ -1407,11 +1407,11 @@
   }
   function tri(cx, cy, r, dir) { for (let i = -r; i <= r; i++) { const w = Math.round(r * 1.6 * (1 - Math.abs(i) / r)) + 1; fill(dir < 0 ? cx + r * 0.8 - w : cx - r * 0.8, cy + i, w, 1, [20, 20, 20]); } }
   function drawSound() {
-    overlay(190); const x0 = 60, w = 600, h = 352, y0 = Math.round((H - h) / 2);
+    overlay(190); const x0 = 60, w = 600, h = 300, y0 = Math.round((H - h) / 2);
     rrect(x0 - 3, y0 - 3, w + 6, h + 6, 8, [240, 210, 100]); rrect(x0, y0, w, h, 6, [36, 74, 58]);
     text('音のせってい', 360, y0 + 12, 26, WHITE, 1); fill(236, y0 + 20, 5, 10, WHITE); fill(241, y0 + 17, 4, 16, WHITE); fill(245, y0 + 14, 4, 22, WHITE);
     const sp = S.soundP, names = ['BGM', '効果音', '読み上げ'], K = ['bgm', 'sfx', 'voice'];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       const ry = y0 + 58 + i * 52, sel = sp.idx === i; if (sel) rrect(x0 + 8, ry - 4, w - 16, 52, 6, [70, 120, 92]);
       text(names[i] || 'CPU', x0 + 24, ry + 8, i === 2 ? 20 : 24, WHITE);
       if (i < 3) {
@@ -1420,10 +1420,10 @@
         rrect(x0 + 192, ry + 10, 270, 24, 12, [24, 46, 36]); if (lv) rrect(x0 + 192, ry + 10, Math.max(24, Math.round(270 * lv / 10)), 24, 12, [240, 200, 80]);
         rrect(x0 + 472, ry, 52, 44, 5, [232, 238, 228]); tri(x0 + 498, ry + 22, 11, 1);
         text(String(lv), x0 + 560, ry + 4, 30, YEL, 1);
-      } else { rrect(x0 + 130, ry, 394, 44, 5, [232, 238, 228]); text('速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()], x0 + 327, ry + 8, 24, BLACK, 1); }
+      }
     }
-    text('0にすると、その音が消えます。対局は、とじるまで止まります。', 360, y0 + 58 + 4 * 52, 19, [190, 205, 195], 1);
-    const cy = y0 + h - 56; if (sp.idx === 4) rrect(300, cy - 4, 120, 52, 7, [255, 255, 255]); rrect(304, cy, 112, 44, 6, [248, 208, 80]); text('とじる', 360, cy + 9, 22, BLACK, 1);
+    text('0にすると、その音が消えます。対局は、とじるまで止まります。', 360, y0 + 58 + 3 * 52, 19, [190, 205, 195], 1);
+    const cy = y0 + h - 56; if (sp.idx === 3) rrect(300, cy - 4, 120, 52, 7, [255, 255, 255]); rrect(304, cy, 112, 44, 6, [248, 208, 80]); text('とじる', 360, cy + 9, 22, BLACK, 1);
   }
   function drawSaveQ() { // 局のあとの保存: 左右の大きな2つ(左: ここまでを保存する / 右: 保存しない)。押すと、そのまま次へ進む
     const q = S.saveP, g = S.game, ink = [26, 26, 20];
@@ -2288,15 +2288,15 @@
       const items = menuItems();
       if (k === 'up' || k === 'down') S.menuP.idx = wrap(S.menuP.idx + (k === 'up' ? -1 : 1), items.length);
       else if (k === 'back') { S.menuP = null; MJ.paused = false; menuHold(false); }
+      else if (S.menuP.idx === 1 && (k === 'left' || k === 'right' || k === 'ok')) { MJ.cycleCpuSpeed(); NSND.sfx('select', 0.4); }
       else if (k === 'ok') { const it = items[S.menuP.idx]; S.menuP = null; MJ.paused = false; menuHold(false); if (it === 'ホームにもどる') stopGame(); }
       return;
     }
     if (S.soundP) { // 音のせってい
       const sp = S.soundP, K = ['bgm', 'sfx', 'voice'];
-      if (k === 'up' || k === 'down') sp.idx = wrap(sp.idx + (k === 'up' ? -1 : 1), 5);
-      else if (k === 'left' || k === 'right') { const d = k === 'left' ? -1 : 1; if (sp.idx < 3) { NSND.setLevel(K[sp.idx], NSND.getLevel(K[sp.idx]) + d); if (sp.idx === 1) NSND.sfx('discard'); } else if (sp.idx === 3) MJ.cycleCpuSpeed(); }
-      else if (k === 'back' || (k === 'ok' && sp.idx === 4)) { S.soundP = null; MJ.paused = false; }
-      else if (k === 'ok' && sp.idx === 3) MJ.cycleCpuSpeed();
+      if (k === 'up' || k === 'down') sp.idx = wrap(sp.idx + (k === 'up' ? -1 : 1), 4);
+      else if (k === 'left' || k === 'right') { const d = k === 'left' ? -1 : 1; if (sp.idx < 3) { NSND.setLevel(K[sp.idx], NSND.getLevel(K[sp.idx]) + d); if (sp.idx === 1) NSND.sfx('discard'); } }
+      else if (k === 'back' || (k === 'ok' && sp.idx === 3)) { S.soundP = null; MJ.paused = false; }
       return;
     }
     if (S.saveP) {
@@ -2719,7 +2719,7 @@
     S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; S.homeBot = false; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
     if (__auto) __quit();
   }
-  const menuItems = () => ['つづける', 'ホームにもどる'];
+  const menuItems = () => ['つづける', 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()] + '  ◀▶', 'ホームにもどる']; // CPUの速さは、ここで変える(左右・決定で切りかえ。メニューは閉じない)
 
   /* ---------- メインループから ---------- */
   let nextAuto = 0, lastSave = 0, nextSide = 0, coachShots = 0;
