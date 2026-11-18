@@ -991,6 +991,7 @@
     dirty();
   }
   function drawRoster() {
+    if (!S.ros.pick) S.ros.pick = []; // (入り方によらず、選んだ人の一覧を かならず持たせる)
     const R = S.ros, L = rosList(), n = L.length, pages = Math.ceil(n / ROS_PER), pg = Math.floor(R.sel / ROS_PER), met = metLoad(), mx = MJ.Rank.get().maxdan || 0, dan = MJ.Rank.get().dan || 0;
     gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 165); fill(0, 50, SW, 2, [150, 190, 140], 160);
     const need = rosNeed(R), full = need > 0 && R.pick.length === need;
@@ -2299,7 +2300,7 @@
     if (S.map) { mapKey(k); return; }
     if (S.cert) { certKey(k); return; }
     if (S.reveal) { revealKey(k); return; }
-    if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = wrap((r.idx || 0) + (k === 'left' ? -1 : 1), 4); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 0)) { S.rankScr = null; r.done(); } else if (k === 'ok' && (r.idx || 0) === 3) { startMapView(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; if ((r.idx || 0) === 2) { S.ros = { sel: 0 }; S.rosFrom = 'rank'; } } return; }
+    if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = wrap((r.idx || 0) + (k === 'left' ? -1 : 1), 4); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 0)) { S.rankScr = null; r.done(); } else if (k === 'ok' && (r.idx || 0) === 3) { startMapView(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; if ((r.idx || 0) === 2) { S.ros = { sel: 0, pick: [] }; S.rosFrom = 'rank'; } } return; }
     if (k === 'menu' && !S.menuP) { openMenu(); return; } // スタート+セレクト長押し
     if (S.menuP) {
       const items = menuItems();
