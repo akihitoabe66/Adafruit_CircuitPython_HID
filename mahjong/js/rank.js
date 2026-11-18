@@ -67,7 +67,7 @@
       if (!me) return null;
       const s = R.get(), tbl = PTS[game.length === 'east' ? 'east' : 'south']; let delta = tbl[me.rank - 1] || 0, avg = null, mult = 1;
       if (MJ.RankScale === true) {
-        const lv = final.results.filter((r) => r.p.seat !== 0 && r.p.char).map((r) => r.p.char.level || 1); avg = lv.length ? lv.reduce((a, b) => a + b, 0) / lv.length : null;
+        const lv = game.baseLevels && game.baseLevels.length ? game.baseLevels.map((v) => v || 1) : final.results.filter((r) => r.p.seat !== 0 && r.p.char).map((r) => r.p.char.level || 1); /* CPUの強さの設定を変えても、ポイントは かわらない: 「ふつう」の強さで計算 */ avg = lv.length ? lv.reduce((a, b) => a + b, 0) / lv.length : null;
         if (avg != null) { const d = avg - (1 + 0.8 * s.dan); mult = me.rank <= 2 ? clampN(1 + 0.15 * d, 0.5, 2) : me.rank === 4 ? clampN(1 - 0.15 * d, 0.5, 2) : 1; delta = Math.round(delta * mult); }
       }
       const tr = game.town != null && game.town < s.dan; let capped = false, note = ''; // 修行(地図で、低い段位の街を選んだ対局): ポイントは半分、4位でも減らない。昇段も降段もしない(次の段位の1点手前まで)

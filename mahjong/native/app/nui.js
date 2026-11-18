@@ -719,7 +719,7 @@
   const perfOn = () => { try { const v = localStorage.getItem('mj_perf'); return v === '1' ? true : v === '0' ? false : !!globalThis.__perfEnv; } catch (e) { return false; } }; // 隠しコマンド・設定で切りかえたら、それを優先(MJ_PERF=1 で起動しても、オフにできる)
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'perf', label: '遅れの診断(調べる用)' }, { k: 'reset', label: 'リセット(デバッグ用)' }, { k: 'dbg', label: 'デバッグ(あとで消す)' }, { k: 'back', label: 'もどる' },
+    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'cpulv', label: 'CPUの強さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'perf', label: '遅れの診断(調べる用)' }, { k: 'reset', label: 'リセット(デバッグ用)' }, { k: 'dbg', label: 'デバッグ(あとで消す)' }, { k: 'back', label: 'もどる' },
   ];
   /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
   const RULE_ROWS = [
@@ -778,6 +778,7 @@
       if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 7, 24, 21, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 4, 24, BLACK, 2); }
       else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 4, 24, BLACK, 1);
+      else if (s.k === 'cpulv') text(CPU_LV[cpuLv()], 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'teacher') text(teacherOn() ? (dmarkOn() ? 'あり(安全牌の印つき)' : 'あり') : 'なし', 520, y + 4, teacherOn() && dmarkOn() ? 20 : 24, BLACK, 1);
       else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 4, 24, BLACK, 1);
@@ -2417,6 +2418,7 @@
         if (it.k === 'bgm' || it.k === 'sfx' || it.k === 'voice') { if (k !== 'ok') NSND.setLevel(it.k, NSND.getLevel(it.k) + d); if (it.k === 'sfx') NSND.sfx('discard'); }
         else if (it.k === 'bgmon') { NSND.toggle(); if (NSND.on) NSND.home(); }
         else if (it.k === 'speed') MJ.cycleCpuSpeed();
+        else if (it.k === 'cpulv') setCpuLv(k === 'left' ? cpuLv() - 1 : k === 'right' ? cpuLv() + 1 : (cpuLv() + 1) % 4); // ◀ ▶ で ひとつずつ(はしでは とまる)。 決定は ぐるっと
         else if (it.k === 'teacher') { // なし → あり(印つき) → あり(印なし) → なし
           const t = teacherOn(), d = dmarkOn(); const nx = !t ? [1, 1] : d ? [1, 0] : [0, 1]; try { localStorage.setItem('mj_teacher', nx[0] ? '1' : '0'); localStorage.setItem('mj_dmark', nx[1] ? '1' : '0'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; S._dm = null; }
         else if (it.k === 'swap') { try { localStorage.setItem('mj_swapab', swapOn() ? '0' : '1'); } catch (e) { /* ignore */ } __swapab(swapOn() ? 1 : 0); }
@@ -2695,6 +2697,17 @@
   };
 
   const AI_T = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]; // js/chars.js の mk() と同じ
+  /* CPUの強さ(設定): 0=超やさしい 1=やさしい 2=ふつう(=段位で決まる、ふだんの強さ) 3=つよい。 段位・ポイントは かわらない(ポイントは「ふつう」の強さで計算) */
+  const CPU_LV = ['超やさしい', 'やさしい', 'ふつう', 'つよい'];
+  const cpuLv = () => { let v = 2; try { const t = localStorage.getItem('mj_cpulv'); if (t != null && t !== '') v = +t; } catch (e) { /* ignore */ } return v >= 0 && v <= 3 ? v | 0 : 2; };
+  const setCpuLv = (v) => { v = Math.max(0, Math.min(3, v)); try { localStorage.setItem('mj_cpulv', String(v)); } catch (e) { /* ignore */ } };
+  function cpuAdjust(chars) { // 3人のCPUの強さ(★)を、設定にあわせて 上限/下限で そろえる。 天下分け目(家康+黄門)は いつも ほんらいの強さ
+    const lv = cpuLv(); if (lv === 2) return chars;
+    let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ }
+    if (dn === 10 && chars.some((c) => c.id === 1) && chars.some((c) => c.id === 7)) return chars;
+    const top = lv === 3 ? Math.floor(Math.random() * chars.length) : -1;
+    return chars.map((c, i) => { const L = lv === 0 ? Math.min(c.level, 2) : lv === 1 ? Math.min(c.level, 4) : Math.max(c.level, i === top ? 9 : 7); return L === c.level ? c : Object.assign({}, c, { level: L, ai: AI_T[Math.min(10, L)] }); });
+  }
   function liftChars(chars, town, realFirst) { // 段位が上がると、★の低いキャラも、最低でも その段位の「★の最低値」まで強くなる
     let dan = 0; try { dan = MJ.Rank.get().dan; } catch (e) { /* ignore */ } if (town != null) dan = town; // 修行の街では、その段位のときの強さ
     let real = dan; try { real = MJ.Rank.get().dan; } catch (e) { /* ignore */ }
@@ -2727,7 +2740,10 @@
     tl('startGame'); S.ura = null; S.mode = 'game'; S.tmsgShown = 0; dirty(); opt = opt || {}; let town = opt.town != null ? opt.town : sn && sn.town; try { if (opt.practice || town == null || town >= (MJ.Rank.get().dan || 0)) town = null; } catch (e) { town = null; }
     let ease = 0, ctown = town; if (!opt.practice && town == null) { try { ease = sn && sn.ease != null ? sn.ease : MJ.Rank.ease(); const dn0 = MJ.Rank.get().dan || 0, ct = Math.max(0, dn0 - ease); if (ease > 0 && ct < dn0) ctown = ct; else ease = 0; } catch (e) { ease = 0; } } // 不調のときは、2段(ひどいときは4段)ぶん やさしい相手(ポイントは そのまま)。 画面には 出さない // 修行: 地図で、いまの段位より下の街を選んだとき
     const chars = opt.practice ? opt.chars : sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
-    const g = new MJ.Game({ chars: opt.practice ? (opt.watch ? chars.slice(1) : chars) : liftChars(chars.length === 3 ? chars : pickChars(ctown, ease > 0), ctown, ease > 0), mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
+    let baseChars = null; // 「ふつう」の強さの3人(ポイントの計算は、設定に関係なく これで行う)
+    const useChars = opt.practice ? (opt.watch ? chars.slice(1) : chars) : cpuAdjust(baseChars = liftChars(chars.length === 3 ? chars : pickChars(ctown, ease > 0), ctown, ease > 0));
+    const g = new MJ.Game({ chars: useChars, mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
+    if (baseChars) g.baseLevels = baseChars.map((c) => c.level);
     g.town = town == null ? undefined : town; g.ease = ease || undefined; if (ease) print('ease ' + ease + '段下(' + MJ.DAN_NAME(ctown) + 'ぶん): ' + g.players.slice(1).map((p) => p.char.short + '★' + p.char.level).join(' ')); try { g.tenka = town == null && !opt.practice && (MJ.Rank.get().dan === 10) && g.players.some((p) => p.char && p.char.id === 1) && g.players.some((p) => p.char && p.char.id === 7); } catch (e) { g.tenka = false; } // 天下分け目(名人 + 徳川家康 + 水戸黄門)
     if (opt.practice) { g.practice = true; g.watching = !!opt.watch; if (opt.watch) { const c0 = chars[0]; g.players[0].char = c0; g.players[0].name = c0.short; } } // 練習対局: 記録しない。観戦: 1人めの席(下)の手牌を見る
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; g.bgmResume = sn.bgm; if (sn.mid) g.resumeMid = sn.mid; }
