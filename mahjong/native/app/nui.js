@@ -262,9 +262,10 @@
         w.forEach((x, i) => { const tx = 731 + (i % cols) * pitch + (big ? 2 : 0), ty = 118 + Math.floor(i / cols) * rh; tile(x.t, tx, ty, tw, th); text('あと' + x.left, tx + tw / 2, ty + th + 2, fs, WHITE, 1); });
         if (w[0].fu) text('フリテン', 776, 88 + ph - 24, 16, [255, 120, 100], 1); }
     }
-    sbtn(726, 322, 100, 46, [40, 90, 190], [20, 50, 120], [''], f === 1, 24); gfx.image('img/teacher/t12.webp', 730, 324, 38, 40, 255); text('解説', 792, 332, 22, WHITE, 1);
-    sbtn(726, 376, 100, 56, teacherOn() ? [30, 120, 80] : [90, 90, 90], teacherOn() ? [15, 70, 45] : [50, 50, 50], ['麻雀先生', teacherOn() ? 'あり' : 'なし'], f === 2, 19);
-    if (g.practice) sbtn(726, 438, 100, 26, g.openHands ? [190, 110, 30] : [90, 90, 90], g.openHands ? [110, 60, 10] : [50, 50, 50], [g.openHands ? '手牌を とじる' : '全員の手牌'], f === 4, 14); // 練習・観戦: 全員の手牌を ひらく/とじる
+    const dy = g.practice ? -30 : 0; // 練習・観戦は ボタンが1つ多いので、全体を上へ(下が、画面で切れない)
+    sbtn(726, 322 + dy, 100, 46, [40, 90, 190], [20, 50, 120], [''], f === 1, 24); gfx.image('img/teacher/t12.webp', 730, 324 + dy, 38, 40, 255); text('解説', 792, 332 + dy, 22, WHITE, 1);
+    sbtn(726, 376 + dy, 100, 56, teacherOn() ? [30, 120, 80] : [90, 90, 90], teacherOn() ? [15, 70, 45] : [50, 50, 50], ['麻雀先生', teacherOn() ? 'あり' : 'なし'], f === 2, 19);
+    if (g.practice) sbtn(726, 410, 100, 28, g.openHands ? [190, 110, 30] : [90, 90, 90], g.openHands ? [110, 60, 10] : [50, 50, 50], [g.openHands ? '手牌を とじる' : '全員の手牌'], f === 4, 14); // 練習・観戦: 全員の手牌を ひらく/とじる
   }
   function wrapText(s, sz, maxw) { // 文字列を、幅に収まるように、行に分ける
     const out = []; let cur = '';
@@ -859,13 +860,15 @@
   }
   function diceSeat(p, s, hi, wind, rv, part) { // サイコロの画面の、4人の顔(大きく)と名前。rv: 親が決まったあとの経過ミリ秒(親だけ、跳ねて、光る)。part: 'static'(板・光・風) / 'face'(顔の絵)
     let x = DPOS[s][0], y = DPOS[s][1], fs = 80, dealer = rv != null;
+    if (s === 0 && p.char && p.char.level) y -= 22; // 観戦・練習: 下の席が CPU(星つきの名札)のとき、名札が 画面の下で切れないように 少し上へ
+    const y00 = y - DPOS[s][1]; // 名札・風の札の位置は、この分も ずらす
     if (dealer) { const k = Math.min(1, rv / 380), ex = k < 0.6 ? 80 + (k / 0.6) * 36 : 116 - ((k - 0.6) / 0.4) * 14; fs = Math.round(ex); x -= Math.round((fs - 80) / 2); y -= Math.round((fs - 80) / 2); }
     if (part !== 'face') {
       if (dealer) { const pu = 0.5 + 0.5 * Math.sin(rv / 140); rrect(x - 16, y - 16, fs + 32, fs + 32, 12, [255, 190, 30], Math.round(70 + 110 * pu)); rrect(x - 10, y - 10, fs + 20, fs + 20, 9, [255, 230, 90], Math.round(150 + 105 * pu)); rrect(x - 4, y - 4, fs + 8, fs + 8, 6, [255, 255, 255]); }
       else if (hi) { rrect(x - 8, y - 8, fs + 16, fs + 16, 8, [255, 120, 40]); rrect(x - 5, y - 5, fs + 10, fs + 10, 6, [255, 230, 80]); }
       else { rframe(x - 5, y - 5, fs + 10, fs + 10, 9, 2, [30, 30, 30]); rframe(x - 3, y - 3, fs + 6, fs + 6, 8, 4, [255, 255, 255]); } // 顔の縁(白+外に細い黒。角は、小さな丸み)。 顔の絵は、これより上に重なる
       fill(x, y, fs, fs, [90, 110, 100]);
-      if (dealer) dealerPlate(DPOS[s][0] + 40, DPOS[s][1] + 100, p.name, rv); else plate(DPOS[s][0] + 40, DPOS[s][1] + 96, p.name, p.char && p.char.level ? p.char.level : 0);
+      if (dealer) dealerPlate(DPOS[s][0] + 40, DPOS[s][1] + 100 + y00, p.name, rv); else plate(DPOS[s][0] + 40, DPOS[s][1] + 96 + y00, p.name, p.char && p.char.level ? p.char.level : 0);
       if (wind) { const wi = ['東', '南', '西', '北'].indexOf(wind); rrect(x - 46, y + 6, 38, 38, 6, [255, 255, 255]); rrect(x - 44, y + 8, 34, 34, 5, WIND_BG[wi]); text(wind, x - 27, y + 11, 28, WHITE, 1); }
     } else face(p, x, y, fs, fs);
   }
@@ -2483,7 +2486,7 @@
         if (i === 0) openMenu();
         else if (i === 3) { S.soundP = { idx: 0 }; MJ.paused = true; }
         else if (i === 4 && S.game) { S.game.openHands = !S.game.openHands; S.dirty = true; S.full = true; }
-        else if (i === 1 && S.game && S.game.watching) { if (S.wnote) S.wnote.until = __now() + 14000; dirty(); } // 観戦: 解説を、もう少し長く出す
+        else if (i === 1 && S.game && S.game.watching) { if (S.wnote) S.wnote.until = __now() + 14000; else S.toast = { text: 'CPUが 打つと、ここに 解説が 出ます', until: __now() + 2200 }; dirty(); setTimeout(dirty, 2300); } // 観戦: 解説を、もう少し長く出す
         else if (i === 1) S.coach = { tab: 0, scroll: 0, cards: teacherOn() ? buildCoach() : [] };
         else { toggleTeacher(); if (teacherOn() && S.self && !S.self.p.riichi && !S.game.fast) { try { S.hint = teacherAdvice(S.game, S.self.p, S.self.opts); } catch (e) { /* ignore */ } } else S.hint = null; }
       }
