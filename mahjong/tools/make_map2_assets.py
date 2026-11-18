@@ -66,6 +66,10 @@ legsA = [E_['AB'], E_['BC'], E_['CD'], de[:7], de[6:], E_['EF'], fg[:top + 1], j
 legsB = [E_['AB'], E_['BC'], E_['CD'], de[:7], de[6:], ise, join(rev(ise), E_['EF']), join(fg, gh[1:]), join(rev(gh), gj[1:]), join(rev(gj), gh[1:], hi[1:]), [list(nodes['I']), [nodes['I'][0] + 1, nodes['I'][1]]]]
 for L in (legsA, legsB):
     for i in range(1, len(L)): L[i] = [L[i - 1][-1]] + L[i][1:]
+for L in (legsA, legsB):  # 大阪で止まる位置を、少し右へ(札の文字と重ならないように)
+    for leg in L:
+        for q in leg:
+            if q == [771, 417]: q[0] = 783
 data = {'ox': int(bx0), 'oy': int(by0), 'bw': int(bx1 - bx0), 'bh': int(by1 - by0), 'sets': [{'name': '赤い線どおり', 'legs': legsA}, {'name': 'おすすめ(伊勢あり)', 'legs': legsB}]}
 with open(os.path.join(ROOT, 'native', 'app', 'map2data.js'), 'w') as f:
     f.write('// 自動生成(tools/make_map2_assets.py): 昇段の地図の道すじ(元の絵 1375x768 の座標)。 sets[n].legs[i] = 段位 i→i+1 の道\nglobalThis.MAP2 = ' + json.dumps(data, separators=(',', ':')) + ';\n')
