@@ -197,7 +197,7 @@
       pos += 6;
     }
   }
-  const sideY0 = (p) => { const m = p.melds.length ? meldWH(p, 16, 22) : 0; return m ? Math.min(66, 312 - m - 19 - (13 - 3 * p.melds.length) * 17) : 66; }; // 上家・下家の手牌(伏せ牌)の いちばん上。 副露(下から上へ のびる)と ツモ牌が かさならないように
+  const sideY0 = (p) => { const m = p.melds.length ? meldWH(p, 16, 22) : 0; return m ? Math.min(66, 312 - m - 29 - (13 - 3 * p.melds.length) * 17) : 66; }; // 上家・下家の手牌(伏せ牌)の いちばん上。 副露(下から上へ のびる)と、ツモ牌(上がったときは 8ピクセルずらして 枠つき)が かさならないように
   function drawRiver(g, p) {
     const fr = []; // 枠は、牌を全部描いたあとに、上から描く(次の牌が重なって、枠の片側が消えないように)
     p.discards.forEach((d, i) => {
@@ -514,7 +514,7 @@
     if (rvS) { // CPUが上がった: 手牌を、伏せ牌の位置に、表にして 倒す(上がり牌は すこし はなして、黄色い枠)
       const POS = { 2: (i) => [265 + i * 17, 32], 3: (i) => [3, sideY0(P[3]) + i * 17], 1: (i) => [692, sideY0(P[1]) + i * 17] }, ROT = { 2: 180, 3: 90, 1: 270 };
       rvS.ws.forEach((w) => { const sd = w.winner.seat; if (!POS[sd]) return; const tl = w.view.concealed.slice(); tl.forEach((h, i) => { const q = POS[sd](i); tileR(h.t, q[0], q[1], 16, 24, h.red, false, ROT[sd]); });
-        if (w.winTile) { const n = tl.length, q = POS[sd](n), dx = sd === 2 ? 8 : 0, dy = sd === 2 ? 0 : 8, x = q[0] + dx, y = q[1] + dy; tileR(w.winTile.t, x, y, 16, 24, w.winTile.red, false, ROT[sd]); if (sd === 2) frame(x - 1, y - 1, 18, 26, YEL, 2); else frame(x - 1, y - 1, 26, 18, YEL, 2); } });
+        if (w.winTile) { const n = tl.length, q = POS[sd](n), dx = sd === 2 ? 8 : 0, dy = sd === 2 ? 0 : 8, x = q[0] + dx, y = q[1] + dy; if (w.winner.hand && w.winner.hand.length > n) fill(q[0], q[1], sd === 2 ? 16 : 24, sd === 2 ? 24 : 16, sd === 2 ? [24, 56, 46] : [32, 74, 60]); /* ツモ上がり: 手牌に入っていた ツモ牌の伏せ牌が、ずらした上がり牌の横に のこらないように、卓の色で かくす */ tileR(w.winTile.t, x, y, 16, 24, w.winTile.red, false, ROT[sd]); if (sd === 2) frame(x - 1, y - 1, 18, 26, YEL, 2); else frame(x - 1, y - 1, 26, 18, YEL, 2); } });
     }
     drawFly(); drawTeacher(g);
     const now = __now();
@@ -1497,8 +1497,9 @@
   let rubyRE = null, rubyN = -1;
   function rubyMatch() { const d = (MJ.Ruby && MJ.Ruby.dict) || {}, ks = Object.keys(d); if (ks.length !== rubyN) { rubyN = ks.length; ks.sort((a, b) => b.length - a.length); rubyRE = ks.length ? new RegExp(ks.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g') : null; } return rubyRE; }
   const rsz = (sz) => Math.max(10, Math.round(sz * 0.5));
+  const tileK = () => (S.mode === 'quiz' ? [0.92, 1.26] : [0.8, 1.12]); // 文章の中の牌の絵の大きさ(文字の大きさ×): クイズでは 少しだけ 大きく(行の高さ 1.28 に おさまる)
   function richWrap(str, sz, maxw) { // 文字・牌の絵(⟦番号⟧)・ふりがなつきの言葉を、幅に収まるように、行に分ける
-    const lines = []; const tw = Math.round(sz * 0.8), dict = (MJ.Ruby && MJ.Ruby.dict) || {}, re = rubyMatch();
+    const lines = []; const tw = Math.round(sz * tileK()[0]), dict = (MJ.Ruby && MJ.Ruby.dict) || {}, re = rubyMatch();
     String(str).split('\n').forEach((para) => {
       let cur = [], w = 0;
       const push = (tk, ww) => { if (w + ww > maxw && cur.length && !(tk.s && tk.s.length === 1 && '。、,.」』)）!?!?…ー'.includes(tk.s))) { lines.push(cur); cur = []; w = 0; } cur.push(tk); w += ww; }; // 「。」などが、行の先頭に1つだけ残らないように
@@ -1518,7 +1519,7 @@
     let last = null; for (const sz of sizes) { const ls = richWrap(str, sz, maxw); last = { sz, lines: ls, h: richH(ls, sz) }; if (last.h <= maxh) return last; } return last;
   }
   function richDraw(lines, x, y, sz, col, lh, center) { // 行の高さは、ふりがながある行だけ ふやす
-    const tw = Math.round(sz * 0.8), th = Math.round(sz * 1.12), rs = rsz(sz); let yy = y;
+    const tw = Math.round(sz * tileK()[0]), th = Math.round(sz * tileK()[1]), rs = rsz(sz); let yy = y;
     lines.forEach((ln) => {
       const ru = lineRu(ln); let w = 0; ln.forEach((tk) => { w += tk.tile != null ? tw + 2 : tk.r ? Math.max(gfx.measure(tk.s, sz), gfx.measure(tk.r, rs)) : gfx.measure(tk.s, sz); });
       const rx = center ? x - Math.round(w / 2) : x, ty = yy + (ru ? rs + 2 : 0);
@@ -1586,7 +1587,7 @@
     try { r = p.grade(ans); } catch (e) { print('quiz grade err ' + (e && e.stack || e)); r = { r: 'ng', html: '<p>採点できませんでした。</p>' }; }
     try { MJ.Stats.quiz(p, r.r === 'ok'); } catch (e) { /* ignore */ }
     q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7); q.wrongRun = r.r === 'ng' ? (q.wrongRun || 0) + 1 : 0; r.alt = r.r === 'ng' && q.wrongRun % 2 === 0; // つづけて まちがえたとき、2回目は「ちがうよ」(同じ声ばかりにならないように)
-    setTimeout(() => { try { { const kk = ['q:' + (r.r === 'ok' ? '正解' : r.r === 'near' ? 'おしい' : r.alt ? 'ちがうよ' : '不正解')]; const d = NSND.speak(kk) || 0.6; if (Math.random() < 0.3) { const nk = NSND.nd(r.r === 'ok' ? 'bright' : r.r === 'near' ? 'flat' : 'firm'); if (nk) setTimeout(() => { try { NSND.speak([nk]); } catch (e) { /* ignore */ } }, Math.round((d + 0.25) * 1000)); } } } catch (e) { /* ignore */ } }, 500); // 答え合わせの声(「なのだ」は30%。正解は明るい2・おしいはフラット3・まちがいは言い切り1。声が終わってから)
+    setTimeout(() => { try { const kq = 'q:' + (r.r === 'ok' ? '正解' : r.r === 'near' ? 'おしい' : r.alt ? 'ちがうよ' : '不正解'), nk = Math.random() < 0.3 ? NSND.nd(r.r === 'ok' ? 'bright' : r.r === 'near' ? 'flat' : 'firm') : null; NSND.speak(nk ? [kq, '.', nk] : [kq]); } catch (e) { /* ignore */ } }, 500); // 答え合わせの声(「なのだ」は30%。正解は明るい2・おしいはフラット3・まちがいは言い切り1。声が終わってから)
     { // 解説は、入りきる大きさの字で出す。長いときは、おまけの説明(小さな注)と、うしろの段落を はぶいて、スクロールさせない
       const paras = mark(String(r.html).replace(/<div class="cc-s">[\s\S]*?<\/div>/g, '')).split('\n').filter((x) => x.trim() !== '');
       let f = null; while (paras.length) { f = fitRich(paras.join('\n'), [28, 26, 24, 22, 20], 730, 236); if (f.h <= 236 || paras.length <= 1) break; paras.pop(); }
