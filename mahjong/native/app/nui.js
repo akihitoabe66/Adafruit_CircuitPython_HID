@@ -1274,6 +1274,7 @@
     text('決定ボタンで 次へ', SW / 2, 420, 20, [205, 224, 212], 1);
   }
   /* 流局の結果(Edge版と同じ流れ): 顔つきの4枚のカード。1人ずつ読み上げに合わせて見せる。テンパイの人は手牌と待ちを公開、ノーテンの人は選んで決定で見られる */
+  function windTag(g, p, x, y, sz) { const sw = g ? g.seatWindOf(p) : 0; rrect(x, y, sz, sz, 7, [255, 255, 255]); rrect(x + 2, y + 2, sz - 4, sz - 4, 5, WIND_BG[sw]); text(WIND[sw], x + sz / 2, y + Math.round(sz * 0.12), Math.round(sz * 0.62), WHITE, 1); } // 家(東南西北)の札
   function drawDrawResult(r) {
     const g = S.game, rd = r.rd, P = g.players, CW = 172, CG = 8, X0 = 60, CY = 82, CH = 166;
     text('流局', SW / 2, 16, 40, YEL, 1); text(g.kyokuLabel().split(' ')[0] + ' ／ 山の牌がなくなりました', SW / 2, 58, 18, GREY, 1);
@@ -1281,7 +1282,7 @@
       const x = X0 + i * (CW + CG), sh = i < rd.shown, ten = r.tenpai[i], d = r.delta[i];
       if (rd.sel === i && !rd.reading) rrect(x - 4, CY - 4, CW + 8, CH + 8, 10, YEL); else if (rd.now === i) rrect(x - 4, CY - 4, CW + 8, CH + 8, 10, [255, 211, 90]);
       rrect(x, CY, CW, CH, 8, sh ? [30, 70, 56] : [22, 56, 44]);
-      if (rd.pop < 0) face(p, x + (CW - 64) / 2, CY + 6, 64, 64); if (!sh) fill(x + (CW - 64) / 2, CY + 6, 64, 64, [22, 56, 44], 150);
+      if (rd.pop < 0) face(p, x + (CW - 64) / 2, CY + 6, 64, 64); windTag(g, p, x + 8, CY + 8, 36); if (!sh) fill(x + (CW - 64) / 2, CY + 6, 64, 64, [22, 56, 44], 150);
       text(p.name, x + CW / 2, CY + 74, fitSz(p.name, 20, CW - 12, 14), sh ? WHITE : GREY, 1);
       if (sh) {
         text(ten ? 'テンパイ' : 'ノーテン', x + CW / 2, CY + 96, 26, ten ? YEL : GREY, 1);
