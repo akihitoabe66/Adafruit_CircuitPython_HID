@@ -826,8 +826,9 @@
     gfx.clear(16, 66, 50);
     [[0.05, 0.05, 0.9, 0.9, 14], [0.12, 0.12, 0.76, 0.76, 14], [0.2, 0.2, 0.6, 0.6, 14], [0.3, 0.3, 0.4, 0.4, 14]].forEach((r) => fill(Math.round(SW * r[0]), Math.round(SH * r[1]), Math.round(SW * r[2]), Math.round(SH * r[3]), [60, 150, 110], r[4]));
   }
+  const stageC = () => { if (typeof gfx.layerBegin === 'function') cached(29, 'stage', stage); else stage(); }; // 背景(重ね塗りが 重い)を 1枚の絵にして、使いまわす
   function drawIntro() {
-    const it = S.intro, g = S.game, t = __now() - it.t0; stage();
+    const it = S.intro, g = S.game, t = __now() - it.t0; stageC();
     const P = g.players, st = (p) => (p.char && p.char.level ? p.char.level : 0), wf = (x, y, z) => { rrect(x - 3, y - 3, z + 6, z + 6, 8, [255, 255, 255]); rframe(x - 5, y - 5, z + 10, z + 10, 9, 2, [30, 30, 30]); rframe(x - 3, y - 3, z + 6, z + 6, 8, 4, [255, 255, 255]); };
     const pl = (p, cx, y, lv) => (g.dealer === p.seat ? dealerPlate(cx, y, p.name, t) : plate(cx, y, p.name, lv)); // 親は、金色の「親」の名札
     const wc = (p, x, y) => { const sw = g.seatWindOf(p); rrect(x, y, 36, 36, 6, [255, 255, 255]); rrect(x + 2, y + 2, 32, 32, 5, WIND_BG[sw]); text(WIND[sw], x + 18, y + 4, 26, WHITE, 1); }; // 東南西北のチップ
@@ -1289,7 +1290,7 @@
   }
   function overlay(a) { gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], a == null ? 200 : a); gfx.view(S.vx, S.vy); }
   function drawRankP(){ // 局のあとの、4人のじゅんい(点数と増減)
-    const r = S.rankP.r, g = S.game; stage(); text('この局の結果', SW / 2, 14, 34, YEL, 1);
+    const r = S.rankP.r, g = S.game; stageC(); text('この局の結果', SW / 2, 14, 34, YEL, 1);
     const win = new Set(r.wins.map((w) => w.winner.seat)), order = g.players.map((p, i) => i).sort((a, b) => (r.after[b] - r.after[a]) || (a - b));
     order.forEach((i, k) => {
       const p = g.players[i], y = 66 + k * 86, x = 96, w = 640, h = 78, d = r.delta[i], me = p.isHuman;
@@ -1352,7 +1353,7 @@
     }
   }
   function drawResult(r) {
-    const g = S.game; stage(); rrect(40, 12, 752, 444, 8, [10, 38, 30]);
+    const g = S.game; stageC(); rrect(40, 12, 752, 444, 8, [10, 38, 30]);
     if (r.type === 'win') {
       const w = r.wins[0], res = w.res, v = w.view;
       face(w.winner, 58, 24, 48, 48);
