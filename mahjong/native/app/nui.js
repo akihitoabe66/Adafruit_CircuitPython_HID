@@ -986,7 +986,7 @@
     }
     if (k === 'left') { if (c > 0) R.sel--; else if (pg > 0) R.sel = Math.min(n - 1, (pg - 1) * ROS_PER + r * 4 + 3); else if (!R.mode) { rosLeave(); return; } }
     else if (k === 'right') { if (c < 3 && R.sel + 1 < n) R.sel++; else if (pg < pages - 1) R.sel = Math.min(n - 1, (pg + 1) * ROS_PER + r * 4); }
-    else if (k === 'up') { if (r > 0) R.sel -= 4; else if (R.mode) S.bbf = true; else R.tb = 1; }
+    else if (k === 'up') { if (r > 0) R.sel -= 4; else if (R.mode || c === 0) S.bbf = true; else R.tb = c === 1 ? 1 : 2; } // 1段目から ▲: 真上に近いボタンへ(いちばん左=もどる(やめる) / 左から2列目=フリー対局 / 右の2列=CPUの観戦)
     else if (k === 'down') { if (r < 2 && R.sel + 4 < n) R.sel += 4; else if (need && R.pick.length === need) R.go = true; }
     dirty();
   }
