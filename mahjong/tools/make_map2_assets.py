@@ -52,7 +52,7 @@ def cut(poly, i, j): return poly[i:j + 1]
 # 段位ごとの 区間(1段ぶん)。 legs[i] = 段位 i → i+1 の道。 行き止まりの枝は、分かれ道まで 戻ってから 次へ
 de = E_['DE']; fg = E_['FG']; gh = E_['GH']; hi = E_['HI']; gj = E_['GJ']
 top = int(np.argmin(np.array(fg)[:, 1]))                          # 越後: 北の海ぞいの、いちばん高いところ
-ise = [list(nodes['E']), [768, 445], [766, 474]]                  # 伊勢: 大坂のあたりから 南へ のびる 寄り道(行き止まり)
+ise = [list(nodes['E']), [768, 445], [708, 512]]                  # 伊勢: 大坂のあたりから 南へ のびる 寄り道(行き止まり)
 def join(*ps):
     out = []
     for p in ps:
