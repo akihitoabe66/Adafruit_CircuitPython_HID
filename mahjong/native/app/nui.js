@@ -995,8 +995,33 @@
   function drawRoster() {
     if (!S.ros.pick) S.ros.pick = []; // (入り方によらず、選んだ人の一覧を かならず持たせる)
     const R = S.ros, L = rosList(), n = L.length, pages = Math.ceil(n / ROS_PER), pg = Math.floor(R.sel / ROS_PER), mx = MJ.Rank.get().maxdan || 0, dan = MJ.Rank.get().dan || 0;
-    gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 165); fill(0, 50, SW, 2, [150, 190, 140], 160);
     const need = rosNeed(R), full = need > 0 && R.pick.length === need;
+    const state = (c) => (MJ.unlockDan(c.id) > mx ? 0 : 2); // 2=登場している / 0=まだ登場しない(鍵)
+    const X0 = 24, DX = 112, Z = 84, pad = (k) => ('0' + k).slice(-2);
+    const useLay = typeof gfx.layerBegin === 'function';
+    const drawCard = (k, sel) => { // 1人ぶん(sel=カーソルが あたっている: 黄色い台の上に、文字は 黒)
+      const idx = pg * ROS_PER + k; if (idx >= n) return; const c = L[idx], st = state(c), x = X0 + (k % 4) * DX, y = 64 + Math.floor(k / 4) * 116;
+      if (sel) { rrect(x - 8, y - 8, Z + 16, Z + 40, 10, [160, 110, 0]); rrect(x - 5, y - 5, Z + 10, Z + 34, 8, YEL); }
+      if (st === 2) { rrect(x - 3, y - 3, Z + 6, Z + 6, 8, [255, 255, 255]); frame(x - 5, y - 5, Z + 10, Z + 10, [30, 30, 30], 1); gfx.image(skin(c.face), x, y, Z, Z, 255); text((c.short || c.name).slice(0, 7), x + Z / 2, y + Z + 6, 15, sel ? INK : WHITE, 1); }
+      else {
+        gfx.image('img/sil/' + pad(c.id) + '.webp', x, y, Z, Z, 255); frame(x - 1, y - 1, Z + 2, Z + 2, [30, 40, 50], 2);
+        if (st === 0) { fill(x, y, Z, Z, [0, 0, 0], 90); gfx.image('img/lock.webp', x + Z / 2 - 16, y + Z / 2 - 22, 32, 44, 255); text(MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'で登場', x + Z / 2, y + Z + 6, 14, sel ? INK : [255, 214, 120], 1); }
+        else text('？？？？', x + Z / 2, y + Z + 6, 15, sel ? INK : [200, 210, 220], 1);
+      }
+    };
+    const drawStatic = () => { // 動かない部分: 背景・12人の一覧・次のページののぞき窓・矢印・ページの点・人数(ページか段位が かわるまで 1枚の絵)
+      gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 165); fill(0, 50, SW, 2, [150, 190, 140], 160);
+      for (let k = 0; k < ROS_PER; k++) drawCard(k, false);
+      if (pg < pages - 1) { // 次のページの1列目を、左半分くっきり・右半分は透明になっていく絵で見せる(先に まだ人がいると 分かるように)+ 半透明の矢印
+        const nx = X0 + 4 * DX;
+        for (let r = 0; r < 3; r++) { const idx = (pg + 1) * ROS_PER + r * 4; if (idx >= n) break; const c = L[idx], st = state(c), y = 64 + r * 116; gfx.image('img/peek/' + (st === 2 ? 'f' : 's') + pad(c.id) + '.webp', nx, y, Z, Z, 255); if (st === 0) gfx.image('img/lock.webp', nx + 10, y + Z / 2 - 22, 32, 44, 150); }
+        gPoly([[528, 196], [528, 244], [552, 220]], YEL, 200);
+      }
+      if (pg > 0) gPoly([[14, 198], [14, 242], [0, 220]], YEL, 200);
+      for (let k = 0; k < pages; k++) { const cx = 190 + k * 26; rrect(cx - 7, 424, 14, 14, 7, k === pg ? YEL : [80, 100, 90]); }
+      text('登場した ' + L.filter((x) => state(x) === 2).length + ' / ' + n + '人', 24, 423, 16, YEL); text((pg + 1) + ' / ' + pages, 280, 423, 16, [200, 220, 205]);
+    };
+    if (useLay) cached(30, 'ro' + pg + ':' + mx, drawStatic); else drawStatic();
     if (!R.mode) {
       const pill = (x, w, lab, on) => { if (on) { rrect(x - 3, 14, w + 6, 36, 18, [255, 255, 255]); rrect(x, 17, w, 30, 15, [160, 110, 0]); rrect(x + 3, 20, w - 6, 24, 12, YEL); } else { rrect(x, 17, w, 30, 15, GREEN); rrect(x + 3, 20, w - 6, 24, 12, CREAM); } text(lab, x + w / 2, 23, -16, INK, 1); }; // 丸い小さなボタン。 下の線は「もどる」にそろえる
       pill(140, 118, 'フリー対局', R.tb === 1); pill(268, 128, 'CPUの観戦', R.tb === 2);
@@ -1007,29 +1032,17 @@
       const lab = (R.mode === 'play' ? 'フリー対局' : 'CPUの観戦') + ':', msg = full ? need + '人 そろいました' : need + '人 おえらびください';
       let tx = 150; text(lab, tx, 11, 26, YEL); tx += gfx.measure(lab, 26) + 14; text(msg, tx, 11, 26, full ? [159, 227, 168] : WHITE); tx += gfx.measure(msg, 26) + 22; text(R.pick.length + ' / ' + need, tx, 7, -34, WHITE);
     }
-    const state = (c) => (MJ.unlockDan(c.id) > mx ? 0 : 2); // 2=登場している / 0=まだ登場しない(鍵)
-    const X0 = 24, DX = 112, Z = 84, pad = (k) => ('0' + k).slice(-2);
-    for (let k = 0; k < ROS_PER; k++) {
-      const idx = pg * ROS_PER + k; if (idx >= n) break; const c = L[idx], st = state(c), sel = idx === R.sel && !S.bbf && !R.tb && !R.go, x = X0 + (k % 4) * DX, y = 64 + Math.floor(k / 4) * 116;
-      if (sel) { rrect(x - 8, y - 8, Z + 16, Z + 40, 10, [160, 110, 0]); rrect(x - 5, y - 5, Z + 10, Z + 34, 8, YEL); }
-      if (st === 2) { rrect(x - 3, y - 3, Z + 6, Z + 6, 8, [255, 255, 255]); frame(x - 5, y - 5, Z + 10, Z + 10, [30, 30, 30], 1); gfx.image(skin(c.face), x, y, Z, Z, 255); text((c.short || c.name).slice(0, 7), x + Z / 2, y + Z + 6, 15, sel ? INK : WHITE, 1); }
-      else {
-        gfx.image('img/sil/' + pad(c.id) + '.webp', x, y, Z, Z, 255); frame(x - 1, y - 1, Z + 2, Z + 2, [30, 40, 50], 2);
-        if (st === 0) { fill(x, y, Z, Z, [0, 0, 0], 90); gfx.image('img/lock.webp', x + Z / 2 - 16, y + Z / 2 - 22, 32, 44, 255); text(MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'で登場', x + Z / 2, y + Z + 6, 14, sel ? INK : [255, 214, 120], 1); }
-        else text('？？？？', x + Z / 2, y + Z + 6, 15, sel ? INK : [200, 210, 220], 1);
-      }
-    }
-    if (pg < pages - 1) { // 次のページの1列目を、左半分くっきり・右半分は透明になっていく絵で見せる(先に まだ人がいると 分かるように)+ 半透明の矢印
-      const nx = X0 + 4 * DX;
-      for (let r = 0; r < 3; r++) { const idx = (pg + 1) * ROS_PER + r * 4; if (idx >= n) break; const c = L[idx], st = state(c), y = 64 + r * 116; gfx.image('img/peek/' + (st === 2 ? 'f' : 's') + pad(c.id) + '.webp', nx, y, Z, Z, 255); if (st === 0) gfx.image('img/lock.webp', nx + 10, y + Z / 2 - 22, 32, 44, 150); }
-      gPoly([[528, 196], [528, 244], [552, 220]], YEL, 200);
-    }
-    if (pg > 0) gPoly([[14, 198], [14, 242], [0, 220]], YEL, 200);
-    const c = L[R.sel], st = state(c), px = 612, py = 64, pw = 200; panel(px, py, pw, 348, 14, [6, 28, 18], [140, 190, 130], 3, 255);
-    if (st === 2) { rrect(px + 43, py + 13, 114, 114, 8, WHITE); gfx.image(skin(c.face), px + 44, py + 14, 112, 112, 255); text(c.short || c.name, px + pw / 2, py + 134, fitSz(c.short || c.name, 22, 180, 14), YEL, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', px + pw / 2, py + 166, 14, WHITE, 1); const el = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; if (el > c.level) text('いまの段位では ' + MJ.starStr(el), px + pw / 2, py + 186, 14, YEL, 1); text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), px + pw / 2, py + (el > c.level ? 206 : 188), 14, WHITE, 1); const f = fitRich(c.desc || '', [15, 14, 13], 176, 104); richDraw(f.lines, px + 12, py + 232, f.sz, [230, 240, 225], 0); }
-    else { gfx.image('img/sil/' + pad(c.id) + '.webp', px + 44, py + 14, 112, 112, 255); frame(px + 43, py + 13, 114, 114, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', px + 77, py + 45, 46, 64, 255); text('？？？？', px + pw / 2, py + 134, 22, YEL, 1); const ud = MJ.unlockDan(c.id), m = MJ.DAN_NAME(ud) + 'になると、\n' + townName(ud) + 'の街に 登場します。'; const f = fitRich(m, [15, 14, 13], 176, 120); richDraw(f.lines, px + 12, py + 176, f.sz, [230, 240, 225], 0); }
-    for (let k = 0; k < pages; k++) { const cx = 190 + k * 26; rrect(cx - 7, 424, 14, 14, 7, k === pg ? YEL : [80, 100, 90]); }
-    text('登場した ' + L.filter((x) => state(x) === 2).length + ' / ' + n + '人', 24, 423, 16, YEL); text((pg + 1) + ' / ' + pages, 280, 423, 16, [200, 220, 205]);
+    { const kSel = R.sel - pg * ROS_PER; if (!S.bbf && !R.tb && !R.go && kSel >= 0 && kSel < ROS_PER) { drawCard(kSel, true);
+        const k2 = kSel + 4, i2 = pg * ROS_PER + k2; // 下の段の人の 枠の上の細い帯は、元の描く順(あとから)のまま、台の上に かさねる(帯だけ描くので、文字は 二重にならない)
+        if (k2 < ROS_PER && i2 < n) { const x2 = X0 + (k2 % 4) * DX, y2 = 64 + Math.floor(k2 / 4) * 116; gfx.clip(x2 - 8, y2 - 8, Z + 16, 9); if (state(L[i2]) === 2) { rrect(x2 - 3, y2 - 3, Z + 6, Z + 6, 8, [255, 255, 255]); frame(x2 - 5, y2 - 5, Z + 10, Z + 10, [30, 30, 30], 1); } else frame(x2 - 1, y2 - 1, Z + 2, Z + 2, [30, 40, 50], 2); gfx.clip(); }
+      } } // カーソルのところだけ、毎回 かさねて描く
+    const c = L[R.sel], st = state(c), px = 612, py = 64, pw = 200;
+    const drawPanel = () => { // 右の説明の枠: えらんでいる人が かわるまで 1枚の絵(文章のならべかたの計算も、そのとき1回だけ)
+      panel(px, py, pw, 348, 14, [6, 28, 18], [140, 190, 130], 3, 255);
+      if (st === 2) { rrect(px + 43, py + 13, 114, 114, 8, WHITE); gfx.image(skin(c.face), px + 44, py + 14, 112, 112, 255); text(c.short || c.name, px + pw / 2, py + 134, fitSz(c.short || c.name, 22, 180, 14), YEL, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', px + pw / 2, py + 166, 14, WHITE, 1); const el = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; if (el > c.level) text('いまの段位では ' + MJ.starStr(el), px + pw / 2, py + 186, 14, YEL, 1); text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), px + pw / 2, py + (el > c.level ? 206 : 188), 14, WHITE, 1); const f = fitRich(c.desc || '', [15, 14, 13], 176, 104); richDraw(f.lines, px + 12, py + 232, f.sz, [230, 240, 225], 0); }
+      else { gfx.image('img/sil/' + pad(c.id) + '.webp', px + 44, py + 14, 112, 112, 255); frame(px + 43, py + 13, 114, 114, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', px + 77, py + 45, 46, 64, 255); text('？？？？', px + pw / 2, py + 134, 22, YEL, 1); const ud = MJ.unlockDan(c.id), m = MJ.DAN_NAME(ud) + 'になると、\n' + townName(ud) + 'の街に 登場します。'; const f = fitRich(m, [15, 14, 13], 176, 120); richDraw(f.lines, px + 12, py + 176, f.sz, [230, 240, 225], 0); }
+    };
+    if (useLay) cached(31, 'pn' + c.id + ':' + dan + ':' + st, drawPanel); else drawPanel();
     if (!full) text(R.mode ? '決定: この人を えらぶ・はずす    戻る: やめる' : '◀ ▶ ▲ ▼ で えらぶ    戻る: もどる', SW / 2 + 80, SH - 28, 15, [210, 225, 205], 1);
     if (R.pick.length) { // えらんだ人: 黄色い枠と、赤い番号の丸。 枠を ぜんぶ描いてから、番号の丸を いちばん上に
       const pos = (id) => { const idx = L.findIndex((q) => q.id === id); if (idx < 0 || Math.floor(idx / ROS_PER) !== pg) return null; const kk = idx % ROS_PER; return [X0 + (kk % 4) * DX, 64 + Math.floor(kk / 4) * 116]; };
