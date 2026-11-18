@@ -9,6 +9,7 @@ SRC = {'a': 'tools/zn_src/pose_sheet_a.jpg', 'b': 'tools/zn_src/pose_sheet_b.jpg
 POSE = {'stand': ('a', 0), 'arms': ('a', 1), 'jump': ('a', 2), 'fists': ('a', 3), 'hip': ('b', 1), 'shout': ('b', 2), 'fist1': ('b', 3)}
 MULT = {'stand': 1.10, 'arms': 1.05 * 1.02, 'jump': 1.05, 'fists': 1.10, 'hip': 1.10, 'shout': 1.10, 'fist1': 1.10}   # 地図のずんだもんを 100% として(見て決めた大きさ)
 S0 = 64 / 420; BASE = 594; PAD = 5
+SS = 2; WHITE_W = 1.5; BROWN_W = 1.5   # 縁の太さ(画素): 白1.5 + こげ茶1.5。 (白 2 + こげ茶 1 だと、歩く絵より 白が太く見えた)
 def cut(sheet):
     im = cv2.imread(os.path.join(ROOT, SRC[sheet])); a = im.astype(int); bg = np.median(a[:40, :40].reshape(-1, 3), axis=0)
     m = (np.abs(a - bg).sum(axis=2) > 45).astype(np.uint8); k = np.ones((3, 3), np.uint8)
@@ -33,9 +34,12 @@ os.makedirs(os.path.join(ROOT, 'img/map'), exist_ok=True)
 for name, (s, i) in POSE.items():
     im, y1 = sheets[s][i]; S = S0 * MULT[name]; w, h = im.size; a = np.array(im)[:, :, 3] > 0
     ys, xs = np.nonzero(a[int(h * 0.55):]); ax = xs.mean()
-    W, H = round(w * S), round(h * S); sp = im.resize((W, H), Image.LANCZOS)
-    cv = Image.new('RGBA', (W + 2 * PAD, H + 2 * PAD), (0, 0, 0, 0)); big = Image.new('RGBA', cv.size, (0, 0, 0, 0)); big.paste(sp, (PAD, PAD))
-    cv.alpha_composite(outline(big, 3, (60, 40, 22))); cv.alpha_composite(outline(big, 2, (255, 255, 255))); cv.alpha_composite(big)
+    W, H = round(w * S), round(h * S)
+    # 縁は 2倍の細かさで作ってから 縮める(白 1.5画素 + こげ茶 1.5画素。 歩く絵と同じくらいの 細さ)
+    W2, H2 = W * SS, H * SS; sp = im.resize((W2, H2), Image.LANCZOS); P2 = PAD * SS
+    big = Image.new('RGBA', (W2 + 2 * P2, H2 + 2 * P2), (0, 0, 0, 0)); big.paste(sp, (P2, P2)); cv = Image.new('RGBA', big.size, (0, 0, 0, 0))
+    cv.alpha_composite(outline(big, round((BROWN_W + WHITE_W) * SS), (60, 40, 22))); cv.alpha_composite(outline(big, round(WHITE_W * SS), (255, 255, 255))); cv.alpha_composite(big)
+    cv = cv.resize((W + 2 * PAD, H + 2 * PAD), Image.LANCZOS)
     cv.save(os.path.join(ROOT, 'img/map/zp_%s.webp' % name), 'WEBP', quality=92, method=6, exact=True)
     table[name] = [cv.width, cv.height, round(PAD + ax * S), round(PAD + H - (y1 - BASE) * S)]   # 幅・高さ・足もとの中心の x・足もとの線の y(絵の左上から)
 print('const ZP = ' + json.dumps(table, ensure_ascii=False).replace('"', '') + ';')
