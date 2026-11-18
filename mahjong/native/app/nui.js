@@ -1253,6 +1253,10 @@
     const GOLD = [246, 220, 148], DK = [58, 34, 10], CR = [255, 243, 196];
     at(355, 445, f.name.length > 2 ? 52 : 70, f.name, GOLD); at(705, 349, 40, f.name, DK);
     if (f.next) { at(1068, 358, 28, f.next, GOLD); at(1093, 446, f.left >= 1000 ? 40 : 48, String(f.left), CR); } else if (f.tenka) { fill(562, 206, 144, 26, [66, 43, 32]); text('次は 永世名人', 634, 208, 21, GOLD, 1); fill(560, 252, 152, 36, [46, 31, 23]); text('天下分け目で 1位', 636, 259, 18, CR, 1); } // 点では なれない: 「あと ◯ 点」の行を、ことばに かえる else at(1090, 446, 34, 'いちばん上', GOLD);
+    { // 右下の巻物: 次の昇段で行ける街(地図とつながる)。 名人から先は ゴールの江戸
+      const pl = MAP_SETS[mapSetNo()].place, nd = f.next ? f.i + 1 : -1, raw = nd >= 0 ? pl[Math.min(nd, 11)] || '' : '', pm = raw.match(/\((.*)\)/), town = nd < 0 ? '江戸' : nd >= 10 ? '江戸' : pm ? pm[1] : raw.replace(/国$/, '');
+      text(nd < 0 ? 'ゴール' : '次の街', 615, 322, 12, [74, 50, 22], 1); text(town, 615, 335, -20, [122, 29, 18], 1);
+    }
     const bx = Math.round(531 * K), by = Math.round(506 * K) + 6, bw = Math.round(350 * K), bh = Math.round(46 * K);
     fill(bx, by, bw, bh, [26, 18, 10]); fill(bx, by, Math.round(bw * Math.max(f.prog > 0 ? 0.04 : 0, f.prog)), bh, [235, 200, 110]);
     if (f.next) at(706, 529, 26, (f.s.pt - f.base) + ' / ' + (f.next_pt - f.base), DK);
