@@ -630,7 +630,7 @@
       const gy = await this.preWin(p, true, res, cb);
       if (!gy) { if (!(this.ui && this.ui.winFxOn && this.ui.winFxOn() && !this.fast)) this.speak(p, 'win', true); } // 派手な演出では、決めゼリフはカットインの中に出す
       this.sync();
-      await this.banner(p, 'ツモ', gy ? { quiet: true } : undefined); // 逆転のカットインのあとは、文字の演出は省いて、すぐ結果の画面へ
+      await this.banner(p, 'ツモ'); // 逆転のカットインのあとも、ふつうの「ツモ」の文字を出す(カットインに札がないので)
       const win = { winner: p, loser: null, res, tsumo: true, pay, view: this.handView(p, p.drawn, true), winTile: p.drawn,
         ura: p.riichi ? this.uraAll.slice(0, this.doraInd.length) : [], kyotaku: this.kyotaku, honba: this.honba };
       this.kyotaku = 0;
@@ -648,7 +648,7 @@
         if (first) { try { const t0 = cbq || q; gy = await this.preWin(t0, false, MJ.evaluate(this.buildCtx(t0, tile, false)), !!cbq); } catch (e) { /* ignore */ } }
         if (!fxOn && !(gy && first)) this.speak(q, 'win');
         this.sync();
-        if (first || !fxOn) await this.banner(q, 'ロン', gy && first ? { quiet: true } : fxOn ? { all: winners } : undefined); // ダブロンの演出は、1回にまとめる。 逆転のカットインのあとは、文字の演出を省く
+        if (first || !fxOn) await this.banner(q, 'ロン', fxOn ? { all: winners } : undefined); // ダブロンの演出は、1回にまとめる
         const res = MJ.evaluate(this.buildCtx(q, tile, false));
         const pay = MJ.payments(res, q.seat === this.dealer, false, first ? this.honba : 0);
         delta[from.seat] -= pay.ron; delta[q.seat] += pay.ron;
