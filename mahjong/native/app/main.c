@@ -233,6 +233,7 @@ static JSValue j_music(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   const char *p = JS_ToCString(c, a[0]); int loop = n > 1 ? JS_ToBool(c, a[1]) : 1;
   if (bgm) { Mix_HaltMusic(); Mix_FreeMusic(bgm); bgm = NULL; } bgms_close(); bgm_want = 0;
   if (p && *p) { char full[1400]; snprintf(full, sizeof full, "%s/%s", root, p); double t0 = nowms();
+    { size_t fl = strlen(full); if (fl > 4 && !strcmp(full + fl - 4, ".mp3") && !getenv("MJ_NOWAV")) { char alt[1400]; snprintf(alt, sizeof alt, "%.*s.wav", (int)(fl - 4), full); if (access(alt, R_OK) == 0) snprintf(full, sizeof full, "%s", alt); } } /* 同じ名前の .wav(tools/make_bgm_wav.sh で作る、展開のいらない BGM)があれば、そちらを使う */
     if (!getenv("MJ_BGM_OLD") && bgms_open(full, loop)) { double lt = nowms() - t0; if (lt > bgm_load_max) bgm_load_max = lt; if (lt >= 80) bgm_log("bgm-open", lt, p); bgm_want = 2; bgm_loop = loop; snprintf(bgm_path, sizeof bgm_path, "%s", p); JS_FreeCString(c, p); return JS_UNDEFINED; } /* 先読み再生(ふだんは、こちら) */ bgm = Mix_LoadMUS(full); double lt = nowms() - t0; if (lt > bgm_load_max) bgm_load_max = lt; if (lt >= 80) bgm_log("bgm-load", lt, p);
     if (!bgm) fprintf(stderr, "bgm? %s (%s)\n", full, Mix_GetError()); else { Mix_PlayMusic(bgm, loop ? -1 : 1); bgm_want = 1; bgm_loop = loop; snprintf(bgm_path, sizeof bgm_path, "%s", p); } }
   JS_FreeCString(c, p); return JS_UNDEFINED; }
