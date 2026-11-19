@@ -31,7 +31,7 @@ static struct {
   int w, h, nq, qr, qw, qn; VF *q; Uint8 *qmem;
   Sint16 *ab; int acap, ar, aw, an, rate; Sint16 *tmp; int tmpcap;
   SDL_mutex *mu; SDL_Thread *th, *thv, *tha; SDL_Texture *tex;
-  PQ vpq, apq; volatile int gen; int abuf_fill, under;
+  PQ vpq, apq; volatile int gen; int abuf_fill, under; volatile int vgate; /* 1のあいだは、最初の絵が出るまで、音を鳴らさない */
 } V;
 /* 解読は、映像と音を別々のスレッドでやる(映像が間に合わなくても、音は、とぎれさせない) */
 static void pq_flush(PQ *q) { while (q->n > 0) { av_packet_free(&q->p[q->r]); q->r = (q->r + 1) % q->cap; q->n--; } q->r = q->w = 0; }
@@ -48,11 +48,13 @@ static double vclock_l(void) { /* 今の再生位置(秒)。ロック中に呼�
 static void vhook(void *u, Uint8 *st, int len) { /* 音を出す側(別スレッド) */
   memset(st, 0, len);
   if (!V.open || V.paused || V.seekreq) return;
+  if (V.vgate) { if (nowms() - V.wall0 > 20000) V.vgate = 0; else return; } /* 最初の絵が出るまで、音は鳴らさない(絵が出ないときでも、20秒たったら 音だけ鳴らす) */
   SDL_LockMutex(V.mu);
   if (V.abuf_fill) { if (V.an >= V.rate / 4 || (V.eof && V.apq.n == 0)) V.abuf_fill = 0; else { SDL_UnlockMutex(V.mu); return; } } /* 音が足りなくなったら、少したまるまで 待つ(細かい音切れを、さける) */
   int need = len / 4, n = need < V.an ? need : V.an, first = V.acap - V.ar < n ? V.acap - V.ar : n;
   memcpy(st, V.ab + V.ar * 2, first * 4); if (n > first) memcpy(st + first * 4, V.ab, (n - first) * 4);
   if (g_vvol < 128) { int vv = g_vvol; Sint16 *sp = (Sint16 *)st; for (int i = 0; i < n * 2; i++) sp[i] = (Sint16)((sp[i] * vv) >> 7); } /* 音量 */
+  if (n > 0 && V.consumed == 0 && getenv("MJ_VDBG")) fprintf(stderr, "audio-first %.0fms\n", nowms() - V.wall0);
   V.ar = (V.ar + n) % V.acap; V.an -= n; V.consumed += n; if (n > 0) { V.hookt = nowms(); V.hooklen = (double)need / V.rate; } if (n < need && !V.eof) { V.abuf_fill = 1; V.under++; }
   SDL_UnlockMutex(V.mu);
 }
@@ -195,7 +197,7 @@ static int vid_open(const char *path, double start) {
   for (int i = 0; i < V.nq; i++) { Uint8 *b = V.qmem + fsz * i; V.q[i].ls[0] = V.w; V.q[i].ls[1] = V.q[i].ls[2] = (V.w + 1) / 2; V.q[i].d[0] = b; V.q[i].d[1] = b + (size_t)V.w * V.h; V.q[i].d[2] = V.q[i].d[1] + (size_t)((V.w + 1) / 2) * ((V.h + 1) / 2); }
   V.tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, V.w, V.h);
   if (!V.tex) { fprintf(stderr, "video? texture: %s\n", SDL_GetError()); V.open = 1; vid_close(); return 0; }
-  V.avoff = getenv("MJ_AVOFF") ? atof(getenv("MJ_AVOFF")) / 1000.0 : 0; V.hooklen = 0.09; V.mu = SDL_CreateMutex(); V.wall0 = nowms(); V.base = start > 0 ? start : 0; V.discard = V.base; V.showfirst = 1;
+  V.avoff = getenv("MJ_AVOFF") ? atof(getenv("MJ_AVOFF")) / 1000.0 : 0; V.hooklen = 0.09; V.mu = SDL_CreateMutex(); V.wall0 = nowms(); V.base = start > 0 ? start : 0; V.discard = V.base; V.showfirst = 1; V.vgate = 1;
   if (start > 0.5) { V.seekto = start; V.seekreq = 1; }
   if (V.hasaudio) { Mix_HaltMusic(); Mix_VolumeMusic(128); Mix_HookMusic(vhook, NULL); }
   V.vpq.cap = 160; V.vpq.p = calloc(V.vpq.cap, sizeof(AVPacket *)); V.apq.cap = 600; V.apq.p = calloc(V.apq.cap, sizeof(AVPacket *)); V.abuf_fill = 1;
@@ -213,7 +215,7 @@ static int vid_update(void) { /* 出す絵があれば、テクスチャに入�
   if (V.dropped > 8 && V.slow < 1) V.slow = 1; if (V.dropped > 80 && V.slow < 2) V.slow = 2;
   SDL_UnlockMutex(V.mu);
   if (!show) return 0;
-  VF *f = &V.q[V.qr]; double tu0 = nowms(); SDL_UpdateYUVTexture(V.tex, NULL, f->d[0], f->ls[0], f->d[1], f->ls[1], f->d[2], f->ls[2]); V.hasframe = 1; if (getenv("MJ_VDBG")) fprintf(stderr, "upload %.1fms\n", nowms() - tu0);
+  VF *f = &V.q[V.qr]; double tu0 = nowms(); SDL_UpdateYUVTexture(V.tex, NULL, f->d[0], f->ls[0], f->d[1], f->ls[1], f->d[2], f->ls[2]); if (!V.hasframe && getenv("MJ_VDBG")) fprintf(stderr, "frame-first %.0fms\n", nowms() - V.wall0); V.hasframe = 1; V.vgate = 0; if (getenv("MJ_VDBG")) fprintf(stderr, "upload %.1fms\n", nowms() - tu0);
   SDL_LockMutex(V.mu); V.qr = (V.qr + 1) % V.nq; V.qn--; SDL_UnlockMutex(V.mu); return 1;
 }
 static void vid_render(void) {

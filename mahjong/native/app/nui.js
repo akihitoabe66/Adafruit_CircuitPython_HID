@@ -2067,7 +2067,12 @@
     if (V.err) { fill(0, 200, SW, 60, [0, 0, 0], 200); text(V.err, SW / 2, 214, 22, YEL, 1); }
   }
   function drawVideoPlay(V) {
-    const p = V.p; gfx.clear(0, 0, 0); if (!p.st[4]) text('よみこみ中…', SW / 2, 210, 30, WHITE, 1);
+    const p = V.p; gfx.clear(0, 0, 0);
+    if (!p.st[4]) { // 最初の絵が出るまで: サムネイルを、画面いっぱいに出して、その上に「よみこみ中…」(音も、絵が出るまで 鳴らさない)
+      if (p.f.png) gfx.image(p.f.png, 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], p.f.png ? 90 : 0);
+      rrect(SW / 2 - 140, SH / 2 - 36, 280, 72, 16, [0, 0, 0], 200); text('よみこみ中…', SW / 2, SH / 2 - 19, 34, WHITE, 1);
+      rrect(SW / 2 - 110, SH - 58, 220, 34, 10, [0, 0, 0], 170); text('戻る: やめる', SW / 2, SH - 54, 20, [220, 230, 220], 1); return;
+    }
     const now = __now(), show = p.paused || p.end || now < p.ui + 3500, st = p.st, T = gfx.textTop, F = (x, y, w, h, c, a) => gfx.fillTop(x, y, w, h, c[0], c[1], c[2], a == null ? 255 : a), TT = (s, x, y, sz, c, al) => T(String(s), x, y, sz, c[0], c[1], c[2], al || 0);
     if (now < p.toastT && !p.end) { F(SW / 2 - 150, 74, 300, 56, [0, 0, 0], 170); TT(p.toast, SW / 2, 84, 30, WHITE, 1); }
     if (p.end) { F(150, 130, 532, 190, [0, 0, 0], 210); TT('見おわりました', SW / 2, 150, 40, YEL, 1); TT('決定ボタン: もう一度 見る', SW / 2, 226, 26, WHITE, 1); TT('戻る: 一覧へ もどる', SW / 2, 266, 26, WHITE, 1); }
