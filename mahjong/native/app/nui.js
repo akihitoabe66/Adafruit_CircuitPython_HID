@@ -1958,9 +1958,15 @@
     const V = S.vid, f = V.files[i];
     if (!f.path || typeof __vopen !== 'function') { V.err = f.path ? 'この画面では 再生できません(実機で 見られます)' : 'この動画は まだ 入っていません(mjdata/video に入れてください)'; dirty(); return; }
     try { NSND.music(''); snd.musicVol(vVol()); } catch (e) { /* ignore */ }
-    const tv0 = __now(); tl('vopen ' + f.path); const r = __vopen(f.path, from || 0); tl('vopen-done ' + Math.round(__now() - tv0) + 'ms'); V.tFirst = 0; if (!r) { V.view = 'list'; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
-    const now = __now(); V.sel = i; V.view = 'play'; V.p = { f, i, dur: r.dur || 0, ui: now + 2500, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now, st: [from || 0, r.dur || 0, 0, 0, 0], sig: '' };
-    V.d.last = f.name; (V.d.dur = V.d.dur || {})[f.name] = r.dur || 0; vSave(); dirty();
+    // 先に「よみこみ中…」の画面を出してから、動画を開く(開くあいだ、画面が止まるので、一覧のまま固まって見えないように)
+    const now0 = __now(); V.sel = i; V.view = 'play'; V.tFirst = 0; V.p = { f, i, dur: (V.d.dur && V.d.dur[f.name]) || 0, ui: now0 + 2500, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now0, st: [from || 0, 0, 0, 0, 0], sig: '', loading: true }; dirty();
+    setTimeout(() => {
+      if (!S.vid || S.vid.p !== V.p || S.mode !== 'video') return; // 待っているあいだに、戻る を押していたら やめる
+      const tv0 = __now(); tl('vopen ' + f.path); const r = __vopen(f.path, from || 0); tl('vopen-done ' + Math.round(__now() - tv0) + 'ms');
+      if (!r) { V.view = 'list'; V.p = null; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
+      const now = __now(), p = V.p; p.loading = false; p.dur = r.dur || 0; p.ui = now + 2500; p.save = now; p.st = [from || 0, r.dur || 0, 0, 0, 0];
+      V.d.last = f.name; (V.d.dur = V.d.dur || {})[f.name] = r.dur || 0; vSave(); dirty();
+    }, 120);
   }
   const vVol = () => { const v = S.vid && S.vid.d && S.vid.d.vol; return typeof v === 'number' ? v : 0.55; }; // 動画の音量(0〜1)。BGMとは別に、おぼえておく
   function vStop(markEnd) { // 動画をとじて、一覧へ
@@ -1989,6 +1995,7 @@
     const V = S.vid, now = __now(); dirty();
     if (V.view === 'play') {
       const p = V.p;
+      if (p.loading) { if (k === 'back') { V.view = 'list'; V.p = null; try { NSND.home(); } catch (e) { /* ignore */ } } return; } // 開いているあいだは、戻る だけ
       if (k === 'back') { vStop(false); return; }
       if (k === 'left') vSeek(-1, now); else if (k === 'right') vSeek(1, now);
       else if (k === 'up' || k === 'down') { const L = Math.max(0, Math.min(10, Math.round(vVol() * 10) + (k === 'up' ? 1 : -1))); V.d.vol = L / 10; try { snd.musicVol(L / 10); } catch (e) { /* ignore */ } vSave(); p.ui = now; p.toast = '音量 ' + L + ' / 10'; p.toastT = now + 1300; }
