@@ -608,27 +608,29 @@
       return { concealed, melds: p.melds.map((m) => ({ kind: m.kind, t: m.t, tiles: m.tiles.slice() })), flowers: (p.flowers || []).slice(), winTile };
     }
 
-    async preWin(p, tsumo, res) { // 「ロン!」「ツモ!」と言うより先に、決めゼリフのカットイン(画面側にあるときだけ。 出すかどうかは MJ.CutIn が決める)
-      if (this.ui && this.ui.preWin && !this.fast && !p.isHuman) { try { await this.ui.preWin(this, p, tsumo, res); } catch (e) { /* ignore */ } }
+    async preWin(p, tsumo, res, cb) { // 「ロン!」「ツモ!」と言うより先に、決めゼリフのカットイン(画面側にあるときだけ)。 逆転の上がり(cb)は、自分でも出る。 逆転のカットインを出したときは true
+      if (this.ui && this.ui.preWin && !this.fast && (!p.isHuman || cb)) { try { return !!(await this.ui.preWin(this, p, tsumo, res, cb)); } catch (e) { /* ignore */ } }
+      return false;
+    }
+    comebackOf(seat, delta) { // 最終局で、この上がりで、1位が入れ替わるか(上がる前は誰かが上で、上がったあとは単独1位)
+      if (!this.isOras() || !delta) return false;
+      const s = this.players.map((q) => q.score), a = s.map((v, i) => v + delta[i]);
+      return s.some((v, j) => j !== seat && v > s[seat]) && a.every((v, j) => j === seat || v < a[seat]);
+    }
+    tsumoDelta(p, res) { // ツモの点の動き(まだ動かさない)
+      const delta = [0, 0, 0, 0], pay = MJ.payments(res, p.seat === this.dealer, true, this.honba);
+      if (p.seat === this.dealer) { for (const q of this.players) if (q !== p) { delta[q.seat] -= pay.each; delta[p.seat] += pay.each; } }
+      else { for (const q of this.players) { if (q === p) continue; const v = q.seat === this.dealer ? pay.fromDealer : pay.fromOther; delta[q.seat] -= v; delta[p.seat] += v; } }
+      delta[p.seat] += this.kyotaku * 1000;
+      return { delta, pay };
     }
 
     async winTsumo(p, res, rinshan) {
-      await this.preWin(p, true, res);
-      if (!(this.ui && this.ui.winFxOn && this.ui.winFxOn() && !this.fast)) this.speak(p, 'win', true); // 派手な演出では、決めゼリフはカットインの中に出す
+      const { delta, pay } = this.tsumoDelta(p, res), cb = !this.fast && this.comebackOf(p.seat, delta);
+      const gy = await this.preWin(p, true, res, cb);
+      if (!gy) { if (!(this.ui && this.ui.winFxOn && this.ui.winFxOn() && !this.fast)) this.speak(p, 'win', true); } // 派手な演出では、決めゼリフはカットインの中に出す
       this.sync();
-      await this.banner(p, 'ツモ');
-      const delta = [0, 0, 0, 0];
-      const pay = MJ.payments(res, p.seat === this.dealer, true, this.honba);
-      if (p.seat === this.dealer) {
-        for (const q of this.players) if (q !== p) { delta[q.seat] -= pay.each; delta[p.seat] += pay.each; }
-      } else {
-        for (const q of this.players) {
-          if (q === p) continue;
-          const v = q.seat === this.dealer ? pay.fromDealer : pay.fromOther;
-          delta[q.seat] -= v; delta[p.seat] += v;
-        }
-      }
-      delta[p.seat] += this.kyotaku * 1000;
+      await this.banner(p, 'ツモ', gy ? { quiet: true } : undefined); // 逆転のカットインのあとは、文字の演出は省いて、すぐ結果の画面へ
       const win = { winner: p, loser: null, res, tsumo: true, pay, view: this.handView(p, p.drawn, true), winTile: p.drawn,
         ura: p.riichi ? this.uraAll.slice(0, this.doraInd.length) : [], kyotaku: this.kyotaku, honba: this.honba };
       this.kyotaku = 0;
@@ -640,11 +642,13 @@
       const wins = [];
       let first = true;
       const fxOn = !!(this.ui && this.ui.winFxOn && this.ui.winFxOn() && !this.fast); // 派手な演出では、決めゼリフはカットインの中に出す
+      let cbq = null, gy = false; // 逆転(最終局で1位が入れ替わる)になる上がり手
+      if (!this.fast && this.isOras()) { try { const dl = [0, 0, 0, 0]; let f1 = true; for (const q of winners) { const pr = MJ.payments(MJ.evaluate(this.buildCtx(q, tile, false)), q.seat === this.dealer, false, f1 ? this.honba : 0); dl[from.seat] -= pr.ron; dl[q.seat] += pr.ron; if (f1) dl[q.seat] += this.kyotaku * 1000; f1 = false; } cbq = winners.find((q) => this.comebackOf(q.seat, dl)) || null; } catch (e) { cbq = null; } }
       for (const q of winners) {
-        if (first) { try { await this.preWin(q, false, MJ.evaluate(this.buildCtx(q, tile, false))); } catch (e) { /* ignore */ } }
-        if (!fxOn) this.speak(q, 'win');
+        if (first) { try { const t0 = cbq || q; gy = await this.preWin(t0, false, MJ.evaluate(this.buildCtx(t0, tile, false)), !!cbq); } catch (e) { /* ignore */ } }
+        if (!fxOn && !(gy && first)) this.speak(q, 'win');
         this.sync();
-        if (first || !fxOn) await this.banner(q, 'ロン', fxOn ? { all: winners } : undefined); // ダブロンの演出は、1回にまとめる
+        if (first || !fxOn) await this.banner(q, 'ロン', gy && first ? { quiet: true } : fxOn ? { all: winners } : undefined); // ダブロンの演出は、1回にまとめる。 逆転のカットインのあとは、文字の演出を省く
         const res = MJ.evaluate(this.buildCtx(q, tile, false));
         const pay = MJ.payments(res, q.seat === this.dealer, false, first ? this.honba : 0);
         delta[from.seat] -= pay.ron; delta[q.seat] += pay.ron;
@@ -679,7 +683,7 @@
       const before = this.players.map((p) => p.score);
       this.players.forEach((p, i) => { p.score += delta[i]; });
       { let mi = 0; delta.forEach((d, i) => { if (d < delta[mi]) mi = i; }); this.lastLoser = delta[mi] < 0 ? this.players[mi] : null; } // いちばん点を取られた人(セリフで名前を呼ぶ相手に使う)
-      const result = Object.assign({ type: 'win', wins, delta, before, after: this.players.map((p) => p.score), tsumo: wins[0].tsumo }, extra);
+      const result = Object.assign({ type: 'win', wins, delta, before, after: this.players.map((p) => p.score), tsumo: wins[0].tsumo, comeback: this.cbResult || null }, extra); this.cbResult = null;
       return this.ui ? this.ui.showResult(this, result).then(() => result) : result;
     }
 

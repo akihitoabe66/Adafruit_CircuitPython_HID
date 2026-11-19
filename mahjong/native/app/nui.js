@@ -434,7 +434,7 @@
     rrect(fx - 8, 88, 206, 206, 6, [26, 18, 8]); rrect(fx - 5, 91, 200, 200, 5, K.edge); rrect(fx - 1, 95, 192, 192, 4, [255, 255, 255]); face(C.ci.p, fx + 1, 97, 188, 188, true);
     const tx = Math.round(250 + 620 * (1 - ciEase((t - 170) / 330)) + 620 * out), sz = ciSize(C.ci.text);
     text(C.ci.p.name, tx, by + 10, -19, K.edge, 0); [[-2, -2], [2, -2], [-2, 2], [3, 3]].forEach((d) => text(C.ci.text, tx + d[0], by + 40 + d[1], -sz, [0, 0, 0], 0)); text(C.ci.text, tx, by + 40, -sz, WHITE, 0);
-    if (t > 340 && out < 0.5) { const a = Math.min(255, Math.round((t - 340) * 2.5)); rrect(704, 18, 108, 44, 6, K.edge, a); rrect(707, 21, 102, 38, 5, K.band, a); text(K.tag, 758, 24, -26, WHITE, 1); }
+    if (t > 340 && out < 0.5) { const a = Math.min(255, Math.round((t - 340) * 2.5)), tg = C.ci.gyaku ? '逆転' + K.tag : K.tag, tw = C.ci.gyaku ? 172 : 108, tx0 = 812 - tw; rrect(tx0, 18, tw, 44, 6, K.edge, a); rrect(tx0 + 3, 21, tw - 6, 38, 5, K.band, a); text(tg, tx0 + tw / 2, 24, -26, WHITE, 1); }
     dirty();
   }
   function winRvDone() { const W = S.winRv; if (!W) return; S.winRv = null; S.winRvHold = { ws: W.ws }; /* 裏ドラの確認のあいだも、開いた手牌を 見せたままにする(結果の画面が出るまで) */ dirty(); try { W.res(); } catch (e) { /* ignore */ } }
@@ -2590,9 +2590,9 @@
     render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; tl('discard seat' + ld.by); try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
     sfx(name) { NSND.sfx(name); },
     bgmTrack() { try { return NSND.track(); } catch (e) { return undefined; } }, // セーブに入れる(つづきから 同じ曲を流す)
-    preWin(g, p, tsumo, res) { // 上がった人(CPU)が「ロン!」「ツモ!」と言うより先に、決めゼリフのカットイン
-      const ci = (() => { try { return MJ.CutIn ? MJ.CutIn.pick(g, { winner: p, tsumo, res }) : null; } catch (e) { return null; } })();
-      return ci ? cutinShow(g, ci) : Promise.resolve();
+    preWin(g, p, tsumo, res, cb) { // 上がった人が「ロン!」「ツモ!」と言うより先に、決めゼリフのカットイン(逆転の上がり=cb は、自分でも出る)。 逆転のカットインを出したら true
+      const ci = (() => { try { return MJ.CutIn ? ((cb && MJ.CutIn.gyaku(g, { winner: p, tsumo, res })) || (!p.isHuman ? MJ.CutIn.pick(g, { winner: p, tsumo, res }) : null)) : null; } catch (e) { return null; } })();
+      return ci ? cutinShow(g, ci).then(() => !!ci.gyaku) : Promise.resolve(false);
     },
     winReveal(g, wins) { // CPUが上がったとき: 手牌を「ダッ」と倒して見せる → 少し間 → (裏ドラ →) 結果の画面
       return Promise.resolve().then(() => new Promise((res) => {
@@ -2603,7 +2603,7 @@
     speak(g, p, t, ms) { // セリフは、ポン・チー・リーチなどの宣言や、ほかの人のセリフが終わるまで待ってから、1人ずつ出す(かぶらないように)
       ms = ms || Math.max(2800, Math.min(4800, 1300 + String(t).length * 110)); tl('say-queue ' + (p && p.name)); (S.sayQ || (S.sayQ = [])).push({ g, p, t, ms, t0: __now() }); pumpSay();
     },
-    banner(g, p, t) { tl('banner ' + t + ' ' + (p && p.name)); S.banner = { text: t, t0: __now(), p, call: true }; if (p && p.isHuman) setMood({ 'リーチ': 'fight', 'ポン': 'call', 'チー': 'call', 'カン': 'call', 'ロン': 'point', 'ツモ': 'happy' }[t] || 'normal', 4000); dirty(); if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
+    banner(g, p, t, opt) { tl('banner ' + t + ' ' + (p && p.name)); if (opt && opt.quiet) { if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 350); } S.banner = { text: t, t0: __now(), p, call: true }; if (p && p.isHuman) setMood({ 'リーチ': 'fight', 'ポン': 'call', 'チー': 'call', 'カン': 'call', 'ロン': 'point', 'ツモ': 'happy' }[t] || 'normal', 4000); dirty(); if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
     handStart(g) {
       tl('handStart');
       try { const me = g.players[0]; S.prevRank = 1 + g.players.filter((q) => q.score > me.score).length; } catch (e) { S.prevRank = 0; } // この局のはじめの、あなたの順位(対局が終わったとき、「逆転」の声に使う)
@@ -2667,7 +2667,7 @@
     showResult(g, r) {
       S.bub = {}; S.sayQ = []; S.banner = null; try { if (!g.practice) MJ.Stats.hand(g, r); } catch (e) { /* ignore */ }
       try { if (MJ.Banter && MJ.Banter.noteResult) MJ.Banter.noteResult(g, r); } catch (e) { /* ignore */ } // 直前の局のことを、覚えておく
-      S.resSay = { lines: [], t0: __now() }; try { if (MJ.Banter && MJ.Banter.afterWin && !g.fast) { S.resSay.lines = MJ.Banter.afterWin(g, r); S.resSay.lines.forEach((l, i) => { const st = 700 + i * 3800; setTimeout(dirty, st); setTimeout(dirty, st + 3500); }); } } catch (e) { /* ignore */ } // 上がったあとの、煽り・悔しがり
+      S.resSay = { lines: [], t0: __now() }; try { if (MJ.Banter && MJ.Banter.afterWin && !g.fast) { S.resSay.lines = MJ.Banter.afterWin(g, r); if (r.comeback && r.comeback.p && r.comeback.text && MJ.Banter.on !== false) S.resSay.lines.unshift({ p: r.comeback.p, text: r.comeback.text }); S.resSay.lines.forEach((l, i) => { const st = 700 + i * 3800; setTimeout(dirty, st); setTimeout(dirty, st + 3500); }); } } catch (e) { /* ignore */ } // 上がったあとの、煽り・悔しがり
       NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
       if (r.type === 'win' && !r.wins.some((w) => w.winner.isHuman) && !(r.delta[0] < 0) && r.wins.some((w) => !w.tsumo)) NSND.resultCpuRon(); // CPUが、別のCPUからロン(自分は関係ない)
       const iWon = r.type === 'win' && r.wins.some((w) => w.winner.isHuman), iLost = r.type === 'win' && !iWon && r.delta && r.delta[0] < 0;
