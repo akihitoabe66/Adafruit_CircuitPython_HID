@@ -1265,7 +1265,7 @@
     }
     if (t >= TI && !C.snd) { C.snd = true; NSND.sfx('slam'); if (C.rk.to >= 1 && C.rk.to <= 11) setTimeout(() => { if (S.cert === C) NSND.speak(['d:0', 'd:' + C.rk.to]); }, 700); } // ハンコのあと「昇格したのだ。〇〇になりました。」
     if (t > 300) { text('昇段 おめでとう!', 590, 120, 38, YEL, 1); text(C.rk.dan + 'に なりました', 590, 180, 28, WHITE, 1); }
-    if (t > TI + 380) nextBtn(590, 392, 340, 40);
+    if (t > TI + 380) nextBtn();
     if (t < TI + 600) dirty();
   }
   function certKey(k) { const C = S.cert; if (!C || (C.vt || 0) < 1720) return; if (k === 'ok' || k === 'back') { S.cert = null; C.then(); } dirty(); }
@@ -1278,14 +1278,15 @@
     if (t < 900) gfx.image('img/sil/' + ('0' + c.id).slice(-2) + '.webp', x, y, z, z, 255); else gfx.image(skin(c.face), x, y, z, z, 255);
     if (t >= 900 && !V.snd) { V.snd = true; NSND.sfx('slam'); }
     text('新しい雀士が 登場!', 560, 50, 34, YEL, 1);
-    if (t >= 900) { text('NEW!', 450, 130, 40, RED); text(c.short || c.name, 560, 190, 36, WHITE, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', 560, 250, 20, WHITE, 1); text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), 560, 280, 20, WHITE, 1); const f = fitRich(c.desc || '', [18, 17, 16], 330, 100); richDraw(f.lines, 400, 322, f.sz, [230, 240, 225], 0); nextBtn(560, 424, 380, 38, (V.i + 1) + ' / ' + V.ids.length); }
+    if (t >= 900) { text('NEW!', 450, 130, 40, RED); text(c.short || c.name, 560, 190, 36, WHITE, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', 560, 250, 20, WHITE, 1); text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), 560, 280, 20, WHITE, 1); const f = fitRich(c.desc || '', [18, 17, 16], 330, 100); richDraw(f.lines, 400, 322, f.sz, [230, 240, 225], 0); nextBtn((V.i + 1) + ' / ' + V.ids.length); }
     else text('？？？？', 560, 190, 36, [200, 215, 230], 1);
     if (t < 1000) dirty();
   }
-  function nextBtn(cx, y, w, h, extra) { // 「Aボタン(決定)ですすむ」: 目立つ金色の札に、赤い丸の「A」(説明の文字と ちがう色で、すぐ分かるように)
-    const x = cx - Math.round(w / 2); rrect(x - 3, y - 3, w + 6, h + 6, Math.round(h / 2) + 3, [255, 255, 255]); rrect(x, y, w, h, Math.round(h / 2), [230, 184, 48]);
-    const d = h - 10; rrect(x + 5, y + 5, d, d, Math.round(d / 2), [255, 255, 255]); rrect(x + 7, y + 7, d - 4, d - 4, Math.round((d - 4) / 2), [214, 70, 56]); text('A', x + 5 + Math.round(d / 2), y + Math.round((h - 26) / 2) - 1, -26, WHITE, 1);
-    const lw = gfx.measure('決定ボタンで すすむ', -24), xw = extra ? gfx.measure(extra, -20) + 14 : 0, lx = x + 5 + d + Math.round((w - 5 - d - lw - xw) / 2); text('決定ボタンで すすむ', lx, y + Math.round((h - 24) / 2) - 1, -24, [42, 26, 0], 0); if (extra) text(extra, lx + lw + 14, y + Math.round((h - 20) / 2), -20, [96, 40, 20], 0);
+  function nextBtn(extra) { // 「Aボタン(決定)ですすむ」: 画面の下に、うすい黒の帯(上に金のふち)をしき、赤い丸の「A」と金色の文字を出す(ほかの画面の下の案内と同じ形。下すれすれにしない)
+    const by = 412, bh = 44; fill(0, by, SW, bh, [10, 20, 16], 184); fill(0, by, SW, 2, [230, 184, 48]);
+    const lab = '決定ボタンで すすむ', lw = gfx.measure(lab, -25), xw = extra ? gfx.measure(extra, -20) + 24 : 0, d = 36, tot = d + 12 + lw + xw, x0 = Math.round((SW - tot) / 2);
+    rrect(x0, by + 4, d, d, d / 2, [255, 255, 255]); rrect(x0 + 2, by + 6, d - 4, d - 4, (d - 4) / 2, [214, 70, 56]); text('A', x0 + d / 2, by + 9, -24, WHITE, 1);
+    text(lab, x0 + d + 12, by + 9, -25, [255, 215, 90], 0); if (extra) text(extra, x0 + d + 12 + lw + 24, by + 12, -20, [210, 225, 205], 0);
   }
   function revealKey(k) { const V = S.reveal; if (!V || __now() - V.t0 < 1300) return; if (k === 'ok' || k === 'back') { if (V.i + 1 < V.ids.length) { V.i++; V.t0 = __now(); V.snd = false; NSND.sfx('slam'); } else { S.reveal = null; V.then(); } } dirty(); }
   function drawRankScreen() {
