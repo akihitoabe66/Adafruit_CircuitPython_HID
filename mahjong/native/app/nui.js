@@ -2829,6 +2829,7 @@
     if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
     gfx.view(S.vx, S.vy);
     if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'dbg') drawDbg(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'promo') drawPromo(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); drawBack(80); }
+    else if (S.game && S.cutin && S.ciSnap === S.cutin && typeof gfx.grab === 'function') { gfx.clear(32, 74, 60); gfx.layer(27); } // カットインの間は、卓の絵を 1枚にして貼るだけ(毎コマ 卓ぜんぶを描かない)
     else if (S.game) { gfx.clear(32, 74, 60); drawTable(S.game); drawUra(); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
     if (S.rankP) drawRankP();
     if (S.result) { drawResult(S.result); drawResSay(); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
@@ -2853,6 +2854,7 @@
       if (toastOn) { rrect(110, 187, 500, 54, 8, [0, 0, 0], 225); text(S.toast.text, 360, 200, 24, YEL, 1); }
     }
     gfx.view(S.vx, S.vy);
+    if (S.cutin && S.ciSnap !== S.cutin && typeof gfx.grab === 'function' && S.game && !S.result && !S.rankP && !S.end && !S.intro && !S.dice) { gfx.view(0, 0); gfx.grab(27); S.lay[27] = { key: 'grab' }; S.ciSnap = S.cutin; gfx.view(S.vx, S.vy); } // 最初の1コマだけ、いまの卓の絵を写しておく
     if (S.cutin) drawCutin(); // 決めゼリフのカットイン(いちばん手前)
     if (S.menuP) drawDialog('メニュー', menuItems(), S.menuP.idx, '');
     if (S.soundP) drawSound();
