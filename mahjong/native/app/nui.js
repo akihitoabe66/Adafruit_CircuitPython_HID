@@ -24,7 +24,7 @@
   /* 「もどる」ボタン(画面の左上): 戻る(B)だけで出入りしていた画面に、見える「もどる」を足す。 ▲ で、このボタンへ / 決定で戻る / ▼ で元の場所へ */
   const BACKM = new Set(['diag', 'study', 'learn', 'dict', 'video', 'howto', 'stats', 'slots']);
   function drawBack(x, label) { x = x === undefined ? 12 : x; const on = !!S.bbf, bw = 3, R = globalThis.__bkR || 9; rrect(x, 11, 124, 36, R, on ? [160, 110, 0] : GREEN, 255); rrect(x + bw, 11 + bw, 124 - 2 * bw, 36 - 2 * bw, R - bw, on ? YEL : CREAM, 255); text(label || '◀ もどる', x + 62, 19, 19, INK, 1); }
-  const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 100; S.locked = true; dirty(); setTimeout(() => { S.pressT = -9999; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 20); }, S.pressMs); }; // 押している間のあと、いちど「もとの形にもどった絵」を描いてから、次の画面へ(描くのがおそい機械でも、へこんだ絵のまま、つぎの画面にならないように) // 押したボタンが光ってから、次へ
+  const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 60; S.locked = true; dirty(); setTimeout(() => { S.pressT = -9999; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 8); }, S.pressMs); }; // 押している間のあと、いちど「もとの形にもどった絵」を描いてから、次の画面へ(描くのがおそい機械でも、へこんだ絵のまま、つぎの画面にならないように) // 押したボタンが光ってから、次へ
   const NSLOT = 5;
   function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
     const out = [];
@@ -2402,7 +2402,7 @@
     }
     if (S.mode === 'title') { // タイトル: はじめる / BGM / 終了
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { S.titleIdx = 1 - S.titleIdx; }
-      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 80); else later(() => { S.confirmQ = { idx: 0 }; }, 80); }
+      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 50); else later(() => { S.confirmQ = { idx: 0 }; }, 50); }
       return;
     }
     if (S.mode === 'promo') { promoKey(k); return; }
@@ -2873,12 +2873,13 @@
     const t0 = __now(); const r = drawBody(); const dt = __now() - t0; perf.n++; perf.ms += dt; if (dt > (perf.mx || 0)) perf.mx = dt;
     if (dt >= 300) tl('slow-draw ' + Math.round(dt) + 'ms ' + perfCtx()); // 0.3秒以上かかった描きは、出来事の記録(mj_tl)にも残す
     if (dt >= 80) { (perf.slow = perf.slow || []).unshift(Math.round(dt) + 'ms  ' + perfCtx()); perf.slow.length = Math.min(perf.slow.length, 4); }
-    if (t0 - perf.t0 >= 1000) { perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; }
+    if (t0 - perf.t0 >= 1000) { perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; try { const kl = typeof gfx.keyLat === 'function' ? gfx.keyLat() : null; if (kl && kl[2]) perf.key = '押してから画面 平均' + Math.round(kl[0]) + 'ms 最大' + Math.round(kl[1]) + 'ms(' + kl[2] + '回)'; } catch (e) { /* ignore */ } }
     if (perfOn() || (perf.flash || 0) > t0) { // 遅れの診断(写真に とれるように、左上に 大きめに)
-      gfx.view(0, 0); const sl = perf.slow || [], h = 24 + 18 * (2 + sl.length);
+      gfx.view(0, 0); const sl = perf.slow || [], h = 24 + 18 * (3 + sl.length);
       fill(0, 0, 520, h, [0, 0, 0], 200); text('遅れの診断: ' + (perfOn() ? 'オン' : 'オフ'), 6, 3, 16, YEL); if (perfOn()) text('消すには ホームで ▼▼▲▲▶◀▶◀ 戻る 決定 / 設定の「遅れの診断」', 190, 3, 13, [200, 220, 205]); text(perf.shown || '(計測中)', 6, 22, 16, [120, 255, 160]);
-      sl.forEach((x, i) => text('遅れ ' + x, 6, 40 + i * 18, 15, [255, 170, 150]));
-      try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi) { const ok = mi[0] !== 0; text('BGM ' + (mi[0] < 0 ? '(なし)' : ok ? '再生中' : '止まっている!') + (mi[4] >= 0 ? '  先読み ' + mi[4] + 'ms ぶん / 足りなかった ' + mi[3] + '回' : '') + '  曲の読み込み 最大' + mi[2] + 'ms', 6, 40 + sl.length * 18, 15, ok ? [150, 220, 255] : [255, 120, 120]); } } catch (e) { /* ignore */ }
+      text(perf.key || '押してから画面: (ボタンを押すと出ます)', 6, 40, 16, [130, 200, 255]);
+      sl.forEach((x, i) => text('遅れ ' + x, 6, 58 + i * 18, 15, [255, 170, 150]));
+      try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi) { const ok = mi[0] !== 0; text('BGM ' + (mi[0] < 0 ? '(なし)' : ok ? '再生中' : '止まっている!') + (mi[4] >= 0 ? '  先読み ' + mi[4] + 'ms ぶん / 足りなかった ' + mi[3] + '回' : '') + '  曲の読み込み 最大' + mi[2] + 'ms', 6, 58 + sl.length * 18, 15, ok ? [150, 220, 255] : [255, 120, 120]); } } catch (e) { /* ignore */ }
     }
     return r;
   };
