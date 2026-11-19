@@ -194,6 +194,25 @@ static Snd *getsnd(const char *path){
 /* 無音がつづくと、HDMIのテレビ・アンプが音の出口を眠らせて、つぎの音の出だしが切れる(最初の声の「トン」が欠ける)。 聞こえない大きさの雑音(±2/32768)を、いつも足して、眠らせない */
 static unsigned dither_s = 12345u;
 static void postmix_dither(void *u, Uint8 *stream, int len){ Sint16 *p = (Sint16 *)stream; int n = len / 2; unsigned s = dither_s; for (int i = 0; i < n; i++) { s = s * 1664525u + 1013904223u; int v = p[i] + (int)((s >> 29) & 3) - 1; if (v > 32767) v = 32767; if (v < -32768) v = -32768; p[i] = (Sint16)v; } dither_s = s; }
+static volatile unsigned au_beat = 0; static int au_dither = 0; /* 音を出す側(別スレッド)が動いているしるし。 止まったら、音の出口が壊れたと みなす */
+static volatile int au_test_dead = 0; /* 試験用 */
+static void postmix_cb(void *u, Uint8 *stream, int len){ if (!au_test_dead) au_beat++; if (au_dither) postmix_dither(u, stream, len); }
+static void bgms_hook(void *u, Uint8 *st, int len); static int bgms_active(void); /* video.h にある */
+static int audio_open_dev(void){
+  int frq = getenv("MJ_AFREQ") ? atoi(getenv("MJ_AFREQ")) : 44100; /* 48000 に変える(MJ_AFREQ=48000)と、音が止まる不具合が出たので、ふだんは 44100 にもどした */
+  if (Mix_OpenAudio(frq, MIX_DEFAULT_FORMAT, 2, getenv("MJ_ABUF") ? atoi(getenv("MJ_ABUF")) : 4096) != 0) return 0;
+  Mix_AllocateChannels(16); int fr, nc; Uint16 fm; Mix_QuerySpec(&fr, &fm, &nc); au_dither = (fm == AUDIO_S16SYS && !getenv("MJ_NODITHER")); Mix_SetPostMix(postmix_cb, NULL); return 1; }
+static volatile unsigned at_gen; /* 声の予約の世代(下で使う) */
+static int au_reopens = 0; static double au_last_try = 0, au_seen_t = 0; static unsigned au_seen = 0;
+static void audio_watch(void){ /* 音が止まったとき(出口が壊れたとき)に、自分で開きなおす。 2秒、音を出す側が 動かなかったら */
+  if (!audio_ok) return; double now = nowms(); { static int tst = 0; if (!tst && getenv("MJ_TEST_STALL") && now > 5000) { tst = 1; au_test_dead = 1; fprintf(stderr, "audio: (試験)音の出口が止まったことにします\n"); } } /* 試験用: MJ_TEST_STALL=1 で、5秒後に わざと止める */ if (!au_seen_t) { au_seen_t = now; au_seen = au_beat; return; }
+  if (au_beat != au_seen) { au_seen = au_beat; au_seen_t = now; return; }
+  if (now - au_seen_t < 2000 || now - au_last_try < 6000) return;
+  au_last_try = now; au_reopens++; au_test_dead = 0; fprintf(stderr, "audio: 音が止まったので、開きなおします(%d回め)\n", au_reopens);
+  int bg = bgms_active(); at_gen++; Mix_HookMusic(NULL, NULL); audio_ok = 0; Mix_CloseAudio(); SDL_QuitSubSystem(SDL_INIT_AUDIO);
+  if (SDL_InitSubSystem(SDL_INIT_AUDIO) == 0 && audio_open_dev()) { audio_ok = 1; if (bg) Mix_HookMusic(bgms_hook, NULL); fprintf(stderr, "audio: 開きなおしました(%s)\n", SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver() : "?"); }
+  else fprintf(stderr, "audio: 開きなおせませんでした: %s\n", SDL_GetError());
+  au_seen_t = nowms(); au_seen = au_beat; }
 static JSValue j_play(JSContext *c, JSValueConst t, int n, JSValueConst *a){
   if (!audio_ok) return JS_NewFloat64(c, 0);
   const char *p = JS_ToCString(c, a[0]); double v = 1.0; if (n > 1) JS_ToFloat64(c, &v, a[1]);
@@ -378,7 +397,7 @@ int main(int argc, char **argv){
   strncpy(fontpath, fp, sizeof fontpath - 1);
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_EVENTS) < 0) { fprintf(stderr, "SDL: %s\n", SDL_GetError()); return 1; }
   IMG_Init(IMG_INIT_WEBP | IMG_INIT_PNG); TTF_Init();
-  if (!getenv("MJ_NOSOUND")) { if (SDL_InitSubSystem(SDL_INIT_AUDIO) == 0 && Mix_OpenAudio(getenv("MJ_AFREQ") ? atoi(getenv("MJ_AFREQ")) : 48000, MIX_DEFAULT_FORMAT, 2, getenv("MJ_ABUF") ? atoi(getenv("MJ_ABUF")) : 4096) == 0) { int mf = Mix_Init(MIX_INIT_MP3); Mix_AllocateChannels(16); audio_ok = 1; int fr, nc; Uint16 fm; Mix_QuerySpec(&fr, &fm, &nc); if (fm == AUDIO_S16SYS && !getenv("MJ_NODITHER")) Mix_SetPostMix(postmix_dither, NULL); printf("audio: ok (driver=%s, %dHz, ch=%d, mp3=%s)\n", SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver() : "?", fr, nc, (mf & MIX_INIT_MP3) ? "ok" : "NG"); } else fprintf(stderr, "audio? %s\n", SDL_GetError()); }
+  if (!getenv("MJ_NOSOUND")) { if (SDL_InitSubSystem(SDL_INIT_AUDIO) == 0 && audio_open_dev()) { int mf = Mix_Init(MIX_INIT_MP3); audio_ok = 1; int fr, nc; Uint16 fm; Mix_QuerySpec(&fr, &fm, &nc); printf("audio: ok (driver=%s, %dHz, ch=%d, mp3=%s)\n", SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver() : "?", fr, nc, (mf & MIX_INIT_MP3) ? "ok" : "NG"); } else fprintf(stderr, "audio? %s\n", SDL_GetError()); }
   { /* ゲーム本体(JS・絵)の優先度を、少し下げる: 重い処理で止まっても、BGMの音(別スレッド)が、先に動けるように。 MJ_NICE=0 で、やめる */
     int nv = getenv("MJ_NICE") ? atoi(getenv("MJ_NICE")) : 6; if (nv > 0) setpriority(PRIO_PROCESS, (id_t)syscall(SYS_gettid), nv); }
   int windowed = getenv("MJ_WINDOWED") != NULL, ww = 1080, wh = 642; if (windowed && sscanf(getenv("MJ_WINDOWED"), "%dx%d", &ww, &wh) != 2) { ww = 1080; wh = 642; } /* MJ_WINDOWED=832x468 など、窓の大きさも指定できる */
@@ -431,6 +450,7 @@ int main(int argc, char **argv){
   int frames = 0, shotn = 0, keep = 0; double perf_t0 = nowms(), perf_draw = 0, perf_pres = 0, perf_logic = 0, perf_logicmax = 0; int perf_n = 0, perf_p = 0; int perf = getenv("MJ_PERF") != NULL;
   JSValue gg = JS_GetGlobalObject(ctx);
   while (!quitf) {
+    audio_watch();
     static double it0 = 0, it_ms = 0; { double tn0 = nowms(); if (it0) it_ms = it_ms * 0.7 + (tn0 - it0) * 0.3; it0 = tn0; } /* 1周にかかった時間(長押しの速さを、描く速さに合わせる) */
     SDL_Event e; int got = SDL_WaitEventTimeout(&e, (keep || vid_active()) ? 1 : 8);
     while (got) { handle_event(&e); got = SDL_PollEvent(&e); }
