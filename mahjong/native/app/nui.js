@@ -2015,6 +2015,10 @@
   function drawVideo() {
     const V = S.vid;
     if (V.view === 'play') { drawVideoPlay(V); return; }
+    if (typeof gfx.layerBegin === 'function') { const f0 = V.files[V.view === 'home' ? V.last : V.sel], vk = 'v' + V.view + ':' + V.files.length + ':' + V.top + ':' + V.sel + ':' + V.hs + ':' + (S.bbf ? 1 : 0) + ':' + V.last + ':' + (V.err || '') + ':' + (f0 ? (f0.png ? 1 : 0) + ':' + (V.d.pos[f0.name] || 0) + ':' + vStatus(f0) : ''); cached(27, vk, () => drawVideoBody(V)); return; } // 動かない画面は、1枚の絵にして貼る(カーソルを動かした時だけ描き直す)
+    drawVideoBody(V);
+  }
+  function drawVideoBody(V) {
     quizFrame('ビデオ', '', '', V.view === 'home' ? '▲ ▼ でえらんで 決定ボタン    戻る: もどる' : '▲ ▼ でえらぶ   ◀ ▶ でページ   決定ボタンで 見る   戻る: もどる');
     if (V.view === 'home') {
       const f = V.files[V.last], pos = V.d.pos[f.name] || 0;
@@ -2807,7 +2811,7 @@
   const drawBody = function () {
     if (S.mode === 'boot') { drawBoot(); return true; }
     // カーソルだけが動いたとき: 画面ぜんたいは描きなおさず、手牌のあたりだけ描く(キビキビ動かすため)
-    if (S.partialKey && !S.cutin && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.ryu && !Object.keys(S.bub).length && !S.fly && !S.deal && !pressing() && !S.side && !perfOn()) {
+    if (S.partialKey && !S.cutin && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.ryu && !Object.keys(S.bub).length && !S.fly && !S.deal && !pressing() && !S.side) {
       S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [32, 74, 60]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
     }
     S.partialKey = false; S.full = false; S.fullDrawn = true;
