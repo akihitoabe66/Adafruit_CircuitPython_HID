@@ -568,14 +568,14 @@
   function myTiles(p) { const hs = p.hand.filter((h) => h !== p.drawn); if (p.drawn) hs.push(p.drawn); return hs; }
   function allowed(s, h) { const p = s.p; if (p.riichi) return h === p.drawn; if (s.opts.forbid.includes(h.t)) return false; if (s.rm) return s.opts.riichi.includes(h.t); return true; }
   const b0w = (btns) => (btns.length >= 3 ? 150 : 170);
-  function actBtn(x, y, w, h, label, sub, sel, pass, kind) { // 操作ボタン: 選んでいるものは黄色、ほかは白。リーチ・ツモは、色つきで目立たせる
+  function actBtn(x, y, w, h, label, sub, sel, pass, kind, subCol) { // 操作ボタン: 選んでいるものは黄色、ほかは白。リーチ・ツモは、色つきで目立たせる
     const kc = null; // リーチ・ツモも、ほかのボタンと同じ(選んでいる = 黄色 / ほか = 白)
     if (kc) rrect(x - 6, y - 6, w + 12, h + 12, 10, kc[1], 90);
     if (sel) rrect(x - 4, y - 4, w + 8, h + 8, 10, [30, 30, 30]); if (sel) rrect(x - 2, y - 2, w + 4, h + 4, 8, [255, 255, 255]);
     rrect(x + 1, y + 3, w, h, 6, [0, 0, 0], 90);
     rrect(x, y, w, h, 6, sel ? [196, 150, 20] : kc ? kc[0] : [150, 156, 150]); rrect(x, y, w, h - 3, 6, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : kc ? kc[1] : [245, 247, 244]);
     const col = [26, 26, 20], big = !sub;
-    if (sub) { text(label, x + w / 2, y + 3, 20, col, 1); text(sub, x + w / 2, y + 26, 15, [90, 90, 80], 1); } else text(label, x + w / 2, y + (h - 3 - (big ? 26 : 20)) / 2, big ? 26 : 20, col, 1);
+    if (sub) { text(label, x + w / 2, y + 3, 20, col, 1); text(sub, x + w / 2, y + 26, 15, subCol || [90, 90, 80], 1); } else text(label, x + w / 2, y + (h - 3 - (big ? 26 : 20)) / 2, big ? 26 : 20, col, 1);
   }
   function reactHL(r, g) { // 副露に使う牌(手牌の中で、金の枠をつける)
     const b = r.btns[r.idx]; if (!b || !b.d) return null; const ld = g.lastDiscard; const need = {};
@@ -626,7 +626,7 @@
     drawMelds(p, 713 - meldWH(p, 31, 40), 398, 31, 40);
     if (s) {
       const bw = b0w(s.btns), tot = s.btns.length * bw + (s.btns.length - 1) * 14; let bx = Math.round(360 - tot / 2); // 雀卓の中央、自牌のすぐ上に、大きく出す
-      s.btns.forEach((b, i) => { actBtn(bx, 332, bw, 44, b.label, '', s.row === 1 && s.idx === i, false, b.act); bx += bw + 14; });
+      s.btns.forEach((b, i) => { actBtn(bx, 332, bw, 44, b.label, b.sub || '', s.row === 1 && s.idx === i, false, b.act, b.subCol); bx += bw + 14; });
       if (s.rm) { rrect(190, 296, 340, 30, 6, [0, 0, 0], 200); text('リーチする牌をえらんで決定', 360, 300, 19, YEL, 1); }
     }
     if (S.react) {
@@ -1103,7 +1103,9 @@
     const from = Math.max(0, Math.min(11, rk.from || 0)), to = Math.max(from, Math.min(11, rk.to || 0)), steps = [];
     const ms = mapSetNo(), L = MAP2.sets[ms].legs;
     for (let d = from + 1; d <= to; d++) { const pts = L[d - 1].map(mapPt); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d, pts, seg, len, dur: len < 4 ? 1500 : Math.max(2400, Math.min(9000, len / 38 * 1000)) }); }
-    let tt = MAP_T.slide + MAP_T.hold; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; tt += i < steps.length - 1 ? MAP_T.dwell : 0; return { a, b }; });
+    let base = MAP_T.slide + MAP_T.hold; // 歩きはじめる時刻。 はじめの街(熊本)のセリフがあるときは、それが終わるまで 歩きださない(歩きだしたあとに、前の街のセリフが出ないように)
+    try { if (from === 0 && !rk.intro && to > from) { const pk0 = 'm:' + MAP_SETS[ms].place[0].split('(')[0]; if (NSND.has(pk0)) base = Math.max(base, Math.round(NSND.klen(pk0) * 1000) + 500); } } catch (e) { /* ignore */ }
+    let tt = base; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; tt += i < steps.length - 1 ? MAP_T.dwell : 0; return { a, b }; });
     try { NSND.mapOn(); } catch (e) { /* ignore */ }
     let intro = null;
     if (rk.intro) { // 旅のはじまり: 熊本から江戸までの道(全部の区間をつなぐ)を、のばしていく
@@ -1112,7 +1114,7 @@
       const G = Math.max(MAP_T.slide + 1800, Math.round(NSND.klen('m:肥後国') * 1000) + 700), vl = Math.max(3800, Math.round(NSND.klen('v:tenka') * 1000)); // 二つめの一言が はじまる時刻 / 声の長さ
       intro = { path: { pts, seg, len }, G, end: G + vl + 1000, v: false }; tt = intro.end;
     }
-    S.map = { intro, ms, L, vd: from === 0 ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: intro ? intro.end : steps.length ? tt : MAP_T.slide + MAP_T.hold, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
+    S.map = { intro, ms, L, vd: from === 0 ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: intro ? intro.end : steps.length ? tt : base, base, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
   }
   function mapAlong(st, u) { const dist = st.len * u; let i = 1; while (i < st.pts.length - 1 && st.seg[i] < dist) i++; const a = st.pts[i - 1], b = st.pts[i], sl = st.seg[i] - st.seg[i - 1] || 1, v = Math.max(0, Math.min(1, (dist - st.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v, b[0] - a[0]]; }
   function drawWater(t) { // 水面: 横長の帯を、少しずつ ずらして 波うたせる(2枚 重ねて、きらめき)
@@ -1134,7 +1136,8 @@
       x += w + (i < items.length - 1 ? (it.t === 'l' && items[i + 1] && items[i + 1].t === 'c' ? gap + 10 : gap) : 0); });
   }
   function drawMap() {
-    const M = S.map; mapTick(M); const t = __now() - M.t0, arrived = t >= M.endT, ease = Math.min(1, t / MAP_T.slide), eo = 1 - Math.pow(1 - ease, 3), ox = Math.round((1 - eo) * (SW - MAP_V.x0 + 40)); // 巻物は 右から入ってくる
+    const M = S.map; { const nw = __now(); if (!M.n) { M.n = 1; M.t0 = nw; M.f0 = nw; } else if (M.n === 1) { M.n = 2; if (nw - M.f0 > 400) M.t0 = nw - 150; } } /* 時計は、最初に描いたときから数える(最初の1コマが重くて止まっても、歩きだしてしまわないように) */
+    mapTick(M); const t = __now() - M.t0, arrived = t >= M.endT, ease = Math.min(1, t / MAP_T.slide), eo = 1 - Math.pow(1 - ease, 3), ox = Math.round((1 - eo) * (SW - MAP_V.x0 + 40)); // 巻物は 右から入ってくる
     drawWater(__now());
     gfx.image('img/map/scroll2.webp', MAP_V.x0 + ox, MAP_V.y0, Math.round(MAP_V.w), Math.round(MAP_V.h), 255);
     const shift = (q) => [q[0] + ox, q[1]];
@@ -1174,7 +1177,7 @@
     panel(24, 408, 784, 54, 12, [252, 246, 228], [120, 84, 40], 3, 245);
     gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]);
     const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
-    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < MAP_T.slide + MAP_T.hold) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? (M.capSay ? '修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。' : '他の街に戻って、修行し直すのだ！') : walkMsg(M.view && M.go != null ? M.go : M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
+    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < (M.base || MAP_T.slide + MAP_T.hold)) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? (M.capSay ? '修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。' : '他の街に戻って、修行し直すのだ！') : walkMsg(M.view && M.go != null ? M.go : M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
     if (M.intro && t >= M.intro.G) { msg = '江戸で 名人を倒し、天下統一するのだ!'; if (!M.intro.v) { M.intro.v = true; try { NSND.speak(['v:tenka']); } catch (e) { /* ignore */ } } } // 旅のはじまり: 二つめの一言(声つき)
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && M.go == null && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) NSND.speak([pk]); } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
@@ -2643,7 +2646,10 @@
       return new Promise((res) => {
         const tiles = myTiles(p); const btns = [];
         if (opts.tsumo) btns.push({ label: 'ツモ', act: 'tsumo' });
-        if (opts.riichi.length && !p.riichi) btns.push({ label: 'リーチ', act: 'riichi' });
+        if (opts.riichi.length && !p.riichi) { // リーチの札に、フリテンになるときは 先に知らせる(かけたあとで「フリテンです」と言われないように)
+          let nfu = 0; try { const c0 = MJ.toCounts(p.hand); opts.riichi.forEach((t) => { c0[t]--; const ws = MJ.waits(c0.slice(), p.melds.length); c0[t]++; if (p.tempFuriten || p.riichiFuriten || ws.some((w) => p.discardTypes.has(w) || w === t)) nfu++; }); } catch (e) { nfu = 0; }
+          btns.push({ label: 'リーチ', act: 'riichi', sub: nfu === 0 ? '' : nfu === opts.riichi.length ? 'フリテンになるよ' : 'フリテン注意', subCol: [196, 40, 28] });
+        }
         opts.ankan.forEach((t) => btns.push({ label: 'カン ' + MJ.tileName(t), act: 'ankan', t }));
         opts.kakan.forEach((t) => btns.push({ label: '加カン ' + MJ.tileName(t), act: 'kakan', t }));
         S.side = null; S.coach = null;
