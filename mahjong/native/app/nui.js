@@ -1182,7 +1182,7 @@
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && M.go == null && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) NSND.speak([pk]); } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
     if (M.view) { mapGuide(M); /* 操作の案内: 地図の下・画面の中央に、ボタンの絵つきで */ if (M.cur > 0 && !M.ask) { rrect(156, 1, 520, 21, 4, [10, 30, 22], 205); text('前の街に もどって、修行が できます(ポイントは 半分)', 416, 3, -14, [255, 236, 154], 1); } /* 地図の意味の説明: 上の帯(前の街があるときだけ) */ }
-    else if (arrived && t - M.endT > 600) text('決定ボタンで つづける', 700, 6, 14, [220, 235, 245], 1);
+    else if (arrived && t - M.endT > 600) contPill(SW / 2, 6); // 説明を読んだあと、決定ボタンで進む(自動では進まない)
     if (M.ask) { const d = M.from, tr = d < M.cur, nm = MAP_SETS[M.ms].place[d], ai = M.ask.idx; fill(0, 0, SW, SH, [0, 0, 0], 110); panel(196, 96, 440, 232, 14, [252, 246, 228], [120, 84, 40], 4, 250); text(MAP_DAN[d] + '  ' + nm, 416, 106, fitSz(MAP_DAN[d] + '  ' + nm, 26, 400, 16), [150, 30, 20], 1); text(tr ? 'そのころの 相手と 戦います。' : 'いまの 段位の 相手と 戦います。', 416, 150, 20, [60, 40, 20], 1); text(tr ? 'ポイントは 半分。4位でも へりません。' : 'ポイントは ふつうに もらえます。', 416, 182, 18, [90, 66, 40], 1); if (tr) text('昇段は、いまの段位の街で。', 416, 208, 18, [90, 66, 40], 1); ['この街で ' + (tr ? '修行する' : '対戦する'), 'やめる'].forEach((l, i) => { const w = i ? 170 : 230, x2 = i ? 452 : 206, sel = ai === i; panel(x2, 252, w, 50, 10, sel ? YEL : [235, 235, 225], sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2, 255); text(l, x2 + w / 2, 264, 22, BLACK, 1); }); }
     if (arrived && !M.fin) { M.fin = true; if (!M.view && !M.intro) NSND.sfx('start', 0.7); }
     dirty();
@@ -1193,7 +1193,13 @@
     startMap({ from: d, to: d }, () => { dirty(); });
     const M = S.map; M.view = true; M.vd = -1; M.maxd = mx; M.cur = cur; M.sel = d; M.go = null; M.ask = null; dirty();
   }
-  function mapTick(M) { if (M.intro && !M.fin2 && __now() - M.t0 > M.intro.end) { M.fin2 = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); dirty(); return; } /* 旅のはじまり: 声が終わって1秒たったら、つぎの画面へ */ if (M.view && M.go != null && __now() - M.t0 >= M.endT) { M.from = M.go; M.go = null; M.back = false; M.capSay = false; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = -1; M.ask = { idx: 0 }; } } // 着いたら、「この街で 対戦する?」
+  function contPill(cx, y) { // 「Aボタン(決定)で つづける」: 金色の札に、赤い丸の「A」(目立つように)
+    const w = 336, h = 36, x = Math.round(cx - w / 2), d = h - 8, lab = '決定ボタンで つづける', lw = gfx.measure(lab, -22), lx = x + d + 8 + Math.round((w - d - 8 - lw) / 2);
+    rrect(x - 3, y - 3, w + 6, h + 6, h / 2 + 3, [255, 255, 255]); rrect(x, y, w, h, h / 2, [230, 184, 48]);
+    rrect(x + 4, y + 4, d, d, d / 2, [255, 255, 255]); rrect(x + 6, y + 6, d - 4, d - 4, (d - 4) / 2, [214, 70, 56]); text('A', x + 4 + d / 2, y + 7, -20, WHITE, 1);
+    text(lab, lx, y + 7, -22, [42, 26, 0], 0);
+  }
+  function mapTick(M) { /* 旅のはじまりは、声が終わっても、自動では次へ進まない(説明を読んだあと、決定ボタンで進む) */ if (M.view && M.go != null && __now() - M.t0 >= M.endT) { M.from = M.go; M.go = null; M.back = false; M.capSay = false; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = -1; M.ask = { idx: 0 }; } } // 着いたら、「この街で 対戦する?」
   function mapGo(M, dest) { // ▼で えらんだ街へ、ずんだもんが 歩いて行く(戻るときは、道を 逆に歩く)
     const steps = [], fwd = dest > M.from;
     for (let k = M.from; k !== dest; k += fwd ? 1 : -1) { const d = fwd ? k + 1 : k, pts = M.L[d - 1].map(mapPt); if (!fwd) pts.reverse(); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d: fwd ? d : d - 1, pts, seg, len, dur: len < 4 ? (steps.length < 1 ? 1500 : 300) : Math.max(fwd ? 2400 : 1200, Math.min(fwd ? 9000 : 4500, len / (fwd ? 38 : 76) * 1000)) }); } // 戻る道は 2倍の速さ
@@ -1218,7 +1224,7 @@
       if (k === 'ok') { if (M.sel !== M.from) mapGo(M, M.sel); else { M.ask = { idx: 0 }; NSND.sfx('select', 0.5); } dirty(); return; }
       if (k === 'back') { S.map = null; try { NSND.mapOff(); NSND.home(); } catch (e) { /* ignore */ } M.then(); } // 成績の画面から 見ていた地図を とじる: ホームの曲にもどす
       dirty(); return;
-    } if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
+    } if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
   /* ---------- 昇段の演出テスト(隠しコマンドで開く): 認定証 → 地図 → 新しい雀士 を、いつでも見られる ---------- */
   function drawPromo() {
     const P = S.promo; gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
