@@ -2,10 +2,10 @@
 """OLED(SSD1306 / SH1106、I2C)に、麻雀先生のパタパタアニメと、ゲームの状態(フレームレートなど)を出す常駐プログラム。
  つなぎ方: GND=物理6番 / VCC=3.3V=物理1番 / SCL=GPIO22(物理15番) / SDA=GPIO23(物理16番)
    config.txt に  dtoverlay=i2c-gpio,bus=3,i2c_gpio_sda=23,i2c_gpio_scl=22   (bus番号は 空いている数字。 自動で さがします)
- ゲーム(mj)が /tmp/mj_oled.txt に書く「状態」を読んで、表示する。 ゲームが動いていないときは、本体の温度・負荷を出す。
+ ゲーム(mj)が /dev/shm/mj_oled.txt に書く「状態」を読んで、表示する。 ゲームが動いていないときは、本体の温度・負荷を出す。
  使うのは 標準ライブラリだけ。 CPUは ほとんど使わない(変わった所だけを送る・1秒に3コマまで・いちばん低い優先度)。
  環境変数: MJOLED_BUS(i2cの番号。 なければ自動) MJOLED_ADDR(0x3C) MJOLED_H(64 か 32) MJOLED_DRV(ssd1306 か sh1106)
-           MJOLED_FLIP=1(上下左右を逆に) MJOLED_FPS(3) MJOLED_FILE(/tmp/mj_oled.txt)
+           MJOLED_FLIP=1(上下左右を逆に) MJOLED_FPS(3) MJOLED_FILE(/dev/shm/mj_oled.txt)
  試験用: python3 mjoled.py --selftest(画面の絵を文字で出す) / --demo(ゲームなしで、場面を順に見せる) / --dry(I2Cなし)"""
 import fcntl, glob, os, sys, time
 
@@ -28,7 +28,7 @@ HEIGHT = int(os.environ.get('MJOLED_H', '64'))
 DRV = os.environ.get('MJOLED_DRV', 'ssd1306').lower()
 FLIP = os.environ.get('MJOLED_FLIP', '') not in ('', '0')
 FPS = max(1.0, float(os.environ.get('MJOLED_FPS', '3')))
-STATUS = os.environ.get('MJOLED_FILE', '/tmp/mj_oled.txt')
+STATUS = os.environ.get('MJOLED_FILE', '/dev/shm/mj_oled.txt')
 WIDTH = 128
 PAGES = HEIGHT // 8
 COLOFF = 2 if DRV == 'sh1106' else 0   # SH1106 は 132列のうち、左の2列が 見えない
