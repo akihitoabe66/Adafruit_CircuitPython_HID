@@ -2630,7 +2630,7 @@
       tl('handStart');
       try { const me = g.players[0]; S.prevRank = 1 + g.players.filter((q) => q.score > me.score).length; } catch (e) { S.prevRank = 0; } // この局のはじめの、あなたの順位(対局が終わったとき、「逆転」の声に使う)
       S.curIdx = null; if (teacherOn() && !S.tmsgShown && !g.watching && (g.handCount || 0) === 0 && !g.resumed) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
-      S.game = g; NSND.game(g); NSND.sfx('slam'); /* BGMは、サイコロのあと雀卓が出たときから、すぐに流す(配牌のあいだも止めない。 前は、Zero Wで曲の読み込みが配牌のアニメを止めたので、配牌のあいだ曲を止めていた) */
+      S.game = g; if (!g.fast) NSND.hold(); NSND.game(g); NSND.sfx('slam');
       { // あなたの表情: 最終局はドキドキ。前の局で振り込んだらむすっ・上がったらくすくす。トップなら余裕・最下位ならやる気
         const me = g.players[0], rk = 1 + g.players.filter((q) => q.score > me.score).length, even = g.players.every((q) => q.score === me.score);
         setMood((g.isOras && g.isOras()) ? 'dokidoki' : S.carryMood || (even ? 'normal' : rk === 1 ? 'smug' : rk === 4 ? 'fight' : 'focus')); S.carryMood = null;
