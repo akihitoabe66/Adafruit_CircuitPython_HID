@@ -227,7 +227,8 @@ static void mem_watch(void){
     char nm[240]; snprintf(nm, sizeof nm, "rss=%.0f avail=%.0f min=%.0f swap=%.0f | 音=%.0f 絵=%.0f 文字=%.0f 層=%.0f 字体=%d", mem_rss, mem_avail, mem_minav, mem_swap, ck / 1048576, ik / 1048576, tk / 1048576, lk / 1048576, nfonts); bgm_log("memstat", mem_rss, nm); } }
 static JSValue j_mem(JSContext *c, JSValueConst t, int n, JSValueConst *a){ mem_read(); JSValue arr = JS_NewArray(c); JS_SetPropertyUint32(c, arr, 0, JS_NewFloat64(c, mem_rss)); JS_SetPropertyUint32(c, arr, 1, JS_NewFloat64(c, mem_avail)); JS_SetPropertyUint32(c, arr, 2, JS_NewFloat64(c, mem_minav > 1e8 ? mem_avail : mem_minav)); JS_SetPropertyUint32(c, arr, 3, JS_NewFloat64(c, mem_swap)); return arr; } /* [ゲームのメモリMB, 空きMB, これまでの最小の空きMB, スワップMB] */
 static void audio_gap_log(void){ if (au_gap_max > 150) { double g = au_gap_max; au_gap_max = 0; bgm_log("audio-gap", g, "音を出す側が、こんなに呼ばれなかった(途切れ)"); } else au_gap_max = 0; } /* 1秒ごとに見て、長い間隔があれば記録 */
-static void audio_watch(void){ /* 音が止まったとき(出口が壊れたとき)に、自分で開きなおす。 2秒、音を出す側が 動かなかったら */
+static void audio_watch(void){ /* 音が止まったとき(出口が壊れたとき)に、自分で開きなおす。 2秒、音を出す側が 動かなかったら。 ふだんは 使わない(MJ_AUDIOWATCH=1 で有効): ゲーム本体が数秒止まった直後にも、まちがって開きなおして、さらに止まることがあった */
+  static int on = -1; if (on < 0) on = getenv("MJ_AUDIOWATCH") != NULL; if (!on) return;
   if (!audio_ok) return; double now = nowms(); { static int tst = 0; if (!tst && getenv("MJ_TEST_STALL") && now > 5000) { tst = 1; au_test_dead = 1; fprintf(stderr, "audio: (試験)音の出口が止まったことにします\n"); } } /* 試験用: MJ_TEST_STALL=1 で、5秒後に わざと止める */ if (!au_seen_t) { au_seen_t = now; au_seen = au_beat; return; }
   if (au_beat != au_seen) { au_seen = au_beat; au_seen_t = now; return; }
   if (now - au_seen_t < 2000 || now - au_last_try < 6000) return;
