@@ -1383,7 +1383,6 @@
       { const di = g && g.doraInd ? g.doraInd.slice(0, 5) : [], ur = w.ura && w.ura.length ? w.ura.slice(0, 5) : null, tw2 = 20, th2 = 27, x0 = 778 - 5 * (tw2 + 2); // 右上に、ドラ表示牌と、(リーチして上がったときは)裏ドラ表示牌
         const row = (lab, arr, yy) => { text(lab, x0 - 6, yy + 6, 14, GREY, 2); arr.forEach((h, i) => tile(h.t, x0 + i * (tw2 + 2), yy, tw2, th2, h.red)); };
         if (di.length) row('ドラ表示', di, 14); if (ur) row('裏ドラ表示', ur, 44); }
-      if (r.total > 1) text((r.idx + 1) + ' / ' + r.total + ' 人目の上がり', 770, 84, 18, GREY, 2);
       if (res.limit) text(res.limit, 770, 100, 30, [255, 120, 90], 2);
       // 手牌(大きく、中央ぞろえ)
       const tw = 36, th = 48, gap = 14, melds = v.melds.reduce((a, m) => a + m.tiles.length * 30 + 10, 0), total = v.concealed.length * (tw + 1) + gap + (w.winTile ? tw : 0) + (melds ? 16 + melds : 0);
@@ -1395,7 +1394,7 @@
       const ys = res.yaku; const col = ys.length > 6 ? 2 : 1, cw = col === 2 ? 340 : 480, x0 = col === 2 ? 70 : 160;
       ys.slice(0, 12).forEach((yk, i) => { const cx = x0 + Math.floor(i / 6) * (cw + 20), cy = 148 + (i % 6) * 32; fill(cx, cy + 28, cw, 1, [60, 90, 80]); text(yk.n, cx + 6, cy, 22, WHITE); text((yk.h || yk.han || '') + (res.yakuman ? '' : '飜'), cx + cw - 6, cy, 22, YEL, 2); });
       const pay = w.pay; const pts = pay.ron != null ? pay.ron + '点' : (pay.each != null ? pay.each + '点オール' : pay.fromOther + ' / ' + pay.fromDealer + '点');
-      rrect(70, 336, 692, 48, 12, [30, 70, 56]); text((res.yakuman ? '役満' : res.han + '飜 ' + res.fu + '符'), 90, 354, 28, YEL); text(pts, 742, 342, 32, WHITE, 2);
+      rrect(70, 336, 692, 48, 12, [30, 70, 56]); text((res.yakuman ? '役満' : res.han + '飜 ' + res.fu + '符'), 90, 354, 28, YEL); text(pts, 742, 342, 32, WHITE, 2); if (r.total > 1) text((r.idx + 1) + ' / ' + r.total + ' 人目の上がり', 304, 351, 19, [210, 232, 218]); // ダブロンなど: 何人目かは、点数の帯の中に(牌と重ならないように)
       scoreCards(r, 396);
     } else if (r.rd) { drawDrawResult(r);
     } else {
