@@ -216,6 +216,16 @@ static int audio_open_dev(void){
 static volatile unsigned at_gen; /* 声の予約の世代(下で使う) */
 static void bgm_log(const char *what, double ms, const char *path); /* あとで定義(mjdata/stall.log に書く) */
 static int au_reopens = 0; static double au_last_try = 0, au_seen_t = 0; static unsigned au_seen = 0;
+/* ---- メモリの見はり: ゲーム本体の大きさ・本体全体の空き・これまでの最小の空き。 30秒ごとに stall.log へ(何が多いかの内訳つき) ---- */
+static double mem_rss = 0, mem_avail = 0, mem_minav = 1e9, mem_swap = 0, mem_t = 0, mem_logt = 0;
+static void mem_read(void){
+  FILE *f = fopen("/proc/self/status", "r"); if (f) { char ln[200]; while (fgets(ln, sizeof ln, f)) { long kb; if (sscanf(ln, "VmRSS: %ld kB", &kb) == 1) mem_rss = kb / 1024.0; } fclose(f); }
+  f = fopen("/proc/meminfo", "r"); if (f) { char ln[200]; long av = -1, st = 0, sf = 0; while (fgets(ln, sizeof ln, f)) { long kb; if (sscanf(ln, "MemAvailable: %ld kB", &kb) == 1) av = kb; else if (sscanf(ln, "SwapTotal: %ld kB", &kb) == 1) st = kb; else if (sscanf(ln, "SwapFree: %ld kB", &kb) == 1) sf = kb; } fclose(f); if (av >= 0) { mem_avail = av / 1024.0; if (mem_avail < mem_minav) mem_minav = mem_avail; } mem_swap = (st - sf) / 1024.0; } }
+static void mem_watch(void){
+  double now = nowms(); if (now - mem_t < 5000) return; mem_t = now; mem_read();
+  if (now - mem_logt >= 30000) { mem_logt = now; double ck = 0, ik = 0, tk = 0, lk = 0; for (int i = 0; i < nsnd; i++) if (snds[i].ch) ck += snds[i].ch->alen; for (int i = 0; i < nimg; i++) ik += (double)imgs[i].w * imgs[i].h * 4; for (int i = 0; i < ntxt; i++) tk += (double)txts[i].w * txts[i].h * 4; for (int i = 0; i < 32; i++) if (lay[i]) lk += (double)W * H * 4;
+    char nm[240]; snprintf(nm, sizeof nm, "rss=%.0f avail=%.0f min=%.0f swap=%.0f | 音=%.0f 絵=%.0f 文字=%.0f 層=%.0f 字体=%d", mem_rss, mem_avail, mem_minav, mem_swap, ck / 1048576, ik / 1048576, tk / 1048576, lk / 1048576, nfonts); bgm_log("memstat", mem_rss, nm); } }
+static JSValue j_mem(JSContext *c, JSValueConst t, int n, JSValueConst *a){ mem_read(); JSValue arr = JS_NewArray(c); JS_SetPropertyUint32(c, arr, 0, JS_NewFloat64(c, mem_rss)); JS_SetPropertyUint32(c, arr, 1, JS_NewFloat64(c, mem_avail)); JS_SetPropertyUint32(c, arr, 2, JS_NewFloat64(c, mem_minav > 1e8 ? mem_avail : mem_minav)); JS_SetPropertyUint32(c, arr, 3, JS_NewFloat64(c, mem_swap)); return arr; } /* [ゲームのメモリMB, 空きMB, これまでの最小の空きMB, スワップMB] */
 static void audio_gap_log(void){ if (au_gap_max > 150) { double g = au_gap_max; au_gap_max = 0; bgm_log("audio-gap", g, "音を出す側が、こんなに呼ばれなかった(途切れ)"); } else au_gap_max = 0; } /* 1秒ごとに見て、長い間隔があれば記録 */
 static void audio_watch(void){ /* 音が止まったとき(出口が壊れたとき)に、自分で開きなおす。 2秒、音を出す側が 動かなかったら */
   if (!audio_ok) return; double now = nowms(); { static int tst = 0; if (!tst && getenv("MJ_TEST_STALL") && now > 5000) { tst = 1; au_test_dead = 1; fprintf(stderr, "audio: (試験)音の出口が止まったことにします\n"); } } /* 試験用: MJ_TEST_STALL=1 で、5秒後に わざと止める */ if (!au_seen_t) { au_seen_t = now; au_seen = au_beat; return; }
@@ -427,7 +437,7 @@ int main(int argc, char **argv){
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
   reg(gfx, "dry", j_dry, 1); reg(gfx, "rrect", j_rrect, 9); reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "fillTop", j_filltop, 8); reg(gfx, "imageRotTop", j_imagerottop, 7); reg(gfx, "textTop", j_texttop, 8); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
-  reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "keyLat", j_keylat, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "status", j_status, 1); reg(gfx, "preload", j_preload, 1); reg(gfx, "grab", j_grab, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
+  reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "keyLat", j_keylat, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "status", j_status, 1); reg(gfx, "mem", j_mem, 0); reg(gfx, "preload", j_preload, 1); reg(gfx, "grab", j_grab, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "playAt", j_playat, 3); reg(snd, "cancelAt", j_cancelat, 0); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "pauseAll", j_pause, 0); reg(snd, "resumeAll", j_resume, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1); reg(snd, "musicInfo", j_musicinfo, 0);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1); reg(g, "__readdir", j_readdir, 1); reg(g, "__vopen", j_vopen, 2); reg(g, "__vstate", j_vstate, 0); reg(g, "__vseek", j_vseek, 1); reg(g, "__vpause", j_vpause, 1); reg(g, "__vclose", j_vclose, 0); JS_SetPropertyStr(ctx, g, "__dataDir", JS_NewString(ctx, datadir));
@@ -463,7 +473,7 @@ int main(int argc, char **argv){
   int frames = 0, shotn = 0, keep = 0; double perf_t0 = nowms(), perf_draw = 0, perf_pres = 0, perf_logic = 0, perf_logicmax = 0; int perf_n = 0, perf_p = 0; int perf = getenv("MJ_PERF") != NULL;
   JSValue gg = JS_GetGlobalObject(ctx);
   while (!quitf) {
-    audio_watch(); { static double ag = 0; double tn = nowms(); if (tn - ag > 1000) { ag = tn; if (audio_ok) audio_gap_log(); } }
+    audio_watch(); mem_watch(); { static double ag = 0; double tn = nowms(); if (tn - ag > 1000) { ag = tn; if (audio_ok) audio_gap_log(); } }
     static double it0 = 0, it_ms = 0; { double tn0 = nowms(); if (it0) it_ms = it_ms * 0.7 + (tn0 - it0) * 0.3; it0 = tn0; } /* 1周にかかった時間(長押しの速さを、描く速さに合わせる) */
     SDL_Event e; int got = SDL_WaitEventTimeout(&e, (keep || vid_active()) ? 1 : 8);
     while (got) { handle_event(&e); got = SDL_PollEvent(&e); }

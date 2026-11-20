@@ -212,7 +212,7 @@ def compose(scr, d, age, tick, ever_alive=False):
         if msg: scr.text16(msg[:5], TEXT_X, 0, inv=True)
         else: scr.text16(scene[:5], TEXT_X, 0)
         rows = ['SPD ' + num(d, 'spd', 'FPS'), 'DRAW ' + num(d, 'draw') + ' MAX ' + num(d, 'max'), 'KEY ' + num(d, 'key', 'MS') + ' T' + t,
-                'FREE ' + mem + ' SW ' + sw + 'M', 'GAME ' + gm + 'M P' + psi + '%']
+                'FREE ' + mem + ' SW ' + sw + 'M', 'G' + num(d, 'rss', '', gm) + ' MIN' + num(d, 'minav') + ' P' + psi]
         if d.get('audio') not in (None, '', 'ok'): rows[4] = 'AUDIO STOP'
         rows_at(ROW_Y, rows)
     else:

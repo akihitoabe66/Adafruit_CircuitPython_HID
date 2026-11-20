@@ -2918,8 +2918,9 @@
     if (S.reveal) { scene = 'NEW'; pose = 'celebrate'; }
     if (S.cert) { scene = 'RANK'; pose = 'pray'; msg = 'RANKUP'; }
     let audio = 'ok'; try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi && mi[0] === 0) audio = 'BGM STOP'; } catch (e) { /* ignore */ }
+    let mm = ['', '', '', '']; try { if (typeof gfx.mem === 'function') mm = gfx.mem().map((v) => Math.round(v)); } catch (e) { /* ignore */ }
     const o = perf.o || {}, jp = (k) => (k ? (OLED_JP[k] || k) : '');
-    return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nup=' + Math.floor(__now() / 1000) + '\n';
+    return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\n';
   }
   let oledT = 0; setInterval(() => { try { if (typeof gfx.status === 'function') { gfx.status(oledState()); } } catch (e) { /* ignore */ } }, 400);
   const perfCtx = () => { // いま どの画面で なにをしていたか(遅れの記録に添える)
