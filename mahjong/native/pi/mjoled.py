@@ -146,7 +146,7 @@ def sysinfo():
         with open('/proc/meminfo') as f:
             for line in f:
                 k, v = line.split(':', 1); m[k] = int(v.split()[0])
-        mem = '%d' % ((m['MemTotal'] - m.get('MemAvailable', 0)) // 1024); sw = '%d' % ((m.get('SwapTotal', 0) - m.get('SwapFree', 0)) // 1024)
+        mem = '%d' % (m.get('MemAvailable', 0) // 1024); sw = '%d' % ((m.get('SwapTotal', 0) - m.get('SwapFree', 0)) // 1024)   # mem = まだ使える空き(MB)。 小さいほど あぶない
     except Exception: pass
     psi = '--'
     try:
@@ -206,19 +206,19 @@ def compose(scr, d, age, tick, ever_alive=False):
     elif alive and final:
         if d.get('scene') == 'EXIT': scr.text16('終了', TEXT_X, 0, inv=True); scr.text16('電源を', TEXT_X, 18); scr.text16('抜いてね', TEXT_X, 34)
         else: scr.text16('保守', TEXT_X, 0, inv=True); rows_at(24, ['CTRL+Q', 'READY'])
-        rows_at(54, ['T' + t + ' M' + mem])
+        rows_at(54, ['T' + t + ' F' + mem])
     elif alive:
         msg = d.get('msg', '')
         if msg: scr.text16(msg[:5], TEXT_X, 0, inv=True)
         else: scr.text16(scene[:5], TEXT_X, 0)
         rows = ['SPD ' + num(d, 'spd', 'FPS'), 'DRAW ' + num(d, 'draw') + ' MAX ' + num(d, 'max'), 'KEY ' + num(d, 'key', 'MS') + ' T' + t,
-                'MEM ' + mem + ' SW ' + sw + 'M', 'GAME ' + gm + 'M P' + psi + '%']
+                'FREE ' + mem + ' SW ' + sw + 'M', 'GAME ' + gm + 'M P' + psi + '%']
         if d.get('audio') not in (None, '', 'ok'): rows[4] = 'AUDIO STOP'
         rows_at(ROW_Y, rows)
     else:
         if ever_alive: scr.text16('停止!', TEXT_X, 0, inv=True)
         else: scr.text16('待機中', TEXT_X, 0)
-        rows_at(ROW_Y + 4, ['TEMP ' + t, 'LOAD ' + la, 'MEM ' + mem + ' SW ' + sw + 'M'])
+        rows_at(ROW_Y + 4, ['TEMP ' + t, 'LOAD ' + la, 'FREE ' + mem + ' SW ' + sw + 'M'])
     return scr
 
 # ---------- I2C ----------
