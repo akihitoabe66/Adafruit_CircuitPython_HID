@@ -6,11 +6,12 @@ set -e
 cd "$(dirname "$0")"
 if [ "$1" = "--remove" ]; then
   systemctl disable --now mjoled.service 2>/dev/null || true
-  rm -f /etc/systemd/system/mjoled.service /usr/local/bin/mjoled.py /usr/local/bin/oled_sprites.py
+  rm -f /etc/systemd/system/mjoled.service /usr/local/bin/mjoled.py /usr/local/bin/oled_sprites.py /usr/local/bin/oled_jp.py
   systemctl daemon-reload; echo "取り除きました"; exit 0
 fi
 install -m 755 mjoled.py /usr/local/bin/mjoled.py
 install -m 644 oled_sprites.py /usr/local/bin/oled_sprites.py
+install -m 644 oled_jp.py /usr/local/bin/oled_jp.py
 [ -f /etc/default/mjoled ] || printf '# OLEDの設定(必要なものだけ、行頭の # を外す)\n#MJOLED_BUS=3\n#MJOLED_ADDR=0x3C\n#MJOLED_H=64\n#MJOLED_DRV=ssd1306\n#MJOLED_FLIP=1\n#MJOLED_FPS=3\n' > /etc/default/mjoled
 cat > /etc/systemd/system/mjoled.service <<'UNIT'
 [Unit]

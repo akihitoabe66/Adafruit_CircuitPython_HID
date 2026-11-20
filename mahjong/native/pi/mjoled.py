@@ -15,6 +15,13 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from oled_sprites import W as SW_, H as SH_, POSES
 
+try:
+    from oled_jp import G as JP
+except ImportError:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try: from oled_jp import G as JP
+    except ImportError: JP = {}
+JPB = {c: [int(v[i:i + 4], 16) for i in range(0, 64, 4)] for c, v in JP.items()}   # 16x16の文字: 16行ぶん
 I2C_SLAVE = 0x0703
 ADDR = int(os.environ.get('MJOLED_ADDR', '0x3C'), 0)
 HEIGHT = int(os.environ.get('MJOLED_H', '64'))
@@ -50,7 +57,7 @@ F = {
 # ---- 場面 → 麻雀先生の2つのポーズ(パタパタ。 番号は oled_sprites.POSES の 0〜17) ----
 POSE = {
     'hello': (7, 1), 'home': (6, 7), 'teach': (0, 3), 'think': (4, 5), 'think2': (2, 4), 'watch': (1, 7),
-    'call': (8, 14), 'win': (12, 13), 'power': (16, 12), 'sad': (10, 15), 'angry': (9, 15), 'calm': (7, 17),
+    'call': (8, 14), 'win': (12, 13), 'power': (16, 12), 'sad': (10, 4), 'angry': (9, 15), 'calm': (7, 17),
     'celebrate': (16, 13), 'pray': (11, 17), 'sleep': (7, 17), 'err': (10, 0),
 }
 TEXT_X = SW_ + 4
@@ -79,6 +86,25 @@ class Screen:
                 for r in range(7):
                     if (col >> r) & 1: self._set(x + c, y + r, 0 if inv else 1)
             x += 6
+    def text16(self, s, x, y, inv=False):
+        """日本語まじりの文字(漢字・かなは16x16、英数字は5x7)。 inv=True は 白地に黒文字の帯(高さ16)"""
+        w = sum(16 if ch in JPB else 6 for ch in s)
+        if inv: self.box(x - 1, y, w + 1, 16, 1)
+        for ch in s:
+            if ch in JPB:
+                rows = JPB[ch]
+                for r in range(16):
+                    v = rows[r]
+                    for c in range(16):
+                        if (v >> (15 - c)) & 1: self._set(x + c, y + r, 0 if inv else 1)
+                x += 16
+            else:
+                g = F.get(ch.upper(), F['?'])
+                for c in range(5):
+                    col = g[c]
+                    for r in range(7):
+                        if (col >> r) & 1: self._set(x + c, y + 4 + r, 0 if inv else 1)
+                x += 6
     def box(self, x, y, w, h, on=1):
         for yy in range(y, y + h):
             for xx in range(x, x + w): self._set(xx, yy, on)
@@ -101,7 +127,11 @@ def read_status(path):
             k, v = line.split('=', 1); d[k.strip()] = v.strip()
     return d, time.time() - st.st_mtime
 
+_cache = {'t': 0, 'v': None}
 def sysinfo():
+    """(CPU温度, 負荷, 使用メモリMB, スワップMB, メモリの混みぐあい%, ゲームのメモリMB)。 重くならないよう 2秒に1回だけ読む"""
+    now = time.time()
+    if _cache['v'] is not None and now - _cache['t'] < 2.0: return _cache['v']
     t = '--'
     try:
         with open('/sys/class/thermal/thermal_zone0/temp') as f: t = '%dC' % (int(f.read()) // 1000)
@@ -110,15 +140,35 @@ def sysinfo():
     try:
         with open('/proc/loadavg') as f: la = f.read().split()[0]
     except Exception: pass
-    mem = '--'
+    mem = sw = '--'
     try:
         m = {}
         with open('/proc/meminfo') as f:
             for line in f:
                 k, v = line.split(':', 1); m[k] = int(v.split()[0])
-        mem = '%dM' % ((m['MemTotal'] - m.get('MemAvailable', 0)) // 1024)
+        mem = '%d' % ((m['MemTotal'] - m.get('MemAvailable', 0)) // 1024); sw = '%d' % ((m.get('SwapTotal', 0) - m.get('SwapFree', 0)) // 1024)
     except Exception: pass
-    return t, la, mem
+    psi = '--'
+    try:
+        with open('/proc/pressure/memory') as f:
+            for line in f:
+                if line.startswith('some'): psi = '%d' % float(line.split('avg10=')[1].split()[0])
+    except Exception: pass
+    gm = '--'
+    try:
+        for d in os.listdir('/proc'):
+            if d.isdigit():
+                try:
+                    with open('/proc/%s/comm' % d) as f: nm = f.read().strip()
+                except Exception: continue
+                if nm == 'mj':
+                    with open('/proc/%s/status' % d) as f:
+                        for line in f:
+                            if line.startswith('VmRSS:'): gm = '%d' % (int(line.split()[1]) // 1024)
+                    break
+    except Exception: pass
+    _cache['v'] = (t, la, mem, sw, psi, gm); _cache['t'] = now
+    return _cache['v']
 
 def uptime():
     try:
@@ -129,10 +179,12 @@ def num(d, k, suffix='', default='--'):
     v = d.get(k, '')
     return (v + suffix) if v not in ('', None) else default
 
+ROW_Y = 18   # 数字の行の はじまり(上の16ドットは 日本語の見出し)
 def compose(scr, d, age, tick, ever_alive=False):
     """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
-    起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてください」を出す"""
+    起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてね」を出す"""
     scr.clear()
+    scene = d.get('scene', '') if d else ''
     final = d is not None and d.get('scene') in ('EXIT', 'MAINT')   # ゲームが 終わった印(時間がたっても そのまま出す)
     alive = d is not None and (age < 4.0 or final)
     up = uptime()
@@ -143,28 +195,30 @@ def compose(scr, d, age, tick, ever_alive=False):
     else: pose = 'sleep'
     a, b = POSE.get(pose, POSE['watch'])
     scr.sprite(a if (tick % 2 == 0) else b, 0, 8 if PAGES >= 7 else 0)
-    t, la, mem = sysinfo()
-    step = 9
+    t, la, mem, sw, psi, gm = sysinfo()
+    def rows_at(y0, rows, step=9):
+        for i, r in enumerate(rows):
+            yy = y0 + i * step
+            if r and yy + 7 <= HEIGHT: scr.text(r[:14], TEXT_X, yy)
     if booting:
-        dots = '.' * (tick % 4)
-        scr.text('MAHJONG', TEXT_X, 0)
-        rows = ['', 'GAME', 'STARTING' + dots, '', 'WAIT %dS' % int(up), 'T' + t + ' M' + mem]
+        scr.text16('麻雀先生', TEXT_X, 0); scr.text16('ゲーム', TEXT_X, 18); scr.text16('起動中' + '.' * (tick % 4), TEXT_X, 34)
+        rows_at(54, ['WAIT %dS' % int(up)])
     elif alive and final:
-        scr.text((d.get('msg') or 'BYE')[:13], TEXT_X, 0, inv=True)
-        rows = ['', 'UNPLUG NOW' if d.get('scene') == 'EXIT' else 'READY', '', 'T' + t + ' M' + mem]
+        if d.get('scene') == 'EXIT': scr.text16('終了', TEXT_X, 0, inv=True); scr.text16('電源を', TEXT_X, 18); scr.text16('抜いてね', TEXT_X, 34)
+        else: scr.text16('保守', TEXT_X, 0, inv=True); rows_at(24, ['CTRL+Q', 'READY'])
+        rows_at(54, ['T' + t + ' M' + mem])
     elif alive:
         msg = d.get('msg', '')
-        if msg: scr.text(msg[:11], TEXT_X, 0, inv=True)
-        else: scr.text((d.get('scene', 'GAME') + ' ' + d.get('sub', ''))[:13], TEXT_X, 0)
-        rows = ['FPS ' + num(d, 'fps'), 'DRAW ' + num(d, 'draw', 'MS'), 'MAX ' + num(d, 'max', 'MS'), 'KEY ' + num(d, 'key', 'MS'),
-                'T' + t + ' L' + la, 'MEM ' + mem]
-        if d.get('audio') not in (None, '', 'ok'): rows[5] = 'AUDIO ' + d['audio']
+        if msg: scr.text16(msg[:5], TEXT_X, 0, inv=True)
+        else: scr.text16(scene[:5], TEXT_X, 0)
+        rows = ['SPD ' + num(d, 'spd', 'FPS'), 'DRAW ' + num(d, 'draw') + ' MAX ' + num(d, 'max'), 'KEY ' + num(d, 'key', 'MS') + ' T' + t,
+                'MEM ' + mem + ' SW ' + sw + 'M', 'GAME ' + gm + 'M P' + psi + '%']
+        if d.get('audio') not in (None, '', 'ok'): rows[4] = 'AUDIO STOP'
+        rows_at(ROW_Y, rows)
     else:
-        scr.text('MJ STOP' if ever_alive else 'MJ OFF', TEXT_X, 0, inv=ever_alive)
-        rows = ['', 'TEMP ' + t, 'LOAD ' + la, 'MEM ' + mem]
-    for i, r in enumerate(rows):
-        yy = 11 + i * step
-        if r and yy + 7 <= HEIGHT: scr.text(r[:13], TEXT_X, yy)
+        if ever_alive: scr.text16('停止!', TEXT_X, 0, inv=True)
+        else: scr.text16('待機中', TEXT_X, 0)
+        rows_at(ROW_Y + 4, ['TEMP ' + t, 'LOAD ' + la, 'MEM ' + mem + ' SW ' + sw + 'M'])
     return scr
 
 # ---------- I2C ----------
@@ -204,14 +258,14 @@ def find_bus():
             except Exception: pass
     return None
 
-DEMO = [('hello', 'TITLE', ''), ('home', 'HOME', ''), ('think', 'GAME', 'T5'), ('watch', 'GAME', 'CPU'), ('call', 'GAME', 'PON'),
-        ('win', 'RESULT', 'WIN'), ('sad', 'RESULT', 'LOSE'), ('teach', 'QUIZ', ''), ('pray', 'RANK', 'UP'), ('celebrate', 'MAP', '')]
+DEMO = [('hello', 'タイトル', ''), ('home', 'ホーム', ''), ('think', '対局', ''), ('watch', '対局', ''), ('call', '対局', 'ポン!'),
+        ('win', '結果', '勝ち!'), ('sad', '結果', '負け'), ('teach', 'クイズ', ''), ('pray', '昇段', '昇段!'), ('celebrate', '地図', '')]
 
 def main():
     dry = '--dry' in sys.argv
     if '--selftest' in sys.argv:
         scr = Screen()
-        d = {'scene': 'GAME', 'sub': 'T5', 'pose': 'think', 'fps': '19', 'draw': '33', 'max': '57', 'key': '12', 'msg': 'RON!'}
+        d = {'scene': '対局', 'pose': 'think', 'spd': '30', 'draw': '33', 'max': '57', 'key': '12', 'msg': 'ロン!'}
         print(compose(scr, d, 0.1, 0).ascii()); return 0
     try: os.nice(19)
     except OSError: pass
@@ -228,7 +282,7 @@ def main():
         if '--demo' in sys.argv:
             if t0 - t_demo > 4: t_demo = t0; demo_i = (demo_i + 1) % len(DEMO)
             p, sc, sub = DEMO[demo_i]
-            d, age = {'scene': sc, 'sub': sub, 'pose': p, 'fps': '19', 'draw': '33', 'max': '57', 'key': '12', 'msg': ''}, 0
+            d, age = {'scene': sc, 'pose': p, 'spd': '30', 'draw': '33', 'max': '57', 'key': '12', 'msg': sub}, 0
         else:
             d, age = read_status(STATUS)
         if d is not None and age < 4.0 and d.get('scene') not in ('EXIT', 'MAINT'): ever_alive = True

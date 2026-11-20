@@ -2885,31 +2885,34 @@
     return true;
   };
   /* ---------- OLED(別の小さな画面)用の状態: 場面に合わせて 麻雀先生のポーズを選び、フレームレートなどと一緒に /tmp/mj_oled.txt へ(native/pi/mjoled.py が読む) ---------- */
-  const OLED_BANNER = { 'リーチ': 'REACH!', 'ポン': 'PON!', 'チー': 'CHI!', 'カン': 'KAN!', 'ロン': 'RON!', 'ツモ': 'TSUMO!' };
+  /* OLED-JP-BEGIN */
+  const OLED_JP = { BOOT: '起動中', TITLE: 'タイトル', HOME: 'ホーム', GAME: '対局', RESULT: '結果', QUIZ: 'クイズ', STUDY: '勉強', VIDEO: 'ビデオ', STATS: '成績', SETUP: '設定', MAP: '地図', RANK: '昇段', NEW: '新雀士', END: '対局終了',
+    'リーチ': 'リーチ!', 'ポン': 'ポン!', 'チー': 'チー!', 'カン': 'カン!', 'ロン': 'ロン!', 'ツモ': 'ツモ!', DRAW: '流局', WIN: '勝ち!', LOSE: '負け', COMEBACK: '逆転!', CUTIN: '必殺!', RANKUP: '昇段!' };
+  /* OLED-JP-END */
   function oledState() {
-    const m = S.mode, g = S.game; let scene = 'HOME', pose = 'home', msg = '', sub = '';
+    const m = S.mode, g = S.game; let scene = 'HOME', pose = 'home', msg = '';
     if (m === 'boot') { scene = 'BOOT'; pose = 'hello'; } else if (m === 'title') { scene = 'TITLE'; pose = 'hello'; } else if (m === 'menu') { scene = 'HOME'; pose = 'home'; }
     else if (m === 'quiz' || m === 'learn' || m === 'study' || m === 'dict' || m === 'howto' || m === 'diag') { scene = m === 'quiz' ? 'QUIZ' : 'STUDY'; pose = 'teach'; }
     else if (m === 'video') { scene = 'VIDEO'; pose = 'watch'; } else if (m === 'stats') { scene = 'STATS'; pose = 'think'; }
     else if (m === 'settings' || m === 'dbg' || m === 'rules' || m === 'promo' || m === 'slots' || m === 'credits') { scene = 'SETUP'; pose = 'think'; }
     if (g && (m === 'game' || S.result || S.end || S.rankP)) {
-      scene = 'GAME'; try { sub = ['E', 'S'][g.roundWind] + (g.kyoku % 4 + 1); } catch (e) { sub = ''; } pose = 'watch';
-      if (S.self) { pose = 'think'; sub += ' YOU'; } else sub += ' CPU';
+      scene = 'GAME'; pose = 'watch';
+      if (S.self) pose = 'think';
       if (S.react) pose = 'think2';
       if (S.dice || S.intro || S.deal) pose = 'hello';
       if (S.ryu) { pose = 'calm'; msg = 'DRAW'; }
-      if (S.banner && S.banner.call) { pose = (S.banner.text === 'ロン' || S.banner.text === 'ツモ') ? 'power' : 'call'; msg = OLED_BANNER[S.banner.text] || ''; }
-      if (S.cutin) { pose = 'power'; msg = S.cutin.ci && S.cutin.ci.gyaku ? 'COMEBACK!' : 'CUT-IN!'; }
-      if (S.result) { const r = S.result; scene = 'RESULT'; sub = ''; if (r.type === 'draw') { pose = 'calm'; msg = 'DRAW'; } else if (r.wins && r.wins.some((w) => w.winner.isHuman)) { pose = 'win'; msg = 'YOU WIN!'; } else if (r.delta && r.delta[0] < 0) { pose = 'sad'; msg = 'LOSE'; } else pose = 'calm'; }
+      if (S.banner && S.banner.call) { pose = (S.banner.text === 'ロン' || S.banner.text === 'ツモ') ? 'power' : 'call'; msg = S.banner.text; }
+      if (S.cutin) { pose = 'power'; msg = S.cutin.ci && S.cutin.ci.gyaku ? 'COMEBACK' : 'CUTIN'; }
+      if (S.result) { const r = S.result; scene = 'RESULT'; if (r.type === 'draw') { pose = 'calm'; msg = 'DRAW'; } else if (r.wins && r.wins.some((w) => w.winner.isHuman)) { pose = 'win'; msg = 'WIN'; } else if (r.delta && r.delta[0] < 0) { pose = 'sad'; msg = 'LOSE'; } else pose = 'calm'; }
       if (S.rankP) { scene = 'RANK'; pose = 'celebrate'; }
-      if (S.end) { scene = 'END'; pose = 'celebrate'; }
+      if (S.end) { scene = 'END'; const mine = S.end.results && S.end.results.find((x) => x.p && x.p.isHuman), rk = mine ? mine.rank : 2; pose = rk === 1 ? 'celebrate' : rk === 4 ? 'sad' : rk === 3 ? 'calm' : 'win'; msg = rk === 1 ? 'WIN' : rk === 4 ? 'LOSE' : ''; }
     }
-    if (S.map) { scene = 'MAP'; pose = 'celebrate'; sub = ''; msg = ''; }
+    if (S.map) { scene = 'MAP'; pose = 'celebrate'; msg = ''; }
     if (S.reveal) { scene = 'NEW'; pose = 'celebrate'; }
-    if (S.cert) { scene = 'RANK'; pose = 'pray'; msg = 'RANK UP!'; }
+    if (S.cert) { scene = 'RANK'; pose = 'pray'; msg = 'RANKUP'; }
     let audio = 'ok'; try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi && mi[0] === 0) audio = 'BGM STOP'; } catch (e) { /* ignore */ }
-    const o = perf.o || {};
-    return 'scene=' + scene + '\nsub=' + sub + '\npose=' + pose + '\nmsg=' + msg + '\nfps=' + (o.fps == null ? '' : o.fps) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nup=' + Math.floor(__now() / 1000) + '\n';
+    const o = perf.o || {}, jp = (k) => (k ? (OLED_JP[k] || k) : '');
+    return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nup=' + Math.floor(__now() / 1000) + '\n';
   }
   let oledT = 0; setInterval(() => { try { if (typeof gfx.status === 'function') { gfx.status(oledState()); } } catch (e) { /* ignore */ } }, 400);
   const perfCtx = () => { // いま どの画面で なにをしていたか(遅れの記録に添える)
@@ -2926,7 +2929,7 @@
     const t0 = __now(); const r = drawBody(); const dt = __now() - t0; perf.n++; perf.ms += dt; if (dt > (perf.mx || 0)) perf.mx = dt;
     if (dt >= 300) tl('slow-draw ' + Math.round(dt) + 'ms ' + perfCtx()); // 0.3秒以上かかった描きは、出来事の記録(mj_tl)にも残す
     if (dt >= 80) { (perf.slow = perf.slow || []).unshift(Math.round(dt) + 'ms  ' + perfCtx()); perf.slow.length = Math.min(perf.slow.length, 4); }
-    if (t0 - perf.t0 >= 1000) { perf.o = { fps: perf.n, draw: Math.round(perf.ms / Math.max(1, perf.n)), max: Math.round(perf.mx || 0), key: perf.o ? perf.o.key : '' }; perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; try { const kl = typeof gfx.keyLat === 'function' ? gfx.keyLat() : null; if (kl && kl[2]) perf.key = '押してから画面 平均' + Math.round(kl[0]) + 'ms 最大' + Math.round(kl[1]) + 'ms(' + kl[2] + '回)'; if (kl && kl[2] && perf.o) perf.o.key = Math.round(kl[0]); } catch (e) { /* ignore */ } }
+    if (t0 - perf.t0 >= 1000) { if (perf.n > 0) { const av = perf.ms / perf.n; perf.o = { spd: Math.round(1000 / Math.max(1, av + 4)), draw: Math.round(av), max: Math.round(perf.mx || 0), key: perf.o ? perf.o.key : '' }; } else if (!perf.o) perf.o = {}; /* 描いた回数は、画面が動かないと減るので、「描ける速さ」(1コマの時間から出す)を出す。 描かなかった秒は、前の値のまま */ perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; try { const kl = typeof gfx.keyLat === 'function' ? gfx.keyLat() : null; if (kl && kl[2]) perf.key = '押してから画面 平均' + Math.round(kl[0]) + 'ms 最大' + Math.round(kl[1]) + 'ms(' + kl[2] + '回)'; if (kl && kl[2] && perf.o) perf.o.key = Math.round(kl[0]); } catch (e) { /* ignore */ } }
     if (perfOn() || (perf.flash || 0) > t0) { // 遅れの診断(写真に とれるように、左上に 大きめに)
       gfx.view(0, 0); const sl = perf.slow || [], h = 24 + 18 * (3 + sl.length);
       fill(0, 0, 520, h, [0, 0, 0], 200); text('遅れの診断: ' + (perfOn() ? 'オン' : 'オフ'), 6, 3, 16, YEL); if (perfOn()) text('消すには ホームで ▼▼▲▲▶◀▶◀ 戻る 決定 / 設定の「遅れの診断」', 190, 3, 13, [200, 220, 205]); text(perf.shown || '(計測中)', 6, 22, 16, [120, 255, 160]);

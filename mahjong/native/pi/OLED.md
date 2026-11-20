@@ -26,7 +26,8 @@ sudo sh native/pi/install_oled.sh
 
 ## 仕組み
 - ゲームが 0.4秒ごとに `/tmp/mj_oled.txt`(場面・ポーズ・フレームレートなど)を書く。 `mjoled` がそれを読んで、麻雀先生を2コマでパタパタさせ、右に数字を出す。
-- 出る数字: FPS(描いた回数/秒)・DRAW(1回の平均ms)・MAX(最大ms)・KEY(ボタンを押してから画面に出るまで ms)・T(CPU温度)・L(負荷)・MEM(使用メモリ)・AUDIO(BGMが止まっているときだけ)。 いちばん上は、場面と、「RON!」「REACH!」などの知らせ。
+- 出る数字: SPD(ゲームの速さ=1コマを描く時間から出した、描ける速さ。 画面が動かない間は 前の値のまま)・DRAW(1回の平均ms)・MAX(最大ms)・KEY(ボタンを押してから画面に出るまで ms)・T(CPU温度)・MEM(使用メモリMB。 すぐ空けられるキャッシュは除く)・SW(使っているスワップMB。 0 が正常)・GAME(ゲーム本体のメモリMB)・P(メモリの混みぐあい%。 0に近いのが正常)・AUDIO STOP(BGMが止まっているときだけ)。
+- いちばん上(16ドット、日本語)は、場面(対局・結果・クイズ…)と、「ロン!」「リーチ!」「勝ち!」「負け」などの知らせ。 日本語は Unifont の16x16で、`python3 tools/make_oled_font.py` で作る(`native/pi/oled_jp.py`)。 出す日本語は `nui.js` の `OLED-JP-BEGIN` の中。
 - ゲームが止まっていると「MJ OFF」と、本体の温度・負荷・メモリを出す。
 - CPUへの負担を小さくするため: 変わった所だけを送る・1秒に3コマまで・いちばん低い優先度。 I2Cはソフトウェア(GPIO)で動くので、送るあいだ だけ CPU を少し使う。 気になるときは `MJOLED_FPS=1`。
 - 絵(麻雀先生18ポーズ)は `tools/ui_src/sensei_sheet.jpg` から `python3 tools/make_oled_sprites.py` で作る(`native/pi/oled_sprites.py`)。 ポーズと場面の対応は、`mjoled.py` の `POSE` と、`nui.js` の `oledState`。

@@ -342,3 +342,4 @@
 - [ ] (要ビルド) ビデオ: 最初の絵が出るまで、サムネイルを画面いっぱいに出して「よみこみ中…」(戻る: やめる)。 音は、最初の絵が出てから鳴らす(PCの測定では、絵のあと 約60msで音)。 絵が出ないときでも、20秒たったら音だけ鳴らす。 実機で、再生ボタンから絵と音がそろって始まるか
 - [ ] (要ビルド・新機能) OLED表示: 麻雀先生のパタパタ+FPS/DRAW/MAX/KEY/温度/負荷/メモリ。 native/pi/OLED.md の手順(config の i2c-gpio → `sudo sh native/pi/install_oled.sh`)。 まず `python3 native/pi/mjoled.py --demo` で表示が出るか(上下が逆なら MJOLED_FLIP=1、128x32 なら MJOLED_H=32)、次にゲームの場面(タイトル/ホーム/対局/ロン/結果/昇段)でポーズが変わるか。 ゲームの速さが落ちていないか(診断の描く回数・ms)
 - [ ] (要ビルド) OLEDの起動画面: 電源を入れて OS が立ち上がりしだい(mjoled を早く起動: sysinit)、麻雀先生+「MAHJONG / GAME STARTING.. / WAIT ○S」。 ゲームが始まると通常表示。 終了(「コンセントを抜いてください」)では「UNPLUG OK / UNPLUG NOW」、Ctrl+Q(保守)では「MAINTENANCE」、ゲームが落ちたときは「MJ STOP」(赤い顔)。 `sudo sh native/pi/install_oled.sh` を入れなおすと、早い起動になる(いったん disable → enable)。 電源を入れてから OLED が点くまでの秒数を記録
+- [ ] OLED: 日本語の見出し(場面・ロン!・勝ち!・負け など)・SPD(描ける速さ)・メモリ(MEM/SW/GAME/P)。 負けたら先生が困り顔。 `git pull` と `sudo sh native/pi/install_oled.sh`(oled_jp.py も入る)。 ゲーム側は JS だけの変更(ビルド不要)
