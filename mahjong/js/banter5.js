@@ -196,6 +196,7 @@
         return { p: w.winner, text, tsumo: !!w.tsumo, big: true, gyaku: true };
       } catch (e) { return null; }
     },
+    gyakuTexts(ch, human) { const a = human ? GYAKU_ME : GYAKU[ch && ch.id]; return a ? a.slice() : []; }, // 逆転のカットインのセリフ(文字の下ごしらえ用)
     allTexts(ch) { const s = LINES[ch && ch.id]; return s && (!ENABLED || ENABLED.includes(ch.id)) ? s.ron.concat(s.tsumo) : []; }, // 文字の下ごしらえ用(出すキャラだけ)
   };
 })(typeof window !== 'undefined' ? window : globalThis);

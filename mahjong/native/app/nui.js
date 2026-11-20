@@ -425,7 +425,8 @@
   function cutinShow(g, ci) { return new Promise((res) => { S.bub = {}; S.sayQ = []; g._cutinWinner = ci.p; S.cutin = { ci, t0: __now(), res }; NSND.sfx('slam', 0.7); dirty(); }); }
   function cutinEnd() { const C = S.cutin; if (!C) return; S.cutin = null; dirty(); try { C.res(); } catch (e) { /* ignore */ } }
   function drawCutin() {
-    const C = S.cutin, t = __now() - C.t0; if (t >= CI_T) { cutinEnd(); return; }
+    const C = S.cutin; { const nw = __now(); if (!C.n) { C.n = 1; C.t0 = nw; C.f0 = nw; } else if (C.n === 1) { C.n = 2; if (nw - C.f0 > 400) C.t0 = nw - 120; } /* 時計は、最初に描いたときから数える */ } /* 最初の1コマが重くて止まったときは、そのぶんの時間を使わない(カットインが、見えないまま 終わらないように) */
+    const t = __now() - C.t0; if (t >= CI_T) { cutinEnd(); return; }
     const K = CI_COL[C.ci.tsumo ? 'tsumo' : 'ron'], inn = ciEase(t / 340), out = t > 2400 ? ciEase((t - 2400) / 400) : 0, dimA = Math.round(140 * Math.min(1, t / 250) * (1 - out));
     gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], dimA); gfx.image('img/cutin_' + (C.ci.tsumo ? 'tsumo' : 'ron') + '.webp', 0, 0, SW, SH, Math.round(220 * Math.min(1, t / 250) * (1 - out)));
     const bx = Math.round(-SW * (1 - inn) - SW * out), by = 170;
@@ -2792,7 +2793,13 @@
     if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; g.bgmResume = sn.bgm; if (sn.mid) g.resumeMid = sn.mid; }
     if (!opt.watch) g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
     S.game = g; tl('game-built');
-    try { if (typeof gfx.dry === 'function' && MJ.CutIn && !g.fast) { /* 決めゼリフの文字を、対局のはじめのうちに、すこしずつ下ごしらえ(はじめて出すとき止まらないように) */ const L = []; g.players.forEach((q) => { if (!q.isHuman) MJ.CutIn.allTexts(q.char).forEach((t) => L.push([t, ciSize(t)])); }); let i = 0; const st = () => { if (i >= L.length || g.stopped || S.game !== g) return; if (S.mode !== 'game' || S.cutin || S.self || S.react || S.menuP || (S.lastKeyT && __now() - S.lastKeyT < 1500)) { setTimeout(st, 300); return; } gfx.dry(1); try { gfx.text(L[i][0], 0, 0, -L[i][1], 255, 255, 255, 0); gfx.text(L[i][0], 0, 0, -L[i][1], 0, 0, 0, 0); } catch (e) { /* ignore */ } gfx.dry(0); i++; setTimeout(st, 220); }; setTimeout(st, 7000); } } catch (e) { /* ignore */ }
+    try { if (typeof gfx.dry === 'function' && MJ.CutIn && !g.fast) { /* カットインの文字(セリフ・名前・札)の字の大きさと、カットインの絵を、対局のはじめのうちに、すこしずつ下ごしらえ(はじめて出すとき、画面が止まらないように。 CPUの番のあいだだけ進める) */
+      const L = []; const WH = [[255, 255, 255], [0, 0, 0]];
+      g.players.forEach((q) => { const ts = q.isHuman ? MJ.CutIn.gyakuTexts(null, true) : MJ.CutIn.allTexts(q.char).concat(MJ.CutIn.gyakuTexts(q.char)); ts.forEach((t) => L.push({ t, sz: ciSize(t), cols: WH })); L.push({ t: q.name, sz: 19, cols: [CI_COL.ron.edge, CI_COL.tsumo.edge] }); });
+      L.push({ t: 'ロン', sz: 26, cols: [[255, 255, 255]] }, { t: 'ツモ', sz: 26, cols: [[255, 255, 255]] }, { img: 'img/cutin_ron.webp' }, { img: 'img/cutin_tsumo.webp' });
+      let i = 0; const st = () => { if (i >= L.length || g.stopped || S.game !== g) return; if (S.mode !== 'game' || S.cutin || S.self || S.react || S.menuP || (S.lastKeyT && __now() - S.lastKeyT < 1500)) { setTimeout(st, 300); return; }
+        const it = L[i]; if (it.img) { try { if (typeof gfx.preload === 'function') gfx.preload(it.img); } catch (e) { /* ignore */ } } else { gfx.dry(1); try { it.cols.forEach((c) => gfx.text(it.t, 0, 0, -it.sz, c[0], c[1], c[2], 0)); } catch (e) { /* ignore */ } gfx.dry(0); }
+        i++; setTimeout(st, 220); }; setTimeout(st, 7000); } } catch (e) { /* ignore */ }
     try { if (typeof gfx.dry === 'function' && gfx.bold && !g.fast) { /* 「ポン」「ロン」などの大きな文字(影3枚+白ぶち+色)を、対局のはじめのうちに下ごしらえ(はじめて出すとき止まらないように) */ const Lw = []; [['リーチ', [225, 36, 28]], ['ロン', [230, 0, 18]], ['ツモ', [230, 0, 18]], ['ポン', [196, 139, 255]], ['チー', [196, 139, 255]], ['カン', [196, 139, 255]]].forEach((w) => { [[30, 56, 46], [14, 30, 24], [0, 0, 0], [255, 255, 255], w[1]].forEach((c) => Lw.push([w[0], c])); }); let j = 0; const sw = () => { if (j >= Lw.length || g.stopped || S.game !== g) return; if (S.mode !== 'game' || S.cutin || S.banner || S.self || S.react || S.menuP || (S.lastKeyT && __now() - S.lastKeyT < 1500)) { setTimeout(sw, 300); return; } gfx.dry(1); try { gfx.text(Lw[j][0], 0, 0, -76, Lw[j][1][0], Lw[j][1][1], Lw[j][1][2], 0); } catch (e) { /* ignore */ } gfx.dry(0); j++; setTimeout(sw, 200); }; setTimeout(sw, 9000); } } catch (e) { /* ignore */ }
     try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
     S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; S.homeBot = false; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
