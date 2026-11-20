@@ -71,7 +71,7 @@ class Screen:
     def pixel_on(self, x, y):
         return (self.buf[y // 8][x] >> (y % 8)) & 1
     def text(self, s, x, y, inv=False):   # y は どこでもよい(ページをまたぐ)。 inv=True は 白地に黒文字の帯
-        if inv: self.box(x - 1, y - 1, 6 * len(s) + 1, 9, 1)
+        if inv: y += 1; self.box(x - 1, y - 1, 6 * len(s) + 1, 9, 1)   # 帯が 画面の上にはみ出さないように 1ドット下げる
         for ch in s.upper():
             g = F.get(ch, F['?'])
             for c in range(5):
@@ -120,34 +120,51 @@ def sysinfo():
     except Exception: pass
     return t, la, mem
 
+def uptime():
+    try:
+        with open('/proc/uptime') as f: return float(f.read().split()[0])
+    except Exception: return 0.0
+
 def num(d, k, suffix='', default='--'):
     v = d.get(k, '')
     return (v + suffix) if v not in ('', None) else default
 
-def compose(scr, d, age, tick):
-    """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る"""
+def compose(scr, d, age, tick, ever_alive=False):
+    """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
+    起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてください」を出す"""
     scr.clear()
-    alive = d is not None and age < 4.0
-    pose = (d.get('pose', 'watch') if alive else 'sleep')
+    final = d is not None and d.get('scene') in ('EXIT', 'MAINT')   # ゲームが 終わった印(時間がたっても そのまま出す)
+    alive = d is not None and (age < 4.0 or final)
+    up = uptime()
+    booting = (not alive) and (not ever_alive) and up < 150
+    if alive: pose = d.get('pose', 'watch')
+    elif booting: pose = 'hello'
+    elif ever_alive: pose = 'err'
+    else: pose = 'sleep'
     a, b = POSE.get(pose, POSE['watch'])
     scr.sprite(a if (tick % 2 == 0) else b, 0, 8 if PAGES >= 7 else 0)
     t, la, mem = sysinfo()
-    y = 0; step = 9
-    if alive:
+    step = 9
+    if booting:
+        dots = '.' * (tick % 4)
+        scr.text('MAHJONG', TEXT_X, 0)
+        rows = ['', 'GAME', 'STARTING' + dots, '', 'WAIT %dS' % int(up), 'T' + t + ' M' + mem]
+    elif alive and final:
+        scr.text((d.get('msg') or 'BYE')[:13], TEXT_X, 0, inv=True)
+        rows = ['', 'UNPLUG NOW' if d.get('scene') == 'EXIT' else 'READY', '', 'T' + t + ' M' + mem]
+    elif alive:
         msg = d.get('msg', '')
-        if msg and (tick % 2 == 0 or len(msg) > 0):
-            scr.text(msg[:11].ljust(11), TEXT_X, 0, inv=True)
-        else:
-            scr.text((d.get('scene', 'GAME') + ' ' + d.get('sub', ''))[:13], TEXT_X, 0)
+        if msg: scr.text(msg[:11], TEXT_X, 0, inv=True)
+        else: scr.text((d.get('scene', 'GAME') + ' ' + d.get('sub', ''))[:13], TEXT_X, 0)
         rows = ['FPS ' + num(d, 'fps'), 'DRAW ' + num(d, 'draw', 'MS'), 'MAX ' + num(d, 'max', 'MS'), 'KEY ' + num(d, 'key', 'MS'),
                 'T' + t + ' L' + la, 'MEM ' + mem]
         if d.get('audio') not in (None, '', 'ok'): rows[5] = 'AUDIO ' + d['audio']
     else:
-        scr.text('MJ OFF', TEXT_X, 0)
+        scr.text('MJ STOP' if ever_alive else 'MJ OFF', TEXT_X, 0, inv=ever_alive)
         rows = ['', 'TEMP ' + t, 'LOAD ' + la, 'MEM ' + mem]
     for i, r in enumerate(rows):
         yy = 11 + i * step
-        if yy + 7 <= HEIGHT: scr.text(r[:13], TEXT_X, yy)
+        if r and yy + 7 <= HEIGHT: scr.text(r[:13], TEXT_X, yy)
     return scr
 
 # ---------- I2C ----------
@@ -198,13 +215,13 @@ def main():
         print(compose(scr, d, 0.1, 0).ascii()); return 0
     try: os.nice(19)
     except OSError: pass
-    oled = None; tick = 0; demo_i = 0; t_demo = 0; next_try = 0
+    oled = None; tick = 0; demo_i = 0; t_demo = 0; next_try = 0; ever_alive = False
     while True:
         t0 = time.time()
         if oled is None and not dry and t0 >= next_try:
             bus = find_bus()
             if bus is None:
-                print('mjoled: OLED が見つかりません(config.txt の i2c-gpio と、つなぎかたを確認)。 10秒後に もう一度さがします', flush=True); next_try = t0 + 10
+                print('mjoled: OLED が見つかりません(config.txt の i2c-gpio と、つなぎかたを確認)。 もう一度さがします', flush=True); next_try = t0 + (1 if uptime() < 90 else 10)  # 起動の直後は、1秒ごとに さがす(装置が できるのを待つ)
             else:
                 try: oled = Oled(bus, ADDR); oled.init(); print('mjoled: i2c-%d の 0x%02X に つなぎました(%s %dx%d)' % (bus, ADDR, DRV, WIDTH, HEIGHT), flush=True)
                 except OSError as e: print('mjoled: 初期化に失敗: %s' % e, flush=True); oled = None; next_try = t0 + 10
@@ -214,7 +231,8 @@ def main():
             d, age = {'scene': sc, 'sub': sub, 'pose': p, 'fps': '19', 'draw': '33', 'max': '57', 'key': '12', 'msg': ''}, 0
         else:
             d, age = read_status(STATUS)
-        scr = compose(Screen(), d, age, tick); tick += 1
+        if d is not None and age < 4.0 and d.get('scene') not in ('EXIT', 'MAINT'): ever_alive = True
+        scr = compose(Screen(), d, age, tick, ever_alive); tick += 1
         if oled is not None:
             try: oled.show(scr)
             except OSError as e:

@@ -15,7 +15,10 @@ install -m 644 oled_sprites.py /usr/local/bin/oled_sprites.py
 cat > /etc/systemd/system/mjoled.service <<'UNIT'
 [Unit]
 Description=Mahjong OLED (sensei and game status)
-After=local-fs.target
+DefaultDependencies=no
+After=systemd-modules-load.service systemd-udevd.service local-fs.target
+Before=basic.target
+Conflicts=shutdown.target
 [Service]
 EnvironmentFile=-/etc/default/mjoled
 ExecStart=/usr/bin/python3 /usr/local/bin/mjoled.py
@@ -24,9 +27,10 @@ RestartSec=3
 Nice=19
 CPUSchedulingPolicy=idle
 [Install]
-WantedBy=multi-user.target
+WantedBy=sysinit.target
 UNIT
 systemctl daemon-reload
+systemctl disable mjoled.service 2>/dev/null || true
 systemctl enable mjoled.service
 systemctl restart mjoled.service
 sleep 2
