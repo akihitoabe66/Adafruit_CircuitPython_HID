@@ -29,11 +29,11 @@ except ImportError:
     try: from oled_zunda import Z as ZU
     except ImportError: ZU = {}
 try:
-    from oled_pet import STAGE as PSTAGE, LAB as PLAB
+    from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES
 except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    try: from oled_pet import STAGE as PSTAGE, LAB as PLAB
-    except ImportError: PSTAGE, PLAB = [], {}
+    try: from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES
+    except ImportError: PSTAGE, PLAB, PLINES = [], {}, {}
 CHARFILE = os.environ.get('MJOLED_CHARFILE', '/var/lib/mjoled_char')   # 設定(ゲームの「OLEDのキャラ」)を おぼえておく場所。 電源を入れた直後の画面でも 同じ人が出る
 WHO = {'v': 'sensei'}   # いま出している人: sensei(麻雀先生) か zunda(ずんだもん)
 I2C_SLAVE = 0x0703
@@ -150,6 +150,17 @@ class Screen:
             span = lw + 16; off = (tick * 2) % span
             self.bitmap(lw, lh, rows, x - off, y, clip=(x, x + w))
             self.bitmap(lw, lh, rows, x - off + span, y, clip=(x, x + w))
+    def line_marquee(self, g, x, y, w, tick):
+        """節目の言葉(幅の広い絵)を、幅 w のなかで 左へ ゆっくり流す(16行 = 16進数の文字列)"""
+        e = PLINES.get(g)
+        if not e: return
+        lw, hx = e; per = (lw + 3) // 4
+        cache = LINE_ROWS.get(g)
+        if cache is None:
+            LINE_ROWS.clear(); cache = LINE_ROWS[g] = tuple(int(hx[r * per:(r + 1) * per], 16) >> (per * 4 - lw) for r in range(16))
+        off = (tick * 4) % (lw + 24)
+        self.bitmap(lw, 16, cache, x - off, y, clip=(x, x + w))
+        if off > lw - w: self.bitmap(lw, 16, cache, x - off + lw + 24, y, clip=(x, x + w))
     def invert(self): self.buf = [bytearray(x ^ 0xFF for x in b) for b in self.buf]   # 白黒を ぎゃくに(警告のとき ちかちかさせる)
     def box(self, x, y, w, h, on=1):
         for yy in range(y, y + h):
@@ -328,6 +339,7 @@ def zpwr(h):
     if h['volt'] is not None: return '%s %.1fV' % (t[:-1], h['volt'])
     return t + (' LOW-V' if h['low'] else ' OK')
 
+ZST = {'scene': None, 't': 0}
 def compose_zunda(scr, d, age, tick, ever_alive):
     """ずんだもんの画面: 左に大きな顔(64x58)、右に 見出しと数字5行。 危険のときは ちかちか白黒"""
     h = health(); scr.clear(); X = 68
@@ -346,6 +358,14 @@ def compose_zunda(scr, d, age, tick, ever_alive):
         scr.text16('危険!', X, 0, inv=True); scr.text16('電圧が' if h['why'] == 'LOWV' else '熱すぎ!', X, 18); scr.text16('切って!', X, 34); scr.text(zpwr(h), X, 54)
         if tick % 2 == 1: scr.invert()
         return scr
+    now = time.time()
+    if ZST['scene'] != scene: ZST['scene'] = scene; ZST['t'] = now
+    since = now - ZST['t']
+    if alive and not final and h['level'] == 0 and PSTAGE and d and 'plays' in d:
+        r = None
+        if scene in ('結果', '対局終了') and since >= 8: r = compose_pet(scr, d, age, tick, ever_alive, h)   # 結果の反応のあとは、ハートと 節目の言葉
+        elif scene in ('クイズ', '勉強') and (tick // 3) % 4 == 3: scr.clear(); pet_gauge_page(scr, d, pet_int(d, 'plays'), tick); r = scr   # 答えるあいだに ときどき 3つの目盛り
+        if r is not None: return r
     if not alive and not booting: expr = 'worry' if ever_alive else 'content'
     if (booting or (alive and not final and scene in ('ホーム', 'タイトル') and h['level'] == 0)):
         r = compose_pet(scr, d, age, tick, ever_alive, h)
@@ -359,6 +379,7 @@ def compose_zunda(scr, d, age, tick, ever_alive):
     elif alive:
         if h['level'] == 1 and tick % 2 == 0: scr.text16('高温' if h['why'] == 'HOT' else '電圧', X, 0, inv=True)
         elif msg: scr.text16(msg[:3], X, 0, inv=True)
+        elif scene == '対局' and since < 6 and PLAB: scr.marquee('いくのだ！', X, 0, 60, tick)
         elif scene == 'タイトル': scr.text('TITLE', X, 5)
         else: scr.text16(scene[:3], X, 0)
         pr = zpwr(h)
@@ -369,6 +390,7 @@ def compose_zunda(scr, d, age, tick, ever_alive):
     return scr
 
 # ---------- ずんだもんペット(たまごっち風) ----------
+LINE_ROWS = {}
 HEART = ((0x36, 0x7f, 0x7f, 0x7f, 0x3e, 0x1c, 0x08), (0x36, 0x49, 0x41, 0x41, 0x22, 0x14, 0x08))   # 7x7: 中まで黒 / ふちだけ
 MILES = [1, 3, 5, 10, 15, 20, 25] + list(range(30, 505, 5))   # 言葉が かわる回数
 def pet_int(d, k):
@@ -381,6 +403,11 @@ def pet_stage(plays):
     return st
 def pet_tier(plays):
     return 'はじめまして' if plays < 1 else 'ツン' if plays < 30 else 'ツンデレ' if plays < 100 else 'ちょいデレ' if plays < 200 else 'しんゆう' if plays >= 350 else 'なかよし'
+def pet_line_key(plays):
+    k = None
+    for m in sorted(PLINES):
+        if m <= plays: k = m
+    return k
 def pet_hearts(scr, plays, x, y):
     """ハート5つ(1つ = 100回、半分 = 50回)。 そのすぐ下の細いバーは、つぎの言葉までの進み"""
     full = min(5, plays // 100); half = plays % 100 >= 50 and full < 5
@@ -423,7 +450,10 @@ def compose_pet(scr, d, age, tick, ever_alive, h):
     elif (tick // 3) % 10 >= 7:
         scr.clear(); pet_gauge_page(scr, d, plays, tick)
     else:
-        pet_hearts(scr, plays, X, 2); scr.marquee(pet_tier(plays), X, 17, 60, tick)
+        pet_hearts(scr, plays, X, 2)
+        g = pet_line_key(plays)
+        if g is None: scr.marquee('はじめまして', X, 17, 60, tick)
+        else: scr.line_marquee(g, X, 17, 60, tick)
         scr.text('PLAY %d' % plays, X, 37); scr.text('WIN %d' % pet_int(d, 'wins'), X, 46); scr.text('BOOT %d' % pet_int(d, 'boots'), X, 55)
     return scr
 
