@@ -28,6 +28,12 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     try: from oled_zunda import Z as ZU
     except ImportError: ZU = {}
+try:
+    from oled_pet import STAGE as PSTAGE, LAB as PLAB
+except ImportError:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try: from oled_pet import STAGE as PSTAGE, LAB as PLAB
+    except ImportError: PSTAGE, PLAB = [], {}
 CHARFILE = os.environ.get('MJOLED_CHARFILE', '/var/lib/mjoled_char')   # 設定(ゲームの「OLEDのキャラ」)を おぼえておく場所。 電源を入れた直後の画面でも 同じ人が出る
 WHO = {'v': 'sensei'}   # いま出している人: sensei(麻雀先生) か zunda(ずんだもん)
 I2C_SLAVE = 0x0703
@@ -125,6 +131,25 @@ class Screen:
                 if (v >> (31 - i)) & 1:
                     x = x0 + 2 * i; y = y0 + 2 * j
                     self._set(x, y, 1); self._set(x + 1, y, 1); self._set(x, y + 1, 1); self._set(x + 1, y + 1, 1)
+    def bitmap(self, w, h, rows, x0, y0, k=1, clip=None):
+        """行ごとの整数(左が上位ビット)の絵を、k倍で描く。 clip=(左, 右) の外は描かない"""
+        for j, v in enumerate(rows):
+            for i in range(w):
+                if (v >> (w - 1 - i)) & 1:
+                    for a in range(k):
+                        for b in range(k):
+                            x = x0 + i * k + a
+                            if clip is None or clip[0] <= x < clip[1]: self._set(x, y0 + j * k + b, 1)
+    def marquee(self, name, x, y, w, tick):
+        """日本語の見出し(PLAB)を、幅 w のなかで 見せる。 はみ出すときは 左へ流す"""
+        lab = PLAB.get(name)
+        if not lab: return
+        lw, lh, rows = lab
+        if lw <= w: self.bitmap(lw, lh, rows, x, y)
+        else:
+            span = lw + 16; off = (tick * 2) % span
+            self.bitmap(lw, lh, rows, x - off, y, clip=(x, x + w))
+            self.bitmap(lw, lh, rows, x - off + span, y, clip=(x, x + w))
     def invert(self): self.buf = [bytearray(x ^ 0xFF for x in b) for b in self.buf]   # 白黒を ぎゃくに(警告のとき ちかちかさせる)
     def box(self, x, y, w, h, on=1):
         for yy in range(y, y + h):
@@ -322,6 +347,9 @@ def compose_zunda(scr, d, age, tick, ever_alive):
         if tick % 2 == 1: scr.invert()
         return scr
     if not alive and not booting: expr = 'worry' if ever_alive else 'content'
+    if (booting or (alive and not final and scene in ('ホーム', 'タイトル') and h['level'] == 0)):
+        r = compose_pet(scr, d, age, tick, ever_alive, h)
+        if r is not None: return r
     scr.zface(expr, 0, 3)
     if booting: scr.text16('起動中' + '.' * (tick % 4), X, 0); rows(24, ['WAIT %dS' % int(up)])
     elif alive and final:
@@ -338,6 +366,65 @@ def compose_zunda(scr, d, age, tick, ever_alive):
         if d.get('audio') not in (None, '', 'ok'): rows(18, ['AUDIO STOP'])
     else:
         scr.text16('停止!' if ever_alive else '待機中', X, 0, inv=bool(ever_alive)); rows(24, [zpwr(h), 'LOAD ' + sysinfo()[1]])
+    return scr
+
+# ---------- ずんだもんペット(たまごっち風) ----------
+HEART = ((0x36, 0x7f, 0x7f, 0x7f, 0x3e, 0x1c, 0x08), (0x36, 0x49, 0x41, 0x41, 0x22, 0x14, 0x08))   # 7x7: 中まで黒 / ふちだけ
+MILES = [1, 3, 5, 10, 15, 20, 25] + list(range(30, 505, 5))   # 言葉が かわる回数
+def pet_int(d, k):
+    try: return int(d.get(k, 0))
+    except (ValueError, TypeError): return 0
+def pet_stage(plays):
+    st = PSTAGE[0]
+    for e in PSTAGE:
+        if plays >= e[0]: st = e
+    return st
+def pet_tier(plays):
+    return 'はじめまして' if plays < 1 else 'ツン' if plays < 30 else 'ツンデレ' if plays < 100 else 'ちょいデレ' if plays < 200 else 'しんゆう' if plays >= 350 else 'なかよし'
+def pet_hearts(scr, plays, x, y):
+    """ハート5つ(1つ = 100回、半分 = 50回)。 そのすぐ下の細いバーは、つぎの言葉までの進み"""
+    full = min(5, plays // 100); half = plays % 100 >= 50 and full < 5
+    for i in range(5):
+        hx = x + i * 10
+        if i < full: scr.bitmap(7, 7, HEART[0], hx, y)
+        else:
+            scr.bitmap(7, 7, HEART[1], hx, y)
+            if i == full and half:
+                scr.bitmap(4, 7, tuple(v >> 3 for v in HEART[0]), hx, y)
+    prev = 0; nxt = MILES[-1]
+    for m in MILES:
+        if m > plays: nxt = m; break
+        prev = m
+    frac = 1.0 if plays >= MILES[-1] else (plays - prev) / float(nxt - prev)
+    wbar = 47
+    scr.box(x, y + 9, wbar, 3, 0); scr.box(x, y + 9, wbar, 1, 1); scr.box(x, y + 11, wbar, 1, 1); scr.box(x, y + 10, 1, 1, 1); scr.box(x + wbar - 1, y + 10, 1, 1, 1)
+    scr.box(x + 1, y + 10, int((wbar - 2) * frac), 1, 1)
+def pet_gauge_page(scr, d, plays, tick):
+    qc = pet_int(d, 'qc'); dan = pet_int(d, 'dan')
+    for i, (nm, val, fr) in enumerate((('なかよし', plays, min(1.0, plays / 500.0)), ('かしこさ', qc, min(1.0, qc / 100.0)), ('つよさ', dan, min(1.0, dan / 20.0)))):
+        y = i * 21
+        scr.bitmap(*PLAB[nm][:2], PLAB[nm][2], 0, y) if nm in PLAB else None
+        scr.text(str(val), 70, y + 4)
+        scr.box(0, y + 17, 128, 3, 0); scr.box(0, y + 17, 128, 1, 1); scr.box(0, y + 19, 128, 1, 1)
+        scr.box(0, y + 18, 1, 1, 1); scr.box(127, y + 18, 1, 1, 1); scr.box(1, y + 18, int(126 * fr), 1, 1)
+def compose_pet(scr, d, age, tick, ever_alive, h):
+    """ホーム・起動中の、ペットの画面。 戻り値が None なら ふつうの画面にもどる"""
+    if not PSTAGE or 'plays' not in (d or {}) and not (not ever_alive and uptime() < 150 and d is None): return None
+    scr.clear(); plays = pet_int(d, 'plays') if d else 0
+    stg = pet_stage(plays); sw, sh, srows = stg[1], stg[2], stg[3]
+    sleepy = d is not None and pet_int(d, 'idle') >= 180
+    by = 2 + (0 if sleepy or tick % 2 == 0 else -2)   # ぴょこぴょこ(ねむいときは 動かない)
+    scr.bitmap(sw, sh, srows, max(0, (62 - sw * 2) // 2), by + (62 - sh * 2) // 2 - 2, 2)
+    X = 66
+    if d is None or d.get('scene') == '起動中':
+        scr.marquee('おきるのだ…', X, 18, 60, tick); scr.text('WAIT %dS' % int(uptime()), X, 40)
+    elif sleepy:
+        scr.marquee('ねむいのだ…', X, 18, 60, tick); scr.text('ZZZ' + '.' * (tick % 4), X, 40); scr.text('PLAY %d' % plays, X, 54)
+    elif (tick // 3) % 10 >= 7:
+        scr.clear(); pet_gauge_page(scr, d, plays, tick)
+    else:
+        pet_hearts(scr, plays, X, 2); scr.marquee(pet_tier(plays), X, 17, 60, tick)
+        scr.text('PLAY %d' % plays, X, 37); scr.text('WIN %d' % pet_int(d, 'wins'), X, 46); scr.text('BOOT %d' % pet_int(d, 'boots'), X, 55)
     return scr
 
 ROW_Y = 18   # 数字の行の はじまり(上の16ドットは 日本語の見出し)

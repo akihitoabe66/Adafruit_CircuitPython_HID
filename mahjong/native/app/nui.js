@@ -2927,6 +2927,7 @@
   const OLED_JP = { BOOT: '起動中', TITLE: 'タイトル', HOME: 'ホーム', GAME: '対局', RESULT: '結果', QUIZ: 'クイズ', STUDY: '勉強', VIDEO: 'ビデオ', STATS: '成績', SETUP: '設定', MAP: '地図', RANK: '昇段', NEW: '新雀士', END: '対局終了',
     'リーチ': 'リーチ!', 'ポン': 'ポン!', 'チー': 'チー!', 'カン': 'カン!', 'ロン': 'ロン!', 'ツモ': 'ツモ!', DRAW: '流局', WIN: '勝ち!', LOSE: '負け', COMEBACK: '逆転!', CUTIN: '必殺!', RANKUP: '昇段!' };
   /* OLED-JP-END */
+  let bootN = 0; try { bootN = (parseInt(localStorage.getItem('mj_boots'), 10) || 0) + 1; localStorage.setItem('mj_boots', String(bootN)); } catch (e) { /* ignore */ } // 電源を入れた回数(時計がないので、季節やペットは、回数で決める)
   function oledState() {
     const m = S.mode, g = S.game; let scene = 'HOME', pose = 'home', msg = '';
     if (m === 'boot') { scene = 'BOOT'; pose = 'hello'; } else if (m === 'title') { scene = 'TITLE'; pose = 'hello'; } else if (m === 'menu') { scene = 'HOME'; pose = 'home'; }
@@ -2950,8 +2951,9 @@
     if (S.cert) { scene = 'RANK'; pose = 'pray'; msg = 'RANKUP'; }
     let audio = 'ok'; try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi && mi[0] === 0) audio = 'BGM STOP'; } catch (e) { /* ignore */ }
     let mm = ['', '', '', '']; try { if (typeof gfx.mem === 'function') mm = gfx.mem().map((v) => Math.round(v)); } catch (e) { /* ignore */ }
+    let pet = ''; try { const rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0]; pet = 'plays=' + (rs.games || 0) + '\nwins=' + (rk[0] || 0) + '\nboots=' + bootN + '\nqc=' + (rs.qc || 0) + '\npt=' + (rs.pt || 0) + '\ndan=' + (rs.dan || 0) + '\nidle=' + Math.floor((__now() - (S.lastKeyT || 0)) / 1000) + '\n'; } catch (e) { /* ignore */ } // ペット用: 遊んだ回数・1位の数・電源を入れた回数・クイズの数・経験値・段位
     const o = perf.o || {}, jp = (k) => (k ? (OLED_JP[k] || k) : '');
-    return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\nchar=' + oledChar() + '\n';
+    return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\nchar=' + oledChar() + '\n' + pet;
   }
   let oledT = 0; setInterval(() => { try { if (typeof gfx.status === 'function') { gfx.status(oledState()); } } catch (e) { /* ignore */ } }, 400);
   const perfCtx = () => { // いま どの画面で なにをしていたか(遅れの記録に添える)

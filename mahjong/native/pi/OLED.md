@@ -52,3 +52,9 @@ sudo sh native/pi/install_oled.sh
 - 固定したいとき: `/etc/default/mjoled` に `MJOLED_CHAR=sensei`(先生だけ) / `MJOLED_CHAR=zunda`(ずんだもんだけ)。 試験: `python3 native/pi/mjoled.py --demo --zunda`
 - ずんだもんの絵: `tools/ui_src/zunda_pixel16.jpg`(黒髪の16表情のうち14)から `python3 tools/make_oled_zunda.py` で作る(`native/pi/oled_zunda.py`)。 場面ごとの表情は `mjoled.py` の `ZEXPR` / `ZSCENE`。
 - ゲームの「設定」→「OLEDのキャラ」で、ランダム / 麻雀先生 / ずんだもん を切りかえられる(◀ ▶ か決定)。 すぐ OLED に反映され、おぼえておく(`/var/lib/mjoled_char`)ので、電源を入れた直後の画面でも同じ人が出る。 設定が「ランダム」のときだけ、電源を入れるたびに えらびなおす。 ゲームの設定が、`/etc/default/mjoled` の `MJOLED_CHAR` より優先される。
+
+## ずんだもんペット(たまごっち風・第1段階)
+- ゲームの状態ファイルに `plays`(遊んだ回数) `wins`(1位) `boots`(電源を入れた回数) `qc`(クイズ) `pt` `dan` `idle`(最後にボタンを押してからの秒) を足した。 回数は、ゲームの保存データ(成績・localStorage `mj_boots`)から。
+- 表示は「OLEDのキャラ」が ずんだもん のときだけ。 ホームとタイトル・起動中に、成長の姿(たまご・ちびずんだ@5・げんきずんだ@30・おうさまずんだ@100・ひーろーずんだ@300)がぴょこぴょこ動き、右にハートの目盛り(100回で1つ、50回で半分)と、つぎの言葉までの細いバー、仲の良さ(ツン→しんゆう)、回数。 数秒おきに「なかよし・かしこさ・つよさ」の3つの目盛りに切りかわる。 3分ボタンを押さないと ねむい顔。
+- 絵・見出しは `python3 tools/make_oled_pet.py` で `native/pi/oled_pet.py` を作る(元は `tools/ui_src/pet_sprites.pkl`)。 見出しは日本語を絵にして持つので、`oled_jp.py` の文字表は増やさない。
+- まだ: 対局中・結果の反応、のだ口調の言葉(102個)、季節・職業の衣装、昇段の変身。
