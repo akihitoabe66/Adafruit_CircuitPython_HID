@@ -172,6 +172,16 @@ static JSValue j_status(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /
   JS_FreeCString(c, s); return JS_UNDEFINED; }
 static JSValue j_preload(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 絵を、先に読み込んでおく(はじめて出すときに、画面が止まらないように) */
   const char *p = n > 0 ? JS_ToCString(c, a[0]) : NULL; if (!p) return JS_FALSE; int w, h; SDL_Texture *tx = getimg(p, &w, &h); JS_FreeCString(c, p); return tx ? JS_TRUE : JS_FALSE; }
+static int listdir(const char *sub, const char *ext, char **out, int max, int n);
+static JSValue j_unload(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 名前が prefix で はじまる絵を、メモリから捨てる(使い終わった大きな絵。 描いている最中ではないときに) */
+  const char *p = n > 0 ? JS_ToCString(c, a[0]) : NULL; if (!p) return JS_NewInt32(c, 0); size_t L = strlen(p); int cnt = 0; double ms = 0;
+  for (int i = 0; i < nimg;) { if (!strncmp(imgs[i].key, p, L)) { ms += (double)imgs[i].w * imgs[i].h * 4; if (imgs[i].tex) SDL_DestroyTexture(imgs[i].tex); imgs[i] = imgs[nimg - 1]; memset(&imgs[nimg - 1], 0, sizeof(Ent)); nimg--; cnt++; } else i++; }
+  if (cnt) { char nm[260]; snprintf(nm, sizeof nm, "%.150s を捨てた(%d枚 %.1fMB)", p, cnt, ms / 1048576); bgm_log("unload", 0, nm); }
+  JS_FreeCString(c, p); return JS_NewInt32(c, cnt); }
+static JSValue j_ls(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* フォルダの中の ファイル名(img/map/xx.webp のような形)の一覧 */
+  const char *d = n > 0 ? JS_ToCString(c, a[0]) : NULL; const char *e = n > 1 ? JS_ToCString(c, a[1]) : NULL; JSValue arr = JS_NewArray(c); if (!d) { if (e) JS_FreeCString(c, e); return arr; }
+  static char *lst[400]; int m = listdir(d, e ? e : ".webp", lst, 400, 0); for (int i = 0; i < m; i++) { JS_SetPropertyUint32(c, arr, i, JS_NewString(c, lst[i])); free(lst[i]); }
+  JS_FreeCString(c, d); if (e) JS_FreeCString(c, e); return arr; }
 static JSValue j_layer(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int i = ai(c,a[0]); if (i < 0 || i >= 32 || !lay[i]) return JS_UNDEFINED; SDL_Rect d = { 0, 0, W, H }; SDL_RenderCopy(ren, lay[i], NULL, &d); return JS_UNDEFINED; } /* 描く原点を動かす(画面の外側は切れる) */
 static JSValue j_clear(JSContext *c, JSValueConst t, int n, JSValueConst *a){ if (g_dry) return JS_UNDEFINED; SDL_SetRenderDrawColor(ren, ai(c,a[0]), ai(c,a[1]), ai(c,a[2]), 255); SDL_RenderClear(ren); return JS_UNDEFINED; }
 static double key_t0 = 0, kl_sum = 0, kl_max = 0; static int kl_n = 0; /* 入力→画面の遅れ: ボタンが押された時刻から、画面に出るまで(遅れの診断に出す) */
@@ -337,7 +347,14 @@ static void preload(void){
   qsort(list, n, sizeof(char *), cmpstr);
   double t0 = nowms(); int last = -1;
   for (int i = 0; i < n; i++) {
-    if ((strstr(list[i], "/certface/") && !strstr(list[i], "/certface/01.webp")) || strstr(list[i], "/tenbo_")) continue; /* 認定証の紙・ハンコ・顔(01)は先に読む(はじめて出すとき、画面が止まって ハンコのアニメが切れるため) */ /* 実機では使わない絵は、読まない(起動を速く) */
+    if (strstr(list[i], "/certface/") || strstr(list[i], "/tenbo_")) continue;
+    if (!getenv("MJ_EAGER")) { /* 使う場面が決まっている大きな絵は、起動のときに読まない(メモリを節約)。 場面に入る前に、JS側が 少しずつ先に読む(nui.js の 先読みの管理) */
+      const char *q = list[i]; int old = (getenv("MJ_STYLE") && !strcmp(getenv("MJ_STYLE"), "old")); int youold = (getenv("MJ_YOU") && !strcmp(getenv("MJ_YOU"), "old"));
+      if (strstr(q, "img/video/") || strstr(q, "img/map/") || !strcmp(q, "img/cert.webp") || !strcmp(q, "img/credits.webp")) continue;
+      if (!old && (strstr(q, "img/chars/face/") || (!strncmp(q, "img/chars/", 10) && !strstr(q, "/face/")))) continue; /* 浮世絵版では、ふつうの顔(img/uk/chars/face)を使う。 全身の絵は 使わない */
+      if (!youold && strstr(q, "img/you/")) continue;
+      if (!old && !strcmp(q, "img/title_art.webp")) continue; /* 浮世絵版は img/uk/title_art.webp を使う */
+    } /* 認定証の紙・ハンコ・顔(01)は先に読む(はじめて出すとき、画面が止まって ハンコのアニメが切れるため) */ /* 実機では使わない絵は、読まない(起動を速く) */
     size_t L = strlen(list[i]); if (L > 4 && (!strcmp(list[i] + L - 4, ".wav") || !strcmp(list[i] + L - 4, ".mp3"))) { if (audio_ok) (void)getsnd(list[i]); } else getimg(list[i], NULL, NULL);
     SDL_PumpEvents(); int pc = i * 20 / (n ? n : 1); if (pc != last) { last = pc; loading_screen(i, n); }
   }
@@ -470,7 +487,7 @@ int main(int argc, char **argv){
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
   reg(gfx, "dry", j_dry, 1); reg(gfx, "rrect", j_rrect, 9); reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "fillTop", j_filltop, 8); reg(gfx, "imageRotTop", j_imagerottop, 7); reg(gfx, "textTop", j_texttop, 8); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
-  reg(gfx, "health", j_health, 0); reg(gfx, "free", j_free, 1); reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "keyLat", j_keylat, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "status", j_status, 1); reg(gfx, "mem", j_mem, 0); reg(gfx, "preload", j_preload, 1); reg(gfx, "grab", j_grab, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
+  reg(gfx, "health", j_health, 0); reg(gfx, "unload", j_unload, 1); reg(gfx, "ls", j_ls, 2); reg(gfx, "free", j_free, 1); reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "keyLat", j_keylat, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "status", j_status, 1); reg(gfx, "mem", j_mem, 0); reg(gfx, "preload", j_preload, 1); reg(gfx, "grab", j_grab, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "playAt", j_playat, 3); reg(snd, "cancelAt", j_cancelat, 0); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "pauseAll", j_pause, 0); reg(snd, "resumeAll", j_resume, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1); reg(snd, "musicInfo", j_musicinfo, 0);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1); reg(g, "__readdir", j_readdir, 1); reg(g, "__vopen", j_vopen, 2); reg(g, "__vstate", j_vstate, 0); reg(g, "__vseek", j_vseek, 1); reg(g, "__vpause", j_vpause, 1); reg(g, "__vclose", j_vclose, 0); JS_SetPropertyStr(ctx, g, "__dataDir", JS_NewString(ctx, datadir));

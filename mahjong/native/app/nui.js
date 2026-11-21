@@ -2959,6 +2959,26 @@
       if (lv !== prev || lv >= 1) dirty();
     } catch (e) { /* ignore */ }
   }, 1000);
+  /* ---------- 大きな絵の先読みと片づけ: 起動のときには読まず、使う場面の少し前(ホームで待っているとき・対局の終わり)に、1枚ずつ読む。 使い終わって20秒たったら、メモリから捨てる ---------- */
+  const PF = {
+    video: { pre: 'img/video/', files: () => gfx.ls('img/video', '.webp'), need: () => S.mode === 'video', soon: () => S.mode === 'menu' },
+    credits: { pre: 'img/credits.webp', files: () => ['img/credits.webp'], need: () => S.mode === 'credits', soon: () => S.mode === 'menu' },
+    map: { pre: 'img/map/', files: () => gfx.ls('img/map', '.webp'), need: () => !!S.map, soon: () => !!(S.end || S.rankScr || S.cert || S.reveal) },
+    cert: { pre: 'img/cert', files: () => ['img/cert_stamp.webp', 'img/certface/01.webp', 'img/cert.webp'], need: () => !!S.cert, soon: () => !!(S.end || S.rankScr || S.map) },
+  };
+  setInterval(() => {
+    try {
+      if (typeof gfx.ls !== 'function' || S.heatStop) return; const now = __now(); let loadedOne = false;
+      const idle = now - (S.lastKeyT || 0) > 700 && !(S.mode === 'game' && (S.self || S.react || S.menuP)) && S.mode !== 'boot';
+      let av = 999; try { av = gfx.mem()[1]; } catch (e) { /* ignore */ }
+      Object.keys(PF).forEach((k) => {
+        const g = PF[k], want = g.need() || g.soon();
+        if (g.need()) g.used = now;
+        if (want && !g.done) { g.used = g.used || now; if (idle && av >= 70 && !loadedOne) { if (!g.q) g.q = g.files().slice(); const f = g.q.shift(); if (f) { gfx.preload(f); loadedOne = true; } if (!g.q.length) { g.done = true; g.q = null; } } }
+        else if (g.done && !want && now - (g.used || 0) > 20000) { gfx.unload(g.pre); g.done = false; g.q = null; g.used = 0; } // 使い終わった絵は、メモリから捨てる
+      });
+    } catch (e) { /* ignore */ }
+  }, 90);
   /* ---------- メモリ不足の見はり: 空きが少なくなったら、画面のキャッシュ(層)→文字の絵、の順に捨てる(足りなくなると、本体ごと固まる) ---------- */
   const memLow = () => { try { if (typeof gfx.mem === 'function') { const m = gfx.mem(); return m[1] < 60; } } catch (e) { /* ignore */ } return false; };
   setInterval(() => {
