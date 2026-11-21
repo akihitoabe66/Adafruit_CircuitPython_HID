@@ -1108,7 +1108,7 @@
   const MAP_T = { slide: 1400, hold: 1100, dwell: 1500 };
   /* 旅のはじまり: ずんだもんのポーズ絵(tools/make_zunda_poses.py で作る img/map/zp_*.webp)。 [幅, 高さ, 足もとの中心x, 足もとの線y](絵の左上から) */
   const ZP = {stand: [46, 80, 24, 75], arms: [49, 81, 23, 73], jump: [53, 73, 25, 73], fists: [51, 80, 25, 75], hip: [47, 80, 25, 75], shout: [53, 81, 25, 76], fist1: [48, 80, 28, 75]};
-  const zpDraw = (nm, sx, sy, dy) => { const z = ZP[nm]; gfx.image('img/map/zp_' + nm + '.webp', sx - z[2], sy + 4 - z[3] + (dy || 0), z[0], z[1], 255); }; // 足もとの線を、地図の上のずんだもんの足もとに合わせる
+  const ZK = 0.92; /* 地図のずんだもんは、元の絵より 一回り(約1割)小さく */ const zpDraw = (nm, sx, sy, dy) => { const z = ZP[nm]; gfx.image('img/map/zp_' + nm + '.webp', sx - Math.round(z[2] * ZK), sy + 4 - Math.round(z[3] * ZK) + (dy || 0), Math.round(z[0] * ZK), Math.round(z[1] * ZK), 255); }; // 足もとの線を、地図の上のずんだもんの足もとに合わせる
   const INTRO_POSES = [[0, 'stand'], [350, 'hip'], [900, 'shout'], [1500, 'fists'], [1950, 'arms'], [2400, 'jump'], [3000, 'fists'], [3350, 'fist1']]; // [はじまり(ミリ秒), ポーズ]
   const ARRIVE_POSES = [[0, 'fists'], [260, 'fist1'], [520, 'fists'], [780, 'fist1'], [1040, 'fists']]; // 昇段で 街に着いたとき: 「がんばるぞ!」のガッツポーズ(ミリ秒, ポーズ)
   const ARRIVE_T = 1300; // ポーズを とる 長さ(ミリ秒)
@@ -1173,11 +1173,12 @@
     if (M.intro) { const I = M.intro, u = t - I.G; let pn = 'stand', hop = 0; if (u >= 0) { INTRO_POSES.forEach((q) => { if (u >= q[0]) pn = q[1]; }); if (pn === 'jump') hop = -Math.round(Math.abs(Math.sin((u - 2400) / 140)) * 10); }
       zpDraw(pn, sx, sy, hop); }
     else if (arrPose) zpDraw(arrPose.n, sx, sy, arrPose.hop);
-    else gfx.image('img/map/w' + fr + (face < 0 ? 'f' : '') + 'g.webp', sx - 23, sy - 70 + bob, 46, 78, 255); /* 画面と同じ大きさで作った絵(拡大しない = ぼやけない)。 白+こげ茶のふち */ // 左へ歩くときは、左右反転
+    else gfx.image('img/map/w' + fr + (face < 0 ? 'f' : '') + 'g.webp', sx - Math.round(46 * ZK / 2), sy + 8 - Math.round(78 * ZK) + bob, Math.round(46 * ZK), Math.round(78 * ZK), 255); /* 画面と同じ大きさで作った絵(拡大しない = ぼやけない)。 白+こげ茶のふち */ // 左へ歩くときは、左右反転
     { const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); let mx = sx, my = sy;
-      if (M.view && !walking && M.go == null) { const q = shift(mapStop(M.sel, M.L)), nw = __now(), k = M.ml ? Math.min(1, (nw - M.ml) / 90) : 1; M.ml = nw; if (M.mx == null) { M.mx = sx; M.my = sy; } M.mx += (q[0] - M.mx) * k; M.my += (q[1] - M.my) * k; mx = Math.round(M.mx); my = Math.round(M.my); } else { M.mx = sx; M.my = sy; M.ml = 0; } // 見る画面: ▼を 左右で動かして、行き先を えらぶ。 歩いている間は ずんだもんの頭の上
+      if (M.view && !walking && M.go == null && ease >= 1) { const q = shift(mapStop(M.sel, M.L)), nw = __now(), k = M.ml ? Math.min(1, (nw - M.ml) / 90) : 1; M.ml = nw; if (M.mx == null) { M.mx = sx; M.my = sy; } M.mx += (q[0] - M.mx) * k; M.my += (q[1] - M.my) * k; mx = Math.round(M.mx); my = Math.round(M.my); } else { M.mx = sx; M.my = sy; M.ml = 0; } // 見る画面: ▼を 左右で動かして、行き先を えらぶ。 歩いている間は ずんだもんの頭の上
+      if (ease < 1) { /* 地図が右から入ってくる間は、矢印を出さない(おくれて ついてくるのが 変なので、着いてから ふわふわ) */ } else {
       if (M.view && M.sel !== M.from && !walking) rrect(mx - 15, my - 5, 30, 11, 5, [255, 224, 60], 150);
-      const big = M.view && M.sel !== M.from && !walking ? 1 : 0, hw = 7 + big * 4, hh = 12 + big * 6, ty = big ? my - 46 - bob2 : my - 92 - bob2; gPoly([[mx - hw - 3, ty - 3], [mx + hw + 3, ty - 3], [mx, ty + hh + 4]], [70, 40, 10], 255); gPoly([[mx - hw, ty], [mx + hw, ty], [mx, ty + hh]], [255, 224, 60], 255); } // 縁どり(こげ茶)つき。 行き先を えらんでいる間は、少し大きく // 頭の上の ▼(ずっと出して、どこにいるか分かるように)
+      const big = M.view && M.sel !== M.from && !walking ? 1 : 0, hw = 7 + big * 4, hh = 12 + big * 6, ty = big ? my - 46 - bob2 : my - 86 - bob2; gPoly([[mx - hw - 3, ty - 3], [mx + hw + 3, ty - 3], [mx, ty + hh + 4]], [70, 40, 10], 255); gPoly([[mx - hw, ty], [mx + hw, ty], [mx, ty + hh]], [255, 224, 60], 255); } } // 縁どり(こげ茶)つき。 行き先を えらんでいる間は、少し大きく // 頭の上の ▼(ずっと出して、どこにいるか分かるように)
     // 左上の札: 朱印(段位)+短冊(地名)。 地図を見る画面では、短冊に「いま ここ」/「修行の街」も入る
     { const dn = M.view ? (walking || M.go != null ? curDan : M.sel) : Math.max(curDan, M.to), dl = MAP_DAN[dn], sw = Math.max(46, gfx.measure(dl, -20) + 18), px = MAP_V.x0 + ox + 22, py = MAP_V.y0 + 12;
       const raw = (MAP_SETS[M.ms].place[dn] || ''), pm = raw.match(/\((.*)\)/), place = dn >= 10 ? '江戸' : pm ? pm[1] : raw;
