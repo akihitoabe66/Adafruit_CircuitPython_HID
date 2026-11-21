@@ -546,10 +546,16 @@ def compose_pet(scr, d, age, tick, ever_alive, h):
     return scr
 
 ROW_Y = 18   # 数字の行の はじまり(上の16ドットは 日本語の見出し)
+def sensei_now(d, age):
+    """いま 麻雀先生を出すか: 対局の場面で、ゲームの設定「麻雀先生」がオンのとき(環境変数 MJOLED_CHAR=sensei で いつも先生、 zunda で いつもずんだもん)"""
+    ch = os.environ.get('MJOLED_CHAR', '').lower()
+    if ch == 'zunda' or WHO['v'] == 'zunda' and '--zunda' in sys.argv: return False
+    if ch == 'sensei': return True
+    return d is not None and age < 4.0 and d.get('scene', '') in GAME_SCENES and d.get('teacher') == '1'
 def compose(scr, d, age, tick, ever_alive=False):
     """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
     起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてね」を出す"""
-    if ZU and not (WHO['v'] == 'sensei' and d is not None and age < 4.0 and d.get('scene', '') in GAME_SCENES): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだだけ、ときどき 麻雀先生。 ほかは ずんだもんのペット
+    if ZU and not sensei_now(d, age): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだ、ゲームの「麻雀先生」がオンなら 先生。 ほかは ずんだもんのペット
     h = health()
     if h['level'] >= 2: return compose_danger(scr, h, tick)
     scr.clear()
@@ -641,9 +647,7 @@ def main():
     try: os.nice(19)
     except OSError: pass
     import random
-    ch = os.environ.get('MJOLED_CHAR', '').lower(); p_sensei = 1.0 if ch == 'sensei' else 0.0 if ch == 'zunda' else float(os.environ.get('MJOLED_SENSEI', '0.25'))   # 対局のあいだに 麻雀先生が 出る確率(ふだんは ずんだもんの ペット)
-    def pick(): return 'sensei' if random.random() < p_sensei else 'zunda'
-    WHO['v'] = 'zunda'; in_game = False
+    WHO['v'] = 'zunda'
     was_alive = False; need_repick = False
     oled = None; tick = 0; demo_i = 0; t_demo = 0; next_try = 0; ever_alive = False
     while True:
@@ -662,12 +666,7 @@ def main():
         else:
             d, age = read_status(STATUS)
         alive_now = d is not None and age < 4.0 and d.get('scene') not in ('EXIT', 'MAINT')
-        sc_now = d.get('scene', '') if (d is not None and age < 4.0) else ''
         if '--zunda' in sys.argv: WHO['v'] = 'zunda'
-        elif '--demo' not in sys.argv:
-            g_now = sc_now in GAME_SCENES
-            if g_now and not in_game: WHO['v'] = pick(); print('mjoled: 対局がはじまった。 表示は %s' % ('ずんだもん' if WHO['v'] == 'zunda' else '麻雀先生'), flush=True)   # 1回の対局のあいだは、同じ人
-            in_game = g_now
         was_alive = alive_now
         if alive_now: ever_alive = True
         scr = compose(Screen(), d, age, tick, ever_alive); tick += 1
