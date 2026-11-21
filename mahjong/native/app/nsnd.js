@@ -95,7 +95,6 @@
         if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name, null); // 「〇〇 ロン」: 上がった人の名前と、ツモ/ロン(CPUのときも読む。ただし、その人自身の掛け声が終わってから)
         keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null, null);
         r.yaku.forEach((y) => {
-          if (w.tsumo && y.n === '門前清自摸和') return; // 「ツモ」は、いま言ったので、くりかえさない
           if (y.n === 'ドラ' || y.n === '赤ドラ' || y.n === '裏ドラ') keys.push('y:' + (y.n === 'ドラ' ? 'ドラ' : y.n === '赤ドラ' ? 'アカドラ' : 'ウラドラ'), 'n:' + Math.min(13, y.h));
           else {
             const m = /^役牌[ \s　]*(.*)$/.exec(y.n);
