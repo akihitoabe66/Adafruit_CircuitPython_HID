@@ -3,6 +3,10 @@
 (function () {
   const MJ = window.MJ; const W = 720, H = 428, SW = 832, SH = 468; // W,H=卓の大きさ / SW,SH=画面全体(右に操作の列)
   const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, pressT: -9999, locked: false, lay: [], teachQ: null, homeBot: false, homeBotIdx: 0, playQ: null, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  /* 絵文字・記号(🎉 ✓ など)は、実機の日本語フォントに無く、四角(☒)で出てしまう。 文字を描く前に、ぜんぶ取りのぞく(★ ☆ ▲ ▼ ◀ ▶ ① などは、フォントにあるので そのまま) */
+  const EMO = /[\u{1F000}-\u{1FFFF}\u{2600}-\u{2604}\u{2607}-\u{27BF}\u{FE0F}]/u, EMOG = /[\u{1F000}-\u{1FFFF}\u{2600}-\u{2604}\u{2607}-\u{27BF}\u{FE0F}]/gu;
+  const clean = (s) => { s = String(s); return EMO.test(s) ? s.replace(EMOG, '').replace(/^\s+/, '') : s; };
+  ['text', 'measure', 'textTop', 'textRot'].forEach((k) => { try { const o = gfx[k]; if (typeof o === 'function') gfx[k] = function (s, ...r) { return o(clean(s), ...r); }; } catch (e) { /* ignore */ } });
   window.__S = S; // 試験用(説明ページ用の画面を撮るのに使う)
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const tl = (ev) => { try { const t = __now(); (S.tl || (S.tl = [])).push(Math.round(t % 1000000) + ' ' + ev); if (S.tl.length > 120) S.tl.shift(); S.tlDirty = true; } catch (e) { /* ignore */ } }; // 待ちが長いときの調査用: 出来事の時刻を、最近の120件だけ 覚えておく(save.json の mj_tl に、数秒ごとに書く)
