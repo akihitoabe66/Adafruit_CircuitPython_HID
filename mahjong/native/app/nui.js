@@ -221,7 +221,7 @@
       const tg = pick.danger ? pick.danger.tag : '', tn = MJ.tileName(pick.t), ip = an.opps.some((q) => q.ippatsu);
       const tgJ = /^現物/.test(tg) ? '現物(相手が捨てた牌)なので 安全です' : /^全見え/.test(tg) ? '全部見えているので 安全です' : /^字牌/.test(tg) ? '字牌なので わりと安全です' : /^スジ/.test(tg) ? 'スジなので わりと安全です' : /^(半スジ|カベ|ワンチャンス)/.test(tg) ? 'あまり危なくない牌です' : tg ? 'すこし危ない牌ですが、これが いちばんマシです' : '';
       const head = ip ? '一発(リーチのすぐあと)は 危険です。' : 'リーチを受けています。';
-      say = stc.kind === 'fold' ? head + (tgJ ? tn + 'は' + tgJ + '。' : '') + '今回は 安全に おりましょう。' : stc.kind === 'mid' ? head + (tgJ ? tn + 'は' + tgJ + '。' : '') + '危なくない牌を選んで、手を進めましょう。' : head + '手が整っているので、思い切って 勝負しましょう。';
+      say = stc.kind === 'fold' ? head + (tgJ ? tn + 'は' + tgJ + '。' : '') + '今回は 安全に おりましょう。' : stc.kind === 'mid' ? head + (tgJ ? tn + 'は' + tgJ + '。' : '') + '危なくない牌を選んで、手を進めましょう。' : head + (pick.sh === 0 ? 'テンパイしています。' : 'まだ テンパイでは ありませんが、') + (stc.ev ? '上がれる見込みは 約' + Math.round(stc.pw * 100) + '%、 ロンされる危険は 約' + Math.round(stc.pd * 100) + '%。 前に出ましょう。' : '手が整っているので、思い切って 勝負しましょう。');
     }
     return { tile: pick.tile, t: pick.t, sh: pick.sh, n: pick.ukeire ? pick.ukeire.n : 0, label: stc ? stc.label : '', why: stc ? stc.why : '', say, riichi: rch, minSh: an.minSh };
   }

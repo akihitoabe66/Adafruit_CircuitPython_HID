@@ -459,6 +459,51 @@
   };
 
 
+  /* ---- 期待値で決める押し引き(擬似対戦の記録から作った表 MJ.AI_TABLE を使う。 tools/mjsim/fit.js) ----
+     「この牌を切ったとき、この局で上がれる確率 × 上がり点」 − 「ロンされる確率 × 払う点」 が、いちばん大きい牌を選ぶ。
+     手が遠い・待ちが少ない(残り1枚など)ときは、上がれる確率が小さく出るので、自然に降りる。 */
+  /*TABLE-BEGIN*/ MJ.AI_TABLE = null; /*TABLE-END*/
+  A.PATCH = 1; // 1: テンパイでないとき(あと1歩以上)は「押す」にしない(擬似対戦で、強さは同じで、「まだなのに勝負」という助言がなくなる)。 2: さらに、あと2歩以上は降りる
+  A.V2 = false; // 期待値の表で決める方式は、擬似対戦で 前の方式より強くならなかったので、使わない(表 MJ.AI_TABLE を入れれば試せる) // false で、前の(決まりごとだけの)押し引きにもどす
+  A.EVP = { kL: 1, tie: 1, atk: 0.8, def: 1.3 }; // kL: 払う点の重み(大きいほど守る)
+  const bLB = (l) => (l <= 8 ? 0 : l <= 16 ? 1 : l <= 26 ? 2 : l <= 40 ? 3 : 4);
+  const bNB0 = (n) => (n <= 0 ? 0 : n <= 1 ? 1 : n <= 2 ? 2 : n <= 4 ? 3 : n <= 6 ? 4 : 5);
+  const bNB1 = (n) => (n < 0 ? 0 : n <= 3 ? 1 : n <= 7 ? 2 : n <= 11 ? 3 : n <= 15 ? 4 : n <= 19 ? 5 : 6);
+  const bDB = (d) => (d <= 0 ? 0 : d <= 2 ? 1 : d <= 4 ? 2 : d <= 6 ? 3 : d <= 8 ? 4 : d <= 11 ? 5 : d <= 14 ? 6 : d <= 18 ? 7 : 8);
+  A.evStance = function (game, p, an, type) {
+    const T = MJ.AI_TABLE; if (!T || !an.opps.length || !an.evals.length) return null;
+    const P = A.EVP, minSh = an.minSh, live = game.live.length, nop = an.opps.length > 1 ? 1 : 0;
+    const R = A.rankInfo(game, p);
+    let kL = P.kL * (type === 'attack' ? P.atk : type === 'defense' ? P.def : 1);
+    if (R.rank === 1 && R.leadOver2 >= 8000) kL *= 1.25;
+    if (R.rank === 4 && R.gap3 <= 12000) kL *= 0.85;
+    if (R.oras && R.rank === 1) kL *= 1.3;
+    if (R.oras && R.rank >= 3) kL *= 0.7;
+    const open = p.melds.length > 0 ? 1 : 0;
+    const out = [], lbq = live <= 10 ? 0 : live <= 22 ? 1 : 2;
+    for (const e of an.evals) {
+      const sh = Math.min(e.sh, 3), on = e.sh === minSh, n = on ? (e.sh === 0 ? e.wl || 0 : e.ukeire.n) : -1;
+      const nbi = e.sh === 0 ? bNB0(n) : n < 0 ? 0 : bNB1(n);
+      const dmax = e.dangerBy ? Math.max(...e.dangerBy.map((d) => d.score)) : 0;
+      const q = T.Q[`${sh}|${on ? 1 : 0}|${nbi}|${lbq}|${bDB(dmax)}|${nop}|${open}`] || [0, T.lAvg];
+      let w = q[0];
+      if (e.noYaku) w *= 0.03; else if (e.noYakuPath) w *= 0.5;
+      if (e.furiten) w *= 0.5;
+      out.push({ e, pw: Math.min(0.95, w / T.vAvg), pd: Math.min(0.95, q[1] / T.lAvg * 0.2), V: T.vAvg, dmax, ev: w - q[1] * kL + P.tie * A.effScore(e) * 0.5 });
+    }
+    out.sort((a, b) => b.ev - a.ev);
+    const top = out[0], pk = top.e, pc = (x) => Math.round(x * 100);
+    let kind;
+    if (pk.sh === minSh) kind = 'push';
+    else kind = top.dmax <= 4 ? 'fold' : 'mid';
+    const why = kind === 'push'
+      ? `この牌を切って前に出ます。上がれる見込みは約${pc(top.pw)}%、ロンされる危険は約${pc(top.pd)}%で、前に出る価値があります。`
+      : kind === 'mid'
+        ? `手を少し崩して、危険の少ない牌を選びます。上がれる見込みは約${pc(top.pw)}%、ロンされる危険は約${pc(top.pd)}%です。`
+        : `いまの手で前に出ても、上がれる見込みは小さく(最も良い形でも約${pc(Math.max(...out.filter((o) => o.e.sh === minSh).map((o) => o.pw)))}%)、ロンされる危険が大きいです。安全な牌で回しましょう。`;
+    return { kind, why, pick: pk, label: kind === 'push' ? '押す' : kind === 'mid' ? '半押し' : '回す(降り)', ev: true, pw: top.pw, pd: top.pd, rank: R.rank, notes: [] };
+  };
+
   /* 順位・点差・残り枚数(押し引きの材料) */
   A.rankInfo = function (game, p) {
     const sc = game.players.map((q) => q.score), me = p.score;
@@ -470,6 +515,7 @@
   const KI = { fold: 0, mid: 1, push: 2 }, KN = ['fold', 'mid', 'push'], KL = ['回す(降り)', '半押し', '押す'];
   /* 先生のタイプ(defense=守備 / balance=バランス / attack=攻撃)と、順位・残り枚数を考えた「押し引き」。リーチ者がいないときは null */
   A.stance = function (game, p, an, type) {
+    if ((p.v2 !== undefined ? p.v2 : A.V2 !== false) && MJ.AI_TABLE && an.opps.length) { const ev = A.evStance(game, p, an, type); if (ev) return ev; }
     const base = A.stance0(game, p, an);
     if (!base || !type || p.coachNoType) return base;
     const R = A.rankInfo(game, p);
@@ -484,6 +530,9 @@
     if (R.live <= 16 && an.minSh >= 2) { k -= 1; notes.push('山が残り少なく、手が遠いので、降り寄りです。'); }
     if (an.minSh >= 3 && R.live >= 20 && k > 1) k = 1;
     k = Math.max(0, Math.min(2, k));
+    const pt = p.patch !== undefined ? p.patch : A.PATCH; // 実験: 手がテンパイでないとき、危ない牌を押さない
+    if (pt >= 1 && an.minSh >= 1 && k === 2) k = 1;
+    if (pt >= 2 && an.minSh >= 2 && k === 1) k = 0;
     const kind = KN[k];
     const pick = kind === base.kind ? base.pick : A.stancePick(kind, an.evals);
     return { kind, why: notes.length ? notes.join('') + (kind === base.kind ? base.why : '') : why, pick, label: KL[k], rank: R.rank, notes };
