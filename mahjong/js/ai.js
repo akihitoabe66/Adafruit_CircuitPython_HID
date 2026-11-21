@@ -26,14 +26,14 @@
   /* ---- 打ち方の特徴(強さとは別): 雀士ごとに、鳴きかた・ダマ・リーチ・押し引き・打点・色寄せ・七対子の好みを変える ----
      call=鳴き意欲(0 ほとんど鳴かない 〜 1 何でも鳴く) / dama=ダマ好み(0 かならずリーチ 〜 1 役があればダマ) / rii=リーチ好み(待ちが悪くても かけるか) /
      atk=押し引き(−1 守備的 〜 +1 攻撃的) / val=打点志向(ドラ・大物手を大事にする) / color=色寄せ(ホンイツ・チンイツを目ざす) / pair=七対子(対子を残す) */
-  const TR = {
-    1: [.35, .5, .5, 0, .4, .2, .2], 2: [.5, .2, .8, .5, .6, .2, .2], 3: [.5, .6, .5, 0, .5, .3, .2], 4: [.3, .5, .3, -.8, .3, .1, .2], 5: [1, 0, .7, .5, .1, .1, .1],
-    6: [.3, .3, .6, .7, 1, .6, .2], 7: [.3, .7, .3, -1, .5, .3, .2], 8: [.15, .8, .3, .2, .9, .7, .2], 9: [.5, .3, .6, .2, .4, .2, .3], 10: [.4, .3, .5, 0, .3, .1, .1],
-    11: [.4, 0, 1, .8, .5, .2, .1], 12: [.3, .6, .4, -.9, .4, .2, .2], 13: [.5, .5, .5, 0, .5, .3, .3], 14: [.1, 1, .1, -.4, .3, .2, .3], 15: [.2, .5, .5, 0, .5, .4, 1],
-    16: [1, 0, .6, .6, .5, .3, .1], 17: [.45, .5, .5, -.3, .4, .2, .2], 18: [.5, .2, .7, .6, .6, .3, .1], 19: [.6, .2, .7, .7, .5, .3, .1], 20: [.6, 0, 1, .6, .3, .1, .1],
-    21: [.2, .5, .4, -.2, .2, .1, .2], 22: [.4, .4, .4, 0, .3, .1, .2], 23: [.2, .6, .3, -.6, .3, .2, .3], 24: [.3, .5, .3, -.3, .3, .1, .2], 25: [.8, .1, .7, .4, .2, .1, .1],
-    26: [.6, 0, .9, .9, .3, .1, .1], 27: [1, .1, .8, .9, .2, .1, .1], 28: [.2, .5, .3, -.8, .2, .1, .3], 29: [.9, .1, .7, .6, .3, .1, .1], 30: [1, .1, .6, .4, .7, .3, .1],
-    31: [.2, .5, .5, 0, .6, .8, .3], 32: [.35, .7, .4, 0, .7, .3, .2],
+  const TR = { // [call, dama, rii, atk, val, color, pair]
+    1: [.3, .5, .5, -.2, .4, .2, .2], 2: [.3, 0, .9, .6, .8, .2, .2], 3: [.4, .8, .4, -.2, .5, .1, .2], 4: [.3, .5, .3, -1, .3, 0, 0], 5: [1, .1, .7, .5, .1, 0, 0],
+    6: [.3, .2, .9, .7, 1, .4, .1], 7: [.25, .8, .3, -1, .5, .2, .1], 8: [.15, .9, .2, .1, .9, .7, .1], 9: [.55, .3, .6, .2, .4, .1, .1], 10: [.4, .3, .5, 0, .3, 0, 0],
+    11: [.4, 0, 1, .6, .5, .2, 0], 12: [.3, .7, .3, -.9, .4, .1, .1], 13: [.5, .5, .5, 0, .5, .3, .3], 14: [.1, 1, .1, -.3, .3, 0, .2], 15: [.15, .5, .5, 0, .5, .6, .9],
+    16: [.9, .1, .6, .6, .5, .4, 0], 17: [.45, .5, .5, 0, .4, .2, .2], 18: [.45, .2, .8, .6, .6, .8, 0], 19: [.7, .2, .7, .7, .5, .65, 0], 20: [.3, 0, 1, .8, .4, .1, 0],
+    21: [.2, 1, 0, -.2, .2, 0, 0], 22: [.1, .5, .5, 0, .2, 0, 1], 23: [0, .8, .3, -.5, .3, 0, .2], 24: [.3, .5, .3, -.8, .2, 0, 0], 25: [.9, .1, .7, .3, .2, 0, 0],
+    26: [.2, 0, 1, .9, .3, 0, 0], 27: [.95, .1, .7, .8, .2, .2, 0], 28: [.6, .4, .3, -.7, .1, 0, 0], 29: [.85, .1, .6, .4, .3, .5, 0], 30: [.85, .2, .6, .4, .8, .75, 0],
+    31: [.5, .5, .5, 0, .6, 1, .4], 32: [.3, .8, .3, -.3, .8, .2, .1],
   };
   const TRD = { attack: [.7, .2, .8, .5, .4, .2, .2], defense: [.3, .6, .3, -.5, .3, .2, .2], balanced: [.5, .4, .5, 0, .4, .2, .2] };
   A.traits = function (p) {
@@ -41,6 +41,21 @@
     return { call: v[0], dama: v[1], rii: v[2], atk: v[3], val: v[4], color: v[5], pair: v[6] };
   };
   A.traitType = (T) => (T.atk >= 0.4 ? 'attack' : T.atk <= -0.4 ? 'defense' : 'balance');
+  /* 手の方針: 「一色に染める(混一色)」か「七対子」を、その人の好みの強さに応じて、はやめに決める。 決めたら、牌の取捨も 鳴きも、その方針に強くしたがう(手が少し遅くなっても) */
+  A.planOf = function (game, p, c) {
+    if (p.isHuman || p.coachType) return null;
+    const T = A.traits(p), suit = [0, 0, 0]; let hon = 0, pairs = 0;
+    for (let i = 0; i < 27; i++) suit[(i / 9) | 0] += c[i];
+    for (let i = 27; i < 34; i++) hon += c[i];
+    for (let i = 0; i < 34; i++) if (c[i] >= 2) pairs++;
+    for (const m of p.melds) { if (m.t >= 27) hon += 3; else suit[(m.t / 9) | 0] += 3; }
+    if (T.pair >= 0.5 && !p.melds.length && pairs >= (T.pair >= 0.9 ? 3 : 4)) return { kind: 'pair' };
+    if (T.color >= 0.45) {
+      const top = Math.max(suit[0], suit[1], suit[2]), need = 11 - Math.round(T.color * 4);
+      if (top >= 4 && top + hon >= need) return { kind: 'color', suit: suit.indexOf(top) };
+    }
+    return null;
+  };
   const isYakuhaiFor = (game, p, t) => t >= 31 || t === 27 + game.seatWindOf(p) || t === 27 + game.roundWind;
   A.isYakuhaiFor = isYakuhaiFor;
 
@@ -186,6 +201,10 @@
   /* 手の方向(役を見据えた、牌の取捨): 一色に寄っているなら、ほかの色を切る。么九牌が少ないなら、タンヤオに向けて端・字牌を切る */
   A.planAdj = function (game, p, t, c) {
     let v = 0;
+    { const pl = A.planOf(game, p, c), Tp = A.traits(p);
+      if (pl && pl.kind === 'color') { if (t >= 27) return -3; return ((t / 9) | 0) === pl.suit ? -6 : 40 * Tp.color; } // 染め手: ほかの色を切って、その色と字牌を残す
+      if (pl && pl.kind === 'pair') return c[t] === 2 ? -40 * Tp.pair : c[t] === 1 ? 15 * Tp.pair : -10 * Tp.pair; // 七対子: 対子を残し、1枚の牌を切る
+    }
     const suit = [0, 0, 0]; let hon = 0, yao = 0, yh = 0;
     for (let i = 0; i < 27; i++) { suit[(i / 9) | 0] += c[i]; if (MJ.isYaochu(i)) yao += c[i]; }
     for (let i = 27; i < 34; i++) { hon += c[i]; yao += c[i]; if (c[i] >= 2 && isYakuhaiFor(game, p, i)) yh++; }
@@ -214,7 +233,6 @@
     if (t >= 27 && c[t] === 1 && isYakuhaiFor(game, p, t)) v -= 1;
     if (MJ.isTerminal(t) && c[t] === 1) v += 1.5;
     if (p.hand.some((h) => h.t === t && h.red)) v -= 2 * (0.6 + T.val * 0.8);
-    if (T.pair >= 0.5 && c[t] === 2) { let pr = 0; for (let i = 0; i < 34; i++) if (c[i] >= 2) pr++; if (pr >= 3) v -= 12 * T.pair; } // 七対子好み: 対子が3つ以上あれば、対子を残す
     v += A.planAdj(game, p, t, c);
     return v;
   };
@@ -699,8 +717,10 @@
     if (!cands.length) return { act: 'pass' };
     const opps = game.players.filter((q) => q !== p && q.riichi), T = A.traits(p);
     let bestC = null, bestScore = -99;
-    const cc = MJ.toCounts(p.hand); let prs = 0; for (let i = 0; i < 34; i++) if (cc[i] >= 2) prs++;
-    if (T.pair >= 0.5 && !p.melds.length && prs >= 4) return { act: 'pass' }; // 七対子好きは、対子が4つ以上あれば 鳴かない
+    const cc = MJ.toCounts(p.hand), plan = A.planOf(game, p, cc);
+    if (plan && plan.kind === 'pair') return { act: 'pass' }; // 七対子の方針では 鳴かない
+    const tt = opts.tile.t;
+    if (plan && plan.kind === 'color' && !(tt >= 27 || ((tt / 9) | 0) === plan.suit)) return { act: 'pass' }; // 染め手の方針では、ほかの色の牌は 鳴かない
     for (const cd of cands) {
       const ev = A.callEval(game, p, cd.kind, opts.tile.t, cd.use);
       if (ev.before === 0) continue;
@@ -717,6 +737,7 @@
       if (st === 'defense' && opps.length && ev.after >= 1) okay = false;
       if (T.call >= 0.6 && lv >= 1 && faster) okay = true; // 鳴きが好きな人は、早くなるなら鳴く
       if (T.call >= 0.75 && lv >= 1 && !okay && ev.after <= ev.before) okay = true; // とても好きな人は、早くならなくても鳴く(役が見込める鳴き)
+      if (plan && plan.kind === 'color' && T.call >= 0.3 && ev.after <= ev.before) okay = true; // 染め手の方針では、その色の牌なら 鳴いて進める
       if (T.call <= 0.3 && okay && !yakuhaiPon && ev.before >= 2) okay = false; // 鳴きを控える人は、テンパイが近いときだけ(役牌は別)
       if (T.call <= 0.15 && okay && !yakuhaiPon && ev.after > 0) okay = false;
       if (!okay) continue;

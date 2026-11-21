@@ -1041,7 +1041,7 @@
     const c = L[R.sel], st = state(c), px = 612, py = 64, pw = 200;
     const drawPanel = () => { // 右の説明の枠: えらんでいる人が かわるまで 1枚の絵(文章のならべかたの計算も、そのとき1回だけ)
       panel(px, py, pw, 348, 14, [6, 28, 18], [140, 190, 130], 3, 255);
-      if (st === 2) { rrect(px + 43, py + 13, 114, 114, 8, WHITE); gfx.image(skin(c.face), px + 44, py + 14, 112, 112, 255); text(c.short || c.name, px + pw / 2, py + 134, fitSz(c.short || c.name, 22, 180, 14), YEL, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', px + pw / 2, py + 166, 14, WHITE, 1); const el = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; if (el > c.level) text('いまの段位では ' + MJ.starStr(el), px + pw / 2, py + 186, 14, YEL, 1); text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), px + pw / 2, py + (el > c.level ? 206 : 188), 14, WHITE, 1); const f = fitRich(c.desc || '', [15, 14, 13], 176, 104); richDraw(f.lines, px + 12, py + 232, f.sz, [230, 240, 225], 0); }
+      if (st === 2) { rrect(px + 43, py + 13, 114, 114, 8, WHITE); gfx.image(skin(c.face), px + 44, py + 14, 112, 112, 255); text(c.short || c.name, px + pw / 2, py + 134, fitSz(c.short || c.name, 22, 180, 14), YEL, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', px + pw / 2, py + 166, 14, WHITE, 1); const el = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; if (el > c.level) text('いまの段位では ' + MJ.starStr(el), px + pw / 2, py + 186, 14, YEL, 1); text('打ち方: ' + (MJ.styleLabel ? MJ.styleLabel(c) : (MJ.STYLE_JP[c.style] || '')), px + pw / 2, py + (el > c.level ? 206 : 188), 14, WHITE, 1); const f = fitRich(c.desc || '', [15, 14, 13], 176, 104); richDraw(f.lines, px + 12, py + 232, f.sz, [230, 240, 225], 0); }
       else { gfx.image('img/sil/' + pad(c.id) + '.webp', px + 44, py + 14, 112, 112, 255); frame(px + 43, py + 13, 114, 114, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', px + 77, py + 45, 46, 64, 255); text('？？？？', px + pw / 2, py + 134, 22, YEL, 1); const ud = MJ.unlockDan(c.id), m = MJ.DAN_NAME(ud) + 'になると、\n' + townName(ud) + 'の街に 登場します。'; const f = fitRich(m, [15, 14, 13], 176, 120); richDraw(f.lines, px + 12, py + 176, f.sz, [230, 240, 225], 0); }
     };
     if (useLay) cached(31, 'pn' + c.id + ':' + dan + ':' + st, drawPanel); else drawPanel();
@@ -1289,7 +1289,7 @@
     if (t < 900) gfx.image('img/sil/' + ('0' + c.id).slice(-2) + '.webp', x, y, z, z, 255); else gfx.image(skin(c.face), x, y, z, z, 255);
     if (t >= 900 && !V.snd) { V.snd = true; NSND.sfx('slam'); }
     text('新しい雀士が 登場!', 560, 50, 34, YEL, 1);
-    if (t >= 900) { text('NEW!', 450, 130, 40, RED); text(c.short || c.name, 560, 190, 36, WHITE, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', 560, 250, 20, WHITE, 1); text('打ち方: ' + (MJ.STYLE_JP[c.style] || ''), 560, 280, 20, WHITE, 1); const f = fitRich(c.desc || '', [18, 17, 16], 330, 100); richDraw(f.lines, 400, 322, f.sz, [230, 240, 225], 0); nextBtn((V.i + 1) + ' / ' + V.ids.length); }
+    if (t >= 900) { text('NEW!', 450, 130, 40, RED); text(c.short || c.name, 560, 190, 36, WHITE, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', 560, 250, 20, WHITE, 1); text('打ち方: ' + (MJ.styleLabel ? MJ.styleLabel(c) : (MJ.STYLE_JP[c.style] || '')), 560, 280, 20, WHITE, 1); const f = fitRich(c.desc || '', [18, 17, 16], 330, 100); richDraw(f.lines, 400, 322, f.sz, [230, 240, 225], 0); nextBtn((V.i + 1) + ' / ' + V.ids.length); }
     else text('？？？？', 560, 190, 36, [200, 215, 230], 1);
     if (t < 1000) dirty();
   }

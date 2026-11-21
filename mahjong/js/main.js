@@ -152,7 +152,7 @@
       else if (this.picks.length < 3) this.picks.push(id);
       else { this.picks.shift(); this.picks.push(id); }
       const c = MJ.CHARS.find((x) => x.id === id);
-      $('#char-detail').innerHTML = `<b>${c.name}</b>(${MJ.starStr(c.level)}・${MJ.STYLE_JP[c.style]})<br>${c.desc}`;
+      $('#char-detail').innerHTML = `<b>${c.name}</b>(${MJ.starStr(c.level)}・${MJ.styleLabel(c)})<br>${c.desc}`;
       this.renderChars();
       if (this.picks.length === 3 && i < 0) this.confirmStart();
     },
