@@ -1364,7 +1364,7 @@
       let x = 180; const v = r.hands[i];
       v.concealed.forEach((h) => { tile(h.t, x, y, 24, 32, h.red); x += 25; });
       (v.melds || []).forEach((m) => { x += 8; m.tiles.forEach((h) => { tile(h.t, x, y, 24, 32, h.red); x += 25; }); });
-      const ws = rd.waits[i] || []; if (ws.length) { text('待ち', 560, y + 6, 18, YEL); ws.slice(0, 8).forEach((t, k) => tile(t, 600 + k * 24, y, 22, 30)); }
+      const ws = rd.waits[i] || []; if (ws.length) { const wx = Math.max(560, x + 14), nmax = Math.max(1, Math.min(8, Math.floor((790 - (wx + 40)) / 24))); text('待ち', wx, y + 6, 18, YEL); ws.slice(0, nmax).forEach((t, k) => tile(t, wx + 40 + k * 24, y, 22, 30)); } // 手牌が長い(カンなど)ときも、「待ち」が牌に かさならないよう、手牌の終わりの すぐ右から
       y += 36;
     });
     text('テンパイの人が、ノーテンの人から合計3000点を受け取ります', 60, 422, 15, GREY); if (!rd.reading) text('← → えらぶ    決定: 手牌を見る', 60, 440, 15, GREY);
