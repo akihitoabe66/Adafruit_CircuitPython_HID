@@ -1701,7 +1701,7 @@
   const dStar = (e) => STAR.includes(e.n), DPER = 10, DM = DCAT.map((c) => c[1]).concat('五十音');
   const dIdsOf = (m, row) => { const L = D_().list, all = L.map((e, i) => i); return m < 8 ? all.filter((i) => L[i].c === DCAT[m][0]) : all.filter((i) => dRow(L[i]) === row).sort((a, b) => hira(L[a].y).localeCompare(hira(L[b].y), 'ja')); };
   const dItems = (d) => { const L = D_().list; if (d.m === 8 && d.kana == null) return KROW.map((k, i) => ({ n: k + ' の行', r: dIdsOf(8, i).length + '語', row: i })); return dIdsOf(d.m, d.kana).map((i) => ({ n: L[i].n, r: L[i].y, id: i, star: dStar(L[i]) })); };
-  function startDict() { S.dict = { view: 'main', foc: 0, m: 0, kana: null, sel: 0, id: 0, rel: -1, hist: [], ids: [] }; S.mode = 'dict'; dirty(); }
+  function startDict() { try { petBump('vw'); } catch (e) { /* ignore */ } S.dict = { view: 'main', foc: 0, m: 0, kana: null, sel: 0, id: 0, rel: -1, hist: [], ids: [] }; S.mode = 'dict'; dirty(); }
   function dTiles(str) { return String(str).split(' ').map((grp) => { const m = grp.match(/^(\d+)([mpsz])$/); if (!m) return { sep: grp }; const base = { m: 0, p: 9, s: 18, z: 27 }[m[2]]; return { tiles: m[1].split('').map((c) => ({ t: base + (c === '0' ? 4 : +c - 1), red: c === '0' })) }; }); }
   function dTileRow(str, x, y, availW, maxTw) { // 幅に、きっちり入る大きさで、牌を1列に並べる
     const gs = dTiles(str), width = (tw) => gs.reduce((a, g) => a + (g.sep != null ? 18 : g.tiles.length * (tw + 1)), 0) + (gs.length - 1) * 8;
@@ -1769,7 +1769,7 @@
   const LKEY = 'mj_learn';
   function learnLoad() { try { const v = JSON.parse(localStorage.getItem(LKEY)); if (v && v.done) return v; } catch (e) { /* ignore */ } return { bm: { step: 0, page: 0, read: false }, done: {} }; }
   function learnSave() { try { localStorage.setItem(LKEY, JSON.stringify(S.learn.d)); } catch (e) { /* ignore */ } }
-  function startLearn() { const d = learnLoad(); S.mode = 'learn'; S.learn = { d, view: 'map', sel: Math.min(d.bm.step || 0, MJ.Learn.STEPS.length - 1), sub: 0, page: 0, scroll: 0 }; dirty(); }
+  function startLearn() { try { petBump('st'); } catch (e) { /* ignore */ } const d = learnLoad(); S.mode = 'learn'; S.learn = { d, view: 'map', sel: Math.min(d.bm.step || 0, MJ.Learn.STEPS.length - 1), sub: 0, page: 0, scroll: 0 }; dirty(); }
   const LEARN_OLD = globalThis.__learnEnv === 'old'; // MJ_LEARN=old で、前の(タブの)見た目に戻る
   const learnPages = () => { const a = [], b = []; if (!LEARN_OLD) return [MJ.Learn.STEPS.map((_, i) => i)]; MJ.Learn.STEPS.forEach((st, i) => (st.lv === '入門' || st.lv === '初級' ? a : b).push(i)); return [a, b]; } // 3ページ目は「用語じてん」、4ページ目は「ビデオ」の入口
   const pgOf = (pgi, sel) => Math.max(0, pgi.findIndex((p) => p.includes(sel))); // 1ページ目: 入門・初級 / 2ページ目: 中級・上級
@@ -1987,7 +1987,7 @@
     const now0 = __now(); V.sel = i; V.view = 'play'; V.tFirst = 0; V.p = { f, i, dur: (V.d.dur && V.d.dur[f.name]) || 0, ui: now0 + 2500, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now0, st: [from || 0, 0, 0, 0, 0], sig: '', loading: true }; dirty();
     setTimeout(() => {
       if (!S.vid || S.vid.p !== V.p || S.mode !== 'video') return; // 待っているあいだに、戻る を押していたら やめる
-      const tv0 = __now(); tl('vopen ' + f.path); const r = __vopen(f.path, from || 0); tl('vopen-done ' + Math.round(__now() - tv0) + 'ms');
+      const tv0 = __now(); tl('vopen ' + f.path); try { petBump('vw'); } catch (e) { /* ignore */ } const r = __vopen(f.path, from || 0); tl('vopen-done ' + Math.round(__now() - tv0) + 'ms');
       if (!r) { V.view = 'list'; V.p = null; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
       const now = __now(), p = V.p; p.loading = false; p.dur = r.dur || 0; p.ui = now + 2500; p.save = now; p.st = [from || 0, r.dur || 0, 0, 0, 0];
       V.d.last = f.name; (V.d.dur = V.d.dur || {})[f.name] = r.dur || 0; vSave(); dirty();
@@ -2116,7 +2116,7 @@
   }
 
   /* ---------- 麻雀の勉強(入口): 左に「点数計算 / 用語じてん / ビデオ」、右に、えらんだものの見本と進み具合 ---------- */
-  function startStudy(sel) {
+  function startStudy(sel) { try { petBump('st'); } catch (e) { /* ignore */ }
     const d = learnLoad(), ST = MJ.Learn.STEPS, nDone = ST.filter((s) => d.done[s.id]).length;
     let nx = ST.findIndex((s) => !d.done[s.id]); if (nx < 0) nx = 0; if (d.bm && d.bm.read && !d.done[ST[d.bm.step] && ST[d.bm.step].id]) nx = d.bm.step;
     const sc = vScan(), vd = vLoad(); let vi = sc.files.findIndex((f) => f.name === vd.last && (vd.pos[f.name] || 0) >= 30 && !vd.done[f.name]); const cont = vi >= 0; if (vi < 0) vi = Math.max(0, sc.files.findIndex((f) => f.path && !vd.done[f.name])); if (vi < 0 || !sc.files[vi]) vi = 0;
@@ -2198,7 +2198,7 @@
     try { const mine = new Set(p.hand.map((x) => x.t)); g.players.forEach((q) => { if (q === p || q.hand.length % 3 !== 1) return; const c = MJ.toCounts(q.hand); if (MJ.shanten(c, q.melds.length) !== 0) return; const ws = MJ.waits(c.slice(), q.melds.length); if (ws.length && ws.some((w) => mine.has(w))) safe.push(!ws.includes(h.t)); }); } catch (e) { /* ignore */ }
     MJ.Stats.discard(effOk, safe);
   }
-  function startDiag() { S.mode = 'diag'; for (let i = 10; i <= 20; i++) S.lay[i] = null; /* 前に開いたときの絵(古い数字)を、使い回さない */ let rk = { hist: [] }, info = null; try { rk = MJ.Rank.get(); info = MJ.Rank.info(); } catch (e) { /* ignore */ } S.diag = { pg: 0, d: MJ.Stats.diag(), sg: MJ.Stats.strength(), rk, info }; dirty(); diagWarm(); }
+  function startDiag() { try { petBump('st'); } catch (e) { /* ignore */ } S.mode = 'diag'; for (let i = 10; i <= 20; i++) S.lay[i] = null; /* 前に開いたときの絵(古い数字)を、使い回さない */ let rk = { hist: [] }, info = null; try { rk = MJ.Rank.get(); info = MJ.Rank.info(); } catch (e) { /* ignore */ } S.diag = { pg: 0, d: MJ.Stats.diag(), sg: MJ.Stats.strength(), rk, info }; dirty(); diagWarm(); }
   function diagWarm() { // 入ったあと、「強さ」の各項目を選んだときの画面を、画面に出さずに 先に描いておく
     if (typeof gfx.layerBegin !== 'function' || memLow()) return; // メモリが少ないときは、先に描いておかない
     [0, 1, 2, 3, 4, 5, 6, -1].forEach((f, k) => setTimeout(() => { const D = S.diag; if (!D || S.mode !== 'diag' || D.pg !== 0) return; const keep = D.fi; try { D.fi = f; const kb = S.bbf; S.bbf = false; lay(diagSlot(D, f), 'dg0:' + f, drawDiagBody); S.bbf = kb; } catch (e) { /* ignore */ } D.fi = keep; }, 600 + k * 300));
@@ -2309,7 +2309,7 @@
     { t: '麻雀先生に 聞く', img: 'img/help/p4.webp', c: ['① 右の「解説」で、くわしい 説明が 見られます', '② 麻雀先生「あり」だと、おすすめの牌に ★ が つきます'] },
     { t: '勉強・クイズ・ビデオ', img: 'img/help/p5.webp', c: ['① 点数計算  ② 用語じてん  ③ ビデオ', '▲ ▼ で えらんで 決定ボタン'] },
   ];
-  function startHow() { S.how = { pg: 0 }; S.mode = 'howto'; dirty(); }
+  function startHow() { try { petBump('vw'); } catch (e) { /* ignore */ } S.how = { pg: 0 }; S.mode = 'howto'; dirty(); }
   function howKey(k) {
     const H = S.how; dirty();
     if (k === 'back') { S.mode = 'settings'; S.how = null; } else if (k === 'up') S.bbf = true; else if (k === 'left') H.pg = Math.max(0, H.pg - 1); else if (k === 'right' || k === 'ok') { if (H.pg < HOWP.length - 1) H.pg++; else if (k === 'ok') { S.mode = 'settings'; S.how = null; } }
@@ -2931,6 +2931,31 @@
   const OLED_JP = { BOOT: '起動中', TITLE: 'タイトル', HOME: 'ホーム', GAME: '対局', RESULT: '結果', QUIZ: 'クイズ', STUDY: '勉強', VIDEO: 'ビデオ', STATS: '成績', SETUP: '設定', MAP: '地図', RANK: '昇段', NEW: '新雀士', END: '対局終了',
     'リーチ': 'リーチ!', 'ポン': 'ポン!', 'チー': 'チー!', 'カン': 'カン!', 'ロン': 'ロン!', 'ツモ': 'ツモ!', DRAW: '流局', WIN: '勝ち!', LOSE: '負け', COMEBACK: '逆転!', CUTIN: '必殺!', RANKUP: '昇段!' };
   /* OLED-JP-END */
+  /* ---------- ずんだもんの進化(OLED用): 遊び方を、回数で数えて 姿をきめる。 数は「累計」のまま消さず、周(350回ごと)の はじめの数との差で 周ごとの遊び方を見る ---------- */
+  let petC = null;
+  function petLoad() { if (petC) return petC; try { const v = JSON.parse(localStorage.getItem('mj_pet2')); if (v && v.base) petC = v; } catch (e) { /* ignore */ } if (!petC) petC = { cyc: 0, base: { g: 0, sr: 0, h: 0, ri: 0, ron: 0, win: 0, ts: 0, ca: 0, de: 0, q: 0, st: 0, vw: 0 }, f1: '', f2: -1, st: 0, vw: 0 }; return petC; }
+  function petSave() { try { localStorage.setItem('mj_pet2', JSON.stringify(petC)); } catch (e) { /* ignore */ } }
+  function petBump(k) { const P = petLoad(); P[k] = (P[k] || 0) + 1; petSave(); } // st=勉強・診断を開いた回数 vw=ビデオ・用語集・遊び方を開いた回数(累計)
+  function petSnap() { // いまの累計
+    const P = petLoad(), rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0], d = MJ.Stats.load(), pl = d.play || {}; let q = 0; Object.keys(d.quiz || {}).forEach((t) => { q += (d.quiz[t].n || 0); });
+    return { g: rs.games || 0, sr: rk[0] + rk[1] * 2 + rk[2] * 3 + rk[3] * 4, h: pl.hands || 0, ri: pl.riichi || 0, ron: pl.ron || 0, win: pl.win || 0, ts: pl.tsumo || 0, ca: pl.calls || 0, de: pl.deal || 0, q, st: P.st || 0, vw: P.vw || 0 };
+  }
+  const PET_AX = ['riichi', 'ron', 'tsumo', 'naki', 'mamori', 'study', 'view']; // 目安(仮): リーチ30% ロン50% ツモ40% なき35% ふりこみ12% 勉強0.5/局 ものしり0.3/局
+  function petScores(n, b) { // 周のあいだの 差で、8つの得点(1.0=ふつう。 1.25以上で 目立つ)
+    const h = n.h - b.h, g = Math.max(1, n.g - b.g), win = n.win - b.win, sc = {};
+    sc.riichi = h >= 10 ? ((n.ri - b.ri) / h) / 0.30 : 0; sc.ron = win >= 5 ? ((n.ron - b.ron) / win) / 0.50 : 0; sc.tsumo = win >= 5 ? ((n.ts - b.ts) / win) / 0.40 : 0;
+    sc.naki = h >= 10 ? ((n.ca - b.ca) / h) / 0.35 : 0; sc.mamori = h >= 10 ? 0.12 / Math.max(0.03, (n.de - b.de) / h) : 0; sc.study = ((n.q - b.q) + (n.st - b.st)) / g / 0.5; sc.view = (n.vw - b.vw) / g / 0.3;
+    return sc;
+  }
+  function petBest(sc) { let best = 'round', v = 1.25; PET_AX.forEach((k) => { if (sc[k] > v) { v = sc[k]; best = k; } }); return best; }
+  function petStep() { // 進化の判定(遊んだ回数がふえたときだけ 動く)。 戻り値: OLEDへ送る 文字列
+    const P = petLoad(), n = petSnap(), b = P.base, cp = n.g - b.g;
+    if (cp >= 350) { P.cyc++; P.base = n; P.f1 = ''; P.f2 = -1; petSave(); return petStep(); } // 350回めで、たまごにもどる(累計は そのまま)
+    if (cp >= 100 && !P.f1) { P.f1 = petBest(petScores(n, b)); petSave(); }
+    if (cp >= 300 && P.f1 && P.f2 < 0) { const g = Math.max(1, n.g - b.g); P.f2 = ((n.sr - b.sr) / g) <= 2.5 ? 0 : 1; petSave(); } // かちぐせ(平均順位 2.5位より上) / まけぐせ
+    let lean = ''; if (!P.f1 && cp >= 80) lean = petBest(petScores(n, b)); else if (P.f1 && P.f2 < 0 && cp >= 250) lean = ((n.sr - b.sr) / Math.max(1, n.g - b.g)) <= 2.5 ? 'win' : 'lose'; // 分かれ道の前の ヒント
+    return 'cp=' + cp + '\ncyc=' + P.cyc + '\nf1=' + P.f1 + '\nf2=' + P.f2 + '\nlean=' + lean + '\n';
+  }
   let bootN = 0; try { bootN = (parseInt(localStorage.getItem('mj_boots'), 10) || 0) + 1; localStorage.setItem('mj_boots', String(bootN)); } catch (e) { /* ignore */ } // 電源を入れた回数(時計がないので、季節やペットは、回数で決める)
   function oledState() {
     const m = S.mode, g = S.game; let scene = 'HOME', pose = 'home', msg = '';
@@ -2955,7 +2980,8 @@
     if (S.cert) { scene = 'RANK'; pose = 'pray'; msg = 'RANKUP'; }
     let audio = 'ok'; try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi && mi[0] === 0) audio = 'BGM STOP'; } catch (e) { /* ignore */ }
     let mm = ['', '', '', '']; try { if (typeof gfx.mem === 'function') mm = gfx.mem().map((v) => Math.round(v)); } catch (e) { /* ignore */ }
-    let pet = ''; try { const rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0]; pet = 'plays=' + (rs.games || 0) + '\nwins=' + (rk[0] || 0) + '\nboots=' + bootN + '\nqc=' + (rs.qc || 0) + '\npt=' + (rs.pt || 0) + '\ndan=' + (rs.dan || 0) + '\ncos=' + oledCos() + '\nidle=' + Math.floor((__now() - (S.lastKeyT || 0)) / 1000) + '\n'; } catch (e) { /* ignore */ } // ペット用: 遊んだ回数・1位の数・電源を入れた回数・クイズの数・経験値・段位
+    let petStr = ''; try { petStr = petStep(); } catch (e) { petStr = ''; }
+    let pet = ''; try { const rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0]; pet = 'plays=' + (rs.games || 0) + '\nwins=' + (rk[0] || 0) + '\nboots=' + bootN + '\nqc=' + (rs.qc || 0) + '\npt=' + (rs.pt || 0) + '\ndan=' + (rs.dan || 0) + '\ncos=' + oledCos() + '\n' + petStr + 'idle=' + Math.floor((__now() - (S.lastKeyT || 0)) / 1000) + '\n'; } catch (e) { /* ignore */ } // ペット用: 遊んだ回数・1位の数・電源を入れた回数・クイズの数・経験値・段位
     const o = perf.o || {}, jp = (k) => (k ? (OLED_JP[k] || k) : '');
     return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\nchar=' + oledChar() + '\n' + pet;
   }

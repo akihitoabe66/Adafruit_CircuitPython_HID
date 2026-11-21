@@ -29,11 +29,11 @@ except ImportError:
     try: from oled_zunda import Z as ZU
     except ImportError: ZU = {}
 try:
-    from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES, SEASONS as PSEAS, SEA as PSEA, JOBS as PJOBS, COS as PCOS
+    from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES, SEASONS as PSEAS, SEA as PSEA, JOBS as PJOBS, COS as PCOS, FORM1 as PF1, FORM2 as PF2
 except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    try: from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES, SEASONS as PSEAS, SEA as PSEA, JOBS as PJOBS, COS as PCOS
-    except ImportError: PSTAGE, PLAB, PLINES, PSEAS, PSEA, PJOBS, PCOS = [], {}, {}, [], {}, [], ()
+    try: from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES, SEASONS as PSEAS, SEA as PSEA, JOBS as PJOBS, COS as PCOS, FORM1 as PF1, FORM2 as PF2
+    except ImportError: PSTAGE, PLAB, PLINES, PSEAS, PSEA, PJOBS, PCOS, PF1, PF2 = [], {}, {}, [], {}, [], (), {}, {}
 CHARFILE = os.environ.get('MJOLED_CHARFILE', '/var/lib/mjoled_char')   # 設定(ゲームの「OLEDのキャラ」)を おぼえておく場所。 電源を入れた直後の画面でも 同じ人が出る
 WHO = {'v': 'sensei'}   # いま出している人: sensei(麻雀先生) か zunda(ずんだもん)
 I2C_SLAVE = 0x0703
@@ -413,6 +413,51 @@ def pet_line_key(plays):
     for m in sorted(x for x in PLINES if isinstance(x, int)):
         if isinstance(m, int) and m <= plays: k = m
     return k
+def pet_form(d):
+    """いまの姿: (名前の前の部分, 倍率, 幅, 高さ, 行) か None(たまご〜げんきずんだ)。 f1 = 100回めの姿、 f2 = 300回めの最終の姿(0=かちぐせ 1=まけぐせ)"""
+    f1 = d.get('f1', '') if d else ''
+    if not f1 or f1 not in PF1: return None
+    f2 = pet_int(d, 'f2') if d and d.get('f2', '-1') not in ('', '-1') else -1
+    if f2 in (0, 1) and f1 in PF2: return PF2[f1][f2]
+    return PF1[f1]
+def pet_cp(d):
+    """この周の、遊んだ回数(ゲームが cp= で知らせる。 なければ 累計)"""
+    return pet_int(d, 'cp') if d and 'cp' in d else pet_int(d, 'plays')
+def pet_next(cp):
+    """つぎの進化までの回数(100回めの姿 → 300回めの最終の姿 → 350回めで たまごにもどる)"""
+    return (100 - cp) if cp < 100 else (300 - cp) if cp < 300 else max(0, 350 - cp)
+def pet_num(scr, n, x, y):
+    for ch in str(max(0, n)):
+        lab = PLAB.get(ch)
+        if lab: scr.bitmap(lab[0], lab[1], lab[2], x, y); x += lab[0]
+    return x
+def pet_big(scr, d, lines, ys=(4, 22, 40), spr=None):
+    """左に姿、右の 66ドットに 4文字までの見出しを 3つ(LAB の名前)"""
+    f = spr or pet_form(d)
+    if f is None:
+        st = pet_stage(pet_cp(d)); w, h, rows, k = st[1], st[2], st[3], 2
+    else: _, k, w, h, rows = f
+    scr.bitmap(w, h, rows, max(0, (62 - w * k) // 2), max(0, (64 - h * k) // 2), k)
+    for t, y in zip(lines, ys):
+        if t and t in PLAB: scr.bitmap(PLAB[t][0], PLAB[t][1], PLAB[t][2], 64, y)
+def pet_name_lines(d):
+    f = pet_form(d)
+    if f is None:
+        n = {0: 'たまご', 5: 'ちびずんだ', 30: 'げんきずんだ'}[pet_stage(pet_cp(d))[0]]
+        return [n] if n == 'たまご' else [n.replace('ずんだ', ''), 'ずんだ']
+    return [f[0], 'ずんだ']
+def pet_hearts_dummy(): pass
+EVO = {'key': None, 't': 0, 'kind': None}
+def evolve_event(d):
+    """進化した(100回め・300回め)とき、たまごにもどった(350回め)ときの 8秒間の画面。 'evo' / 'egg' / None。 起動したときの状態は、出来事にしない"""
+    if not d or 'cyc' not in d: return None
+    key = (d.get('cyc'), d.get('f1', ''), d.get('f2', ''))
+    now = time.time()
+    if EVO['key'] is None: EVO['key'] = key
+    elif key != EVO['key']:
+        EVO['kind'] = 'egg' if key[1] == '' else 'evo'; EVO['t'] = now; EVO['key'] = key
+    if EVO['kind'] and now - EVO['t'] < 8: return EVO['kind']
+    return None
 def pet_costume(d, plays):
     """着ているもの: (絵, あいさつの言葉の名前) か None(ふつうの姿)。 時計がないので、電源を入れた回数で決める:
     おまかせ = 3回ごとに 季節 と 職業(15回あそぶごとに ひとつ ふえる)が かわりばんこ。 季節は お正月→春→夏→ハロウィン→秋→クリスマス の順"""
@@ -460,20 +505,33 @@ def compose_pet(scr, d, age, tick, ever_alive, h):
     """ホーム・起動中の、ペットの画面。 戻り値が None なら ふつうの画面にもどる"""
     if not PSTAGE or not (d is None or d.get('scene') == '起動中' or 'plays' in d): return None
     scr.clear(); plays = pet_int(d, 'plays') if d else 0
-    stg = pet_stage(plays); sw, sh, srows = stg[1], stg[2], stg[3]
+    stg = pet_stage(pet_cp(d) if d else 0); sw, sh, srows = stg[1], stg[2], stg[3]; frm = pet_form(d) if d else None
     sleepy = d is not None and pet_int(d, 'idle') >= 180
     by = 2 + (0 if sleepy or tick % 2 == 0 else -2)   # ぴょこぴょこ(ねむいときは 動かない)
     cos = pet_costume(d, plays) if d else None
     if cos is not None and not sleepy and (tick // 3) % 10 < 7:
         cw, ch, crows = cos[0]; scr.bitmap(cw, ch, crows, max(0, (62 - cw) // 2), by + (64 - ch) // 2 - 2, 1)   # 衣装は、そのままの大きさ(45x47前後)
+    elif frm is not None: scr.bitmap(frm[2], frm[3], frm[4], max(0, (62 - frm[2] * frm[1]) // 2), by + (64 - frm[3] * frm[1]) // 2 - 2, frm[1])   # 進化した姿
     else: scr.bitmap(sw, sh, srows, max(0, (62 - sw * 2) // 2), by + (62 - sh * 2) // 2 - 2, 2)
     X = 66
     if d is None or d.get('scene') == '起動中':
         scr.marquee('おきるのだ…', X, 18, 60, tick); scr.text('WAIT %dS' % int(uptime()), X, 40)
     elif sleepy:
         scr.marquee('ねむいのだ…', X, 18, 60, tick); scr.text('ZZZ' + '.' * (tick % 4), X, 40); scr.text('PLAY %d' % plays, X, 54)
-    elif (tick // 3) % 10 >= 7:
+    elif evolve_event(d) is not None:
+        scr.clear(); ev = evolve_event(d)
+        if ev == 'egg': pet_big(scr, d, ['うまれた', 'のだ', ''], (4, 22, 40))
+        else: pet_big(scr, d, ['しんか', 'したのだ'] + [''], (4, 22, 40))
+    elif (tick // 3) % 20 in (12, 13):
         scr.clear(); pet_gauge_page(scr, d, plays, tick)
+    elif (tick // 3) % 20 in (14, 15):
+        scr.clear(); nm = pet_name_lines(d); pet_big(scr, d, nm + ([''] if len(nm) < 2 else []), (0, 16, 38))
+        if 'あと' in PLAB: scr.bitmap(PLAB['あと'][0], PLAB['あと'][1], PLAB['あと'][2], 64, 38); pet_num(scr, pet_next(pet_cp(d)), 64 + PLAB['あと'][0], 38)
+    elif (tick // 3) % 20 in (16, 17):
+        scr.clear(); pet_big(scr, d, ['あそぶと', 'すがたが', 'かわるぞ'], (4, 22, 40))
+    elif (tick // 3) % 20 in (18, 19) and d.get('lean') in ('riichi', 'ron', 'tsumo', 'naki', 'mamori', 'study', 'view', 'win', 'lose'):
+        scr.clear(); scr.bitmap(*((lambda f: (f[2], f[3], f[4]))(pet_form(d)) if pet_form(d) else (pet_stage(pet_cp(d))[1], pet_stage(pet_cp(d))[2], pet_stage(pet_cp(d))[3])), 0, 4, 2 if pet_form(d) is None or pet_form(d)[1] == 2 else 1)
+        scr.line_marquee('h:' + d['lean'], 66, 24, 60, tick)
     else:
         pet_hearts(scr, plays, X, 2)
         g = pet_line_key(plays)
