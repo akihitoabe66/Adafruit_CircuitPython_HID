@@ -395,6 +395,7 @@ def compose_zunda(scr, d, age, tick, ever_alive):
 
 # ---------- ずんだもんペット(たまごっち風) ----------
 LINE_ROWS = {}
+PJOBS_DAN = ['無段', '初段', '二段', '三段', '四段', '五段', '六段', '七段', '八段', '九段', '名人', '永世名人']
 HEART = ((0x36, 0x7f, 0x7f, 0x7f, 0x3e, 0x1c, 0x08), (0x36, 0x49, 0x41, 0x41, 0x22, 0x14, 0x08))   # 7x7: 中まで黒 / ふちだけ
 MILES = [1, 3, 5, 10, 15, 20, 25] + list(range(30, 505, 5))   # 言葉が かわる回数
 def pet_int(d, k):
@@ -406,7 +407,7 @@ def pet_stage(plays):
         if plays >= e[0]: st = e
     return st
 def pet_tier(plays):
-    return 'はじめまして' if plays < 1 else 'ツン' if plays < 30 else 'ツンデレ' if plays < 100 else 'ちょいデレ' if plays < 200 else 'しんゆう' if plays >= 350 else 'なかよし'
+    return 'はじめまして' if plays < 1 else 'ツン' if plays < 55 else 'ツンデレ' if plays < 150 else 'ちょいデレ' if plays < 250 else 'なかよし' if plays < 350 else 'しんゆう'
 def pet_line_key(plays):
     k = None
     for m in sorted(x for x in PLINES if isinstance(x, int)):
@@ -432,10 +433,9 @@ def pet_hearts(scr, plays, x, y):
     for i in range(5):
         hx = x + i * 10
         if i < full: scr.bitmap(7, 7, HEART[0], hx, y)
-        else:
-            scr.bitmap(7, 7, HEART[1], hx, y)
-            if i == full and half:
-                scr.bitmap(4, 7, tuple(v >> 3 for v in HEART[0]), hx, y)
+        elif i == full and half:   # 半分のハート: ふちの上に、左半分だけ 黒く
+            scr.bitmap(7, 7, HEART[1], hx, y); scr.bitmap(4, 7, tuple(v >> 3 for v in HEART[0]), hx, y)
+        else: scr.box(hx + 3, y + 3, 1, 1, 1)   # まだ もらえていない場所は、小さな点だけ(ハートに見せない)
     prev = 0; nxt = MILES[-1]
     for m in MILES:
         if m > plays: nxt = m; break
@@ -445,11 +445,15 @@ def pet_hearts(scr, plays, x, y):
     scr.box(x, y + 9, wbar, 3, 0); scr.box(x, y + 9, wbar, 1, 1); scr.box(x, y + 11, wbar, 1, 1); scr.box(x, y + 10, 1, 1, 1); scr.box(x + wbar - 1, y + 10, 1, 1, 1)
     scr.box(x + 1, y + 10, int((wbar - 2) * frac), 1, 1)
 def pet_gauge_page(scr, d, plays, tick):
-    qc = pet_int(d, 'qc'); dan = pet_int(d, 'dan')
-    for i, (nm, val, fr) in enumerate((('なかよし', plays, min(1.0, plays / 500.0)), ('かしこさ', qc, min(1.0, qc / 100.0)), ('つよさ', dan, min(1.0, dan / 20.0)))):
+    """3つの目盛り: あそんだ(対局の数 / 500で満タン)、クイズ(答えた数 / 100で満タン)、だんい(無段〜永世名人 / 11)"""
+    qc = pet_int(d, 'qc'); dan = max(0, min(11, pet_int(d, 'dan')))
+    for i, (nm, val, fr) in enumerate((('あそんだ', plays, min(1.0, plays / 500.0)), ('クイズ', qc, min(1.0, qc / 100.0)), ('だんい', None, dan / 11.0))):
         y = i * 21
-        scr.bitmap(*PLAB[nm][:2], PLAB[nm][2], 0, y) if nm in PLAB else None
-        scr.text(str(val), 70, y + 4)
+        if nm in PLAB: scr.bitmap(PLAB[nm][0], PLAB[nm][1], PLAB[nm][2], 0, y)
+        if val is not None: scr.text(str(val), 68, y + 4)
+        else:
+            dn = PJOBS_DAN[dan]
+            if dn in PLAB: scr.bitmap(PLAB[dn][0], PLAB[dn][1], PLAB[dn][2], 68, y)
         scr.box(0, y + 17, 128, 3, 0); scr.box(0, y + 17, 128, 1, 1); scr.box(0, y + 19, 128, 1, 1)
         scr.box(0, y + 18, 1, 1, 1); scr.box(127, y + 18, 1, 1, 1); scr.box(1, y + 18, int(126 * fr), 1, 1)
 def compose_pet(scr, d, age, tick, ever_alive, h):
