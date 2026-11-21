@@ -2202,21 +2202,22 @@
     dirty();
   }
   function diagTabs(pg, hint) { // 下の、ページの札
-    ['強さ', 'ポイント', 'アドバイス', '学習の記録'].forEach((t, i) => { const x = 14 + i * 130, on = i === pg; panel(x, 428, 122, 32, 9, on ? [60, 130, 60] : [50, 70, 60], on ? [150, 200, 140] : [74, 97, 84], 2, 255); text(t, x + 61, 428 + Math.round((32 - 18) / 2) - 1, 18, on ? WHITE : [185, 201, 189], 1); });
+    const foc = !S.bbf && S.diag && diagFi(S.diag) < 0; // 下の札に カーソルがあるとき(上の項目や「もどる」に あるときは、いまのページを 目立たせない)
+    ['強さ', 'ポイント', 'アドバイス', '学習の記録'].forEach((t, i) => { const x = 14 + i * 130, on = i === pg; panel(x, 428, 122, 32, 9, on ? (foc ? [60, 130, 60] : [40, 84, 54]) : [50, 70, 60], on ? (foc ? [255, 222, 96] : [112, 150, 112]) : [74, 97, 84], on && foc ? 4 : 2, 255); text(t, x + 61, 428 + Math.round((32 - 18) / 2) - 1, 18, on ? WHITE : [185, 201, 189], 1); });
     text(hint, 806, 428 + 8, 16, [210, 225, 205], 2);
   }
   const diagFi = (D) => (S.bbf ? -1 : D.fi == null ? -1 : D.fi); // 「もどる」に合わせているときは、項目の枠を出さない
   const diagSlot = (D, f) => 10 + (D.pg === 0 ? (f == null ? diagFi(D) : f) + 1 : 7 + D.pg); // 診断は、ページ(と、強さの画面では 選んだ項目)ごとに、絵を使い回す: 強さ 8通り + 3ページ
   function drawDiag() {
     const D = S.diag; if (typeof gfx.layerBegin !== 'function') { drawDiagBody(); return; }
-    cached(diagSlot(D), 'dg' + D.pg + ':' + (D.pg === 0 ? diagFi(D) : 0), drawDiagBody);
+    cached(diagSlot(D), 'dg' + D.pg + ':' + (D.pg === 0 ? diagFi(D) : 0) + (S.bbf ? 'b' : ''), drawDiagBody);
   }
   function drawDiagBody() {
     const D = S.diag, d = D.d, pg = D.pg, sg = D.sg;
     quizFrame('あなたの診断', '', '', '');
     if (pg === 0) { // 強さ(レーダーチャート)
       const ax = sg.ax, have = ax.filter((a) => a.v != null), cx0 = 440, cy0 = 256, R = 104, pt = (i, v, r) => { const an = -Math.PI / 2 + i * Math.PI / 3, rr = (r == null ? R : r) * v / 100; return [cx0 + Math.cos(an) * rr, cy0 + Math.sin(an) * rr]; };
-      const FI = diagFi(D); panel(22, 56, 196, 54, 12, FI === 0 ? YEL : CREAM, FI === 0 ? [120, 80, 0] : [160, 110, 0], FI === 0 ? 4 : 3, 255); text('総合', 36, 74, 17, INK);
+      const FI = diagFi(D); panel(22, 56, 196, 54, 12, FI === 0 ? YEL : CREAM, FI === 0 ? [120, 80, 0] : GREEN, FI === 0 ? 4 : 2, 255); text('総合', 36, 74, 17, INK);
       if (sg.total != null) { text(String(sg.total), 120, 64, 34, sg.total < 60 ? [190, 60, 40] : INK, 1); text('点', 160, 74, 17, INK); } else text('--', 120, 64, 34, [120, 120, 110], 1);
       ax.forEach((a, i) => { const y = 118 + i * 46; panel(22, y, 196, 38, 12, FI === i + 1 ? YEL : CREAM, FI === i + 1 ? [120, 80, 0] : GREEN, FI === i + 1 ? 4 : 2, 255); text(a.name, 38, y + 9, 20, a.v == null ? [130, 130, 120] : INK); text(a.v == null ? '--' : a.v + '点', 204, y + 9, 20, a.v == null ? [130, 130, 120] : a.v < 60 ? [190, 60, 40] : INK, 2); });
       gPoly([0, 1, 2, 3, 4, 5].map((i) => pt(i, 100)), [13, 51, 38], 255);
