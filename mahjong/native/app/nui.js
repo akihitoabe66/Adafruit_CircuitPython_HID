@@ -5,7 +5,8 @@
   const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, pressT: -9999, locked: false, lay: [], teachQ: null, homeBot: false, homeBotIdx: 0, playQ: null, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
   /* 絵文字・記号(🎉 ✓ など)は、実機の日本語フォントに無く、四角(☒)で出てしまう。 文字を描く前に、ぜんぶ取りのぞく(★ ☆ ▲ ▼ ◀ ▶ ① などは、フォントにあるので そのまま) */
   const EMO = /[\u{1F000}-\u{1FFFF}\u{2600}-\u{2604}\u{2607}-\u{27BF}\u{FE0F}]/u, EMOG = /[\u{1F000}-\u{1FFFF}\u{2600}-\u{2604}\u{2607}-\u{27BF}\u{FE0F}]/gu;
-  const clean = (s) => { s = String(s); return EMO.test(s) ? s.replace(EMOG, '').replace(/^\s+/, '') : s; };
+  const EMO_ALT = { '🥇': '①', '🥈': '②', '🥉': '③', '⚠': '▲', '🚨': '▲', '🔔': '▲', '⚔': '◆', '🛡': '◆', '⚖': '◆', '🧠': '◆', '🧩': '◆', '🎯': '◎', '🚫': '×', '✕': '×', '✨': '★', '🎉': '★', '🏅': '★', '🔥': '★', '⚡': '★', '👑': '★', '💡': '☆', '🎓': '■', '📘': '■', '📊': '■', '📖': '■', '📚': '■', '🔖': '■', '✏': '■', '🧮': '■', '🔊': '■', '🀄': '■', '✂': '■', '⏱': '■', '🔍': '◇', '🔎': '◇', '👀': '◇', '⏭': '▶', '✓': '○' }; // 絵文字の代わりに 出す記号(日本語フォントにある 形): メダル→①②③ / 注意→▲ / 構え・考え方→◆ / 目標→◎ / 禁止→× など
+  const clean = (s) => { s = String(s); return EMO.test(s) || /[✕✓]/.test(s) ? s.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}]\uFE0F?/gu, (c) => EMO_ALT[c] || (c === '★' || c === '☆' ? c : '')).replace(/\uFE0F/g, '').replace(/^\s+/, '') : s; };
   ['text', 'measure', 'textTop', 'textRot'].forEach((k) => { try { const o = gfx[k]; if (typeof o === 'function') gfx[k] = function (s, ...r) { return o(clean(s), ...r); }; } catch (e) { /* ignore */ } });
   window.__S = S; // 試験用(説明ページ用の画面を撮るのに使う)
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
