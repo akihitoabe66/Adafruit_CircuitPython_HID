@@ -2545,7 +2545,7 @@
     }
     if (S.result && S.result.rd) { // 流局の結果: 読み上げ中は、決定で全部見せる / そのあとは ← → で人を選んで 決定=手牌 / 「次へ」で つぎの画面
       const r = S.result, rd = r.rd;
-      if (rd.reading) { if (k === 'ok') { rd.token++; rd.reading = false; rd.shown = 4; rd.now = -1; NSND.stopSpeak(); dirty(); } return; }
+      if (rd.reading) { if (k === 'ok') { rd.token++; rd.reading = false; rd.shown = 4; rd.now = -1; NSND.stopSpeak(true); dirty(); } return; }
       if (rd.pop >= 0) { if (k === 'ok' || k === 'back') { rd.pop = -1; dirty(); } return; }
       if (k === 'left') rd.sel = Math.max(0, rd.sel - 1); else if (k === 'right') rd.sel = Math.min(4, rd.sel + 1);
       else if (k === 'up') { if (rd.sel === 4) rd.sel = 3; } else if (k === 'down') { if (rd.sel < 4) rd.sel = 4; } // 「次へ」から上 = 右はしの人 / 4人のどれからでも、下 = 「次へ」
@@ -2726,7 +2726,7 @@
             const rd = r.abort || g.fast ? null : { shown: 0, now: -1, sel: 4, pop: -1, reading: true, token: 0, waits: [] };
             if (rd) r.hands.forEach((v, i) => { try { rd.waits[i] = r.tenpai[i] ? MJ.waits(MJ.toCounts(v.concealed), (v.melds || []).length) : []; } catch (e) { rd.waits[i] = []; } });
             if (rd && g.fast) { rd.shown = 4; rd.reading = false; }
-            S.result = Object.assign({ done }, r, { rd, done: () => { NSND.stopSpeak(); done(); } }); dirty();
+            S.result = Object.assign({ done }, r, { rd, done: () => { NSND.stopSpeak(true); done(); } }); dirty();
             if (rd) (async () => { // 「りゅうきょく」→ 1人ずつ「テンパイ」「ノーテン」
               const tk = ++rd.token, alive = () => S.result && S.result.rd === rd && rd.token === tk && !g.stopped;
               await sleep(700); if (!alive()) return;
@@ -2744,7 +2744,7 @@
         for (let i = 0; i < n; i++) {
           if (g.stopped) return;
           try { NSND.readWin(g, { wins: [r.wins[i]] }); } catch (e) { /* ignore */ }
-          await new Promise((done) => { S.result = Object.assign({}, r, { wins: [r.wins[i]], idx: i, total: n, done: () => { NSND.stopSpeak(); done(); } }); dirty(); });
+          await new Promise((done) => { S.result = Object.assign({}, r, { wins: [r.wins[i]], idx: i, total: n, done: () => { NSND.stopSpeak(true); done(); } }); dirty(); });
         }
         if (g.stopped) return;
         setMood(iWon ? 'win' : iLost ? 'lose' : 'normal');

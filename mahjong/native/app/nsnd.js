@@ -59,7 +59,7 @@
     /* 「なのだ」は3種類: firm=少し暗い・言い切る(x:なのだ) / bright=明るい(x:なのだ2) / flat=フラット(x:なのだ3)。場面に合うものを選ぶ */
     nd(mood) { const M = { firm: 'x:なのだ', bright: 'x:なのだ2', flat: 'x:なのだ3' }; if (!yk) return null; if (M[mood] && yk[M[mood]]) return M[mood]; const ks = Object.keys(M).map((m) => M[m]).filter((k) => yk[k]); return ks.length ? ks[Math.floor(Math.random() * ks.length)] : null; },
     nanoda(keys, p, mood) { const k = Math.random() < (p == null ? 0.3 : p) ? A.nd(mood) : null; return k ? keys.concat('+', k) : keys; },
-    stopSpeak() { token++; if (typeof snd.cancelAt === 'function') snd.cancelAt(); },
+    stopSpeak(now) { token++; if (typeof snd.cancelAt === 'function') snd.cancelAt(); if (now && typeof snd.stopAll === 'function') snd.stopAll(); }, // now=true: いま鳴っている声も 止める(ボタンで 先へ飛ばしたとき、前の局の読み上げが 次の画面に かぶらないように)
     klen(k) { return yk && yk[k] ? snd.len('audio/yk/' + yk[k]) || 0 : 0; }, // 録音(キー)の長さ(秒)
     /* 'y:ツモ' などの並び(null は短い間)を、録音をつなげて鳴らす。 BGMは読み上げの間だけ小さくする */
     speak(keys, cb, lead) {
