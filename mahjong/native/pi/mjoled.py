@@ -333,7 +333,7 @@ def num(d, k, suffix='', default='--'):
 # ---------- ずんだもん(大きい顔)の画面 ----------
 ZEXPR = {'hello': 'smile', 'home': 'content', 'teach': 'serious', 'think': 'serious', 'think2': 'serious', 'watch': 'smile', 'call': 'tongue', 'win': 'star', 'sad': 'sweat',
          'angry': 'serious', 'calm': 'content', 'celebrate': 'thumbs', 'pray': 'content', 'power': 'laugh', 'err': 'worry', 'sleep': 'content'}
-ZMSG = {'リーチ中': 'laugh', '警戒!': 'worry', 'リーチ!': 'serious'}   # 出来事のことば ごとの表情(ポーズより優先)
+ZMSG = {'正解!': 'laugh', 'おしい': 'worry', 'ちがう': 'sweat', 'リーチ中': 'laugh', '警戒!': 'worry', 'リーチ!': 'serious'}   # 出来事のことば ごとの表情(ポーズより優先)
 ZSCENE = {'新雀士': 'heart', '地図': 'peace', 'ビデオ': 'content'}   # 場面ごとの表情(ポーズより優先)
 def zpwr(h):
     t = ('T%dC' % round(h['temp'])) if h['temp'] is not None else 'T--'
@@ -370,7 +370,7 @@ def compose_zunda(scr, d, age, tick, ever_alive):
             scr.bitmap(cw, ch, crows, 8, by + (64 - ch) // 2 - 2, 1); scr.line_marquee('c:' + PJOBS[j], 66, 20, 60, tick)
             return scr
         if scene in ('結果', '対局終了') and since >= 8: r = compose_pet(scr, d, age, tick, ever_alive, h)   # 結果の反応のあとは、ハートと 節目の言葉
-        elif scene in ('クイズ', '勉強') and (tick // 3) % 4 == 3: scr.clear(); pet_gauge_page(scr, d, pet_int(d, 'plays'), tick); r = scr   # 答えるあいだに ときどき 3つの目盛り
+        elif scene in ('クイズ', '勉強') and not msg and (tick // 3) % 4 == 3: scr.clear(); pet_gauge_page(scr, d, pet_int(d, 'plays'), tick); r = scr   # 答えるあいだに ときどき 3つの目盛り
         if r is not None: return r
     if not alive and not booting: expr = 'worry' if ever_alive else 'content'
     if (booting or (alive and not final and scene in ('ホーム', 'タイトル', '起動中') and h['level'] == 0)):
@@ -551,11 +551,13 @@ def sensei_now(d, age):
     ch = os.environ.get('MJOLED_CHAR', '').lower()
     if ch == 'zunda' or WHO['v'] == 'zunda' and '--zunda' in sys.argv: return False
     if ch == 'sensei': return True
-    return d is not None and age < 4.0 and d.get('scene', '') in GAME_SCENES and d.get('teacher') == '1'
+    if d is None or age >= 4.0: return False
+    sc = d.get('scene', '')
+    return sc == '勉強' or (sc in GAME_SCENES and d.get('teacher') == '1')   # 麻雀の勉強の階層は 麻雀先生。 クイズは ずんだもん(正解で喜ぶ)
 def compose(scr, d, age, tick, ever_alive=False):
     """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
     起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてね」を出す"""
-    if ZU and not sensei_now(d, age): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだ、ゲームの「麻雀先生」がオンなら 先生。 ほかは ずんだもんのペット
+    if ZU and not sensei_now(d, age): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだ(麻雀先生がオンなら)と 勉強の階層は 先生。 ほかは ずんだもんのペット
     h = health()
     if h['level'] >= 2: return compose_danger(scr, h, tick)
     scr.clear()

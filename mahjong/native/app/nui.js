@@ -2925,7 +2925,7 @@
   /* ---------- OLED(別の小さな画面)用の状態: 場面に合わせて 麻雀先生のポーズを選び、フレームレートなどと一緒に /tmp/mj_oled.txt へ(native/pi/mjoled.py が読む) ---------- */
   /* OLED-JP-BEGIN */
   const OLED_JP = { BOOT: '起動中', TITLE: 'タイトル', HOME: 'ホーム', GAME: '対局', RESULT: '結果', QUIZ: 'クイズ', STUDY: '勉強', VIDEO: 'ビデオ', STATS: '成績', SETUP: '設定', MAP: '地図', RANK: '昇段', NEW: '新雀士', END: '対局終了',
-    'リーチ': 'リーチ!', 'ポン': 'ポン!', 'チー': 'チー!', 'カン': 'カン!', 'ロン': 'ロン!', 'ツモ': 'ツモ!', DRAW: '流局', WIN: '勝ち!', LOSE: '負け', COMEBACK: '逆転!', CUTIN: '必殺!', RANKUP: '昇段!', RIICHI: 'リーチ中', WARN: '警戒!' };
+    'リーチ': 'リーチ!', 'ポン': 'ポン!', 'チー': 'チー!', 'カン': 'カン!', 'ロン': 'ロン!', 'ツモ': 'ツモ!', DRAW: '流局', WIN: '勝ち!', LOSE: '負け', COMEBACK: '逆転!', CUTIN: '必殺!', RANKUP: '昇段!', RIICHI: 'リーチ中', WARN: '警戒!', QOK: '正解!', QNEAR: 'おしい', QNG: 'ちがう' };
   /* OLED-JP-END */
   /* ---------- ずんだもんの進化(OLED用): 遊び方を、回数で数えて 姿をきめる。 数は「累計」のまま消さず、周(350回ごと)の はじめの数との差で 周ごとの遊び方を見る ---------- */
   let petC = null;
@@ -2959,6 +2959,7 @@
     else if (m === 'quiz' || m === 'learn' || m === 'study' || m === 'dict' || m === 'howto' || m === 'diag') { scene = m === 'quiz' ? 'QUIZ' : 'STUDY'; pose = 'teach'; }
     else if (m === 'video') { scene = 'VIDEO'; pose = 'watch'; } else if (m === 'stats') { scene = 'STATS'; pose = 'think'; }
     else if (m === 'settings' || m === 'dbg' || m === 'rules' || m === 'promo' || m === 'slots' || m === 'credits') { scene = 'SETUP'; pose = 'think'; }
+    if (m === 'quiz' && S.quiz) { const q = S.quiz; try { if (q.phase === 'res' && q.res) { if (q.res.r === 'ok') { pose = 'celebrate'; msg = 'QOK'; } else if (q.res.r === 'near') { pose = 'think2'; msg = 'QNEAR'; } else { pose = 'sad'; msg = 'QNG'; } } else if (q.phase === 'end') { pose = (q.total ? q.ok / q.total : 0) >= 0.6 ? 'celebrate' : 'calm'; msg = pose === 'celebrate' ? 'WIN' : ''; } } catch (e) { /* ignore */ } } // クイズ: 正解で喜ぶ / おしい / ちがう で表情
     if (g && (m === 'game' || S.result || S.end || S.rankP)) {
       scene = 'GAME'; pose = 'watch';
       if (S.self) pose = 'think';
