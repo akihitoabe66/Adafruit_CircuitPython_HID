@@ -7,7 +7,7 @@
  環境変数: MJOLED_BUS(i2cの番号。 なければ自動) MJOLED_ADDR(0x3C) MJOLED_H(64 か 32) MJOLED_DRV(ssd1306 か sh1106)
            MJOLED_FLIP=1(上下左右を逆に) MJOLED_FPS(3) MJOLED_FILE(/dev/shm/mj_oled.txt)
  試験用: python3 mjoled.py --selftest(画面の絵を文字で出す) / --demo(ゲームなしで、場面を順に見せる) / --dry(I2Cなし)"""
-import fcntl, glob, os, sys, time
+import fcntl, glob, os, subprocess, sys, time
 
 try:
     from oled_sprites import W as SW_, H as SH_, POSES
@@ -31,6 +31,9 @@ FPS = max(1.0, float(os.environ.get('MJOLED_FPS', '3')))
 STATUS = os.environ.get('MJOLED_FILE', '/dev/shm/mj_oled.txt')
 WIDTH = 128
 PAGES = HEIGHT // 8
+HEALTH = os.environ.get('MJHEALTH_FILE', '/dev/shm/mj_health.txt')
+T_WARN = float(os.environ.get('MJ_TEMP_WARN', '75')); T_DANGER = float(os.environ.get('MJ_TEMP_DANGER', '82'))   # 温度(C): 注意 / 危険(Pi は 80C で 自分で 遅くなり、85C で 強く 遅くなる)
+INA_BUS = int(os.environ.get('MJINA_BUS', '1')); INA_ADDR = int(os.environ.get('MJINA_ADDR', '0x40'), 0)   # 電圧・電流計(INA219 のモジュール)をつけたとき
 COLOFF = 2 if DRV == 'sh1106' else 0   # SH1106 は 132列のうち、左の2列が 見えない
 
 # ---- 5x7 の文字(1文字 = 縦の5列。 下位ビットが上) ----
@@ -105,6 +108,7 @@ class Screen:
                     for r in range(7):
                         if (col >> r) & 1: self._set(x + c, y + 4 + r, 0 if inv else 1)
                 x += 6
+    def invert(self): self.buf = [bytearray(x ^ 0xFF for x in b) for b in self.buf]   # 白黒を ぎゃくに(警告のとき ちかちかさせる)
     def box(self, x, y, w, h, on=1):
         for yy in range(y, y + h):
             for xx in range(x, x + w): self._set(xx, yy, on)
@@ -170,6 +174,99 @@ def sysinfo():
     _cache['v'] = (t, la, mem, sw, psi, gm); _cache['t'] = now
     return _cache['v']
 
+
+# ---------- 温度・電源の見はり ----------
+_ina = {'fd': None, 'next': 0.0}
+def ina_read():
+    """(電圧V, 電流A)。 INA219 がつながっていなければ (None, None)。 モジュールの シャント抵抗 0.1Ω が前提"""
+    now = time.time()
+    try:
+        if _ina['fd'] is None:
+            if now < _ina['next']: return None, None
+            _ina['next'] = now + 30
+            fd = os.open('/dev/i2c-%d' % INA_BUS, os.O_RDWR); fcntl.ioctl(fd, I2C_SLAVE, INA_ADDR)
+            os.write(fd, bytes([0x00]) + bytes([0x39, 0x9F]))   # 設定: 32V・±320mV・12bit(ふつうの値)
+            _ina['fd'] = fd
+        fd = _ina['fd']
+        def rd(reg):
+            os.write(fd, bytes([reg])); b = os.read(fd, 2); return (b[0] << 8) | b[1]
+        sh = rd(0x01); bv = rd(0x02)
+        if sh & 0x8000: sh -= 0x10000
+        return ((bv >> 3) * 0.004), abs(sh) * 0.0001   # 1目盛 = 10uV → 0.1Ω で 0.1mA
+    except Exception:
+        if _ina['fd'] is not None:
+            try: os.close(_ina['fd'])
+            except Exception: pass
+            _ina['fd'] = None
+        return None, None
+
+_hc = {'t': 0, 'v': None, 'thr': 0, 'thr_t': 0}
+_hs = {'lowv_since': None, 'lowina_since': None}
+def throttled():
+    """vcgencmd get_throttled と同じ値。 bit0=いま電圧が低い bit1=周波数を制限 bit2=いま遅くしている bit3=温度で制限 / bit16〜19=それまでに起きた"""
+    now = time.time()
+    if now - _hc['thr_t'] < 3.0: return _hc['thr']
+    _hc['thr_t'] = now; v = None
+    for pth in ('/sys/devices/platform/soc/soc:firmware/get_throttled', '/sys/devices/platform/soc/soc:firmware/raspberrypi-hwmon/hwmon0/in0_lcrit_alarm'):
+        try:
+            with open(pth) as f: v = int(f.read().strip(), 0); break
+        except Exception: pass
+    if v is None:
+        try: v = int(subprocess.check_output(['vcgencmd', 'get_throttled'], timeout=1.5).decode().split('=')[1], 16)
+        except Exception: v = _hc['thr']
+    _hc['thr'] = v; return v
+
+def health():
+    """{'level': 0(ふつう)/1(注意)/2(危険), 'temp': C, 'volt': V か None, 'amp': A か None, 'low': 電圧低下, 'why': 理由}。 2秒に1回だけ 読む"""
+    now = time.time()
+    if _hc['v'] is not None and now - _hc['t'] < 2.0: return _hc['v']
+    temp = None
+    try:
+        with open('/sys/class/thermal/thermal_zone0/temp') as f: temp = int(f.read()) / 1000.0
+    except Exception: pass
+    thr = throttled(); volt, amp = ina_read()
+    low = bool(thr & 0x1)   # いま、電源の電圧が 4.63V より低い
+    if low:
+        if _hs['lowv_since'] is None: _hs['lowv_since'] = now
+    else: _hs['lowv_since'] = None
+    if volt is not None and volt < 4.6:
+        if _hs['lowina_since'] is None: _hs['lowina_since'] = now
+    else: _hs['lowina_since'] = None
+    level, why = 0, ''
+    if temp is not None and temp >= T_WARN: level, why = 1, 'HOT'
+    if thr & 0x8 or thr & 0x4: level, why = max(level, 1), why or 'SLOW'
+    if low or (volt is not None and volt < 4.75): level, why = max(level, 1), 'LOWV'
+    if amp is not None and amp > 2.0: level, why = max(level, 1), why or 'AMP'
+    if temp is not None and temp >= T_DANGER: level, why = 2, 'HOT'
+    if _hs['lowv_since'] is not None and now - _hs['lowv_since'] >= 8: level, why = 2, 'LOWV'    # 電圧低下が 8秒つづく
+    if _hs['lowina_since'] is not None and now - _hs['lowina_since'] >= 3: level, why = 2, 'LOWV'
+    h = {'level': level, 'temp': temp, 'volt': volt, 'amp': amp, 'low': low, 'thr': thr, 'why': why}
+    _hc['v'] = h; _hc['t'] = now
+    try:   # ゲームなど ほかのプログラムが 読めるように
+        tmp = HEALTH + '.tmp'
+        with open(tmp, 'w') as f: f.write('level=%d\ntemp=%s\nvolt=%s\namp=%s\nthr=%d\nwhy=%s\n' % (level, '%.1f' % temp if temp is not None else '', '%.2f' % volt if volt is not None else '', '%.2f' % amp if amp is not None else '', thr, why))
+        os.replace(tmp, HEALTH)
+    except Exception: pass
+    return h
+
+def pwr_row(h):
+    """温度と電源の1行(14文字まで)"""
+    t = ('T%dC' % round(h['temp'])) if h['temp'] is not None else 'T--'
+    if h['volt'] is not None and h['amp'] is not None: return ('%s %.1fV %.2fA' % (t[:-1], h['volt'], h['amp']))[:14]
+    return t + (' LOW-V!' if h['low'] else ' PWR OK')
+
+def compose_danger(scr, h, tick):
+    """危険の画面: ちかちか白黒が入れかわる。 麻雀先生が「電源を切って!」"""
+    scr.clear()
+    a, b = POSE['err'] if tick % 2 == 0 else POSE['angry']
+    scr.sprite(a if (tick % 2 == 0) else b, 0, 8 if PAGES >= 7 else 0)
+    scr.text16('危険!', TEXT_X, 0, inv=True)
+    if h['why'] == 'LOWV': scr.text16('電圧が', TEXT_X, 18); scr.text16('たりない', TEXT_X, 34)
+    else: scr.text16('熱すぎ!', TEXT_X, 18); scr.text16('切って!', TEXT_X, 34)
+    scr.text(pwr_row(h)[:14], TEXT_X, 54)
+    if tick % 2 == 1: scr.invert()
+    return scr
+
 def uptime():
     try:
         with open('/proc/uptime') as f: return float(f.read().split()[0])
@@ -183,6 +280,8 @@ ROW_Y = 18   # 数字の行の はじまり(上の16ドットは 日本語の見
 def compose(scr, d, age, tick, ever_alive=False):
     """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
     起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてね」を出す"""
+    h = health()
+    if h['level'] >= 2: return compose_danger(scr, h, tick)
     scr.clear()
     scene = d.get('scene', '') if d else ''
     final = d is not None and d.get('scene') in ('EXIT', 'MAINT')   # ゲームが 終わった印(時間がたっても そのまま出す)
@@ -206,19 +305,20 @@ def compose(scr, d, age, tick, ever_alive=False):
     elif alive and final:
         if d.get('scene') == 'EXIT': scr.text16('終了', TEXT_X, 0, inv=True); scr.text16('電源を', TEXT_X, 18); scr.text16('抜いてね', TEXT_X, 34)
         else: scr.text16('保守', TEXT_X, 0, inv=True); rows_at(24, ['CTRL+Q', 'READY'])
-        rows_at(54, ['T' + t + ' F' + mem])
+        rows_at(54, [pwr_row(h)])
     elif alive:
         msg = d.get('msg', '')
-        if msg: scr.text16(msg[:5], TEXT_X, 0, inv=True)
+        if h['level'] == 1 and tick % 2 == 0: scr.text16('高温' if h['why'] == 'HOT' else '電圧' if h['why'] == 'LOWV' else '注意!', TEXT_X, 0, inv=True)   # 注意: 見出しが ときどき 警告に かわる
+        elif msg: scr.text16(msg[:5], TEXT_X, 0, inv=True)
         else: scr.text16(scene[:5], TEXT_X, 0)
-        rows = ['SPD ' + num(d, 'spd', 'FPS'), 'DRAW ' + num(d, 'draw') + ' MAX ' + num(d, 'max'), 'KEY ' + num(d, 'key', 'MS') + ' T' + t,
-                'FREE ' + mem + ' SW ' + sw + 'M', 'G' + num(d, 'rss', '', gm) + ' MIN' + num(d, 'minav') + ' P' + psi]
-        if d.get('audio') not in (None, '', 'ok'): rows[4] = 'AUDIO STOP'
+        rows = ['SPD ' + num(d, 'spd', 'FPS'), 'DRAW ' + num(d, 'draw') + ' MAX ' + num(d, 'max'), 'KEY ' + num(d, 'key', 'MS'),
+                pwr_row(h), 'FREE ' + mem + ' SW ' + sw + 'M']
+        if d.get('audio') not in (None, '', 'ok'): rows[2] = 'AUDIO STOP'
         rows_at(ROW_Y, rows)
     else:
         if ever_alive: scr.text16('停止!', TEXT_X, 0, inv=True)
         else: scr.text16('待機中', TEXT_X, 0)
-        rows_at(ROW_Y + 4, ['TEMP ' + t, 'LOAD ' + la, 'FREE ' + mem + ' SW ' + sw + 'M'])
+        rows_at(ROW_Y + 4, [pwr_row(h), 'LOAD ' + la, 'FREE ' + mem + ' SW ' + sw + 'M'])
     return scr
 
 # ---------- I2C ----------
