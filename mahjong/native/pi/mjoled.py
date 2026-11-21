@@ -497,7 +497,12 @@ def pet_gauge_page(scr, d, plays, tick):
     for i, (nm, val, fr) in enumerate((('あそんだ', plays, min(1.0, plays / 500.0)), ('クイズ', qc, min(1.0, qc / 100.0)), ('だんい', None, dan / 11.0))):
         y = i * 21
         if nm in PLAB: scr.bitmap(PLAB[nm][0], PLAB[nm][1], PLAB[nm][2], 0, y)
-        if val is not None: scr.text(str(val), 68, y + 4)
+        if nm == 'クイズ' and d.get('ql', '') != '' and val is not None:   # クイズの級(0=はじめ 1〜10=10級〜1級 11=師範)
+            ql = pet_int(d, 'ql'); x = 68
+            if ql >= 11 and '師範' in PLAB: scr.bitmap(PLAB['師範'][0], PLAB['師範'][1], PLAB['師範'][2], x, y)
+            elif 1 <= ql <= 10 and '級' in PLAB: x = pet_num(scr, 11 - ql, x, y); scr.bitmap(PLAB['級'][0], PLAB['級'][1], PLAB['級'][2], x, y)
+            scr.text(str(val), 108, y + 4)
+        elif val is not None: scr.text(str(val), 68, y + 4)
         else:
             dn = PJOBS_DAN[dan]
             if dn in PLAB: scr.bitmap(PLAB[dn][0], PLAB[dn][1], PLAB[dn][2], 68, y)

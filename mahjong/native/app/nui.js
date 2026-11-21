@@ -1567,16 +1567,45 @@
     tags.forEach((t, i) => { const g = catGen(t); if (!g) return; const w = ws[i] + (boost && boost.includes(t) ? 6 : 0); for (let k = 0; k < w; k++) g.forEach((f) => out.push(f)); });
     return out;
   }
+  /* ---------- 麻雀クイズの級・分野の星(正解の累計。 時計は使わない) ---------- */
+  const QL_TH = [10, 30, 60, 100, 150, 220, 300, 400, 520, 650], QL_SH = 800, QL_STEP = 150, QCS = [10, 25, 50, 90, 150];
+  const QCAT_N = { eff: '牌効率', def: '守備', call: '鳴き', yaku: '役', wait: '待ち', push: '押し引き', riichi: 'リーチ', keep: '保留' };
+  let qlC = null;
+  function qlLoad() { if (qlC) return qlC; try { const v = JSON.parse(localStorage.getItem('mj_ql')); if (v && typeof v.c === 'number') qlC = v; } catch (e) { /* ignore */ } if (!qlC) qlC = { c: 0, t: {}, bs: 0 }; return qlC; }
+  function qlSave() { try { localStorage.setItem('mj_ql', JSON.stringify(qlC)); } catch (e) { /* ignore */ } }
+  function qlInfo(c) { // 級: はじめ → 10級〜1級 → 師範(星が ふえつづける)
+    let k = 0; QL_TH.forEach((t, i) => { if (c >= t) k = i + 1; }); const sh = c >= QL_SH, stars = sh ? Math.floor((c - QL_SH) / QL_STEP) : 0;
+    const prev = sh ? QL_SH + stars * QL_STEP : (k === 0 ? 0 : QL_TH[k - 1]), next = sh ? QL_SH + (stars + 1) * QL_STEP : (k < 10 ? QL_TH[k] : QL_SH);
+    return { k, sh, stars, name: sh ? '師範' : k === 0 ? 'はじめ' : (11 - k) + '級', left: next - c, prog: Math.max(0, Math.min(1, (c - prev) / (next - prev))), nextName: sh ? '星' + (stars + 1) + '個' : k < 10 ? (10 - k) + '級' : '師範' };
+  }
+  const qcStars = (n) => { let st = 0; QCS.forEach((t) => { if (n >= t) st++; }); const gold = n >= 150 ? Math.min(5, Math.floor((n - 150) / 100)) : 0; return { st, gold, tot: st + gold }; };
+  function qlAnswer(q, p, ok) { // 麻雀クイズ(級のあるもの)で 1問答えたとき
+    const D = qlLoad(); q.ev = q.ev || []; q.lvq = q.lvq || []; q.evNow = '';
+    if (!ok) { q.run = 0; return; }
+    q.run = (q.run || 0) + 1; if (q.run > (q.bestRun || 0)) q.bestRun = q.run;
+    const b = qlInfo(D.c); D.c++; const a = qlInfo(D.c); let xp = 0;
+    if (a.sh && !b.sh) { q.lvq.push({ t: 'sh' }); xp += 5; q.evNow = '師範に なったのだ！'; } else if (a.sh && a.stars > b.stars) { q.lvq.push({ t: 'ss', n: a.stars }); xp += 1; q.evNow = '師範の 星が ふえたのだ！'; } else if (!a.sh && a.k > b.k) { q.lvq.push({ t: 'lv', name: a.name }); xp += 3; q.evNow = a.name + ' に なったのだ！'; }
+    const tg = (typeof MJ.Stats.tag === 'function') ? MJ.Stats.tag(p) : ''; if (QCAT_N[tg]) { const n0 = D.t[tg] || 0, n1 = n0 + 1; D.t[tg] = n1; if (qcStars(n1).tot > qcStars(n0).tot) { q.ev.push({ tag: tg }); if (!q.evNow) q.evNow = QCAT_N[tg] + ' の 星が ふえたのだ！'; } }
+    if (q.run > (D.bs || 0)) D.bs = q.run; qlSave();
+    if (xp) { try { q.xp = (q.xp || 0) + MJ.Rank.addXp(xp); } catch (e) { /* ignore */ } }
+  }
+  const QL_TIER = { yaku: 0, eff: 0, def: 1, wait: 1, call: 1, keep: 1, push: 2, riichi: 2 }; // 問題の種類ごとの 難しさ: 0=易 1=中 2=難
+  function qlShare() { const i = qlInfo(qlLoad().c); return i.sh ? [30, 50, 20] : i.k <= 4 ? [80, 20, 0] : i.k <= 7 ? [50, 40, 10] : [35, 50, 15]; } // 級に合わせた 易/中/難 の割合(難は 最大2割)
+  function qlGens(tags, boost) { // 苦手な種類ほど多く出しつつ、級に合わせて 難しい種類の割合をおさえる
+    const ws = MJ.Stats.weights(tags), sh = qlShare(), out = [], tot = [0, 0, 0]; tags.forEach((t, i) => { const tr = QL_TIER[t]; if (tr != null) tot[tr] += ws[i] + (boost && boost.includes(t) ? 6 : 0); });
+    tags.forEach((t, i) => { const g = catGen(t); if (!g) return; const tr = QL_TIER[t], base = ws[i] + (boost && boost.includes(t) ? 6 : 0); const w = tr == null ? base : (tot[tr] > 0 ? Math.round(sh[tr] * base / tot[tr] * 0.4) : 0); for (let k = 0; k < w; k++) g.forEach((f) => out.push(f)); });
+    return out.length ? out : weightedGens(tags, boost);
+  }
   function startPractice() { // 苦手な種類を、多めに出すクイズ
     const weak = MJ.Stats.weakest(2, 3), tags = RCATS.concat(weak.filter((t) => !RCATS.includes(t)));
-    startQuiz({ title: weak.length ? '苦手をねらい撃ち' : '麻雀クイズ', gens: () => weightedGens(tags, weak), n: 10 });
+    startQuiz({ title: weak.length ? '苦手をねらい撃ち' : '麻雀クイズ', gens: () => qlGens(tags, weak), n: 10, rank: true });
   }
   function startQuiz(opts) { // opts: { title, gens, n, onEnd(ok, n) }
-    S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd }); quizNext(); dirty();
+    S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd, rank: !!opts.rank }); if (opts.rank) { S.quiz.phase = 'intro'; dirty(); return; } quizNext(); dirty();
   }
   function quizNext() {
     const q = S.quiz; if (!q) return;
-    if (q.n >= q.total) { q.phase = 'end'; dirty(); return; }
+    if (q.n >= q.total) { if (q.rank && q.lvq && q.lvq.length) { q.phase = 'lvup'; q.lvi = 0; NSND.sfx('slam'); } else q.phase = 'end'; dirty(); return; }
     q.phase = 'gen'; q.p = null; q.res = null; q.scroll = 0; q.idx = 0; dirty();
     setTimeout(() => {
       if (S.mode !== 'quiz' || S.quiz !== q) return;
@@ -1614,7 +1643,7 @@
     const q = S.quiz, p = q.p; let r = null;
     try { r = p.grade(ans); } catch (e) { print('quiz grade err ' + (e && e.stack || e)); r = { r: 'ng', html: '<p>採点できませんでした。</p>' }; }
     try { MJ.Stats.quiz(p, r.r === 'ok'); } catch (e) { /* ignore */ }
-    q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7); q.wrongRun = r.r === 'ng' ? (q.wrongRun || 0) + 1 : 0; r.alt = r.r === 'ng' && q.wrongRun % 2 === 0; // つづけて まちがえたとき、2回目は「ちがうよ」(同じ声ばかりにならないように)
+    q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; try { if (q.rank) qlAnswer(q, p, r.r === 'ok'); } catch (e) { print('ql err ' + e); } NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7); q.wrongRun = r.r === 'ng' ? (q.wrongRun || 0) + 1 : 0; r.alt = r.r === 'ng' && q.wrongRun % 2 === 0; // つづけて まちがえたとき、2回目は「ちがうよ」(同じ声ばかりにならないように)
     setTimeout(() => { try { const kq = 'q:' + (r.r === 'ok' ? '正解' : r.r === 'near' ? 'おしい' : r.alt ? 'ちがうよ' : '不正解'), nk = Math.random() < 0.3 ? NSND.nd(r.r === 'ok' ? 'bright' : r.r === 'near' ? 'flat' : 'firm') : null; NSND.speak(nk ? [kq, '.', nk] : [kq]); } catch (e) { /* ignore */ } }, 500); // 答え合わせの声(「なのだ」は30%。正解は明るい2・おしいはフラット3・まちがいは言い切り1。声が終わってから)
     { // 解説は、入りきる大きさの字で出す。長いときは、おまけの説明(小さな注)と、うしろの段落を はぶいて、スクロールさせない
       const paras = mark(String(r.html).replace(/<div class="cc-s">[\s\S]*?<\/div>/g, '')).split('\n').filter((x) => x.trim() !== '');
@@ -1631,8 +1660,10 @@
       else if (k === 'ok') { const go = q.confirm.idx === 1; q.confirm = null; if (go) { const o = q.onEnd; S.quiz = null; if (o) o(q.ok, q.total, false); else S.mode = 'menu'; } }
       dirty(); return;
     }
-    if (k === 'back') { if (q.phase === 'end') { quizClose(); return; } q.confirm = { idx: 0 }; dirty(); return; }
+    if (k === 'back') { if (q.phase === 'end' || q.phase === 'intro') { quizClose(); return; } q.confirm = { idx: 0 }; dirty(); return; }
     if (q.phase === 'gen') return;
+    if (q.phase === 'intro') { if (k === 'ok') quizNext(); else if (k === 'back') quizClose(); dirty(); return; }
+    if (q.phase === 'lvup') { if (k === 'ok') { q.lvi++; if (q.lvi >= q.lvq.length) q.phase = 'end'; else NSND.sfx('slam'); } dirty(); return; }
     if (q.phase === 'fail') { if (k === 'ok') quizNext(); return; }
     if (q.phase === 'end') { if (k === 'ok') quizClose(); return; }
     if (q.phase === 'ask') {
@@ -1655,18 +1686,37 @@
   function drawQuiz() {
     const q = S.quiz; const p = q.p;
     if (q.phase === 'gen') { quizFrame(q.title, '', '', ''); text('問題を作っています…', SW / 2, 200, 28, WHITE, 1); return; }
+    if (q.phase === 'intro') { // はじめる前: いまの級と、分野ごとの星
+      const D = qlLoad(), I = qlInfo(D.c); quizFrame(q.title, '', '', '決定ボタンで はじめる(10問)  /  戻るボタンで もどる');
+      panel(60, 62, SW - 120, 92, 14, [6, 36, 24], [150, 190, 140], 3, 235); text('あなたの級', 90, 70, 22, [210, 225, 205]); text(I.name, 90, 98, 44, YEL);
+      text(I.sh ? '次の星まで あと ' + I.left + '問' : I.nextName + ' まで あと ' + I.left + '問', SW - 90, 74, 22, WHITE, 2);
+      fill(280, 112, SW - 370, 22, [8, 24, 18]); frame(280, 112, SW - 370, 22, [150, 190, 140], 2); fill(282, 114, Math.max(0, Math.round((SW - 374) * I.prog)), 18, YEL);
+      if (I.sh) text('★ ' + I.stars, 190, 100, 30, YEL);
+      RCATS.forEach((t, i) => { const x = 60 + (i % 4) * ((SW - 120 + 12) / 4), y = 172 + Math.floor(i / 4) * 100, w = (SW - 120 + 12) / 4 - 12, cs = qcStars(D.t[t] || 0);
+        panel(x, y, w, 88, 12, [6, 36, 24], [150, 190, 140], 2, 235); text(QCAT_N[t], x + w / 2, y + 6, 24, WHITE, 1);
+        let line = ''; for (let j = 0; j < 5; j++) line += j < cs.st ? '★' : '☆'; text(line, x + w / 2, y + 40, 24, cs.st ? YEL : [110, 150, 130], 1); if (cs.gold) text('金の星 ' + cs.gold, x + w / 2, y + 64, 16, [255, 190, 60], 1); });
+      text('分野ごとの星は、その分野の正解が ふえると ふえます', SW / 2, 384, 18, [190, 215, 195], 1); return;
+    }
+    if (q.phase === 'lvup') { // 級・師範の認定
+      const e = q.lvq[q.lvi] || {}; quizFrame('級の認定', '', '', '決定ボタンで すすむ'); panel(150, 80, SW - 300, 270, 16, [10, 50, 36], [255, 220, 40], 5, 245);
+      text(e.t === 'lv' ? 'あなたは' : e.t === 'sh' ? 'おめでとう' : '師範の星', SW / 2, 110, 26, [210, 225, 205], 1); text(e.t === 'lv' ? e.name : e.t === 'sh' ? '師範' : '★ ' + e.n + ' 個', SW / 2, 160, 84, YEL, 1);
+      text(e.t === 'lv' ? 'に なりました' : e.t === 'sh' ? 'に なりました' : 'に なりました', SW / 2, 270, 26, WHITE, 1);
+      text('経験値 ' + (e.t === 'lv' ? '+3' : e.t === 'sh' ? '+5' : '+1') + ' 点', SW / 2, 308, 22, [255, 190, 150], 1); tFace('ok', 'lv' + q.lvi, SW - 230, 250, 150); return;
+    }
     if (q.phase === 'fail') { quizFrame(q.title, '', '', ''); text('問題を作れませんでした', SW / 2, 180, 26, WHITE, 1); text('決定ボタンで もう一度', SW / 2, 230, 20, GREY, 1); return; }
     if (q.phase === 'end') {
       const pass = q.ok >= Math.ceil(q.total * 0.8);
       quizFrame(q.title, '', '', '決定ボタンで すすむ'); text('おつかれさまでした', SW / 2, 80, 34, YEL, 1); text(q.total + '問中  ' + q.ok + '問  せいかい', SW / 2, 150, 44, WHITE, 1);
       tFace(pass ? 'ok' : 'cheer', 'qe' + q.total + q.ok, SW - 240, 250, 170);
+      if (q.rank) { const I = qlInfo(qlLoad().c), ns = (q.ev || []).length; text('つづけて 正解  ' + (q.bestRun || 0) + '問' + ((q.bestRun || 0) >= (qlLoad().bs || 0) && (q.bestRun || 0) > 0 ? '  (自己ベスト)' : ''), 60, 296, 22, WHITE); text(I.name + (I.sh ? '(★' + I.stars + ')' : '') + '   ' + (I.sh ? '次の星' : I.nextName) + ' まで あと ' + I.left + '問', 60, 332, 22, [210, 225, 205]);
+        if (ns) text((q.ev || []).slice(0, 2).map((x) => QCAT_N[x.tag] + 'の星').join('・') + ' が ふえたのだ！', 60, 368, 22, YEL); if (q.xp) text('経験値 +' + q.xp + ' 点', 60, 400, 22, [255, 190, 150]); }
       text(q.onEnd && q.learn ? (pass ? 'ごうかく! 「おぼえた」に しました' : 'もう一度 読んで、またチャレンジしましょう') : (q.ok >= 8 ? 'すばらしい! 本格派ですね' : q.ok >= 5 ? 'よくできました' : 'またチャレンジしましょう'), SW / 2, 240, 24, [255, 190, 150], 1); return;
     }
     if (q.phase === 'res') {
       const r = q.res.r, col = r === 'ok' ? [255, 110, 90] : r === 'near' ? [255, 200, 70] : [200, 210, 200];
       quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, '決定ボタンで 次の問題へ');
       rrect(36, 62, 120, 44, 12, r === 'ok' ? QRED : r === 'near' ? [210, 140, 20] : [100, 110, 100]); text(r === 'ok' ? '正解' : r === 'near' ? 'おしい' : q.res.alt ? 'ちがうよ' : 'ハズレ', 96, 70, 28, WHITE, 1);
-      text(r === 'ok' ? 'よくできました!' : r === 'near' ? 'あと一歩です' : '解説を読んで、覚えましょう', 176, 70, 26, col);
+      if (q.evNow) text(q.evNow, 176, 70, 26, YEL); else text(r === 'ok' ? 'よくできました!' : r === 'near' ? 'あと一歩です' : '解説を読んで、覚えましょう', 176, 70, 26, col);
       tFace(r === 'ok' ? 'ok' : r === 'near' ? 'cheer' : 'pass', 'r' + q.n + (q.title || ''), SW - 118, 52, 78); // 麻雀先生
       panel(24, 132, SW - 48, 258, 14, [6, 28, 18], [140, 190, 130], 3, 235); rrect(44, 118, 86, 30, 14, [60, 130, 60]); text('解説', 87, 120, 20, WHITE, 1);
       gfx.clip(30, 138, SW - 60, 246); richDraw(q.rlines.slice(q.scroll), 48, 148, q.rsz, WHITE, 0); gfx.clip();
@@ -2533,7 +2583,7 @@
       else if (k === 'ok') {
         const it = items[S.menuIdx]; if (!it || it.off) return;
         if (it.act === 'play') later(() => { tl('play-pressed'); const l = slotRead(); tl('slots-read'); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else S.teachQ = { idx: teacherOn() ? 1 : 0, snap: null }; });
-        else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => weightedGens(RCATS), n: 10 }));
+        else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => qlGens(RCATS), n: 10, rank: true }));
         else if (it.act === 'study') later(() => startStudy());
         else if (it.act === 'settings') later(() => { S.mode = 'settings'; S.setIdx = 0; });
       }
@@ -2925,7 +2975,7 @@
   /* ---------- OLED(別の小さな画面)用の状態: 場面に合わせて 麻雀先生のポーズを選び、フレームレートなどと一緒に /tmp/mj_oled.txt へ(native/pi/mjoled.py が読む) ---------- */
   /* OLED-JP-BEGIN */
   const OLED_JP = { BOOT: '起動中', TITLE: 'タイトル', HOME: 'ホーム', GAME: '対局', RESULT: '結果', QUIZ: 'クイズ', STUDY: '勉強', VIDEO: 'ビデオ', STATS: '成績', SETUP: '設定', MAP: '地図', RANK: '昇段', NEW: '新雀士', END: '対局終了',
-    'リーチ': 'リーチ!', 'ポン': 'ポン!', 'チー': 'チー!', 'カン': 'カン!', 'ロン': 'ロン!', 'ツモ': 'ツモ!', DRAW: '流局', WIN: '勝ち!', LOSE: '負け', COMEBACK: '逆転!', CUTIN: '必殺!', RANKUP: '昇段!', RIICHI: 'リーチ中', WARN: '警戒!', QOK: '正解!', QNEAR: 'おしい', QNG: 'ちがう' };
+    'リーチ': 'リーチ!', 'ポン': 'ポン!', 'チー': 'チー!', 'カン': 'カン!', 'ロン': 'ロン!', 'ツモ': 'ツモ!', DRAW: '流局', WIN: '勝ち!', LOSE: '負け', COMEBACK: '逆転!', CUTIN: '必殺!', RANKUP: '昇段!', RIICHI: 'リーチ中', WARN: '警戒!', QOK: '正解!', QNEAR: 'おしい', QNG: 'ちがう', LVUP: '昇級!' };
   /* OLED-JP-END */
   /* ---------- ずんだもんの進化(OLED用): 遊び方を、回数で数えて 姿をきめる。 数は「累計」のまま消さず、周(350回ごと)の はじめの数との差で 周ごとの遊び方を見る ---------- */
   let petC = null;
@@ -2950,7 +3000,8 @@
     if (cp >= 100 && !P.f1) { P.f1 = petBest(petScores(n, b)); petSave(); }
     if (cp >= 300 && P.f1 && P.f2 < 0) { const g = Math.max(1, n.g - b.g); P.f2 = ((n.sr - b.sr) / g) <= 2.5 ? 0 : 1; petSave(); } // かちぐせ(平均順位 2.5位より上) / まけぐせ
     let lean = ''; if (!P.f1 && cp >= 80) lean = petBest(petScores(n, b)); else if (P.f1 && P.f2 < 0 && cp >= 250) lean = ((n.sr - b.sr) / Math.max(1, n.g - b.g)) <= 2.5 ? 'win' : 'lose'; // 分かれ道の前の ヒント
-    return 'cp=' + cp + '\ncyc=' + P.cyc + '\nf1=' + P.f1 + '\nf2=' + P.f2 + '\nlean=' + lean + '\n';
+    let ql = ''; try { const qi = qlInfo(qlLoad().c); ql = 'ql=' + (qi.sh ? 11 : qi.k) + '\nqs=' + qi.stars + '\n'; } catch (e) { /* ignore */ }
+    return ql + 'cp=' + cp + '\ncyc=' + P.cyc + '\nf1=' + P.f1 + '\nf2=' + P.f2 + '\nlean=' + lean + '\n';
   }
   let bootN = 0; try { bootN = (parseInt(localStorage.getItem('mj_boots'), 10) || 0) + 1; localStorage.setItem('mj_boots', String(bootN)); } catch (e) { /* ignore */ } // 電源を入れた回数(時計がないので、季節やペットは、回数で決める)
   function oledState() {
@@ -2959,7 +3010,7 @@
     else if (m === 'quiz' || m === 'learn' || m === 'study' || m === 'dict' || m === 'howto' || m === 'diag') { scene = m === 'quiz' ? 'QUIZ' : 'STUDY'; pose = 'teach'; }
     else if (m === 'video') { scene = 'VIDEO'; pose = 'watch'; } else if (m === 'stats') { scene = 'STATS'; pose = 'think'; }
     else if (m === 'settings' || m === 'dbg' || m === 'rules' || m === 'promo' || m === 'slots' || m === 'credits') { scene = 'SETUP'; pose = 'think'; }
-    if (m === 'quiz' && S.quiz) { const q = S.quiz; try { if (q.phase === 'res' && q.res) { if (q.res.r === 'ok') { pose = 'celebrate'; msg = 'QOK'; } else if (q.res.r === 'near') { pose = 'think2'; msg = 'QNEAR'; } else { pose = 'sad'; msg = 'QNG'; } } else if (q.phase === 'end') { pose = (q.total ? q.ok / q.total : 0) >= 0.6 ? 'celebrate' : 'calm'; msg = pose === 'celebrate' ? 'WIN' : ''; } } catch (e) { /* ignore */ } } // クイズ: 正解で喜ぶ / おしい / ちがう で表情
+    if (m === 'quiz' && S.quiz) { const q = S.quiz; try { if (q.phase === 'lvup') { pose = 'celebrate'; msg = 'LVUP'; } else if (q.phase === 'res' && q.res) { if (q.res.r === 'ok') { pose = 'celebrate'; msg = 'QOK'; } else if (q.res.r === 'near') { pose = 'think2'; msg = 'QNEAR'; } else { pose = 'sad'; msg = 'QNG'; } } else if (q.phase === 'end') { pose = (q.total ? q.ok / q.total : 0) >= 0.6 ? 'celebrate' : 'calm'; msg = pose === 'celebrate' ? 'WIN' : ''; } } catch (e) { /* ignore */ } } // クイズ: 正解で喜ぶ / おしい / ちがう で表情
     if (g && (m === 'game' || S.result || S.end || S.rankP)) {
       scene = 'GAME'; pose = 'watch';
       if (S.self) pose = 'think';

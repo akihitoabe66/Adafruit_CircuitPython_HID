@@ -127,6 +127,11 @@
       }
       save(RK, s); if (note) R.notify(note);
     },
+    /* クイズの級・星が上がったときの経験値。 段位は、対局でだけ 上がる(次の段位の1点手前まで)。 入った点を返す */
+    addXp(pt) {
+      const s = R.get(), nx = DAN[s.dan + 1], room = nx && nx[1] < 99999 ? Math.max(0, nx[1] - 1 - s.pt) : pt, give = Math.max(0, Math.min(pt, room));
+      if (give) { s.pt += give; save(RK, s); } return give;
+    },
     /* 点数計算の勉強のチャレンジに正解したとき: 各カテゴリの最初の1回だけ+3点 */
     studyOk(cat) {
       const s = R.get(); if (!cat || s.st[cat]) return;
