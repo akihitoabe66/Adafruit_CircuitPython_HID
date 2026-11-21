@@ -51,8 +51,8 @@ static SDL_Texture *getimg(const char *path, int *w, int *h){
   if (nimg >= NIMG) return NULL;
   char full[1400]; if (path[0] == '/') snprintf(full, sizeof full, "%s", path); else snprintf(full, sizeof full, "%s/%s", root, path); /* 「/」から始まる名前は、そのままの場所(ビデオのサムネイル用) */
   if (!strncmp(path, "img/", 4)) { char alt[1400]; snprintf(alt, sizeof alt, "%s/native/img/%s", root, path + 4); FILE *tf = fopen(alt, "rb"); if (tf) { fclose(tf); strcpy(full, alt); } } /* 実機用に小さくした絵(native/img)が、あれば、そちらを使う */
-  double tl0 = nowms(); SDL_Surface *s = IMG_Load(full); if (!s) { fprintf(stderr, "img? %s (%s)\n", full, IMG_GetError()); return NULL; }
-  SDL_Texture *t = SDL_CreateTextureFromSurface(ren, s); { double d = nowms() - tl0; if (d >= 80) bgm_log("slow-img", d, path); } /* 初めて読む絵が、80ms以上かかったら記録 */
+  double tl0 = nowms(); SDL_Surface *s = IMG_Load(full); if (!s) { fprintf(stderr, "img? %s (%s)\n", full, IMG_GetError()); return NULL; } double tl1 = nowms();
+  SDL_Texture *t = SDL_CreateTextureFromSurface(ren, s); { double d = nowms() - tl0; if (d >= 80) { char nm[260]; snprintf(nm, sizeof nm, "展開=%.0fms 画面用=%.0fms %.150s", tl1 - tl0, nowms() - tl1, path); bgm_log("slow-img", d, nm); } } /* 初めて読む絵が、80ms以上かかったら記録 */
   Ent *e = &imgs[nimg++]; e->hs = hp; strncpy(e->key, path, 199); e->tex = t; e->w = s->w; e->h = s->h; SDL_FreeSurface(s);
   if (w) *w = e->w; if (h) *h = e->h; return t;
 }
@@ -82,8 +82,8 @@ static SDL_Texture *gettext(const char *s, int sz, int r, int g, int b, int *w, 
   unsigned hk = hashs(key);
   for (int i = 0; i < ntxt; i++) if (txts[i].hs == hk && !strcmp(txts[i].key, key)) { *w = txts[i].w; *h = txts[i].h; return txts[i].tex; }
   TTF_Font *f = getfont(sz); if (!f) return NULL;
-  double tl0 = nowms(); SDL_Color c = { r, g, b, 255 }; SDL_Surface *su = TTF_RenderUTF8_Blended(f, s, c); if (!su) return NULL;
-  SDL_Texture *t = SDL_CreateTextureFromSurface(ren, su); { double d = nowms() - tl0; if (d >= 60) { char nm[220]; snprintf(nm, sizeof nm, "%d:%.100s", sz, s); bgm_log("slow-text", d, nm); } } /* 初めての文字が、60ms以上かかったら記録 */
+  double tl0 = nowms(); SDL_Color c = { r, g, b, 255 }; SDL_Surface *su = TTF_RenderUTF8_Blended(f, s, c); if (!su) return NULL; double tl1 = nowms();
+  SDL_Texture *t = SDL_CreateTextureFromSurface(ren, su); { double d = nowms() - tl0; if (d >= 60) { char nm[260]; snprintf(nm, sizeof nm, "raster=%.0fms 画面用=%.0fms %d:%.80s", tl1 - tl0, nowms() - tl1, sz, s); bgm_log("slow-text", d, nm); } } /* 初めての文字が、60ms以上かかったら記録 */
   Ent *e; if (ntxt < NTXT) e = &txts[ntxt++]; else { e = &txts[txtnext]; txtnext = (txtnext + 1) % NTXT; if (e->tex) SDL_DestroyTexture(e->tex); } /* いっぱいになったら、古いものから1つずつ入れ替える(全部捨てて作り直すと、一瞬止まる) */
   e->hs = hk; strncpy(e->key, key, 199); e->tex = t; e->w = su->w; e->h = su->h; SDL_FreeSurface(su);
   *w = e->w; *h = e->h; return t;
