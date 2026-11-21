@@ -554,6 +554,7 @@
         p.score -= 1000;
         this.kyotaku++;
         this.sync();
+        if (MJ.RULES.suchaRiichi && this.players.every((q) => q.riichi)) return { type: 'ron', result: await this.abortDraw('四家立直') }; // 4人全員がリーチ: 流局(親は連荘)
       }
       const callers = decs.filter((x) => ['pon', 'kan', 'chi'].includes(x.d.act));
       callers.sort((a, b) => (a.d.act === 'chi' ? 1 : 0) - (b.d.act === 'chi' ? 1 : 0));

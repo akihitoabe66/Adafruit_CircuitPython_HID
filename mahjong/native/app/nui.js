@@ -59,7 +59,7 @@
   }
   const toggleTeacher = () => { try { localStorage.setItem('mj_teacher', teacherOn() ? '0' : '1'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; if (teacherOn() && S.game && !S.game.watching) { S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); } }; // あいさつは、はじめの1局めか、途中で先生を つけた直後だけ
   const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
-  const COMMON_RULES = { yakitori: false, length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: true, doubleRon: true, sanchahou: true, kuikae: false, kazoe: true, flower: false, start: 25000 }; // 全国的な(一般的な)ルール。ただし赤ドラは、はじめはなし
+  const COMMON_RULES = { yakitori: false, length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: true, doubleRon: true, sanchahou: true, suchaRiichi: false, kuikae: false, kazoe: true, flower: false, start: 25000 }; // 全国的な(一般的な)ルール。ただし赤ドラは、はじめはなし
   try { if (localStorage.getItem('mj_rules_ver') !== '3') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '3'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
   const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz' }, { label: '麻雀の勉強', act: 'study' }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
@@ -734,6 +734,7 @@
     { k: 'ura', label: '裏ドラ', vals: [[true, 'あり'], [false, 'なし']], note: 'リーチして上がると、裏のドラ表示牌をめくります。' },
     { k: 'tobi', label: '飛び(0点より下)', vals: [[true, '終了する'], [false, '続ける']], note: '持ち点が0点より下になったら、ゲームを終わりにするか。' },
     { k: 'doubleRon', label: 'ダブロン', vals: [[true, 'あり'], [false, 'なし(頭ハネ)']], note: '同じ牌で2人が上がれるとき、2人とも上がりにするか。' },
+    { k: 'suchaRiichi', label: '四家立直(全員リーチ)', vals: [[false, '続ける'], [true, '流局にする']], note: '4人全員がリーチをかけたとき、その局を流局にするか。 ふつうは、そのまま続けます。' },
     { k: 'sanchahou', label: '三家和(3人ロン)', vals: [[true, '流局にする'], [false, '3人とも上がる']], note: '3人が同時にロンしたとき、その局を流局にするか。' },
     { k: 'kuikae', label: '喰い替え', vals: [[false, '禁止'], [true, '許可']], note: '鳴いた直後に、同じ(近い)牌を切ること。ふつうは禁止です。' },
     { k: 'kazoe', label: '数え役満', vals: [[true, 'あり'], [false, 'なし(三倍満まで)']], note: '13飜以上を、役満として数えるか。' },
@@ -1412,7 +1413,7 @@
     } else if (r.rd) { drawDrawResult(r);
     } else {
       text('流局', SW / 2, 30, 42, YEL, 1);
-      if (r.abort) { text(r.abort + '(3人が同時にロン)', SW / 2, 110, 28, WHITE, 1); text('点数の動きは ありません。親は そのまま続けます。', SW / 2, 160, 20, GREY, 1); }
+      if (r.abort) { text(r.abort + (r.abort === '三家和' ? '(3人が同時にロン)' : r.abort === '四家立直' ? '(4人全員がリーチ)' : ''), SW / 2, 110, 28, WHITE, 1); text('点数の動きは ありません。親は そのまま続けます。', SW / 2, 160, 20, GREY, 1); }
       else r.tenpai.forEach((t, i) => { const p = g.players[i]; rrect(150 + (i % 2) * 280, 110 + Math.floor(i / 2) * 70, 250, 56, 12, [30, 70, 56]); text(p.name, 168 + (i % 2) * 280, 118 + Math.floor(i / 2) * 70, 22, WHITE); text(t ? 'テンパイ' : 'ノーテン', 380 + (i % 2) * 280, 120 + Math.floor(i / 2) * 70, 20, t ? YEL : GREY, 2); });
       scoreCards(r, 330);
     }
