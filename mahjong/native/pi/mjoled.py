@@ -22,6 +22,13 @@ except ImportError:
     try: from oled_jp import G as JP
     except ImportError: JP = {}
 JPB = {c: [int(v[i:i + 4], 16) for i in range(0, 64, 4)] for c, v in JP.items()}   # 16x16の文字: 16行ぶん
+try:
+    from oled_zunda import Z as ZU
+except ImportError:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try: from oled_zunda import Z as ZU
+    except ImportError: ZU = {}
+WHO = {'v': 'sensei'}   # いま出している人: sensei(麻雀先生) か zunda(ずんだもん)
 I2C_SLAVE = 0x0703
 ADDR = int(os.environ.get('MJOLED_ADDR', '0x3C'), 0)
 HEIGHT = int(os.environ.get('MJOLED_H', '64'))
@@ -108,6 +115,15 @@ class Screen:
                     for r in range(7):
                         if (col >> r) & 1: self._set(x + c, y + 4 + r, 0 if inv else 1)
                 x += 6
+    def zface(self, name, x0, y0):
+        """ずんだもんの顔(32x28前後)を、ぴったり2倍(64x58)で描く"""
+        rows = ZU.get(name) or ZU.get('smile')
+        if not rows: return
+        for j, v in enumerate(rows):
+            for i in range(32):
+                if (v >> (31 - i)) & 1:
+                    x = x0 + 2 * i; y = y0 + 2 * j
+                    self._set(x, y, 1); self._set(x + 1, y, 1); self._set(x, y + 1, 1); self._set(x + 1, y + 1, 1)
     def invert(self): self.buf = [bytearray(x ^ 0xFF for x in b) for b in self.buf]   # 白黒を ぎゃくに(警告のとき ちかちかさせる)
     def box(self, x, y, w, h, on=1):
         for yy in range(y, y + h):
@@ -276,10 +292,58 @@ def num(d, k, suffix='', default='--'):
     v = d.get(k, '')
     return (v + suffix) if v not in ('', None) else default
 
+
+# ---------- ずんだもん(大きい顔)の画面 ----------
+ZEXPR = {'hello': 'smile', 'home': 'content', 'teach': 'serious', 'think': 'serious', 'think2': 'serious', 'watch': 'smile', 'call': 'tongue', 'win': 'star', 'sad': 'sweat',
+         'angry': 'serious', 'calm': 'content', 'celebrate': 'thumbs', 'pray': 'content', 'power': 'laugh', 'err': 'worry', 'sleep': 'content'}
+ZSCENE = {'新雀士': 'heart', '地図': 'peace', 'ビデオ': 'content'}   # 場面ごとの表情(ポーズより優先)
+def zpwr(h):
+    t = ('T%dC' % round(h['temp'])) if h['temp'] is not None else 'T--'
+    if h['volt'] is not None: return '%s %.1fV' % (t[:-1], h['volt'])
+    return t + (' LOW-V' if h['low'] else ' OK')
+
+def compose_zunda(scr, d, age, tick, ever_alive):
+    """ずんだもんの画面: 左に大きな顔(64x58)、右に 見出しと数字5行。 危険のときは ちかちか白黒"""
+    h = health(); scr.clear(); X = 68
+    final = d is not None and d.get('scene') in ('EXIT', 'MAINT')
+    alive = d is not None and (age < 4.0 or final)
+    up = uptime(); booting = (not alive) and (not ever_alive) and up < 150
+    scene = d.get('scene', '') if d else ''; msg = d.get('msg', '') if d else ''
+    pose = d.get('pose', 'watch') if alive else ('hello' if booting else 'err' if ever_alive else 'sleep')
+    expr = ZEXPR.get(pose, 'smile')
+    if scene in ZSCENE: expr = ZSCENE[scene]
+    if scene == '昇段': expr = 'thumbs' if msg else 'peace'
+    def rows(y0, L):
+        for i, r in enumerate(L): scr.text(r[:10], X, y0 + i * 9)
+    if h['level'] >= 2:
+        scr.zface('shock' if tick % 2 == 0 else 'sweat', 0, 3)
+        scr.text16('危険!', X, 0, inv=True); scr.text16('電圧が' if h['why'] == 'LOWV' else '熱すぎ!', X, 18); scr.text16('切って!', X, 34); scr.text(zpwr(h), X, 54)
+        if tick % 2 == 1: scr.invert()
+        return scr
+    if not alive and not booting: expr = 'worry' if ever_alive else 'content'
+    scr.zface(expr, 0, 3)
+    if booting: scr.text16('起動中' + '.' * (tick % 4), X, 0); rows(24, ['WAIT %dS' % int(up)])
+    elif alive and final:
+        if scene == 'EXIT': scr.text16('終了', X, 0, inv=True); scr.text16('電源を', X, 18); scr.text16('抜いて', X, 34)
+        else: scr.text16('保守', X, 0, inv=True); rows(24, ['CTRL+Q', 'READY'])
+        rows(54, [zpwr(h)])
+    elif alive:
+        if h['level'] == 1 and tick % 2 == 0: scr.text16('高温' if h['why'] == 'HOT' else '電圧', X, 0, inv=True)
+        elif msg: scr.text16(msg[:3], X, 0, inv=True)
+        elif scene == 'タイトル': scr.text('TITLE', X, 5)
+        else: scr.text16(scene[:3], X, 0)
+        pr = zpwr(h)
+        rows(18, ['SPD ' + num(d, 'spd'), 'DRAW ' + num(d, 'draw'), 'MAX ' + num(d, 'max'), 'KEY ' + num(d, 'key'), pr])
+        if d.get('audio') not in (None, '', 'ok'): rows(18, ['AUDIO STOP'])
+    else:
+        scr.text16('停止!' if ever_alive else '待機中', X, 0, inv=bool(ever_alive)); rows(24, [zpwr(h), 'LOAD ' + sysinfo()[1]])
+    return scr
+
 ROW_Y = 18   # 数字の行の はじまり(上の16ドットは 日本語の見出し)
 def compose(scr, d, age, tick, ever_alive=False):
     """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
     起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてね」を出す"""
+    if WHO['v'] == 'zunda' and ZU: return compose_zunda(scr, d, age, tick, ever_alive)
     h = health()
     if h['level'] >= 2: return compose_danger(scr, h, tick)
     scr.clear()
@@ -366,9 +430,16 @@ def main():
     if '--selftest' in sys.argv:
         scr = Screen()
         d = {'scene': '対局', 'pose': 'think', 'spd': '30', 'draw': '33', 'max': '57', 'key': '12', 'msg': 'ロン!'}
+        if '--zunda' in sys.argv: WHO['v'] = 'zunda'
         print(compose(scr, d, 0.1, 0).ascii()); return 0
     try: os.nice(19)
     except OSError: pass
+    import random
+    def pick():
+        c = os.environ.get('MJOLED_CHAR', 'random').lower()
+        return c if c in ('sensei', 'zunda') else random.choice(['sensei', 'zunda'])
+    WHO['v'] = 'zunda' if '--zunda' in sys.argv else pick(); print('mjoled: 表示は %s' % ('ずんだもん' if WHO['v'] == 'zunda' else '麻雀先生'), flush=True)
+    was_alive = False; need_repick = False
     oled = None; tick = 0; demo_i = 0; t_demo = 0; next_try = 0; ever_alive = False
     while True:
         t0 = time.time()
@@ -385,7 +456,11 @@ def main():
             d, age = {'scene': sc, 'pose': p, 'spd': '30', 'draw': '33', 'max': '57', 'key': '12', 'msg': sub}, 0
         else:
             d, age = read_status(STATUS)
-        if d is not None and age < 4.0 and d.get('scene') not in ('EXIT', 'MAINT'): ever_alive = True
+        alive_now = d is not None and age < 4.0 and d.get('scene') not in ('EXIT', 'MAINT')
+        if alive_now and not was_alive and need_repick and '--demo' not in sys.argv and '--zunda' not in sys.argv: WHO['v'] = pick(); need_repick = False; print('mjoled: ゲームが はじまった。 表示は %s' % ('ずんだもん' if WHO['v'] == 'zunda' else '麻雀先生'), flush=True)   # ゲームが 終わって、また はじまったときだけ えらびなおす(1回のゲームのあいだは ずっと同じ)
+        if was_alive and not alive_now: need_repick = True
+        was_alive = alive_now
+        if alive_now: ever_alive = True
         scr = compose(Screen(), d, age, tick, ever_alive); tick += 1
         if oled is not None:
             try: oled.show(scr)

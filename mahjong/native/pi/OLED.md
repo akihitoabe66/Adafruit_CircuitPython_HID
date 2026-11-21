@@ -45,3 +45,9 @@ sudo sh native/pi/install_oled.sh
 - I2C: VCC → 3.3V(物理17番) / GND → 物理9番 / SDA → GPIO2(物理3番) / SCL → GPIO3(物理5番)。 (NES コントローラーと同じ i2c-1 を 共有。 アドレスは 0x40)
 - つなぐと「T58 5.1V 0.82A」と出る。 電圧 4.75V 未満・電流 2A 超で「注意」、4.6V 未満が 3秒つづくと「危険」。
 - 別の番号なら `MJINA_BUS=1` `MJINA_ADDR=0x40`(`/etc/default/mjoled`)。
+
+## 麻雀先生とずんだもん(毎回ランダム)
+- 電源を入れるたびに、OLED に出る人が、ランダムで決まる: 麻雀先生(小さい顔+数字を多め) または ずんだもん(大きい顔 64×58+数字5行)。 決まったら、そのゲームが終わるまで ずっと同じ人(起動中の画面から ゲーム中まで 同じ)。
+- ゲームを終えて、もう一度はじめたとき(ホームにもどらず、アプリをやりなおしたとき)に、えらびなおす。
+- 固定したいとき: `/etc/default/mjoled` に `MJOLED_CHAR=sensei`(先生だけ) / `MJOLED_CHAR=zunda`(ずんだもんだけ)。 試験: `python3 native/pi/mjoled.py --demo --zunda`
+- ずんだもんの絵: `tools/ui_src/zunda_pixel16.jpg`(黒髪の16表情のうち14)から `python3 tools/make_oled_zunda.py` で作る(`native/pi/oled_zunda.py`)。 場面ごとの表情は `mjoled.py` の `ZEXPR` / `ZSCENE`。
