@@ -1321,7 +1321,7 @@
   function overlay(a) { gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], a == null ? 200 : a); gfx.view(S.vx, S.vy); }
   function drawRankP(){ // 局のあとの、4人のじゅんい(点数と増減)
     const r = S.rankP.r, g = S.game; stageC(); text('この局の結果', SW / 2, 14, 34, YEL, 1);
-    const win = new Set(r.wins.map((w) => w.winner.seat)), order = g.players.map((p, i) => i).sort((a, b) => (r.after[b] - r.after[a]) || (a - b));
+    const win = new Set((r.wins || []).map((w) => w.winner.seat)), order = g.players.map((p, i) => i).sort((a, b) => (r.after[b] - r.after[a]) || (a - b));
     order.forEach((i, k) => {
       const p = g.players[i], y = 66 + k * 86, x = 96, w = 640, h = 78, d = r.delta[i], me = p.isHuman;
       rrect(x - 3, y - 3, w + 6, h + 6, 6, [30, 70, 56]); rrect(x, y, w, h, 5, me ? [58, 100, 50] : [22, 56, 44]); // 1位の黄色い枠は、なし(「1位」の文字が黄色なので、それで分かる)
@@ -1977,7 +1977,7 @@
       V.d.last = f.name; (V.d.dur = V.d.dur || {})[f.name] = r.dur || 0; vSave(); dirty();
     }, 120);
   }
-  const vVol = () => { const v = S.vid && S.vid.d && S.vid.d.vol; return typeof v === 'number' ? v : 0.55; }; // 動画の音量(0〜1)。BGMとは別に、おぼえておく
+  const vVol = () => { const v = S.vid && S.vid.d && S.vid.d.vol; return typeof v === 'number' ? v : 0.7; }; // 動画の音量(0〜1)。表示の目盛り1つ = 0.14(目盛り5 = 前の版の7、目盛り7 = 最大)。BGMとは別に、おぼえておく
   function vStop(markEnd) { // 動画をとじて、一覧へ
     const V = S.vid, p = V.p; if (!p) return;
     const st = __vstate(); const pos = st ? st[0] : p.st[0];
@@ -2007,7 +2007,7 @@
       if (p.loading) { if (k === 'back') { V.view = 'list'; V.p = null; try { NSND.home(); } catch (e) { /* ignore */ } } return; } // 開いているあいだは、戻る だけ
       if (k === 'back') { vStop(false); return; }
       if (k === 'left') vSeek(-1, now); else if (k === 'right') vSeek(1, now);
-      else if (k === 'up' || k === 'down') { const L = Math.max(0, Math.min(10, Math.round(vVol() * 10) + (k === 'up' ? 1 : -1))); V.d.vol = L / 10; try { snd.musicVol(L / 10); } catch (e) { /* ignore */ } vSave(); p.ui = now; p.toast = '音量 ' + L + ' / 10'; p.toastT = now + 1300; }
+      else if (k === 'up' || k === 'down') { const L = Math.max(0, Math.min(7, Math.round(vVol() / 0.14) + (k === 'up' ? 1 : -1))); V.d.vol = Math.min(1, L * 0.14); try { snd.musicVol(V.d.vol); } catch (e) { /* ignore */ } vSave(); p.ui = now; p.toast = '音量 ' + L + ' / 7'; p.toastT = now + 1300; }
       else if (k === 'ok') {
         p.ui = now;
         if (p.end) { p.end = false; p.userPaused = false; __vseek(0); __vpause(false); delete V.d.done[p.f.name]; return; }
@@ -2701,7 +2701,7 @@
         return (async () => {
           if (!g.fast && !r.abort) { await sleep(900); if (g.stopped) return; S.bub = {}; S.sayQ = []; S.ryu = { t0: __now() }; NSND.sfx('slam'); /* 流局のテロップが出るときは、出ているセリフ・待っているセリフを、先に消す(顔だけ消える・声だけ残る、をなくす) */ setTimeout(() => { try { NSND.speak(['x:りゅうきょく']); } catch (e) { /* ignore */ } }, 450); dirty(); await sleep(1950); S.ryu = null; dirty(); if (g.stopped) return; } // 最後の牌のあと、ひと呼吸 → 「流局」が左から流れてきて止まる(Edge版と同じ)
           NSND.sfx('drawgame');
-          return new Promise((done) => {
+          await new Promise((done) => {
             const rd = r.abort || g.fast ? null : { shown: 0, now: -1, sel: 4, pop: -1, reading: true, token: 0, waits: [] };
             if (rd) r.hands.forEach((v, i) => { try { rd.waits[i] = r.tenpai[i] ? MJ.waits(MJ.toCounts(v.concealed), (v.melds || []).length) : []; } catch (e) { rd.waits[i] = []; } });
             if (rd && g.fast) { rd.shown = 4; rd.reading = false; }
@@ -2714,6 +2714,8 @@
               if (!alive()) return; rd.now = -1; rd.reading = false; dirty();
             })();
           });
+          if (g.stopped || g.fast || r.abort) return;
+          await new Promise((done) => { S.rankP = { r, done: () => { S.rankP = null; done(); } }; dirty(); }); // 流局のあとも、じゅんいの画面を見せる
         })();
       }
       return (async () => { // 上がった人ごとに、役と点数の画面(読み上げつき)。そのあと、4人のじゅんいの画面

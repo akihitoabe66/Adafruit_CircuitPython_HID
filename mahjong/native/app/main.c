@@ -52,7 +52,7 @@ static SDL_Texture *getimg(const char *path, int *w, int *h){
   char full[1400]; if (path[0] == '/') snprintf(full, sizeof full, "%s", path); else snprintf(full, sizeof full, "%s/%s", root, path); /* 「/」から始まる名前は、そのままの場所(ビデオのサムネイル用) */
   if (!strncmp(path, "img/", 4)) { char alt[1400]; snprintf(alt, sizeof alt, "%s/native/img/%s", root, path + 4); FILE *tf = fopen(alt, "rb"); if (tf) { fclose(tf); strcpy(full, alt); } } /* 実機用に小さくした絵(native/img)が、あれば、そちらを使う */
   double tl0 = nowms(); SDL_Surface *s = IMG_Load(full); if (!s) { fprintf(stderr, "img? %s (%s)\n", full, IMG_GetError()); return NULL; } double tl1 = nowms();
-  SDL_Texture *t = SDL_CreateTextureFromSurface(ren, s); { double d = nowms() - tl0; if (d >= 80) { char nm[260]; snprintf(nm, sizeof nm, "展開=%.0fms 画面用=%.0fms %.150s", tl1 - tl0, nowms() - tl1, path); bgm_log("slow-img", d, nm); } } /* 初めて読む絵が、80ms以上かかったら記録 */
+  SDL_Texture *t = SDL_CreateTextureFromSurface(ren, s); if (t) SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND); /* 透明のない絵(水面など)も、薄く重ねられるように */ { double d = nowms() - tl0; if (d >= 80) { char nm[260]; snprintf(nm, sizeof nm, "展開=%.0fms 画面用=%.0fms %.150s", tl1 - tl0, nowms() - tl1, path); bgm_log("slow-img", d, nm); } } /* 初めて読む絵が、80ms以上かかったら記録 */
   Ent *e = &imgs[nimg++]; e->hs = hp; strncpy(e->key, path, 199); e->tex = t; e->w = s->w; e->h = s->h; SDL_FreeSurface(s);
   if (w) *w = e->w; if (h) *h = e->h; return t;
 }
