@@ -41,7 +41,7 @@
       const pool = finalHand && Math.random() < 0.6 && fin.length ? fin : cand;
       last = pool[Math.floor(Math.random() * pool.length)]; A.gtrack = last; cur = ''; A.music(last);
     },
-    resultCpuRon() { A.scale = 0.65; cur = ''; A.music('audio/result_cpu.mp3'); }, /* CPU同士の「ロン」(人は関係ない): かならず、この曲に切りかえる */
+    resultCpuRon() { /* CPU同士の「ロン」(人は関係ない): 曲は切りかえず、対局のBGMをそのまま流す(前は 地図の曲と同じ曲を流していた。 地図の曲は 地図だけにする) */ },
     result(kind) { const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm') return; /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ A.scale = 0.65; cur = ''; A.music('audio/' + n + '.mp3'); },
     toggle() { A.on = !A.on; if (!A.on) { snd.music(''); cur = ''; } return A.on; },
     sfx(name, v) { if (SFX.indexOf(name) >= 0) snd.play('audio/sfx/' + name + '.wav', (v == null ? V.sfx : v)); },
