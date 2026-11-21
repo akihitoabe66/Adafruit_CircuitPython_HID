@@ -6,6 +6,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <signal.h>
@@ -225,6 +226,21 @@ static double mem_rss = 0, mem_avail = 0, mem_minav = 1e9, mem_swap = 0, mem_t =
 static void mem_read(void){
   FILE *f = fopen("/proc/self/status", "r"); if (f) { char ln[200]; while (fgets(ln, sizeof ln, f)) { long kb; if (sscanf(ln, "VmRSS: %ld kB", &kb) == 1) mem_rss = kb / 1024.0; } fclose(f); }
   f = fopen("/proc/meminfo", "r"); if (f) { char ln[200]; long av = -1, st = 0, sf = 0; while (fgets(ln, sizeof ln, f)) { long kb; if (sscanf(ln, "MemAvailable: %ld kB", &kb) == 1) av = kb; else if (sscanf(ln, "SwapTotal: %ld kB", &kb) == 1) st = kb; else if (sscanf(ln, "SwapFree: %ld kB", &kb) == 1) sf = kb; } fclose(f); if (av >= 0) { mem_avail = av / 1024.0; if (mem_avail < mem_minav) mem_minav = mem_avail; } mem_swap = (st - sf) / 1024.0; } }
+/* ---- 温度・電源の見はり(Pi本体の温度センサーと「電圧低下」の印)。 注意=1 / 危険=2。 危険のあいだは、ゲームを止めて 画面に警告を出す ---- */
+static int h_level = 0, h_why = 0; static double h_temp = 0, h_volt = 0, h_amp = 0, h_t = -9999, h_lowv0 = 0; /* h_why: 1=高温 2=電圧 */
+static void health_read(void){
+  double now = nowms(); if (now - h_t < 2000) return; h_t = now;
+  const char *ew = getenv("MJ_TEMP_WARN"), *ed = getenv("MJ_TEMP_DANGER"); double tw = ew ? atof(ew) : 75, td = ed ? atof(ed) : 82;
+  double temp = 0; { FILE *f = fopen("/sys/class/thermal/thermal_zone0/temp", "r"); if (f) { long v; if (fscanf(f, "%ld", &v) == 1) temp = v / 1000.0; fclose(f); } }
+  { const char *ft = getenv("MJ_FAKE_TEMP"); if (ft) temp = atof(ft); } /* 試験用 */
+  long thr = 0; { FILE *f = fopen("/sys/devices/platform/soc/soc:firmware/get_throttled", "r"); if (f) { char b[40]; if (fgets(b, sizeof b, f)) thr = strtol(b, NULL, 0); fclose(f); } }
+  int lowv = (thr & 1) != 0; if (lowv) { if (!h_lowv0) h_lowv0 = now; } else h_lowv0 = 0;
+  int lv = 0, why = 0; if (temp >= tw) { lv = 1; why = 1; } if (thr & 12) { if (!lv) why = 1; lv = 1; } if (lowv) { lv = 1; why = 2; } if (temp >= td) { lv = 2; why = 1; } if (h_lowv0 && now - h_lowv0 >= 8000) { lv = 2; why = 2; }
+  double volt = 0, amp = 0; { FILE *f = fopen("/dev/shm/mj_health.txt", "r"); struct stat st; if (f && fstat(fileno(f), &st) == 0 && time(NULL) - st.st_mtime < 8) { char ln[100]; int fl = 0; while (fgets(ln, sizeof ln, f)) { if (!strncmp(ln, "level=", 6)) fl = atoi(ln + 6); else if (!strncmp(ln, "volt=", 5)) volt = atof(ln + 5); else if (!strncmp(ln, "amp=", 4)) amp = atof(ln + 4); else if (!strncmp(ln, "why=", 4)) { if (fl > lv) { lv = fl; why = !strncmp(ln + 4, "LOWV", 4) ? 2 : 1; } } } } if (f) fclose(f); } /* OLED側(電圧電流計つき)の判断の方が重いときは、そちらに合わせる */
+  if (lv != h_level) { char nm[80]; snprintf(nm, sizeof nm, "level %d→%d 温度%.0fC 電圧低下%d", h_level, lv, temp, lowv); bgm_log("health", 0, nm); }
+  h_level = lv; h_why = why; h_temp = temp; h_volt = volt; h_amp = amp;
+}
+static JSValue j_health(JSContext *c, JSValueConst t, int n, JSValueConst *a){ health_read(); JSValue arr = JS_NewArray(c); JS_SetPropertyUint32(c, arr, 0, JS_NewInt32(c, h_level)); JS_SetPropertyUint32(c, arr, 1, JS_NewFloat64(c, h_temp)); JS_SetPropertyUint32(c, arr, 2, JS_NewInt32(c, h_why)); JS_SetPropertyUint32(c, arr, 3, JS_NewFloat64(c, h_volt)); JS_SetPropertyUint32(c, arr, 4, JS_NewFloat64(c, h_amp)); return arr; }
 static void mem_watch(void){
   double now = nowms(); if (now - mem_t < 5000) return; mem_t = now; mem_read();
   if (now - mem_logt >= 30000) { mem_logt = now; double ck = 0, ik = 0, tk = 0, lk = 0; for (int i = 0; i < nsnd; i++) if (snds[i].ch) ck += snds[i].ch->alen; for (int i = 0; i < nimg; i++) ik += (double)imgs[i].w * imgs[i].h * 4; for (int i = 0; i < ntxt; i++) tk += (double)txts[i].w * txts[i].h * 4; for (int i = 0; i < 32; i++) if (lay[i]) lk += (double)W * H * 4;
@@ -448,7 +464,7 @@ int main(int argc, char **argv){
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
   reg(gfx, "dry", j_dry, 1); reg(gfx, "rrect", j_rrect, 9); reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "fillTop", j_filltop, 8); reg(gfx, "imageRotTop", j_imagerottop, 7); reg(gfx, "textTop", j_texttop, 8); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
-  reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "keyLat", j_keylat, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "status", j_status, 1); reg(gfx, "mem", j_mem, 0); reg(gfx, "preload", j_preload, 1); reg(gfx, "grab", j_grab, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
+  reg(gfx, "health", j_health, 0); reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "keyLat", j_keylat, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "status", j_status, 1); reg(gfx, "mem", j_mem, 0); reg(gfx, "preload", j_preload, 1); reg(gfx, "grab", j_grab, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "playAt", j_playat, 3); reg(snd, "cancelAt", j_cancelat, 0); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "pauseAll", j_pause, 0); reg(snd, "resumeAll", j_resume, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1); reg(snd, "musicInfo", j_musicinfo, 0);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1); reg(g, "__readdir", j_readdir, 1); reg(g, "__vopen", j_vopen, 2); reg(g, "__vstate", j_vstate, 0); reg(g, "__vseek", j_vseek, 1); reg(g, "__vpause", j_vpause, 1); reg(g, "__vclose", j_vclose, 0); JS_SetPropertyStr(ctx, g, "__dataDir", JS_NewString(ctx, datadir));
@@ -484,6 +500,7 @@ int main(int argc, char **argv){
   int frames = 0, shotn = 0, keep = 0; double perf_t0 = nowms(), perf_draw = 0, perf_pres = 0, perf_logic = 0, perf_logicmax = 0; int perf_n = 0, perf_p = 0; int perf = getenv("MJ_PERF") != NULL;
   JSValue gg = JS_GetGlobalObject(ctx);
   while (!quitf) {
+    health_read(); if (h_level >= 1) { static double lt = 0; double need = (h_level >= 2 ? 150 : 40) - (nowms() - lt); if (need > 0 && need < 200) SDL_Delay((Uint32)need); lt = nowms(); } /* 熱いときは、描く回数を減らして、本体を休ませる */
     audio_watch(); mem_watch(); { static double ag = 0; double tn = nowms(); if (tn - ag > 1000) { ag = tn; if (audio_ok) audio_gap_log(); } }
     static double it0 = 0, it_ms = 0; { double tn0 = nowms(); if (it0) it_ms = it_ms * 0.7 + (tn0 - it0) * 0.3; it0 = tn0; } /* 1周にかかった時間(長押しの速さを、描く速さに合わせる) */
     SDL_Event e; int got = SDL_WaitEventTimeout(&e, (keep || vid_active()) ? 1 : 8);

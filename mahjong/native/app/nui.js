@@ -2344,6 +2344,7 @@
 
   /* ---------- 入力 ---------- */
   window.__key = function (k) {
+    if (S.heatStop) { dirty(); return; } /* 熱すぎ・電源不足のあいだは、ボタンを受けつけない(危険の画面) */
     if (S.mode === 'boot') return; /* 準備のあいだは ボタンを受けつけない */
     if (__now() - (S.tlKey || 0) > 700) { S.tlKey = __now(); tl('key ' + k); } S.lastKeyT = __now(); // 最後にボタンを押した時刻(先に絵を描いておく処理は、ボタンを押しているあいだは しない)
     if (S.cutin) { if ((k === 'ok' || k === 'back') && __now() - S.cutin.t0 > 500) cutinEnd(); dirty(); return; } // カットインの最中(決定で すぐ消せる)
@@ -2946,9 +2947,36 @@
     if (S.rankScr) t += ' 段位'; if (S.map) t += ' 地図'; if (S.cert) t += ' 認定証'; if (S.reveal) t += ' 登場'; if (S.rankP) t += ' 順位'; if (S.end) t += ' 終局'; if (S.menuP) t += ' メニュー';
     return t;
   };
+  /* ---------- 熱・電源の警告(本体の温度と「電圧低下」の印を見はる。 OLEDと同じ しきい値: 75C 注意 / 82C 危険) ---------- */
+  S.hl = { lv: 0 };
+  setInterval(() => {
+    try {
+      if (typeof gfx.health !== 'function') return;
+      const h = gfx.health(), lv = h[0], prev = S.hl.lv; S.hl = { lv, temp: Math.round(h[1]), why: h[2], volt: h[3], amp: h[4] };
+      if (lv >= 2) { S.heatCool = 0; if (!S.heatStop) { S.heatStop = true; S.heatMine = !MJ.paused; MJ.paused = true; } } // 危険: ゲームを止める
+      else if (S.heatStop) { if (!S.heatCool) S.heatCool = __now(); if (__now() - S.heatCool > 10000) { S.heatStop = false; if (S.heatMine) MJ.paused = false; } } // 10秒 ふつうにもどったら、自動でつづける
+      if (lv !== prev || lv >= 1) dirty();
+    } catch (e) { /* ignore */ }
+  }, 1000);
+  function drawHealth() {
+    const h = S.hl; if (!h || h.lv < 1) return; gfx.view(0, 0);
+    const volt = h.why === 2, deg = h.temp + '度', ex = h.volt ? '  ' + h.volt.toFixed(1) + 'V ' + h.amp.toFixed(2) + 'A' : '';
+    if (h.lv === 1) {
+      fill(0, 0, SW, 34, [196, 108, 0], 238); fill(0, 34, SW, 3, [255, 214, 120], 255);
+      text(volt ? '電源が 弱っています。 電源アダプターと ケーブルを 確認してください' + ex : '本体が 熱くなっています(' + deg + ')。 しばらく 休ませると 安心です' + ex, SW / 2, 6, 21, WHITE, 1);
+      return;
+    }
+    const pulse = 0.5 + 0.5 * Math.sin(__now() / 260);
+    fill(0, 0, SW, SH, [150 + Math.round(70 * pulse), 0, 0], 244);
+    text('危険!', SW / 2, 40, 76, WHITE, 1);
+    text(volt ? '電源の 電圧が たりません' + ex : '本体が 熱すぎます(' + deg + ')' + ex, SW / 2, 150, 34, [255, 236, 200], 1);
+    tFace('advice', 'heat', SW / 2 - 330, 212, 170);
+    text('電源を 切って、', SW / 2 + 70, 226, 40, WHITE, 1); text('本体を 休ませてください', SW / 2 + 70, 276, 40, WHITE, 1);
+    text('ゲームは 止めてあります。 冷えると 自動で もどります', SW / 2, 400, 22, [255, 214, 190], 1);
+  }
   window.__draw = function () {
     S.drawSeq = (S.drawSeq || 0) + 1;
-    const t0 = __now(); const r = drawBody(); const dt = __now() - t0; perf.n++; perf.ms += dt; if (dt > (perf.mx || 0)) perf.mx = dt;
+    const t0 = __now(); const r = drawBody(); try { drawHealth(); } catch (e) { /* ignore */ } const dt = __now() - t0; perf.n++; perf.ms += dt; if (dt > (perf.mx || 0)) perf.mx = dt;
     if (dt >= 300) tl('slow-draw ' + Math.round(dt) + 'ms ' + perfCtx()); // 0.3秒以上かかった描きは、出来事の記録(mj_tl)にも残す
     if (dt >= 80) { (perf.slow = perf.slow || []).unshift(Math.round(dt) + 'ms  ' + perfCtx()); perf.slow.length = Math.min(perf.slow.length, 4); }
     if (t0 - perf.t0 >= 1000) { if (perf.n > 0) { const av = perf.ms / perf.n; perf.o = { spd: Math.round(1000 / Math.max(1, av + 4)), draw: Math.round(av), max: Math.round(perf.mx || 0), key: perf.o ? perf.o.key : '' }; } else if (!perf.o) perf.o = {}; /* 描いた回数は、画面が動かないと減るので、「描ける速さ」(1コマの時間から出す)を出す。 描かなかった秒は、前の値のまま */ perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; try { const kl = typeof gfx.keyLat === 'function' ? gfx.keyLat() : null; if (kl && kl[2]) perf.key = '押してから画面 平均' + Math.round(kl[0]) + 'ms 最大' + Math.round(kl[1]) + 'ms(' + kl[2] + '回)'; if (kl && kl[2] && perf.o) perf.o.key = Math.round(kl[0]); } catch (e) { /* ignore */ } }
