@@ -69,12 +69,16 @@ static SDL_Texture *getsil(const char *path, int *w, int *h){
   Ent *e = &imgs[nimg++]; e->hs = hp; strncpy(e->key, key, 199); e->tex = t; e->w = s->w; e->h = s->h; SDL_FreeSurface(s);
   if (w) *w = e->w; if (h) *h = e->h; return t;
 }
+static char datadir[1200];
+static int font_rec = 0; /* 1のとき、はじめて開いた大きさを fonts.txt に書く(先読みが終わったあとだけ) */
 static TTF_Font *getfont(int sz){ /* sz がマイナスのときは、太字(字の大きさ = -sz) */
   for (int i = 0; i < nfonts; i++) if (fsz[i] == sz) return fonts[i];
   if (nfonts >= 200) { int best = 0, bd = 1 << 30; for (int i = 0; i < nfonts; i++) { int d = abs(abs(fsz[i]) - abs(sz)) * 4 + ((fsz[i] < 0) != (sz < 0)); if (d < bd) { bd = d; best = i; } } return fonts[best]; } /* いっぱいのときは、いちばん近い大きさの字を使う(小さな字にならないように) */
   double tl0 = nowms(); TTF_Font *f = TTF_OpenFont(fontpath, sz < 0 ? -sz : sz); if (f && sz < 0) TTF_SetFontStyle(f, TTF_STYLE_BOLD); if (!f) { fprintf(stderr, "font? %s\n", TTF_GetError()); return NULL; }
   { double d = nowms() - tl0; if (d >= 80) { char nm[40]; snprintf(nm, sizeof nm, "size=%d", sz); bgm_log("slow-font", d, nm); } } /* 初めての大きさの字が、80ms以上かかったら記録 */
-  fonts[nfonts] = f; fsz[nfonts++] = sz; return f;
+  fonts[nfonts] = f; fsz[nfonts++] = sz;
+  if (font_rec) { char fp[1400]; snprintf(fp, sizeof fp, "%s/fonts.txt", datadir); FILE *ff = fopen(fp, "a"); if (ff) { fprintf(ff, "%d\n", sz); fclose(ff); } } /* 使った大きさを覚えておく(次の起動で、先に開く) */
+  return f;
 }
 static volatile int g_dry = 0; /* 1のあいだは、絵を描かずに、文字の下ごしらえ(キャッシュ)だけする */
 static SDL_Texture *gettext(const char *s, int sz, int r, int g, int b, int *w, int *h){
@@ -315,7 +319,11 @@ static void preload(void){
     size_t L = strlen(list[i]); if (L > 4 && (!strcmp(list[i] + L - 4, ".wav") || !strcmp(list[i] + L - 4, ".mp3"))) { if (audio_ok) (void)getsnd(list[i]); } else getimg(list[i], NULL, NULL);
     SDL_PumpEvents(); int pc = i * 20 / (n ? n : 1); if (pc != last) { last = pc; loading_screen(i, n); }
   }
-  (void)nimgs; loading_screen(n, n); printf("preload: %d files, %.0fms\n", n, nowms() - t0); fflush(stdout);
+  (void)nimgs;
+  { char fp[1400]; snprintf(fp, sizeof fp, "%s/fonts.txt", datadir); FILE *ff = fopen(fp, "r"); int sz, k = 0; double tf0 = nowms();
+    if (ff) { while (k < 120 && fscanf(ff, "%d", &sz) == 1) { (void)getfont(sz); k++; SDL_PumpEvents(); } fclose(ff); }
+    printf("fonts: %d opened, %.0fms\n", k, nowms() - tf0); font_rec = 1; } /* 前に使った大きさの字を、先に開いておく(はじめて使うとき、1秒近く止まるため) */
+  loading_screen(n, n); printf("preload: %d files, %.0fms\n", n, nowms() - t0); fflush(stdout);
   for (int i = 0; i < n; i++) free(list[i]);
 }
 
