@@ -323,20 +323,20 @@
     if (!teacherOn()) return;
     const h = S.hint, s = S.self; if (s && s.rm) return; // リーチする牌をえらぶ間は、案内の文字だけ
      if (S.wnote && __now() < S.wnote.until && S.game && S.game.watching) { const w = S.wnote; panel(6, 262, 700, 74, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生の解説', 18, 266, 16, YEL); text(w.a, 18, 286, fitSz(w.a, 21, 676, 15), WHITE); text(w.b, 18, 312, fitSz(w.b, 18, 676, 14), [200, 225, 205]); return; } // 観戦中: CPUが捨てた理由
-     if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 268, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('advice', 'm' + S.tmsg.until, 12, 270, 60); text('麻雀先生', 80, 272, 16, YEL); text(S.tmsg.text, 80, 294, fitSz(S.tmsg.text, 21, 480, 16), WHITE); return; }
+     if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 252, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 232); tFace('advice', 'm' + S.tmsg.until, 12, 254, 60); text('麻雀先生', 80, 256, 16, YEL); text(S.tmsg.text, 80, 278, fitSz(S.tmsg.text, 21, 480, 16), WHITE); return; } // 自分の名札(下の右)に かさならないよう、上に16ずらした
     if (!h || !s || s.row !== 0) return;
     const l1 = '★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る');
     if (h.say) { // リーチを受けているとき: 理由を 分かりやすく 2行で
       const wr = (str, sz, mw) => { const o = []; let c = ''; for (const ch of str) { if (gfx.measure(c + ch, sz) > mw) { o.push(c); c = ch; } else c += ch; } if (c) o.push(c); return o.slice(0, 3); };
-      panel(6, 214, 566, 118, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('ok', 'h' + h.t + (h.riichi ? 'r' : ''), 12, 220, 60);
-      text(l1, 80, 218, fitSz(l1, 24, 484, 18), YEL); wr(h.say, 19, 484).forEach((ln, i) => text(ln, 80, 250 + i * 26, 19, WHITE));
+      panel(6, 198, 566, 118, 10, [6, 44, 26], [255, 220, 40], 2, 232); tFace('ok', 'h' + h.t + (h.riichi ? 'r' : ''), 12, 204, 60);
+      text(l1, 80, 202, fitSz(l1, 24, 484, 18), YEL); wr(h.say, 19, 484).forEach((ln, i) => text(ln, 80, 234 + i * 26, 19, WHITE));
       return;
     }
     const l2 = (h.sh === 0 ? 'テンパイです' : 'あと' + h.sh + '歩で テンパイ') + (h.n && h.sh <= 1 ? '。 前に進める牌が あと' + h.n + '枚' : ''); // 数が大きすぎるとき(まだ遠いとき)は 出さない // むずかしい言葉(受け入れ)は使わない
-    panel(6, 268, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('ok', 'h' + h.t + (h.riichi ? 'r' : ''), 12, 270, 60);
+    panel(6, 252, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 232); tFace('ok', 'h' + h.t + (h.riichi ? 'r' : ''), 12, 254, 60);
     const run = (parts, x, y, sz, col) => { let cx = x; parts.forEach((q) => { text(q, cx, y, sz, col); cx += gfx.measure(q, sz); }); }; // 文章を部品に分けて描く: 毎回ちがう文字の並びを 1行まるごと作ると 実機で 重い(0.2秒ほど)。 部品なら、2回目から 作りおきを使える
     const p1 = ['★ おすすめ: ', MJ.tileName(h.t), h.riichi ? ' を切ってリーチ' : ' を切る'], p2 = h.sh === 0 ? ['テンパイです'] : ['あと', String(h.sh), '歩で テンパイ'].concat(h.n && h.sh <= 1 ? ['。 前に進める牌が あと', String(h.n), '枚'] : []);
-    run(p1, 80, 272, fitSz(l1, 24, 484, 18), YEL); run(p2, 80, 301, fitSz(l2, 19, 484, 14), WHITE);
+    run(p1, 80, 256, fitSz(l1, 24, 484, 18), YEL); run(p2, 80, 285, fitSz(l2, 19, 484, 14), WHITE);
   }
 
   /* ---------- 軽い動き(牌が河へ飛ぶ・配牌・札の拡大) ---------- */
