@@ -719,19 +719,17 @@
       const bxs = [21, 170, 21], bws = [143, 143, 292], bys = [345, 345, 397]; brownBtn(bxs[i], bys[i], bws[i], 44, lab, sel, 19); // 左の説明の枠に、左右をそろえた2段(上: 終了・成績 / 下: 診断)
     });
   }
-  const OLED_CH = ['random', 'sensei', 'zunda'], OLED_CH_JP = ['ランダム', '麻雀先生', 'ずんだもん'];
-  const OLED_CO = ['auto', 'none', 'season', 'job'], OLED_CO_JP = ['おまかせ', 'ふつうのまま', '季節だけ', '職業だけ']; const oledCos = () => { try { const v = localStorage.getItem('mj_oledcos'); return OLED_CO.indexOf(v) >= 0 ? v : 'auto'; } catch (e) { return 'auto'; } }; // ずんだもんの衣装(OLED): おまかせ(季節と職業が かわりばんこ) / ふつうのまま / 季節だけ / 職業だけ
+    const OLED_CO = ['auto', 'none', 'season', 'job'], OLED_CO_JP = ['おまかせ', 'ふつうのまま', '季節だけ', '職業だけ']; const oledCos = () => { try { const v = localStorage.getItem('mj_oledcos'); return OLED_CO.indexOf(v) >= 0 ? v : 'auto'; } catch (e) { return 'auto'; } }; // ずんだもんの衣装(OLED): おまかせ(季節と職業が かわりばんこ) / ふつうのまま / 季節だけ / 職業だけ
   const VS_JP = ['なし', 'ふつう', 'つよい'];
   const vsharpLv = () => { try { const v = parseInt(localStorage.getItem('mj_vsharp'), 10); return v >= 0 && v <= 2 ? v : 1; } catch (e) { return 1; } }; // ビデオの「くっきり」(シャープネス): ふだんは ふつう
   try { if (typeof __vsharp === 'function') __vsharp(vsharpLv()); } catch (e) { /* ignore */ }
-  const oledChar = () => { try { const v = localStorage.getItem('mj_oledchar'); return OLED_CH.indexOf(v) >= 0 ? v : 'random'; } catch (e) { return 'random'; } }; // 小さな画面(OLED)に出す人: ランダム(電源を入れるたびに決まる) / 麻雀先生 / ずんだもん
   const swapOn = () => { try { const v = localStorage.getItem('mj_swapab'); return v === null ? true : v === '1'; } catch (e) { return true; } };
   try { __swapab(swapOn() ? 1 : 0); } catch (e) { /* ignore */ }
   try { localStorage.setItem('mj_perf', '0'); } catch (e) { /* ignore */ } // 遅れの診断(テスト表示)は、起動のたびに オフにもどす(つけたままに しない)
   const perfOn = () => { try { const v = localStorage.getItem('mj_perf'); return v === '1' ? true : v === '0' ? false : !!globalThis.__perfEnv; } catch (e) { return false; } }; // 隠しコマンド・設定で切りかえたら、それを優先(MJ_PERF=1 で起動しても、オフにできる)
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'cpulv', label: 'CPUの強さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'oled', label: 'OLEDのキャラ' }, { k: 'oledcos', label: 'ずんだもんの衣装' }, { k: 'vsharp', label: 'ビデオのくっきり' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'perf', label: '遅れの診断(調べる用)' }, { k: 'reset', label: 'リセット(デバッグ用)' }, { k: 'dbg', label: 'デバッグ(あとで消す)' }, { k: 'back', label: 'もどる' },
+    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'cpulv', label: 'CPUの強さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'oledcos', label: 'ずんだもんの衣装' }, { k: 'vsharp', label: 'ビデオのくっきり' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'perf', label: '遅れの診断(調べる用)' }, { k: 'reset', label: 'リセット(デバッグ用)' }, { k: 'dbg', label: 'デバッグ(あとで消す)' }, { k: 'back', label: 'もどる' },
   ];
   /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
   const RULE_ROWS = [
@@ -795,7 +793,6 @@
       else if (s.k === 'teacher') text(teacherOn() ? (dmarkOn() ? 'あり(安全牌の印つき)' : 'あり') : 'なし', 520, y + 4, teacherOn() && dmarkOn() ? 20 : 24, BLACK, 1);
       else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 4, 24, BLACK, 1);
-      else if (s.k === 'oled') text(OLED_CH_JP[OLED_CH.indexOf(oledChar())], 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'oledcos') text(OLED_CO_JP[OLED_CO.indexOf(oledCos())], 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'vsharp') text(VS_JP[vsharpLv()], 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'rules' || s.k === 'credits' || s.k === 'help') text('▶', 600, y + 4, 24, BLACK, 1);
@@ -2494,7 +2491,6 @@
           const t = teacherOn(), d = dmarkOn(); const nx = !t ? [1, 1] : d ? [1, 0] : [0, 1]; try { localStorage.setItem('mj_teacher', nx[0] ? '1' : '0'); localStorage.setItem('mj_dmark', nx[1] ? '1' : '0'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; S._dm = null; }
         else if (it.k === 'swap') { try { localStorage.setItem('mj_swapab', swapOn() ? '0' : '1'); } catch (e) { /* ignore */ } __swapab(swapOn() ? 1 : 0); }
         else if (it.k === 'vsharp') { const v1 = (vsharpLv() + (k === 'left' ? -1 : 1) + 3) % 3; try { localStorage.setItem('mj_vsharp', String(v1)); } catch (e) { /* ignore */ } try { __vsharp(v1); } catch (e) { /* ignore */ } } // ◀ ▶ 決定で、なし → ふつう → つよい(いま見ている動画にも すぐ効く)
-        else if (it.k === 'oled') { const i0 = OLED_CH.indexOf(oledChar()), i1 = (i0 + (k === 'left' ? -1 : 1) + 3) % 3; try { localStorage.setItem('mj_oledchar', OLED_CH[i1]); } catch (e) { /* ignore */ } try { if (typeof gfx.status === 'function') gfx.status(oledState()); } catch (e) { /* ignore */ } } // ◀ ▶ 決定で、ランダム → 麻雀先生 → ずんだもん を切りかえ(すぐ OLED に反映)
         else if (it.k === 'oledcos') { const i0 = OLED_CO.indexOf(oledCos()), i1 = (i0 + (k === 'left' ? -1 : 1) + 4) % 4; try { localStorage.setItem('mj_oledcos', OLED_CO[i1]); } catch (e) { /* ignore */ } try { if (typeof gfx.status === 'function') gfx.status(oledState()); } catch (e) { /* ignore */ } }
         else if (it.k === 'perf') { try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } }
         else if (it.k === 'rules' && k !== 'left') { S.mode = 'rules'; S.ruleIdx = 0; S.ruleDraft = null; S.ruleDlg = null; S.ruleToast = 0; }
@@ -2929,7 +2925,7 @@
   /* ---------- OLED(別の小さな画面)用の状態: 場面に合わせて 麻雀先生のポーズを選び、フレームレートなどと一緒に /tmp/mj_oled.txt へ(native/pi/mjoled.py が読む) ---------- */
   /* OLED-JP-BEGIN */
   const OLED_JP = { BOOT: '起動中', TITLE: 'タイトル', HOME: 'ホーム', GAME: '対局', RESULT: '結果', QUIZ: 'クイズ', STUDY: '勉強', VIDEO: 'ビデオ', STATS: '成績', SETUP: '設定', MAP: '地図', RANK: '昇段', NEW: '新雀士', END: '対局終了',
-    'リーチ': 'リーチ!', 'ポン': 'ポン!', 'チー': 'チー!', 'カン': 'カン!', 'ロン': 'ロン!', 'ツモ': 'ツモ!', DRAW: '流局', WIN: '勝ち!', LOSE: '負け', COMEBACK: '逆転!', CUTIN: '必殺!', RANKUP: '昇段!' };
+    'リーチ': 'リーチ!', 'ポン': 'ポン!', 'チー': 'チー!', 'カン': 'カン!', 'ロン': 'ロン!', 'ツモ': 'ツモ!', DRAW: '流局', WIN: '勝ち!', LOSE: '負け', COMEBACK: '逆転!', CUTIN: '必殺!', RANKUP: '昇段!', RIICHI: 'リーチ中', WARN: '警戒!' };
   /* OLED-JP-END */
   /* ---------- ずんだもんの進化(OLED用): 遊び方を、回数で数えて 姿をきめる。 数は「累計」のまま消さず、周(350回ごと)の はじめの数との差で 周ごとの遊び方を見る ---------- */
   let petC = null;
@@ -2968,8 +2964,9 @@
       if (S.self) pose = 'think';
       if (S.react) pose = 'think2';
       if (S.dice || S.intro || S.deal) pose = 'hello';
+      if (!S.result && !S.end && !S.rankP) { try { const me = g.players[0]; if (me && me.riichi) { pose = 'power'; msg = 'RIICHI'; } else if (g.players.slice(1).some((q) => q.riichi)) { pose = 'think2'; msg = 'WARN'; } } catch (e) { /* ignore */ } } // リーチしているあいだ: 自分=ぐっと力が入る / 相手=けいかい
       if (S.ryu) { pose = 'calm'; msg = 'DRAW'; }
-      if (S.banner && S.banner.call) { pose = (S.banner.text === 'ロン' || S.banner.text === 'ツモ') ? 'power' : 'call'; msg = S.banner.text; }
+      if (S.banner && S.banner.call) { pose = (S.banner.text === 'ロン' || S.banner.text === 'ツモ' || S.banner.text === 'リーチ') ? 'power' : 'call'; msg = S.banner.text; }
       if (S.cutin) { pose = 'power'; msg = S.cutin.ci && S.cutin.ci.gyaku ? 'COMEBACK' : 'CUTIN'; }
       if (S.result) { const r = S.result; scene = 'RESULT'; if (r.type === 'draw') { pose = 'calm'; msg = 'DRAW'; } else if (r.wins && r.wins.some((w) => w.winner.isHuman)) { pose = 'win'; msg = 'WIN'; } else if (r.delta && r.delta[0] < 0) { pose = 'sad'; msg = 'LOSE'; } else pose = 'calm'; }
       if (S.rankP) { scene = 'RANK'; pose = 'celebrate'; }
@@ -2983,7 +2980,7 @@
     let petStr = ''; try { petStr = petStep(); } catch (e) { petStr = ''; }
     let pet = ''; try { const rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0]; pet = 'plays=' + (rs.games || 0) + '\nwins=' + (rk[0] || 0) + '\nboots=' + bootN + '\nqc=' + (rs.qc || 0) + '\npt=' + (rs.pt || 0) + '\ndan=' + (rs.dan || 0) + '\ncos=' + oledCos() + '\n' + petStr + 'idle=' + Math.floor((__now() - (S.lastKeyT || 0)) / 1000) + '\n'; } catch (e) { /* ignore */ } // ペット用: 遊んだ回数・1位の数・電源を入れた回数・クイズの数・経験値・段位
     const o = perf.o || {}, jp = (k) => (k ? (OLED_JP[k] || k) : '');
-    return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\nchar=' + oledChar() + '\n' + pet;
+    return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\n' + pet;
   }
   let oledT = 0; setInterval(() => { try { if (typeof gfx.status === 'function') { gfx.status(oledState()); } } catch (e) { /* ignore */ } }, 400);
   const perfCtx = () => { // いま どの画面で なにをしていたか(遅れの記録に添える)

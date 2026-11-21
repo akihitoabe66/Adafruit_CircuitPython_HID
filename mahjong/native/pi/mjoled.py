@@ -34,8 +34,8 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     try: from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES, SEASONS as PSEAS, SEA as PSEA, JOBS as PJOBS, COS as PCOS, FORM1 as PF1, FORM2 as PF2
     except ImportError: PSTAGE, PLAB, PLINES, PSEAS, PSEA, PJOBS, PCOS, PF1, PF2 = [], {}, {}, [], {}, [], (), {}, {}
-CHARFILE = os.environ.get('MJOLED_CHARFILE', '/var/lib/mjoled_char')   # 設定(ゲームの「OLEDのキャラ」)を おぼえておく場所。 電源を入れた直後の画面でも 同じ人が出る
-WHO = {'v': 'sensei'}   # いま出している人: sensei(麻雀先生) か zunda(ずんだもん)
+GAME_SCENES = ('対局', '結果', '対局終了', '昇段')
+WHO = {'v': 'zunda'}   # いま出している人: sensei(麻雀先生) か zunda(ずんだもん)
 I2C_SLAVE = 0x0703
 ADDR = int(os.environ.get('MJOLED_ADDR', '0x3C'), 0)
 HEIGHT = int(os.environ.get('MJOLED_H', '64'))
@@ -333,6 +333,7 @@ def num(d, k, suffix='', default='--'):
 # ---------- ずんだもん(大きい顔)の画面 ----------
 ZEXPR = {'hello': 'smile', 'home': 'content', 'teach': 'serious', 'think': 'serious', 'think2': 'serious', 'watch': 'smile', 'call': 'tongue', 'win': 'star', 'sad': 'sweat',
          'angry': 'serious', 'calm': 'content', 'celebrate': 'thumbs', 'pray': 'content', 'power': 'laugh', 'err': 'worry', 'sleep': 'content'}
+ZMSG = {'リーチ中': 'laugh', '警戒!': 'worry', 'リーチ!': 'serious'}   # 出来事のことば ごとの表情(ポーズより優先)
 ZSCENE = {'新雀士': 'heart', '地図': 'peace', 'ビデオ': 'content'}   # 場面ごとの表情(ポーズより優先)
 def zpwr(h):
     t = ('T%dC' % round(h['temp'])) if h['temp'] is not None else 'T--'
@@ -350,6 +351,7 @@ def compose_zunda(scr, d, age, tick, ever_alive):
     pose = d.get('pose', 'watch') if alive else ('hello' if booting else 'err' if ever_alive else 'sleep')
     expr = ZEXPR.get(pose, 'smile')
     if scene in ZSCENE: expr = ZSCENE[scene]
+    if msg in ZMSG: expr = ZMSG[msg]
     if scene == '昇段': expr = 'thumbs' if msg else 'peace'
     def rows(y0, L):
         for i, r in enumerate(L): scr.text(r[:10], X, y0 + i * 9)
@@ -547,7 +549,7 @@ ROW_Y = 18   # 数字の行の はじまり(上の16ドットは 日本語の見
 def compose(scr, d, age, tick, ever_alive=False):
     """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
     起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてね」を出す"""
-    if WHO['v'] == 'zunda' and ZU: return compose_zunda(scr, d, age, tick, ever_alive)
+    if ZU and not (WHO['v'] == 'sensei' and d is not None and age < 4.0 and d.get('scene', '') in GAME_SCENES): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだだけ、ときどき 麻雀先生。 ほかは ずんだもんのペット
     h = health()
     if h['level'] >= 2: return compose_danger(scr, h, tick)
     scr.clear()
@@ -639,15 +641,9 @@ def main():
     try: os.nice(19)
     except OSError: pass
     import random
-    mode = {'v': os.environ.get('MJOLED_CHAR', 'random').lower()}   # random / sensei / zunda
-    try:
-        with open(CHARFILE) as f: mv = f.read().strip()
-        if mv in ('random', 'sensei', 'zunda'): mode['v'] = mv   # ゲームの設定が あれば、そちらが優先
-    except Exception: pass
-    def pick():
-        c = mode['v']
-        return c if c in ('sensei', 'zunda') else random.choice(['sensei', 'zunda'])
-    WHO['v'] = 'zunda' if '--zunda' in sys.argv else pick(); print('mjoled: 表示は %s' % ('ずんだもん' if WHO['v'] == 'zunda' else '麻雀先生'), flush=True)
+    ch = os.environ.get('MJOLED_CHAR', '').lower(); p_sensei = 1.0 if ch == 'sensei' else 0.0 if ch == 'zunda' else float(os.environ.get('MJOLED_SENSEI', '0.25'))   # 対局のあいだに 麻雀先生が 出る確率(ふだんは ずんだもんの ペット)
+    def pick(): return 'sensei' if random.random() < p_sensei else 'zunda'
+    WHO['v'] = 'zunda'; in_game = False
     was_alive = False; need_repick = False
     oled = None; tick = 0; demo_i = 0; t_demo = 0; next_try = 0; ever_alive = False
     while True:
@@ -665,14 +661,13 @@ def main():
             d, age = {'scene': sc, 'pose': p, 'spd': '30', 'draw': '33', 'max': '57', 'key': '12', 'msg': sub}, 0
         else:
             d, age = read_status(STATUS)
-        if d is not None and age < 4.0 and d.get('char') in ('random', 'sensei', 'zunda') and d.get('char') != mode['v'] and '--demo' not in sys.argv and '--zunda' not in sys.argv:   # ゲームの設定が かわった: すぐ反映して、おぼえる
-            mode['v'] = d.get('char'); WHO['v'] = pick(); print('mjoled: 設定が かわった: %s' % mode['v'], flush=True)
-            try:
-                with open(CHARFILE, 'w') as f: f.write(mode['v'])
-            except Exception as e: print('mjoled: 設定を書けません(%s)' % e, flush=True)
         alive_now = d is not None and age < 4.0 and d.get('scene') not in ('EXIT', 'MAINT')
-        if alive_now and not was_alive and need_repick and '--demo' not in sys.argv and '--zunda' not in sys.argv: WHO['v'] = pick(); need_repick = False; print('mjoled: ゲームが はじまった。 表示は %s' % ('ずんだもん' if WHO['v'] == 'zunda' else '麻雀先生'), flush=True)   # ゲームが 終わって、また はじまったときだけ えらびなおす(1回のゲームのあいだは ずっと同じ)
-        if was_alive and not alive_now: need_repick = True
+        sc_now = d.get('scene', '') if (d is not None and age < 4.0) else ''
+        if '--zunda' in sys.argv: WHO['v'] = 'zunda'
+        elif '--demo' not in sys.argv:
+            g_now = sc_now in GAME_SCENES
+            if g_now and not in_game: WHO['v'] = pick(); print('mjoled: 対局がはじまった。 表示は %s' % ('ずんだもん' if WHO['v'] == 'zunda' else '麻雀先生'), flush=True)   # 1回の対局のあいだは、同じ人
+            in_game = g_now
         was_alive = alive_now
         if alive_now: ever_alive = True
         scr = compose(Screen(), d, age, tick, ever_alive); tick += 1
