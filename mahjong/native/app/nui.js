@@ -1107,8 +1107,7 @@
     const from = Math.max(0, Math.min(11, rk.from || 0)), to = Math.max(from, Math.min(11, rk.to || 0)), steps = [];
     const ms = mapSetNo(), L = MAP2.sets[ms].legs;
     for (let d = from + 1; d <= to; d++) { const pts = L[d - 1].map(mapPt); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d, pts, seg, len, dur: len < 4 ? 1500 : Math.max(2400, Math.min(9000, len / 38 * 1000)) }); }
-    let base = MAP_T.slide + MAP_T.hold; // 歩きはじめる時刻。 はじめの街(熊本)のセリフがあるときは、それが終わるまで 歩きださない(歩きだしたあとに、前の街のセリフが出ないように)
-    try { if (from === 0 && !rk.intro && to > from) { const pk0 = 'm:' + MAP_SETS[ms].place[0].split('(')[0]; if (NSND.has(pk0)) base = Math.max(base, Math.round(NSND.klen(pk0) * 1000) + 500); } } catch (e) { /* ignore */ }
+    const base = MAP_T.slide + MAP_T.hold; // 歩きはじめる時刻。 昇段で歩くときは、いま居る街(熊本など)のセリフは 読まない(もう聞いているので)。 着いた街のセリフだけ
     let tt = base; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; tt += i < steps.length - 1 ? MAP_T.dwell : 0; return { a, b }; });
     try { NSND.mapOn(); } catch (e) { /* ignore */ }
     let intro = null;
@@ -1118,7 +1117,7 @@
       const G = Math.max(MAP_T.slide + 1800, Math.round(NSND.klen('m:肥後国') * 1000) + 700), vl = Math.max(3800, Math.round(NSND.klen('v:tenka') * 1000)); // 二つめの一言が はじまる時刻 / 声の長さ
       intro = { path: { pts, seg, len }, G, end: G + vl + 1000, v: false }; tt = intro.end;
     }
-    S.map = { intro, ms, L, vd: from === 0 ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: intro ? intro.end : steps.length ? tt : base, base, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
+    S.map = { intro, ms, L, vd: rk.intro ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: intro ? intro.end : steps.length ? tt : base, base, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
   }
   function mapAlong(st, u) { const dist = st.len * u; let i = 1; while (i < st.pts.length - 1 && st.seg[i] < dist) i++; const a = st.pts[i - 1], b = st.pts[i], sl = st.seg[i] - st.seg[i - 1] || 1, v = Math.max(0, Math.min(1, (dist - st.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v, b[0] - a[0]]; }
   function drawWater(t) { // 水面: 横長の帯を、少しずつ ずらして 波うたせる(2枚 重ねて、きらめき)
