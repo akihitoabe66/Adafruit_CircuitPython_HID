@@ -29,11 +29,11 @@ except ImportError:
     try: from oled_zunda import Z as ZU
     except ImportError: ZU = {}
 try:
-    from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES
+    from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES, SEASONS as PSEAS, SEA as PSEA, JOBS as PJOBS, COS as PCOS
 except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    try: from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES
-    except ImportError: PSTAGE, PLAB, PLINES = [], {}, {}
+    try: from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES, SEASONS as PSEAS, SEA as PSEA, JOBS as PJOBS, COS as PCOS
+    except ImportError: PSTAGE, PLAB, PLINES, PSEAS, PSEA, PJOBS, PCOS = [], {}, {}, [], {}, [], ()
 CHARFILE = os.environ.get('MJOLED_CHARFILE', '/var/lib/mjoled_char')   # 設定(ゲームの「OLEDのキャラ」)を おぼえておく場所。 電源を入れた直後の画面でも 同じ人が出る
 WHO = {'v': 'sensei'}   # いま出している人: sensei(麻雀先生) か zunda(ずんだもん)
 I2C_SLAVE = 0x0703
@@ -363,6 +363,10 @@ def compose_zunda(scr, d, age, tick, ever_alive):
     since = now - ZST['t']
     if alive and not final and h['level'] == 0 and PSTAGE and d and 'plays' in d:
         r = None
+        if scene == '昇段' and since >= 3 and PCOS:
+            j = pet_int(d, 'dan') % len(PCOS); cw, ch, crows = PCOS[j]; scr.clear(); by = 2 + (0 if tick % 2 == 0 else -2)
+            scr.bitmap(cw, ch, crows, 8, by + (64 - ch) // 2 - 2, 1); scr.line_marquee('c:' + PJOBS[j], 66, 20, 60, tick)
+            return scr
         if scene in ('結果', '対局終了') and since >= 8: r = compose_pet(scr, d, age, tick, ever_alive, h)   # 結果の反応のあとは、ハートと 節目の言葉
         elif scene in ('クイズ', '勉強') and (tick // 3) % 4 == 3: scr.clear(); pet_gauge_page(scr, d, pet_int(d, 'plays'), tick); r = scr   # 答えるあいだに ときどき 3つの目盛り
         if r is not None: return r
@@ -405,9 +409,23 @@ def pet_tier(plays):
     return 'はじめまして' if plays < 1 else 'ツン' if plays < 30 else 'ツンデレ' if plays < 100 else 'ちょいデレ' if plays < 200 else 'しんゆう' if plays >= 350 else 'なかよし'
 def pet_line_key(plays):
     k = None
-    for m in sorted(PLINES):
-        if m <= plays: k = m
+    for m in sorted(x for x in PLINES if isinstance(x, int)):
+        if isinstance(m, int) and m <= plays: k = m
     return k
+def pet_costume(d, plays):
+    """着ているもの: (絵, あいさつの言葉の名前) か None(ふつうの姿)。 時計がないので、電源を入れた回数で決める:
+    おまかせ = 3回ごとに 季節 と 職業(15回あそぶごとに ひとつ ふえる)が かわりばんこ。 季節は お正月→春→夏→ハロウィン→秋→クリスマス の順"""
+    mode = d.get('cos', 'auto'); boots = max(1, pet_int(d, 'boots')); blk = (boots - 1) // 3
+    jobs = min(len(PCOS), plays // 15)
+    if mode == 'none' or not PSEAS: return None
+    def season(n):
+        nm, idx = PSEAS[n % len(PSEAS)]; return PSEA[idx[(boots - 1) % len(idx)]], 's:' + nm
+    def job(n):
+        if jobs <= 0: return None
+        j = n % jobs; return PCOS[j], 'c:' + PJOBS[j]
+    if mode == 'season': return season(blk)
+    if mode == 'job': return job(boots - 1)
+    return season(blk // 2) if blk % 2 == 0 else job(blk // 2)
 def pet_hearts(scr, plays, x, y):
     """ハート5つ(1つ = 100回、半分 = 50回)。 そのすぐ下の細いバーは、つぎの言葉までの進み"""
     full = min(5, plays // 100); half = plays % 100 >= 50 and full < 5
@@ -441,7 +459,10 @@ def compose_pet(scr, d, age, tick, ever_alive, h):
     stg = pet_stage(plays); sw, sh, srows = stg[1], stg[2], stg[3]
     sleepy = d is not None and pet_int(d, 'idle') >= 180
     by = 2 + (0 if sleepy or tick % 2 == 0 else -2)   # ぴょこぴょこ(ねむいときは 動かない)
-    scr.bitmap(sw, sh, srows, max(0, (62 - sw * 2) // 2), by + (62 - sh * 2) // 2 - 2, 2)
+    cos = pet_costume(d, plays) if d else None
+    if cos is not None and not sleepy and (tick // 3) % 10 < 7:
+        cw, ch, crows = cos[0]; scr.bitmap(cw, ch, crows, max(0, (62 - cw) // 2), by + (64 - ch) // 2 - 2, 1)   # 衣装は、そのままの大きさ(45x47前後)
+    else: scr.bitmap(sw, sh, srows, max(0, (62 - sw * 2) // 2), by + (62 - sh * 2) // 2 - 2, 2)
     X = 66
     if d is None or d.get('scene') == '起動中':
         scr.marquee('おきるのだ…', X, 18, 60, tick); scr.text('WAIT %dS' % int(uptime()), X, 40)
@@ -452,7 +473,10 @@ def compose_pet(scr, d, age, tick, ever_alive, h):
     else:
         pet_hearts(scr, plays, X, 2)
         g = pet_line_key(plays)
-        if g is None: scr.marquee('はじめまして', X, 17, 60, tick)
+        hello = ZST.get('home_t')
+        if hello is None: hello = ZST['home_t'] = time.time()
+        if cos is not None and time.time() - hello < 15: scr.line_marquee(cos[1], X, 17, 60, tick)   # 起動して15秒は、着ているものの あいさつ
+        elif g is None: scr.marquee('はじめまして', X, 17, 60, tick)
         else: scr.line_marquee(g, X, 17, 60, tick)
         scr.text('PLAY %d' % plays, X, 37); scr.text('WIN %d' % pet_int(d, 'wins'), X, 46); scr.text('BOOT %d' % pet_int(d, 'boots'), X, 55)
     return scr

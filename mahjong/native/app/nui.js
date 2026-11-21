@@ -720,6 +720,7 @@
     });
   }
   const OLED_CH = ['random', 'sensei', 'zunda'], OLED_CH_JP = ['ランダム', '麻雀先生', 'ずんだもん'];
+  const OLED_CO = ['auto', 'none', 'season', 'job'], OLED_CO_JP = ['おまかせ', 'ふつうのまま', '季節だけ', '職業だけ']; const oledCos = () => { try { const v = localStorage.getItem('mj_oledcos'); return OLED_CO.indexOf(v) >= 0 ? v : 'auto'; } catch (e) { return 'auto'; } }; // ずんだもんの衣装(OLED): おまかせ(季節と職業が かわりばんこ) / ふつうのまま / 季節だけ / 職業だけ
   const VS_JP = ['なし', 'ふつう', 'つよい'];
   const vsharpLv = () => { try { const v = parseInt(localStorage.getItem('mj_vsharp'), 10); return v >= 0 && v <= 2 ? v : 1; } catch (e) { return 1; } }; // ビデオの「くっきり」(シャープネス): ふだんは ふつう
   try { if (typeof __vsharp === 'function') __vsharp(vsharpLv()); } catch (e) { /* ignore */ }
@@ -730,7 +731,7 @@
   const perfOn = () => { try { const v = localStorage.getItem('mj_perf'); return v === '1' ? true : v === '0' ? false : !!globalThis.__perfEnv; } catch (e) { return false; } }; // 隠しコマンド・設定で切りかえたら、それを優先(MJ_PERF=1 で起動しても、オフにできる)
   const SETS = [
     { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'cpulv', label: 'CPUの強さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'oled', label: 'OLEDのキャラ' }, { k: 'vsharp', label: 'ビデオのくっきり' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'perf', label: '遅れの診断(調べる用)' }, { k: 'reset', label: 'リセット(デバッグ用)' }, { k: 'dbg', label: 'デバッグ(あとで消す)' }, { k: 'back', label: 'もどる' },
+    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'cpulv', label: 'CPUの強さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'oled', label: 'OLEDのキャラ' }, { k: 'oledcos', label: 'ずんだもんの衣装' }, { k: 'vsharp', label: 'ビデオのくっきり' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'perf', label: '遅れの診断(調べる用)' }, { k: 'reset', label: 'リセット(デバッグ用)' }, { k: 'dbg', label: 'デバッグ(あとで消す)' }, { k: 'back', label: 'もどる' },
   ];
   /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
   const RULE_ROWS = [
@@ -795,6 +796,7 @@
       else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'oled') text(OLED_CH_JP[OLED_CH.indexOf(oledChar())], 520, y + 4, 24, BLACK, 1);
+      else if (s.k === 'oledcos') text(OLED_CO_JP[OLED_CO.indexOf(oledCos())], 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'vsharp') text(VS_JP[vsharpLv()], 520, y + 4, 24, BLACK, 1);
       else if (s.k === 'rules' || s.k === 'credits' || s.k === 'help') text('▶', 600, y + 4, 24, BLACK, 1);
     });
@@ -2492,6 +2494,7 @@
         else if (it.k === 'swap') { try { localStorage.setItem('mj_swapab', swapOn() ? '0' : '1'); } catch (e) { /* ignore */ } __swapab(swapOn() ? 1 : 0); }
         else if (it.k === 'vsharp') { const v1 = (vsharpLv() + (k === 'left' ? -1 : 1) + 3) % 3; try { localStorage.setItem('mj_vsharp', String(v1)); } catch (e) { /* ignore */ } try { __vsharp(v1); } catch (e) { /* ignore */ } } // ◀ ▶ 決定で、なし → ふつう → つよい(いま見ている動画にも すぐ効く)
         else if (it.k === 'oled') { const i0 = OLED_CH.indexOf(oledChar()), i1 = (i0 + (k === 'left' ? -1 : 1) + 3) % 3; try { localStorage.setItem('mj_oledchar', OLED_CH[i1]); } catch (e) { /* ignore */ } try { if (typeof gfx.status === 'function') gfx.status(oledState()); } catch (e) { /* ignore */ } } // ◀ ▶ 決定で、ランダム → 麻雀先生 → ずんだもん を切りかえ(すぐ OLED に反映)
+        else if (it.k === 'oledcos') { const i0 = OLED_CO.indexOf(oledCos()), i1 = (i0 + (k === 'left' ? -1 : 1) + 4) % 4; try { localStorage.setItem('mj_oledcos', OLED_CO[i1]); } catch (e) { /* ignore */ } try { if (typeof gfx.status === 'function') gfx.status(oledState()); } catch (e) { /* ignore */ } }
         else if (it.k === 'perf') { try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } }
         else if (it.k === 'rules' && k !== 'left') { S.mode = 'rules'; S.ruleIdx = 0; S.ruleDraft = null; S.ruleDlg = null; S.ruleToast = 0; }
         else if (it.k === 'credits' && k !== 'left') { S.mode = 'credits'; }
@@ -2951,7 +2954,7 @@
     if (S.cert) { scene = 'RANK'; pose = 'pray'; msg = 'RANKUP'; }
     let audio = 'ok'; try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi && mi[0] === 0) audio = 'BGM STOP'; } catch (e) { /* ignore */ }
     let mm = ['', '', '', '']; try { if (typeof gfx.mem === 'function') mm = gfx.mem().map((v) => Math.round(v)); } catch (e) { /* ignore */ }
-    let pet = ''; try { const rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0]; pet = 'plays=' + (rs.games || 0) + '\nwins=' + (rk[0] || 0) + '\nboots=' + bootN + '\nqc=' + (rs.qc || 0) + '\npt=' + (rs.pt || 0) + '\ndan=' + (rs.dan || 0) + '\nidle=' + Math.floor((__now() - (S.lastKeyT || 0)) / 1000) + '\n'; } catch (e) { /* ignore */ } // ペット用: 遊んだ回数・1位の数・電源を入れた回数・クイズの数・経験値・段位
+    let pet = ''; try { const rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0]; pet = 'plays=' + (rs.games || 0) + '\nwins=' + (rk[0] || 0) + '\nboots=' + bootN + '\nqc=' + (rs.qc || 0) + '\npt=' + (rs.pt || 0) + '\ndan=' + (rs.dan || 0) + '\ncos=' + oledCos() + '\nidle=' + Math.floor((__now() - (S.lastKeyT || 0)) / 1000) + '\n'; } catch (e) { /* ignore */ } // ペット用: 遊んだ回数・1位の数・電源を入れた回数・クイズの数・経験値・段位
     const o = perf.o || {}, jp = (k) => (k ? (OLED_JP[k] || k) : '');
     return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\nchar=' + oledChar() + '\n' + pet;
   }
