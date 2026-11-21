@@ -43,6 +43,11 @@
     },
     resultCpuRon() { A.scale = 0.65; cur = ''; A.music(BLADE); }, /* CPU同士の「ロン」(人は関係ない): ノリの良い曲に切りかえる(前は 地図の曲と同じ曲だった。 地図の曲は 地図だけ) */
     result(kind) { const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm' || kind === 'draw') return; /* 流局・CPU同士の上がり: 曲を切りかえず、対局のBGMをそのまま流す(切りかえの一瞬、音が消えるため) */ /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ A.scale = 0.65; cur = ''; A.music('audio/' + n + '.mp3'); },
+    endBgm(rank) { // 対局が終わったとき(順位の画面): 最後の局が 流局・CPU同士の上がりで、対局の曲が鳴りっぱなしにならないよう、順位に合わせた曲にする(すでに同じ種類の結果の曲なら そのまま)
+      const fam = rank <= 2 ? 'win' : rank === 3 ? 'draw' : 'lose', m = /result_(win|draw|lose)/.exec(cur || ''); if (m && m[1] === fam) return;
+      A.holding = false; A.scale = 0.65; cur = ''; A.music('audio/result_' + fam + '.mp3');
+    },
+    certOn() { A.scale = 0.65; const p = 'audio/result_win2.mp3'; if (cur !== p) { cur = ''; A.music(p); } }, // 認定証(昇段): おめでたい曲
     toggle() { A.on = !A.on; if (!A.on) { snd.music(''); cur = ''; } return A.on; },
     sfx(name, v) { if (SFX.indexOf(name) >= 0) snd.play('audio/sfx/' + name + '.wav', (v == null ? V.sfx : v)); },
     call(p, text) {
