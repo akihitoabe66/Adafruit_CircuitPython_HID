@@ -240,6 +240,12 @@ static void health_read(void){
   if (lv != h_level) { char nm[80]; snprintf(nm, sizeof nm, "level %d→%d 温度%.0fC 電圧低下%d", h_level, lv, temp, lowv); bgm_log("health", 0, nm); }
   h_level = lv; h_why = why; h_temp = temp; h_volt = volt; h_amp = amp;
 }
+static JSValue j_free(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* 空きメモリが少ないとき: 1=画面の絵のキャッシュ(層)を捨てる 2=文字の絵を捨てる。 描いている最中は、何もしない */
+  int m = n > 0 ? ai(c, a[0]) : 0; int cnt = 0; if (lay_in) return JS_NewInt32(c, 0);
+  if (m & 1) for (int i = 0; i < 32; i++) if (lay[i]) { SDL_DestroyTexture(lay[i]); lay[i] = NULL; cnt++; }
+  if (m & 2) { for (int i = 0; i < ntxt; i++) if (txts[i].tex) { SDL_DestroyTexture(txts[i].tex); txts[i].tex = NULL; cnt++; } ntxt = 0; txtnext = 0; }
+  { char nm[80]; snprintf(nm, sizeof nm, "メモリが少ないので、%s%sを捨てた(%d枚) 空き%.0fMB", (m & 1) ? "層" : "", (m & 2) ? "文字" : "", cnt, mem_avail); bgm_log("mem-free", 0, nm); }
+  return JS_NewInt32(c, cnt); }
 static JSValue j_health(JSContext *c, JSValueConst t, int n, JSValueConst *a){ health_read(); JSValue arr = JS_NewArray(c); JS_SetPropertyUint32(c, arr, 0, JS_NewInt32(c, h_level)); JS_SetPropertyUint32(c, arr, 1, JS_NewFloat64(c, h_temp)); JS_SetPropertyUint32(c, arr, 2, JS_NewInt32(c, h_why)); JS_SetPropertyUint32(c, arr, 3, JS_NewFloat64(c, h_volt)); JS_SetPropertyUint32(c, arr, 4, JS_NewFloat64(c, h_amp)); return arr; }
 static void mem_watch(void){
   double now = nowms(); if (now - mem_t < 5000) return; mem_t = now; mem_read();
@@ -464,7 +470,7 @@ int main(int argc, char **argv){
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
   reg(gfx, "dry", j_dry, 1); reg(gfx, "rrect", j_rrect, 9); reg(gfx, "fill", j_fill, 8); reg(gfx, "frame", j_frame, 8); reg(gfx, "image", j_image, 6); reg(gfx, "imageTop", j_imagetop, 5); reg(gfx, "fillTop", j_filltop, 8); reg(gfx, "imageRotTop", j_imagerottop, 7); reg(gfx, "textTop", j_texttop, 8); reg(gfx, "imageSil", j_imagesil, 6); reg(gfx, "text", j_text, 8); reg(gfx, "imageRot", j_imagerot, 7); reg(gfx, "textRot", j_textrot, 8); reg(gfx, "measure", j_measure, 2);
-  reg(gfx, "health", j_health, 0); reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "keyLat", j_keylat, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "status", j_status, 1); reg(gfx, "mem", j_mem, 0); reg(gfx, "preload", j_preload, 1); reg(gfx, "grab", j_grab, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
+  reg(gfx, "health", j_health, 0); reg(gfx, "free", j_free, 1); reg(gfx, "clear", j_clear, 3); reg(gfx, "present", j_present, 0); reg(gfx, "keyLat", j_keylat, 0); reg(gfx, "view", j_view, 2); reg(gfx, "clip", j_clip, 4); reg(gfx, "layerBegin", j_layerbegin, 1); reg(gfx, "layerEnd", j_layerend, 0); reg(gfx, "layer", j_layer, 1); reg(gfx, "status", j_status, 1); reg(gfx, "mem", j_mem, 0); reg(gfx, "preload", j_preload, 1); reg(gfx, "grab", j_grab, 1); reg(gfx, "shot", j_shot, 1); JS_SetPropertyStr(ctx, gfx, "bold", JS_TRUE); /* 太字(字の大きさをマイナスで指定)に対応している、という印。古い本体(再ビルド前)では、JSが太字を使わないようにする */ reg(gfx, "snap", j_snap, 1);
   JS_SetPropertyStr(ctx, g, "gfx", gfx);
   JSValue snd = JS_NewObject(ctx); reg(snd, "play", j_play, 2); reg(snd, "playAt", j_playat, 3); reg(snd, "cancelAt", j_cancelat, 0); reg(snd, "len", j_len, 1); reg(snd, "stopAll", j_stopall, 0); reg(snd, "pauseAll", j_pause, 0); reg(snd, "resumeAll", j_resume, 0); reg(snd, "music", j_music, 2); reg(snd, "musicVol", j_mvol, 1); reg(snd, "musicInfo", j_musicinfo, 0);
   JS_SetPropertyStr(ctx, g, "snd", snd); reg(g, "__readtext", j_readtext, 1); reg(g, "__readdir", j_readdir, 1); reg(g, "__vopen", j_vopen, 2); reg(g, "__vstate", j_vstate, 0); reg(g, "__vseek", j_vseek, 1); reg(g, "__vpause", j_vpause, 1); reg(g, "__vclose", j_vclose, 0); JS_SetPropertyStr(ctx, g, "__dataDir", JS_NewString(ctx, datadir));

@@ -2185,7 +2185,7 @@
   }
   function startDiag() { S.mode = 'diag'; for (let i = 10; i <= 20; i++) S.lay[i] = null; /* 前に開いたときの絵(古い数字)を、使い回さない */ let rk = { hist: [] }, info = null; try { rk = MJ.Rank.get(); info = MJ.Rank.info(); } catch (e) { /* ignore */ } S.diag = { pg: 0, d: MJ.Stats.diag(), sg: MJ.Stats.strength(), rk, info }; dirty(); diagWarm(); }
   function diagWarm() { // 入ったあと、「強さ」の各項目を選んだときの画面を、画面に出さずに 先に描いておく
-    if (typeof gfx.layerBegin !== 'function') return;
+    if (typeof gfx.layerBegin !== 'function' || memLow()) return; // メモリが少ないときは、先に描いておかない
     [0, 1, 2, 3, 4, 5, 6, -1].forEach((f, k) => setTimeout(() => { const D = S.diag; if (!D || S.mode !== 'diag' || D.pg !== 0) return; const keep = D.fi; try { D.fi = f; const kb = S.bbf; S.bbf = false; lay(diagSlot(D, f), 'dg0:' + f, drawDiagBody); S.bbf = kb; } catch (e) { /* ignore */ } D.fi = keep; }, 600 + k * 300));
   }
   function diagKey(k) {
@@ -2959,6 +2959,17 @@
       if (lv !== prev || lv >= 1) dirty();
     } catch (e) { /* ignore */ }
   }, 1000);
+  /* ---------- メモリ不足の見はり: 空きが少なくなったら、画面のキャッシュ(層)→文字の絵、の順に捨てる(足りなくなると、本体ごと固まる) ---------- */
+  const memLow = () => { try { if (typeof gfx.mem === 'function') { const m = gfx.mem(); return m[1] < 60; } } catch (e) { /* ignore */ } return false; };
+  setInterval(() => {
+    try {
+      if (typeof gfx.free !== 'function' || typeof gfx.mem !== 'function') return;
+      const av = gfx.mem()[1], now = __now(); if (av >= 60 || av <= 0 || now - (S.memFreeAt || 0) < 15000) return;
+      S.memFreeAt = now;
+      const k = gfx.free(1); S.lay = []; if (av < 40) gfx.free(2); // 層を捨てたら、JS側の「描きずみ」の記録も消す(また描きなおす)
+      S.memFreed = (S.memFreed || 0) + 1; tl('mem-free avail=' + Math.round(av) + ' 層' + k); dirty();
+    } catch (e) { /* ignore */ }
+  }, 2000);
   function drawHealth() {
     const h = S.hl; if (!h || h.lv < 1) return; gfx.view(0, 0);
     const volt = h.why === 2, deg = h.temp + '度', ex = h.volt ? '  ' + h.volt.toFixed(1) + 'V ' + h.amp.toFixed(2) + 'A' : '';
