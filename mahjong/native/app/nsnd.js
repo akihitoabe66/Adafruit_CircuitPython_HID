@@ -2,7 +2,7 @@
 (function () {
   const MJ = window.MJ;
   const GAME = ['game1', 'game2', 'game3', 'game4', 'game5', 'game6', 'game7', 'game10', 'game11'].map((n) => 'audio/' + n + '.mp3');
-  const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3', 'audio/game15.mp3'], HOME = 'audio/home.mp3';
+  const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], BLADE = 'audio/blade_of_the_setting_sun.mp3', FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3', 'audio/game15.mp3', BLADE], HOME = 'audio/home.mp3';
   const SFX = ['click', 'select', 'draw', 'deal4', 'deal1', 'sort1', 'sort2', 'deal', 'discard', 'call', 'kan', 'riichi', 'ron', 'tsumo', 'win', 'lose', 'drawgame', 'slam', 'start', 'end', 'ok', 'ng', 'error', 'dice_hit', 'dice_clack', 'ura_slide', 'ura_tap', 'hand_open'];
   const D = { bgm: 0.22 * 6 / 5 * 6 / 5 * 6 / 5, sfx: 0.7 * 8 / 5, voice: 0.85, read: 0.6 }; // 初期値(音量の目盛り5のとき)。 目盛り5 = 前の版の「BGM6・効果音8・読み上げ5」のバランス。 さらに BGMは、ほかの音とのバランスで、もう1段(×1.2)大きく
   try { const vv = localStorage.getItem('mj_vol_v'); if (vv === '3') { try { const b = localStorage.getItem('mj_vol_bgm'); if (b !== null) localStorage.setItem('mj_vol_bgm', String(Math.max(0, parseInt(b, 10) - 1))); } catch (e) { /* ignore */ } localStorage.setItem('mj_vol_v', '4'); } else if (vv !== '4') { (vv === '2' ? ['bgm'] : ['bgm', 'sfx', 'voice']).forEach((k) => localStorage.removeItem('mj_vol_' + k)); localStorage.setItem('mj_vol_v', '4'); } } catch (e) { /* ignore */ } // 前の版の目盛りで保存された音量は、1回だけ 5 にもどす
@@ -23,7 +23,7 @@
     hold() { A.holding = true; A._hid = (A._hid || 0) + 1; const id = A._hid; try { snd.musicVol(0, 700); setTimeout(() => { if (A.holding && A._hid === id) { snd.music(''); cur = ''; } }, 800); } catch (e) { /* ignore */ } /* 前の曲(ホームの曲など)は、すっと小さくして止める。配牌は、曲なしで(効果音だけ) */ setTimeout(() => { if (A._hid === id) A.release(); }, 12000); }, // 配牌のあいだ、曲の切りかえを待たせる(12秒たったら、かならず はじめる)
     release() { if (!A.holding) return; A.holding = false; const p = A._pend; A._pend = null; if (p) setTimeout(() => A.music(p), 300); },
     mapOn() { A._pcur = cur; A.scale = 1; A.music('audio/map.mp3'); }, // 昇段の地図の曲(終わったら、前の曲にもどす)
-    revealOn() { A._rcur = cur; A.scale = 1; cur = ''; A.music(FINAL[Math.floor(Math.random() * FINAL.length)]); }, // 新しい雀士が登場する画面: ノリノリの曲(最終局用)
+    revealOn() { A._rcur = cur; A.scale = 1; cur = ''; A.music(BLADE); }, // 新しい雀士が登場する画面: ノリが良く、わくわくする曲(blade_of_the_setting_sun)
     revealOff() { const q = A._rcur; A._rcur = null; if (q) { cur = ''; A.music(q); } },
     mapOff() { const q = A._pcur; A._pcur = null; if (q) { cur = ''; A.music(q); } },
     home() { A.holding = false; A._pend = null; A.scale = 1; A.music(HOME); },
@@ -41,7 +41,7 @@
       const pool = finalHand && Math.random() < 0.6 && fin.length ? fin : cand;
       last = pool[Math.floor(Math.random() * pool.length)]; A.gtrack = last; cur = ''; A.music(last);
     },
-    resultCpuRon() { /* CPU同士の「ロン」(人は関係ない): 曲は切りかえず、対局のBGMをそのまま流す(前は 地図の曲と同じ曲を流していた。 地図の曲は 地図だけにする) */ },
+    resultCpuRon() { A.scale = 0.65; cur = ''; A.music(BLADE); }, /* CPU同士の「ロン」(人は関係ない): ノリの良い曲に切りかえる(前は 地図の曲と同じ曲だった。 地図の曲は 地図だけ) */
     result(kind) { const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm') return; /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ A.scale = 0.65; cur = ''; A.music('audio/' + n + '.mp3'); },
     toggle() { A.on = !A.on; if (!A.on) { snd.music(''); cur = ''; } return A.on; },
     sfx(name, v) { if (SFX.indexOf(name) >= 0) snd.play('audio/sfx/' + name + '.wav', (v == null ? V.sfx : v)); },
