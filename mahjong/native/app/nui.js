@@ -1217,7 +1217,7 @@
   function mapTick(M) { /* 旅のはじまりは、声が終わっても、自動では次へ進まない(説明を読んだあと、決定ボタンで進む) */ if (M.view && M.go != null && __now() - M.t0 >= M.endT) { M.from = M.go; M.go = null; M.back = false; M.capSay = false; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = -1; M.ask = { idx: 0 }; } } // 着いたら、「この街で 対戦する?」
   function mapGo(M, dest) { // ▼で えらんだ街へ、ずんだもんが 歩いて行く(戻るときは、道を 逆に歩く)
     const steps = [], fwd = dest > M.from;
-    for (let k = M.from; k !== dest; k += fwd ? 1 : -1) { const d = fwd ? k + 1 : k, pts = M.L[d - 1].map(mapPt); if (!fwd) pts.reverse(); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d: fwd ? d : d - 1, pts, seg, len, dur: len < 4 ? (steps.length < 1 ? 1500 : 300) : Math.max(fwd ? 2400 : 1200, Math.min(fwd ? 9000 : 4500, len / (fwd ? 38 : 76) * 1000)) }); } // 戻る道は 2倍の速さ
+    for (let k = M.from; k !== dest; k += fwd ? 1 : -1) { const d = fwd ? k + 1 : k, pts = M.L[d - 1].map(mapPt); if (!fwd) pts.reverse(); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d: fwd ? d : d - 1, pts, seg, len, dur: len < 4 ? (steps.length < 1 ? 1500 : 300) : (M.view ? Math.max(1300, Math.min(5000, len / 70 * 1000)) : Math.max(fwd ? 2400 : 1200, Math.min(fwd ? 9000 : 4500, len / (fwd ? 38 : 76) * 1000))) }); } // 自分で えらんだ移動(地図を見る画面)は、行きも戻りも同じ速さ(少し速め)。 昇段のあとの自動の移動は、ゆっくり
     let tt = MAP_T.slide + MAP_T.hold; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; return { a, b }; }); // 途中の街では 止まらず通りぬける(着いた街で だけ止まる)
     M.steps = steps; M.tl = tl; M.endT = tt; M.t0 = __now() - (MAP_T.slide + MAP_T.hold); M.go = dest; M.ask = null; M.back = dest < M.from; M.capSay = false; NSND.sfx('select', 0.6);
     if (M.back) { // 下の街(修行)へ歩き出すとき、声を出す。 歩きは そのまま続く。 修行のポイントが上限のときは、段位ごとに はじめての1回だけ「これ以上は成長しない」を話す
@@ -3071,6 +3071,7 @@
   function bootRun() { /* 最初の対局で要る準備を、起動の画面(進み具合の棒)のあいだに すべて済ませる */
     const jobs = warmTextJobs().concat(homeWarmJobs()), total = jobs.length || 1, t0 = __now(); let done = 0;
     S.mode = 'boot'; S.bootP = 0; tl('boot-start ' + total); dirty();
+    try { NSND.home(); } catch (e) { /* ignore */ } // タイトルの曲は、起動の棒のあいだに 先に鳴らしはじめる(タイトルが出てから 曲の準備を待たない)
     const run = () => {
       const t1 = __now(); while (jobs.length && __now() - t1 < 80) { jobs.shift()(); done++; }
       S.bootP = done / total; dirty();

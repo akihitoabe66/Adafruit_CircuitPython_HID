@@ -371,7 +371,7 @@ def compose_zunda(scr, d, age, tick, ever_alive):
         elif scene in ('クイズ', '勉強') and (tick // 3) % 4 == 3: scr.clear(); pet_gauge_page(scr, d, pet_int(d, 'plays'), tick); r = scr   # 答えるあいだに ときどき 3つの目盛り
         if r is not None: return r
     if not alive and not booting: expr = 'worry' if ever_alive else 'content'
-    if (booting or (alive and not final and scene in ('ホーム', 'タイトル') and h['level'] == 0)):
+    if (booting or (alive and not final and scene in ('ホーム', 'タイトル', '起動中') and h['level'] == 0)):
         r = compose_pet(scr, d, age, tick, ever_alive, h)
         if r is not None: return r
     scr.zface(expr, 0, 3)
@@ -454,7 +454,7 @@ def pet_gauge_page(scr, d, plays, tick):
         scr.box(0, y + 18, 1, 1, 1); scr.box(127, y + 18, 1, 1, 1); scr.box(1, y + 18, int(126 * fr), 1, 1)
 def compose_pet(scr, d, age, tick, ever_alive, h):
     """ホーム・起動中の、ペットの画面。 戻り値が None なら ふつうの画面にもどる"""
-    if not PSTAGE or 'plays' not in (d or {}) and not (not ever_alive and uptime() < 150 and d is None): return None
+    if not PSTAGE or not (d is None or d.get('scene') == '起動中' or 'plays' in d): return None
     scr.clear(); plays = pet_int(d, 'plays') if d else 0
     stg = pet_stage(plays); sw, sh, srows = stg[1], stg[2], stg[3]
     sleepy = d is not None and pet_int(d, 'idle') >= 180
