@@ -51,3 +51,4 @@ sudo sh native/pi/install_oled.sh
 - ゲームを終えて、もう一度はじめたとき(ホームにもどらず、アプリをやりなおしたとき)に、えらびなおす。
 - 固定したいとき: `/etc/default/mjoled` に `MJOLED_CHAR=sensei`(先生だけ) / `MJOLED_CHAR=zunda`(ずんだもんだけ)。 試験: `python3 native/pi/mjoled.py --demo --zunda`
 - ずんだもんの絵: `tools/ui_src/zunda_pixel16.jpg`(黒髪の16表情のうち14)から `python3 tools/make_oled_zunda.py` で作る(`native/pi/oled_zunda.py`)。 場面ごとの表情は `mjoled.py` の `ZEXPR` / `ZSCENE`。
+- ゲームの「設定」→「OLEDのキャラ」で、ランダム / 麻雀先生 / ずんだもん を切りかえられる(◀ ▶ か決定)。 すぐ OLED に反映され、おぼえておく(`/var/lib/mjoled_char`)ので、電源を入れた直後の画面でも同じ人が出る。 設定が「ランダム」のときだけ、電源を入れるたびに えらびなおす。 ゲームの設定が、`/etc/default/mjoled` の `MJOLED_CHAR` より優先される。

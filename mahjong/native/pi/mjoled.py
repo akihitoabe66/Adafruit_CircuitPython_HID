@@ -28,6 +28,7 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     try: from oled_zunda import Z as ZU
     except ImportError: ZU = {}
+CHARFILE = os.environ.get('MJOLED_CHARFILE', '/var/lib/mjoled_char')   # 設定(ゲームの「OLEDのキャラ」)を おぼえておく場所。 電源を入れた直後の画面でも 同じ人が出る
 WHO = {'v': 'sensei'}   # いま出している人: sensei(麻雀先生) か zunda(ずんだもん)
 I2C_SLAVE = 0x0703
 ADDR = int(os.environ.get('MJOLED_ADDR', '0x3C'), 0)
@@ -435,8 +436,13 @@ def main():
     try: os.nice(19)
     except OSError: pass
     import random
+    mode = {'v': os.environ.get('MJOLED_CHAR', 'random').lower()}   # random / sensei / zunda
+    try:
+        with open(CHARFILE) as f: mv = f.read().strip()
+        if mv in ('random', 'sensei', 'zunda'): mode['v'] = mv   # ゲームの設定が あれば、そちらが優先
+    except Exception: pass
     def pick():
-        c = os.environ.get('MJOLED_CHAR', 'random').lower()
+        c = mode['v']
         return c if c in ('sensei', 'zunda') else random.choice(['sensei', 'zunda'])
     WHO['v'] = 'zunda' if '--zunda' in sys.argv else pick(); print('mjoled: 表示は %s' % ('ずんだもん' if WHO['v'] == 'zunda' else '麻雀先生'), flush=True)
     was_alive = False; need_repick = False
@@ -456,6 +462,11 @@ def main():
             d, age = {'scene': sc, 'pose': p, 'spd': '30', 'draw': '33', 'max': '57', 'key': '12', 'msg': sub}, 0
         else:
             d, age = read_status(STATUS)
+        if d is not None and age < 4.0 and d.get('char') in ('random', 'sensei', 'zunda') and d.get('char') != mode['v'] and '--demo' not in sys.argv and '--zunda' not in sys.argv:   # ゲームの設定が かわった: すぐ反映して、おぼえる
+            mode['v'] = d.get('char'); WHO['v'] = pick(); print('mjoled: 設定が かわった: %s' % mode['v'], flush=True)
+            try:
+                with open(CHARFILE, 'w') as f: f.write(mode['v'])
+            except Exception as e: print('mjoled: 設定を書けません(%s)' % e, flush=True)
         alive_now = d is not None and age < 4.0 and d.get('scene') not in ('EXIT', 'MAINT')
         if alive_now and not was_alive and need_repick and '--demo' not in sys.argv and '--zunda' not in sys.argv: WHO['v'] = pick(); need_repick = False; print('mjoled: ゲームが はじまった。 表示は %s' % ('ずんだもん' if WHO['v'] == 'zunda' else '麻雀先生'), flush=True)   # ゲームが 終わって、また はじまったときだけ えらびなおす(1回のゲームのあいだは ずっと同じ)
         if was_alive and not alive_now: need_repick = True
