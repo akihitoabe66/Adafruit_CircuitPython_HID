@@ -14,6 +14,7 @@ static void vid_render(void) {}
 static void vid_close(void) {}
 static int vid_active(void) { return 0; }
 static JSValue j_vopen(JSContext *c, JSValueConst t, int n, JSValueConst *a) { return JS_NULL; }
+static JSValue j_vsharp(JSContext *c, JSValueConst t, int n, JSValueConst *a) { return JS_UNDEFINED; }
 static JSValue j_vstate(JSContext *c, JSValueConst t, int n, JSValueConst *a) { return JS_NULL; }
 static JSValue j_vseek(JSContext *c, JSValueConst t, int n, JSValueConst *a) { return JS_UNDEFINED; }
 static JSValue j_vpause(JSContext *c, JSValueConst t, int n, JSValueConst *a) { return JS_UNDEFINED; }
@@ -60,6 +61,18 @@ static void vhook(void *u, Uint8 *st, int len) { /* 音を出す側(別スレッ
 }
 static double vts(int64_t ts, AVRational tb, double start) { return ts == AV_NOPTS_VALUE ? -1 : ts * av_q2d(tb) - start; }
 
+/* くっきり(シャープネス): 明るさ(Y)の面だけに、周りの4点との差を足す(3x3のアンシャープ)。 1=弱 2=強。 絵の取りこみスレッドで行う(画面を描くスレッドとは別のコアで動く) */
+static volatile int v_sharp = 0;
+static void vsharp_y(uint8_t *p, int ls, int w, int h) {
+  static uint8_t *prev = NULL, *cur = NULL; static int psz = 0; if (psz < w) { free(prev); free(cur); prev = malloc(w); cur = malloc(w); psz = w; } if (!prev || !cur || w < 3 || h < 3) return;
+  const int k = v_sharp >= 2 ? 3 : 1; /* 差の 3/8 か 1/8 を足す */
+  memcpy(prev, p, w);
+  for (int y = 1; y < h - 1; y++) {
+    uint8_t *row = p + y * ls, *dn = p + (y + 1) * ls; memcpy(cur, row, w);
+    for (int x = 1; x < w - 1; x++) { int c = cur[x], d = 4 * c - prev[x] - dn[x] - cur[x - 1] - cur[x + 1]; int v = c + (d * k) / 8; row[x] = v < 0 ? 0 : v > 255 ? 255 : v; }
+    uint8_t *t = prev; prev = cur; cur = t;
+  }
+}
 static void vpush_video(AVFrame *fr, int mygen) {
   double pts = vts(fr->best_effort_timestamp, V.vtb, V.vstart); if (pts < 0) pts = 0;
   if (pts < V.discard - 0.001) return; /* シークした先より前の絵は捨てる */
@@ -72,6 +85,7 @@ static void vpush_video(AVFrame *fr, int mygen) {
     V.sws = sws_getCachedContext(V.sws, fr->width, fr->height, fr->format, V.w, V.h, AV_PIX_FMT_YUV420P, SWS_FAST_BILINEAR, NULL, NULL, NULL);
     if (!V.sws) return; sws_scale(V.sws, (const uint8_t *const *)fr->data, fr->linesize, 0, fr->height, f->d, f->ls);
   }
+  if (v_sharp) vsharp_y(f->d[0], f->ls[0], V.w, V.h);
   f->pts = pts; SDL_LockMutex(V.mu); if (V.gen == mygen) { V.qw = (V.qw + 1) % V.nq; V.qn++; } SDL_UnlockMutex(V.mu);
 }
 static int vswr_make(AVFrame *fr) {
@@ -341,6 +355,7 @@ static int bgms_open(const char *path, int loop) { /* すぐに返る(曲を開�
   Mix_HaltMusic(); B.stop = 0; B.failed = 0; B.th = SDL_CreateThread(bgms_thread, "bgm", NULL); if (!B.th) { bgms_close(); return 0; }
   return 1;
 }
+static JSValue j_vsharp(JSContext *c, JSValueConst t, int n, JSValueConst *a){ v_sharp = n > 0 ? ai(c, a[0]) : 0; return JS_UNDEFINED; } /* くっきり: 0=なし 1=弱 2=強 */
 #endif
 /* ディレクトリの中の名前の一覧(並べ替え済み)。なければ null */
 static int vcmp(const void *a, const void *b) { return strcmp(*(char *const *)a, *(char *const *)b); }
