@@ -22,6 +22,25 @@
     return s;
   };
 
+
+  /* ---- 打ち方の特徴(強さとは別): 雀士ごとに、鳴きかた・ダマ・リーチ・押し引き・打点・色寄せ・七対子の好みを変える ----
+     call=鳴き意欲(0 ほとんど鳴かない 〜 1 何でも鳴く) / dama=ダマ好み(0 かならずリーチ 〜 1 役があればダマ) / rii=リーチ好み(待ちが悪くても かけるか) /
+     atk=押し引き(−1 守備的 〜 +1 攻撃的) / val=打点志向(ドラ・大物手を大事にする) / color=色寄せ(ホンイツ・チンイツを目ざす) / pair=七対子(対子を残す) */
+  const TR = {
+    1: [.35, .5, .5, 0, .4, .2, .2], 2: [.5, .2, .8, .5, .6, .2, .2], 3: [.5, .6, .5, 0, .5, .3, .2], 4: [.3, .5, .3, -.8, .3, .1, .2], 5: [1, 0, .7, .5, .1, .1, .1],
+    6: [.3, .3, .6, .7, 1, .6, .2], 7: [.3, .7, .3, -1, .5, .3, .2], 8: [.15, .8, .3, .2, .9, .7, .2], 9: [.5, .3, .6, .2, .4, .2, .3], 10: [.4, .3, .5, 0, .3, .1, .1],
+    11: [.4, 0, 1, .8, .5, .2, .1], 12: [.3, .6, .4, -.9, .4, .2, .2], 13: [.5, .5, .5, 0, .5, .3, .3], 14: [.1, 1, .1, -.4, .3, .2, .3], 15: [.2, .5, .5, 0, .5, .4, 1],
+    16: [1, 0, .6, .6, .5, .3, .1], 17: [.45, .5, .5, -.3, .4, .2, .2], 18: [.5, .2, .7, .6, .6, .3, .1], 19: [.6, .2, .7, .7, .5, .3, .1], 20: [.6, 0, 1, .6, .3, .1, .1],
+    21: [.2, .5, .4, -.2, .2, .1, .2], 22: [.4, .4, .4, 0, .3, .1, .2], 23: [.2, .6, .3, -.6, .3, .2, .3], 24: [.3, .5, .3, -.3, .3, .1, .2], 25: [.8, .1, .7, .4, .2, .1, .1],
+    26: [.6, 0, .9, .9, .3, .1, .1], 27: [1, .1, .8, .9, .2, .1, .1], 28: [.2, .5, .3, -.8, .2, .1, .3], 29: [.9, .1, .7, .6, .3, .1, .1], 30: [1, .1, .6, .4, .7, .3, .1],
+    31: [.2, .5, .5, 0, .6, .8, .3], 32: [.35, .7, .4, 0, .7, .3, .2],
+  };
+  const TRD = { attack: [.7, .2, .8, .5, .4, .2, .2], defense: [.3, .6, .3, -.5, .3, .2, .2], balanced: [.5, .4, .5, 0, .4, .2, .2] };
+  A.traits = function (p) {
+    const ch = p.char || {}, v = TR[ch.id] || TRD[ch.style] || TRD.balanced;
+    return { call: v[0], dama: v[1], rii: v[2], atk: v[3], val: v[4], color: v[5], pair: v[6] };
+  };
+  A.traitType = (T) => (T.atk >= 0.4 ? 'attack' : T.atk <= -0.4 ? 'defense' : 'balance');
   const isYakuhaiFor = (game, p, t) => t >= 31 || t === 27 + game.seatWindOf(p) || t === 27 + game.roundWind;
   A.isYakuhaiFor = isYakuhaiFor;
 
@@ -173,9 +192,11 @@
     for (const m of p.melds) { if (m.t >= 27) hon += 3; else suit[(m.t / 9) | 0] += 3; }
     const total = suit[0] + suit[1] + suit[2] + hon;
     const top = Math.max(suit[0], suit[1], suit[2]);
-    if (total >= 10 && top + hon >= total - 3 && top >= 5) { // 混一色・清一色に寄っている
+    const kc = A.traits(p).color, early = kc >= 0.5 && total >= 8 && top >= 4 && top + hon >= total - 4; // 色寄せ好きは、早めから一色を目ざす
+    if ((total >= 10 && top + hon >= total - 3 && top >= 5) || early) { // 混一色・清一色に寄っている
       const ts = suit.indexOf(top);
-      if (t < 27 && ((t / 9) | 0) !== ts) v += 3; else v -= 1;
+      const k = 0.3 + kc * 6;
+      if (t < 27 && ((t / 9) | 0) !== ts) v += 3 * k; else v -= 1 * k;
     } else if (!yh && yao <= 3 && MJ.RULES.kuitan !== false) { // タンヤオに近い
       if (MJ.isYaochu(t)) v += 2.5; else v -= 0.5;
     }
@@ -185,13 +206,15 @@
   /* 手の価値による打牌補正 (大きいほど切りたい) */
   A.valueAdj = function (game, p, t, c) {
     let v = 0;
-    for (const d of game.doraInd) if (MJ.doraOf(d.t) === t) v -= 6;
+    const T = A.traits(p);
+    for (const d of game.doraInd) if (MJ.doraOf(d.t) === t) v -= 6 * (0.6 + T.val * 0.8);
     if (c[t] >= 2 && isYakuhaiFor(game, p, t)) v -= 5;
     if (c[t] === 1 && t >= 27 && t < 31 && t === 27 + game.seatWindOf(p) && t === 27 + game.roundWind) v -= 2; // 連風牌(場風と自風が同じ)は2飜なので特に残す
     if (t >= 27 && c[t] === 1 && !isYakuhaiFor(game, p, t)) v += 2;
     if (t >= 27 && c[t] === 1 && isYakuhaiFor(game, p, t)) v -= 1;
     if (MJ.isTerminal(t) && c[t] === 1) v += 1.5;
-    if (p.hand.some((h) => h.t === t && h.red)) v -= 2;
+    if (p.hand.some((h) => h.t === t && h.red)) v -= 2 * (0.6 + T.val * 0.8);
+    if (T.pair >= 0.5 && c[t] === 2) { let pr = 0; for (let i = 0; i < 34; i++) if (c[i] >= 2) pr++; if (pr >= 3) v -= 12 * T.pair; } // 七対子好み: 対子が3つ以上あれば、対子を残す
     v += A.planAdj(game, p, t, c);
     return v;
   };
@@ -579,7 +602,7 @@
     }
 
     if (opps.length && lv >= 4 && !(opts.riichi && opts.riichi.length && false)) { // 強いCPUは、押す・半押し・回すを決めて打つ
-      const stc = A.stance(game, p, an);
+      const tt = A.traitType(A.traits(p)), stc = A.stance(game, p, an, tt === 'balance' ? undefined : tt);
       if (stc && stc.pick) {
         const pk = stc.pick;
         if (opts.riichi.includes(pk.t) && stc.kind === 'push' && A.wantRiichi(game, p, pk, an)) return { act: 'riichi', tile: pk.tile };
@@ -588,7 +611,7 @@
     }
     let fold = false;
     if (opps.length && lv >= 3) {
-      const thr = st === 'defense' ? 1 : st === 'attack' ? 3 : 2;
+      const Tq = A.traits(p), thr = Tq.atk <= -0.4 ? 1 : Tq.atk >= 0.4 ? 3 : 2;
       if (minSh >= thr) fold = true;
       if (lv >= 4 && minSh === 1 && opps.length >= 2 && st !== 'attack') fold = true;
       if (lv === 3 && Math.random() < 0.2) fold = false;
@@ -624,6 +647,9 @@
     let left = 0;
     for (const w of ws) left += Math.max(0, 4 - an.vis[w]);
     if (left === 0) return false;
+    const T = A.traits(p), roll = p.isHuman || p.coachType ? 1 : Math.random(); // (先生の助言は、くじ引きなしで決める)
+    if (!p.isHuman && !p.coachType && left < 1 + Math.round((1 - T.rii) * 2)) return false; // リーチ好きは、待ちが少なくてもかける。 慎重な人は、待ちが多いときだけ
+    { const inf = A.tenpaiValue(game, p, c, an.f, false); if (inf && inf.best && inf.best.res && an.f === 0 && roll < T.dama * (inf.best.res.han >= 3 ? 1 : inf.best.res.han === 2 ? 0.8 : 0.5)) return false; } // ダマ好きは、役があれば ダマで構える
     if (lv <= 2) return true;
     // ダマで十分な高打点か
     const info = A.tenpaiValue(game, p, c, an.f, false);
@@ -671,12 +697,14 @@
     if (opts.pon) cands.push({ kind: 'pon' });
     for (const o of opts.chi) cands.push({ kind: 'chi', use: o.use });
     if (!cands.length) return { act: 'pass' };
-    const opps = game.players.filter((q) => q !== p && q.riichi);
+    const opps = game.players.filter((q) => q !== p && q.riichi), T = A.traits(p);
     let bestC = null, bestScore = -99;
+    const cc = MJ.toCounts(p.hand); let prs = 0; for (let i = 0; i < 34; i++) if (cc[i] >= 2) prs++;
+    if (T.pair >= 0.5 && !p.melds.length && prs >= 4) return { act: 'pass' }; // 七対子好きは、対子が4つ以上あれば 鳴かない
     for (const cd of cands) {
       const ev = A.callEval(game, p, cd.kind, opts.tile.t, cd.use);
       if (ev.before === 0) continue;
-      if (opps.length && lv >= 3 && ev.before >= 2) continue;
+      if (opps.length && lv >= 3 && ev.before >= 2 && T.atk < 0.6) continue;
       if (!ev.yaku.ok) continue;
       if (ev.plan && (ev.plan.furiten || ev.plan.yaku.level === 'none')) continue; // フリテン・役なしになる鳴きはしない
       const yakuhaiPon = cd.kind === 'pon' && isYakuhaiFor(game, p, opts.tile.t);
@@ -687,7 +715,10 @@
       else okay = faster || (yakuhaiPon && ev.after <= ev.before);
       if (lv >= 3 && !faster && !yakuhaiPon) okay = false;
       if (st === 'defense' && opps.length && ev.after >= 1) okay = false;
-      if (st === 'attack' && lv >= 2 && faster) okay = true;
+      if (T.call >= 0.6 && lv >= 1 && faster) okay = true; // 鳴きが好きな人は、早くなるなら鳴く
+      if (T.call >= 0.75 && lv >= 1 && !okay && ev.after <= ev.before) okay = true; // とても好きな人は、早くならなくても鳴く(役が見込める鳴き)
+      if (T.call <= 0.3 && okay && !yakuhaiPon && ev.before >= 2) okay = false; // 鳴きを控える人は、テンパイが近いときだけ(役牌は別)
+      if (T.call <= 0.15 && okay && !yakuhaiPon && ev.after > 0) okay = false;
       if (!okay) continue;
       const sc = (ev.before - ev.after) * 10 + (cd.kind === 'pon' ? 2 : 0);
       if (sc > bestScore) { bestScore = sc; bestC = cd; }
