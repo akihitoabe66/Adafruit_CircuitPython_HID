@@ -429,7 +429,7 @@
     }
     return ev.slice().sort((a, b) => (-dn(b) * 10 - b.sh * 3 + b.ukeire.n * 0.2) - (-dn(a) * 10 - a.sh * 3 + a.ukeire.n * 0.2))[0];
   };
-  A.stance0 = function (game, p, an) {
+  A.stance0 = function (game, p, an, type) {
     const opps = an.opps, minSh = an.minSh;
     if (!opps.length) return null;
     let dora = 0;
@@ -444,7 +444,9 @@
     let kind, why;
     if (minSh === 0) {
       const wl = Math.max(0, ...an.evals.filter((e) => e.sh === 0 && !e.furiten).map((e) => e.wl || 0));
-      if (wl >= 2) { kind = 'push'; why = `テンパイしています(待ち${wl}枚)。危ない牌でも、押して勝負しましょう。`; }
+      const lv0 = game.live ? game.live.length : 99;
+      if (type && A.LATE !== false && ((lv0 <= 8 && wl <= 4) || (lv0 <= 4 && wl <= 6))) { kind = 'mid'; why = `テンパイですが、山が残り${lv0}枚で、待ちも${wl}枚しかなく、上がれる見込みが小さいです。危険の少ない牌で様子を見ましょう。`; } // 山が残り少ないのに待ちが少ないときは、先生は「押す」と言わない(CPUは、擬似対戦で差が出なかったので、前のまま)
+      else if (wl >= 2) { kind = 'push'; why = `テンパイしています(待ち${wl}枚)。危ない牌でも、押して勝負しましょう。`; }
       else { kind = 'mid'; why = 'テンパイですが待ちが少ないので、危険の少ない牌で様子を見ましょう。'; }
     } else if (minSh === 1) {
       if (opps.length === 1 && (dora >= 2 || yaku || (iAmDealer && dora >= 1)) && bestN >= 6) { kind = 'push'; why = `あと1歩で、${dora >= 2 ? 'ドラが多く' : yaku ? '役があり' : '親番でドラがあり'}手が高くなりそう。押しましょう。`; }
@@ -516,7 +518,7 @@
   /* 先生のタイプ(defense=守備 / balance=バランス / attack=攻撃)と、順位・残り枚数を考えた「押し引き」。リーチ者がいないときは null */
   A.stance = function (game, p, an, type) {
     if ((p.v2 !== undefined ? p.v2 : A.V2 !== false) && MJ.AI_TABLE && an.opps.length) { const ev = A.evStance(game, p, an, type); if (ev) return ev; }
-    const base = A.stance0(game, p, an);
+    const base = A.stance0(game, p, an, type);
     if (!base || !type || p.coachNoType) return base;
     const R = A.rankInfo(game, p);
     if (p.coachNoRank) { R.rank = 2; R.live = 99; } // (測定用)順位・残り枚数を考えない
