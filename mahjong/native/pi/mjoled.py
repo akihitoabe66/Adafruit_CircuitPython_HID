@@ -104,6 +104,8 @@ class Screen:
                 v = data[pg * SW_ + x]
                 for bit in range(8):
                     if (v >> bit) & 1: self._set(x0 + x, y0 + pg * 8 + bit, 1)
+    def raw(self, x, y):   # 上の使わない帯(すじが入る所)に 飾りを描くとき: オフセットなしで 1ドット
+        if 0 <= x < WIDTH and 0 <= y < HEIGHT: self.buf[y // 8][x] |= 1 << (y % 8)
     def pixel_on(self, x, y):
         return (self.buf[y // 8][x] >> (y % 8)) & 1
     def text(self, s, x, y, inv=False):   # y は どこでもよい(ページをまたぐ)。 inv=True は 白地に黒文字の帯
@@ -583,7 +585,26 @@ def sensei_now(d, age):
     if d is None or age >= 4.0: return False
     sc = d.get('scene', '')
     return sc == '勉強' or (sc in GAME_SCENES and d.get('teacher') == '1')   # 麻雀の勉強の階層は 麻雀先生。 クイズは ずんだもん(正解で喜ぶ)
+def decor(scr, tick):
+    """上の使わない帯(16ドット)の飾り: 麻雀牌を ならべた 帯。 横線が入っても 目立たない、縦の線が多い 模様。 1秒ごとに 点の数が 1つずつ ずれて 流れる"""
+    if OY < 16: return
+    sh = (tick // 3) % 3
+    for i in range(14):
+        x0 = 2 + i * 9
+        for x in range(x0, x0 + 8):
+            scr.raw(x, 2); scr.raw(x, 13)
+        for y in range(2, 14):
+            scr.raw(x0, y); scr.raw(x0 + 7, y)
+        v = (i + sh) % 3
+        pips = ((3, 7),) if v == 0 else ((3, 4), (3, 9)) if v == 1 else ((2, 4), (4, 7), (2, 10))
+        for (a, b) in pips:   # 牌の中の 2x2 の点(1つ・2つ・3つ)
+            for dx in range(2):
+                for dy in range(2): scr.raw(x0 + a + dx, b + dy)
 def compose(scr, d, age, tick, ever_alive=False):
+    scr = compose0(scr, d, age, tick, ever_alive)
+    if '--nodecor' not in sys.argv and os.environ.get('MJOLED_DECOR', '1') != '0': decor(scr, tick)
+    return scr
+def compose0(scr, d, age, tick, ever_alive=False):
     """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
     起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてね」を出す"""
     if ZU and not sensei_now(d, age): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだ(麻雀先生がオンなら)と 勉強の階層は 先生。 ほかは ずんだもんのペット
