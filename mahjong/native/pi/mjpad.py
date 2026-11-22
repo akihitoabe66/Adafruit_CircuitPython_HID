@@ -11,8 +11,10 @@ import fcntl, os, struct, sys, time
 
 ADDR = 0x52
 I2C_SLAVE = 0x0703
+PROFILE = os.environ.get('MJPAD_PROFILE', 'auto').lower()   # auto(IDで 見分ける) / wireless / wired
 HZ = int(os.environ.get('MJPAD_HZ', '200'))   # 1秒に読む回数(40回=25ms)。 Pi Zero は CPU が1つだけで、ゲームと取りあうので、多くしすぎない
-DEBOUNCE = int(os.environ.get('MJPAD_DEBOUNCE', '1'))   # 同じ値が この回数 つづけて読めたときだけ、ゲームに伝える(読みまちがいの 一瞬の「左」などを 通さない)
+DEBOUNCE = int(os.environ.get('MJPAD_DEBOUNCE', '1'))
+ENV_SET = {k for k in ('MJPAD_HZ', 'MJPAD_DEBOUNCE', 'MJPAD_HOLD') if k in os.environ}   # 環境変数で 決めたものは、自動の切りかえより 優先   # 同じ値が この回数 つづけて読めたときだけ、ゲームに伝える(読みまちがいの 一瞬の「左」などを 通さない)
 # uinput
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT = 0x40045564, 0x40045565, 0x40045567
 UI_DEV_SETUP, UI_ABS_SETUP, UI_DEV_CREATE, UI_DEV_DESTROY = 0x405c5503, 0x401c5504, 0x5501, 0x5502
@@ -23,6 +25,17 @@ BTN_BASE = 0x120  # BTN_TRIGGER。 SDLは、BTN_JOYSTICK(0x120)から 小さい�
 KEYS = [BTN_BASE + i for i in range(8)]
 # クラシックコントローラーの ボタン(16bit。 0 = 押している)。 nutki/rpi-nintendo-classic-controller と同じ割り当て
 BIT = {'start': 2, 'select': 4, 'down': 6, 'right': 7, 'up': 8, 'left': 9, 'a': 12, 'b': 14}
+
+
+def profile_for(ident):
+    """パッドの種類ごとの 設定(読む回数, 読みまちがいよけ, 押しをのばす秒)。 無線の受信機(クラシックコントローラーPro: IDの先頭が 01)は 押しが 20〜100msしか出ないので 速く読んで のばす。 有線は 左右を押すと 上下も一瞬まざる癖があるので、よけを強め、のばさない"""
+    wireless = (PROFILE == 'wireless') or (PROFILE == 'auto' and len(ident) >= 1 and ident[0] == 0x01)
+    if wireless: hz, deb, hold = 200, 1, 0.1
+    else: hz, deb, hold = 100, 2, 0.0
+    if 'MJPAD_HZ' in ENV_SET: hz = HZ
+    if 'MJPAD_DEBOUNCE' in ENV_SET: deb = DEBOUNCE
+    if 'MJPAD_HOLD' in ENV_SET: hold = HOLD
+    return wireless, hz, deb, hold
 
 
 def decode(word):
@@ -313,13 +326,14 @@ def main():
         pad.close(); return
     try: os.nice(-5)   # ゲームより 少し 優先(ゲームが CPU を使っていても、読む間隔が くずれないように)
     except OSError: pass
-    bus = None; bad = 0; ok_once = False; deb = Debounce(DEBOUNCE); diag_n = 0; hold = Holder(); t_loop = time.time()
+    bus = None; bad = 0; ok_once = False; deb = Debounce(DEBOUNCE); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ; t_cpu = time.time(); cpu0 = sum(os.times()[:2]); t_start = t_cpu
     while True:
         try:
             if bus is None:
                 bus = Bus()
                 if not (bus.init() or bus.init_old()): raise OSError('返事がない(コントローラーが つながっていない?)')
-                print('mjpad: controller ready id=%s' % bus.ident.hex(), flush=True); bad = 0; ok_once = True
+                wl, hz, dn, hd = profile_for(bus.ident); deb = Debounce(dn); hold = Holder(hd); t_loop = time.time()
+                print('mjpad: controller ready id=%s profile=%s hz=%d debounce=%d hold=%.0fms' % (bus.ident.hex(), 'wireless' if wl else 'wired', hz, dn, hd * 1000), flush=True); bad = 0; ok_once = True
             w = bus.read(); b = decode(w) if w is not None else None
             if b is None:
                 bad += 1
@@ -340,7 +354,10 @@ def main():
                 bus = None
             pad.send((0, 0, [0] * 8))   # つながっていない間は、ボタンを すべて はなした ことにする
             time.sleep(1.0); continue
-        t_loop += 1.0 / HZ; dt = t_loop - time.time()   # 読むのに かかった時間を ひいて、周期を そろえる
+        now = time.time()
+        if now - t_cpu >= 60 and now - t_start < 660:   # 起動して 10分のあいだ、1分ごとに 自分の CPU 使用率を 記録に出す(負担の確認用)
+            c1 = sum(os.times()[:2]); print('mjpad: cpu %.1f%% (hz=%d)' % ((c1 - cpu0) / (now - t_cpu) * 100, hz), flush=True); t_cpu = now; cpu0 = c1
+        t_loop += 1.0 / hz; dt = t_loop - time.time()   # 読むのに かかった時間を ひいて、周期を そろえる
         if dt > 0: time.sleep(dt)
         else: t_loop = time.time()
 

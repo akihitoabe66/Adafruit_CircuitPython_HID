@@ -33,3 +33,8 @@ sudo reboot
 sh native/pi/readonly_off.sh && sudo reboot
 sh native/pi/appliance_off.sh && sudo reboot
 ```
+
+## コントローラーの設定(mjpad)
+- パッドの種類は、ID で見分ける(無線の受信機=クラシックコントローラーPro は ID の先頭が `01`)。 無線: 1秒に200回読み、読みまちがいよけ 1回、押しを100msのばす。 有線: 1秒に100回、よけ 2回、のばさない。
+- 強制するとき: `MJPAD_PROFILE=wireless|wired`、 個別に `MJPAD_HZ` `MJPAD_DEBOUNCE` `MJPAD_HOLD`(ms)。 `sudo systemctl edit mjpad` の `[Service]` に `Environment=...` を書く。
+- 起動して10分のあいだ、1分ごとに `journalctl -u mjpad` に `cpu x.x%` が出る(負担の確認)。
