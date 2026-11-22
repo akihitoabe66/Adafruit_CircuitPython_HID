@@ -44,6 +44,7 @@
   }
   const kyokuText = (sn) => ['東', '南', '西', '北'][Math.min(3, Math.floor(sn.kyoku / 4))] + ['一', '二', '三', '四'][sn.kyoku % 4] + '局' + (sn.honba ? ' ' + sn.honba + '本場' : '') + (sn.mid ? '・途中から' : '');
   const teacherOn = () => { try { return localStorage.getItem('mj_teacher') === '1'; } catch (e) { return false; } };
+  const askTeach = (snap) => { if (teacherOn()) { S.teachQ = { idx: 1, snap }; return; } S.hint = null; S.waitKey = ''; startGame(snap); }; // 麻雀先生が「なし」のときは、確認を出さずに そのまま はじめる
   const teacherLabel = () => '麻雀先生: ' + (teacherOn() ? 'あり' : 'なし');
   const dmarkOn = () => { try { return localStorage.getItem('mj_dmark') !== '0'; } catch (e) { return true; } }; // 麻雀先生の「安全牌の印」(現物・スジ…)。ふだんは、あり
   const DTAG = (tag) => (/^現物/.test(tag) ? '現物' : /^全見え/.test(tag) ? '全見え' : /^字牌/.test(tag) ? '字牌' : /^スジ/.test(tag) ? 'スジ' : /^半スジ/.test(tag) ? '半スジ' : /^カベ/.test(tag) ? 'カベ' : /^ワンチャンス/.test(tag) ? 'ワンC' : '無スジ');
@@ -720,17 +721,20 @@
     });
   }
     const BZ_JP = ['なし', '小', '中', '大']; const buzzLv = () => { try { const v = parseInt(localStorage.getItem('mj_buzz'), 10); return v >= 0 && v <= 3 ? v : 3; } catch (e) { return 3; } }; // ブザー(本体のスピーカー)の音の大きさ
-  const OLED_CO = ['auto', 'none', 'season', 'job'], OLED_CO_JP = ['おまかせ', 'ふつうのまま', '季節だけ', '職業だけ']; const oledCos = () => { try { const v = localStorage.getItem('mj_oledcos'); return OLED_CO.indexOf(v) >= 0 ? v : 'auto'; } catch (e) { return 'auto'; } }; // ずんだもんの衣装(OLED): おまかせ(季節と職業が かわりばんこ) / ふつうのまま / 季節だけ / 職業だけ
+  const OLED_CO = ['auto', 'none', 'season', 'job'], OLED_CO_JP = ['おまかせ', 'ふつうのまま', '季節だけ', '職業だけ']; const oledCos = () => 'auto'; /* 衣装は ペット(たまごっち)の育ちで決まる。 設定からは 消した */ // ずんだもんの衣装(OLED): おまかせ(季節と職業が かわりばんこ) / ふつうのまま / 季節だけ / 職業だけ
   const VS_JP = ['なし', 'ふつう', 'つよい'];
-  const vsharpLv = () => { try { const v = parseInt(localStorage.getItem('mj_vsharp'), 10); return v >= 0 && v <= 2 ? v : 1; } catch (e) { return 1; } }; // ビデオの「くっきり」(シャープネス): ふだんは ふつう
+  const vsharpLv = () => 2; // ビデオのくっきりは いちばん強いまま(設定からは 消した)
   try { if (typeof __vsharp === 'function') __vsharp(vsharpLv()); } catch (e) { /* ignore */ }
   const swapOn = () => { try { const v = localStorage.getItem('mj_swapab'); return v === null ? true : v === '1'; } catch (e) { return true; } };
   try { __swapab(swapOn() ? 1 : 0); } catch (e) { /* ignore */ }
   try { localStorage.setItem('mj_perf', '0'); } catch (e) { /* ignore */ } // 遅れの診断(テスト表示)は、起動のたびに オフにもどす(つけたままに しない)
   const perfOn = () => { try { const v = localStorage.getItem('mj_perf'); return v === '1' ? true : v === '0' ? false : !!globalThis.__perfEnv; } catch (e) { return false; } }; // 隠しコマンド・設定で切りかえたら、それを優先(MJ_PERF=1 で起動しても、オフにできる)
-  const SETS = [
-    { k: 'bgm', label: 'BGMの大きさ' }, { k: 'sfx', label: '効果音の大きさ' }, { k: 'voice', label: '声の大きさ' },
-    { k: 'bgmon', label: 'BGM' }, { k: 'speed', label: 'CPUの速さ' }, { k: 'cpulv', label: 'CPUの強さ' }, { k: 'teacher', label: '麻雀先生' }, { k: 'swap', label: '決定ボタンの入れ替え' }, { k: 'oledcos', label: 'ずんだもんの衣装' }, { k: 'buzz', label: 'ブザーの音' }, { k: 'vsharp', label: 'ビデオのくっきり' }, { k: 'help', label: '遊び方(ヘルプ)' }, { k: 'rules', label: '麻雀のルール' }, { k: 'credits', label: 'クレジット' }, { k: 'reset', label: 'リセット(はじめから)' }, { k: 'back', label: 'もどる' },
+  const SETS = [ // gap: この項目の前に すきまを あける。 back: 下の「もどる」(見た目が ちがう)
+    { k: 'rules', label: '麻雀のルール設定' }, { k: 'teacher', label: '麻雀先生' }, { k: 'help', label: '遊び方' },
+    { k: 'speed', label: '対戦相手の速さ', gap: true }, { k: 'cpulv', label: '対戦相手の強さ' },
+    { k: 'vol', label: '音量ボリューム', gap: true }, { k: 'buzz', label: '本体ブザーの音量' }, { k: 'swap', label: '決定ボタンの入れ替え' },
+    { k: 'credits', label: '開発者', gap: true }, { k: 'reset', label: 'リセット(はじめから)' },
+    { k: 'back', label: 'もどる', gap: true, back: true },
   ];
   /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
   const RULE_ROWS = [
@@ -783,22 +787,33 @@
   }
   function drawSettings() {
     gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
-    text('設定', SW / 2, 8, 30, YEL, 1);
+    text('設定', SW / 2, 6, 28, YEL, 1);
+    const X0 = 206, X1 = 626, PT = 31, GAP = 11; let y = 38;
     SETS.forEach((s, i) => {
-      const PT = Math.min(33, Math.floor(420 / SETS.length)), y = 36 + i * PT | 0, sel = S.setIdx === i; panel(110, y, 612, PT - 2, 9, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2); // 13項目が 画面におさまる並び
-      text(s.label, 130, y + (PT < 33 ? 0 : 1), PT < 33 ? 22 : 24, BLACK);
-      if (s.k === 'bgm' || s.k === 'sfx' || s.k === 'voice') { const lv = NSND.getLevel(s.k); for (let j = 0; j < 10; j++) fill(380 + j * 30, y + 7, 24, 21, j < lv ? [30, 130, 80] : [200, 200, 195]); text(String(lv), 702, y + 4, 24, BLACK, 2); }
-      else if (s.k === 'bgmon') text(NSND.on ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
-      else if (s.k === 'speed') text(MJ.CPU_SPEED_JP[MJ.cpuSpeed()], 520, y + 4, 24, BLACK, 1);
-      else if (s.k === 'cpulv') text(CPU_LV[cpuLv()], 520, y + 4, 24, BLACK, 1);
-      else if (s.k === 'teacher') text(teacherOn() ? (dmarkOn() ? 'あり(安全牌の印つき)' : 'あり') : 'なし', 520, y + 4, teacherOn() && dmarkOn() ? 20 : 24, BLACK, 1);
-      else if (s.k === 'perf') text(perfOn() ? 'オン' : 'オフ', 520, y + 4, 24, BLACK, 1);
-      else if (s.k === 'swap') text(swapOn() ? '入れ替え' : 'ふつう', 520, y + 4, 24, BLACK, 1);
-      else if (s.k === 'buzz') text(BZ_JP[buzzLv()], 520, y + 4, 24, BLACK, 1);
-      else if (s.k === 'oledcos') text(OLED_CO_JP[OLED_CO.indexOf(oledCos())], 520, y + 4, 24, BLACK, 1);
-      else if (s.k === 'vsharp') text(VS_JP[vsharpLv()], 520, y + 4, 24, BLACK, 1);
-      else if (s.k === 'rules' || s.k === 'credits' || s.k === 'help') text('▶', 600, y + 4, 24, BLACK, 1);
+      if (s.gap) y += GAP - (i ? 0 : GAP);
+      const sel = S.setIdx === i && !S.volP;
+      if (s.back) { const bw = 200, bx = (SW - bw) / 2; rrect(bx - (sel ? 3 : 0), y + 2 - (sel ? 3 : 0), bw + (sel ? 6 : 0), 36 + (sel ? 6 : 0), 18, sel ? YEL : [210, 225, 212]); rrect(bx + 2, y + 4, bw - 4, 32, 16, sel ? [60, 130, 100] : [40, 90, 70]); text('◀ もどる', SW / 2, y + 8, 22, [235, 245, 238], 1); y += PT + 8; return; }
+      panel(X0, y, X1 - X0, PT - 3, 9, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2);
+      text(s.label, X0 + 16, y + 3, 22, BLACK);
+      const R = (str, sz) => text(str, X1 - 16, y + 3, sz || 22, BLACK, 2);
+      if (s.k === 'speed') R(MJ.CPU_SPEED_JP[MJ.cpuSpeed()]);
+      else if (s.k === 'cpulv') R(CPU_LV[cpuLv()]);
+      else if (s.k === 'teacher') R(teacherOn() ? (dmarkOn() ? 'あり(安全牌の印つき)' : 'あり') : 'なし', teacherOn() && dmarkOn() ? 18 : 22);
+      else if (s.k === 'swap') R(swapOn() ? '入れ替え' : 'ふつう');
+      else if (s.k === 'buzz') R(BZ_JP[buzzLv()]);
+      else if (s.k === 'rules' || s.k === 'credits' || s.k === 'help' || s.k === 'vol') R('▶');
+      y += PT;
     });
+    if (S.volP) { // 音量ボリューム: 中央の窓に BGM・効果音・声
+      fill(0, 0, SW, SH, [0, 0, 0], 150); const x = 146, y0 = 96, w = 540, h = 276; panel(x, y0, w, h, 16, [20, 60, 42], [240, 210, 120], 3); text('音量ボリューム', SW / 2, y0 + 12, 28, YEL, 1);
+      [['BGM', 'bgm'], ['効果音', 'sfx'], ['声', 'voice']].forEach((r, k) => {
+        const yy = y0 + 62 + k * 54, sel = S.volP.idx === k, lv = NSND.getLevel(r[1]);
+        panel(x + 18, yy, w - 36, 46, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2); text(r[0], x + 34, yy + 8, 24, BLACK);
+        for (let j = 0; j < 10; j++) fill(x + 150 + j * 26, yy + 11, 22, 24, j < lv ? [30, 130, 80] : [200, 200, 195]);
+        text(String(lv), x + w - 32, yy + 8, 24, BLACK, 2);
+      });
+      text('◀ ▶ で 大きさを変える　B か A: もどる', SW / 2, y0 + h - 38, 18, [210, 225, 212], 1);
+    }
   }
   /* DEBUG-BEGIN(デバッグ用の画面: 設定の「デバッグ」。 あとで、このブロックと、設定の項目 dbg と、rank.js の debugSetPt を消す) */
   const DBG_ROWS = ['経験値', '昇段の1点前にする', '東風戦 東四局から はじめる', '南風戦 南四局から はじめる', '名人にして 天下分け目を はじめる', '東四局: 自分が逆転できる(1位と1100点差)', '東四局: CPUが逆転する(自分が1位)', 'もどる'];
@@ -2472,7 +2487,7 @@
     }
     if (S.playQ) { // 麻雀をはじめる: つづきから / はじめから
       if (k === 'up' || k === 'down') S.playQ.idx = 1 - S.playQ.idx; else if (k === 'back') S.playQ = null;
-      else if (k === 'ok') { const q = S.playQ; S.playQ = null; S.teachQ = { idx: teacherOn() ? 1 : 0, snap: q.idx === 0 ? q.snap : null }; }
+      else if (k === 'ok') { const q = S.playQ; S.playQ = null; later(() => askTeach(q.idx === 0 ? q.snap : null)); }
       return;
     }
     if (S.resetQ) { // リセットの確認(はじめは「やめる」)
@@ -2533,12 +2548,18 @@
     if (S.mode === 'dbg') { dbgKey(k); dirty(); return; } // DEBUG
     if (S.mode === 'settings') {
       const it = SETS[S.setIdx];
+      if (S.volP) { // 音量ボリュームの窓
+        const K = ['bgm', 'sfx', 'voice'];
+        if (k === 'up' || k === 'down') S.volP.idx = wrap(S.volP.idx + (k === 'up' ? -1 : 1), 3);
+        else if (k === 'left' || k === 'right') { NSND.setLevel(K[S.volP.idx], NSND.getLevel(K[S.volP.idx]) + (k === 'left' ? -1 : 1)); if (S.volP.idx === 1) NSND.sfx('discard'); }
+        else if (k === 'back' || k === 'ok') S.volP = null;
+        dirty(); return;
+      }
       if (k === 'up' || k === 'down') S.setIdx = wrap(S.setIdx + (k === 'up' ? -1 : 1), SETS.length);
       else if (k === 'back') { S.mode = 'menu'; }
       else if (k === 'left' || k === 'right' || k === 'ok') {
         const d = k === 'left' ? -1 : 1;
-        if (it.k === 'bgm' || it.k === 'sfx' || it.k === 'voice') { if (k !== 'ok') NSND.setLevel(it.k, NSND.getLevel(it.k) + d); if (it.k === 'sfx') NSND.sfx('discard'); }
-        else if (it.k === 'bgmon') { NSND.toggle(); if (NSND.on) NSND.home(); }
+        if (it.k === 'vol') { if (k !== 'left') { S.volP = { idx: 0 }; dirty(); } }
         else if (it.k === 'speed') MJ.cycleCpuSpeed();
         else if (it.k === 'cpulv') setCpuLv(k === 'left' ? cpuLv() - 1 : k === 'right' ? cpuLv() + 1 : (cpuLv() + 1) % 4); // ◀ ▶ で ひとつずつ(はしでは とまる)。 決定は ぐるっと
         else if (it.k === 'teacher') { // なし → あり(印つき) → あり(印なし) → なし
@@ -2588,7 +2609,7 @@
       else if (k === 'ok') {
         const it = items[S.menuIdx]; if (!it || it.off) return;
         if (it.act === 'play') { try { if (NSND.has('v:hajimeru')) NSND.speak(['v:hajimeru']); } catch (e) { /* ignore */ } } // 「麻雀をはじめる」を押したとき、「この麻雀をはじめるのだ」の声
-        if (it.act === 'play') later(() => { tl('play-pressed'); const l = slotRead(); tl('slots-read'); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else S.teachQ = { idx: teacherOn() ? 1 : 0, snap: null }; });
+        if (it.act === 'play') later(() => { tl('play-pressed'); const l = slotRead(); tl('slots-read'); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else askTeach(null); });
         else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => qlGens(RCATS), n: 10, rank: true }));
         else if (it.act === 'study') later(() => startStudy());
         else if (it.act === 'settings') later(() => { S.mode = 'settings'; S.setIdx = 0; });
