@@ -16,7 +16,10 @@ install -m 755 mjoled.py /usr/local/bin/mjoled.py   # 熱・電源の判定(heal
 cat > /etc/systemd/system/mjbuzz.service <<'UNIT'
 [Unit]
 Description=Mahjong buzzer signals
-After=local-fs.target
+DefaultDependencies=no
+After=systemd-modules-load.service local-fs.target
+Before=basic.target
+Conflicts=shutdown.target
 [Service]
 EnvironmentFile=-/etc/default/mjbuzz
 ExecStart=/usr/bin/python3 /usr/local/bin/mjbuzz.py
@@ -24,8 +27,9 @@ Restart=always
 RestartSec=3
 Nice=10
 [Install]
-WantedBy=multi-user.target
+WantedBy=sysinit.target
 UNIT
+systemctl disable mjbuzz.service 2>/dev/null || true
 systemctl daemon-reload; systemctl enable mjbuzz.service
 echo "入れました。 config.txt に PWM の設定を足したので、再起動してください:  sudo reboot"
 echo "確認(再起動のあと): sudo systemctl stop mjbuzz; sudo python3 /usr/local/bin/mjbuzz.py --test   (全部の合図が 鳴ります)"

@@ -4,7 +4,7 @@
  つなぎかた(piezo): GPIO18(物理12番) → 100〜470Ω → サウンダーの片方 / もう片方 → GND(物理6番)。 トランジスタは 要らない。
  つなぎかた(coil): GPIO18 → 1kΩ → トランジスタ(2SC1815 など)のベース / エミッタ → GND / コレクタ → スピーカー → 3.3V。 スピーカーに 直列で 47〜100Ω、 両端に ダイオード(1N4148)。
  config.txt に  dtoverlay=pwm,pin=18,func=2  (install_buzz.sh が 入れる)。
- 鳴らす合図: 起動完了(タイトルが出た)=上がるチャイム / ゲーム終了(電源を抜いてよい)=ピン・ポン / 熱・電源の警告=ピッピッピッ。
+ 鳴らす合図: 電源ON(Linuxが起きたとき 1回)=「ピポッ」 / ゲーム終了(電源を抜いてよい)=ゆっくり さがる4音 / 熱の注意=ピッピッピッ / 熱の危険=高く速い音 / 電圧が弱い=ピー・ピー。 ゲームの はじまりでは 鳴らさない。
 
  音の大きさ: ゲームの設定「ブザーの音」(なし・小・中・大)が いちばん優先。 ゲームが 動いていないときは MJBUZZ_VOL(1〜3)か MJBUZZ_DUTY。
  環境変数: MJBUZZ=0 で 鳴らさない / MJBUZZ_DUTY(音の大きさ 1〜50。 piezo は 50 が いちばん大きい、 標準 piezo=50 coil=20) / MJBUZZ_TYPE。
@@ -31,19 +31,21 @@ DRY = '--dry' in sys.argv
 # 音の高さ(Hz)
 C5, E5, G5, A5, C6, E6, G6 = 523, 659, 784, 880, 1047, 1319, 1568      # 電磁式(coil)向け
 C7, D7, E7, G7, A7, B7, C8, D8 = 2093, 2349, 2637, 3136, 3520, 3951, 4186, 4699   # 圧電(piezo)向け: 高い音ほど 大きく鳴る
-if TYPE == 'piezo':
+if TYPE == 'piezo':   # 圧電: 高い音ほど 大きい
     PAT = {
-        'ready': [(C7, 90), (E7, 90), (G7, 90), (C8, 240)],                      # 起動完了: 上がるチャイム
-        'exit': [(C8, 150), (0, 40), (G7, 380)],                                 # ゲーム終了: ピン・ポン(電源を抜いてよい)
-        'warn': [(4000, 120), (0, 80), (4000, 120), (0, 80), (4000, 120)],       # 注意: ピッピッピッ
+        'poweron': [(3951, 70), (0, 25), (2637, 130)],                                   # 電源ON: 「ピポッ」(PC-9801の起動音のように 高→低)
+        'exit': [(3951, 170), (0, 20), (3136, 170), (0, 20), (2637, 170), (0, 20), (2093, 520)],   # 終了: ゆっくり さがる 4音(電源を抜いてよい)
+        'warn': [(4000, 120), (0, 80), (4000, 120), (0, 80), (4000, 120)],               # 熱の注意: ピッピッピッ
         'danger': [(4400, 90), (0, 40), (3600, 90), (0, 40), (4400, 90), (0, 40), (3600, 90)],   # 危険: 高く 速く(ゆれる音)
+        'lowv': [(3600, 380), (0, 120), (3600, 380)],                                    # 電圧が弱い: ピー・ピー(長い音)
     }
-else:
+else:             # 電磁式: ひくめの 音
     PAT = {
-        'ready': [(C5, 90), (E5, 90), (G5, 90), (C6, 220)],
-        'exit': [(G5, 160), (0, 40), (C5, 380)],
-        'warn': [(A5, 120), (0, 80), (A5, 120), (0, 80), (A5, 120)],
-        'danger': [(E6, 100), (0, 50), (G6, 100), (0, 50), (E6, 100), (0, 50), (G6, 100)],
+        'poweron': [(1568, 70), (0, 25), (784, 130)],
+        'exit': [(1568, 170), (0, 20), (1319, 170), (0, 20), (1047, 170), (0, 20), (784, 520)],
+        'warn': [(880, 120), (0, 80), (880, 120), (0, 80), (880, 120)],
+        'danger': [(1319, 100), (0, 50), (1568, 100), (0, 50), (1319, 100), (0, 50), (1568, 100)],
+        'lowv': [(660, 380), (0, 120), (660, 380)],
     }
 
 
@@ -52,6 +54,9 @@ class Pwm:
     def __init__(self):
         self.d = '%s/pwm%s' % (PWM, CH)
         if not DRY:
+            for _ in range(100):   # 起動の早いうちは PWM の装置が まだ できていない: 最大 10秒 まつ
+                if os.path.isdir(PWM): break
+                time.sleep(0.1)
             if not os.path.isdir(self.d):
                 with open(PWM + '/export', 'w') as f: f.write(CH)
                 for _ in range(20):
@@ -84,7 +89,15 @@ def main():
     if '--test' in sys.argv or DRY and '--loop' not in sys.argv:
         for k in PAT: print('pattern', k, flush=True); play(pwm, k); time.sleep(0.8)
         return 0
-    last_scene = None; ready_done = False; exit_done = False; t_warn = 0; t_danger = 0
+    last_scene = None; exit_done = False; t_warn = 0; t_danger = 0
+    # 電源ON: 起動して 120秒いないで、まだ 鳴らしていなければ 1回(サービスだけ 再起動したときは 鳴らさない)
+    try: up = float(open('/proc/uptime').read().split()[0])
+    except Exception: up = 9999
+    flag = '/run/mjbuzz_boot'
+    if up < 120 and not os.path.exists(flag):
+        try: open(flag, 'w').close()
+        except OSError: pass
+        play(pwm, 'poweron')
     while True:
         d, age = read_status(STATUS); now = time.time()
         if d is not None and age < 6 and d.get('buzz', '') in ('0', '1', '2', '3'):   # ゲームの設定「ブザーの音」(0=なし 1=小 2=中 3=大)
@@ -92,13 +105,12 @@ def main():
         else: pwm.muted = False
         scene = d.get('scene') if d is not None and (age < 4.0 or d.get('scene') in ('EXIT', 'MAINT')) else None
         if scene and scene != last_scene:
-            if not ready_done and scene not in ('起動中', 'EXIT', 'MAINT'): ready_done = True; play(pwm, 'ready')   # 起動中のあと はじめて 別の場面に なった
             if scene == 'EXIT' and not exit_done: exit_done = True; play(pwm, 'exit')
             if scene not in ('EXIT', 'MAINT'): exit_done = False
         last_scene = scene
         h = health()
-        if h['level'] >= 2 and now - t_danger > 6: t_danger = now; play(pwm, 'danger')
-        elif h['level'] == 1 and now - t_warn > 90: t_warn = now; play(pwm, 'warn')
+        if h['level'] >= 2 and now - t_danger > 6: t_danger = now; play(pwm, 'lowv' if h.get('why') == 'LOWV' else 'danger')
+        elif h['level'] == 1 and now - t_warn > 90: t_warn = now; play(pwm, 'lowv' if h.get('why') == 'LOWV' else 'warn')
         time.sleep(0.5)
 
 
