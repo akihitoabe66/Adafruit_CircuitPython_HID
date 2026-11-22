@@ -35,6 +35,6 @@ sh native/pi/appliance_off.sh && sudo reboot
 ```
 
 ## コントローラーの設定(mjpad)
-- パッドの種類は、ID で見分ける(無線の受信機=クラシックコントローラーPro は ID の先頭が `01`)。 無線: 1秒に200回読み、読みまちがいよけ 1回、押しを100msのばす。 有線: 1秒に100回、よけ 2回、のばさない。
-- 強制するとき: `MJPAD_PROFILE=wireless|wired`、 個別に `MJPAD_HZ` `MJPAD_DEBOUNCE` `MJPAD_HOLD`(ms)。 `sudo systemctl edit mjpad` の `[Service]` に `Environment=...` を書く。
+- パッドの種類は、ID で見分ける(無線の受信機=クラシックコントローラーPro は ID の先頭が `01`)。 無線: 1秒に200回読み、読みまちがいよけ 約5ms、押しを100msのばす。 有線: 1秒に100回、よけ 約50ms、のばさない。 斜めは(この麻雀ゲームは使わないので)約120ms 様子を見て、横か縦の1方向に落とす(どちらのパッドでも)。 設定は 時間(ミリ秒)で決めるので、読む回数を変えても 効き目は変わらない。 差しかえるたびに ID を見て 切りかわる。
+- 強制するとき: `MJPAD_PROFILE=wireless|wired`、 個別に `MJPAD_HZ` `MJPAD_DEBOUNCE_MS` `MJPAD_DIAG_MS` `MJPAD_HOLD`(ms)。 `sudo systemctl edit mjpad` の `[Service]` に `Environment=...` を書く。
 - 起動して10分のあいだ、1分ごとに `journalctl -u mjpad` に `cpu x.x%` が出る(負担の確認)。

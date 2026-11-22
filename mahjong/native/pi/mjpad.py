@@ -13,8 +13,9 @@ ADDR = 0x52
 I2C_SLAVE = 0x0703
 PROFILE = os.environ.get('MJPAD_PROFILE', 'auto').lower()   # auto(IDで 見分ける) / wireless / wired
 HZ = int(os.environ.get('MJPAD_HZ', '200'))   # 1秒に読む回数(40回=25ms)。 Pi Zero は CPU が1つだけで、ゲームと取りあうので、多くしすぎない
-DEBOUNCE = int(os.environ.get('MJPAD_DEBOUNCE', '1'))
-ENV_SET = {k for k in ('MJPAD_HZ', 'MJPAD_DEBOUNCE', 'MJPAD_HOLD') if k in os.environ}   # 環境変数で 決めたものは、自動の切りかえより 優先   # 同じ値が この回数 つづけて読めたときだけ、ゲームに伝える(読みまちがいの 一瞬の「左」などを 通さない)
+DEBOUNCE_MS = float(os.environ.get('MJPAD_DEBOUNCE_MS', '5'))   # 同じ値が この時間(ミリ秒)つづいたときだけ 伝える(読みまちがいよけ)
+DIAG_MS = float(os.environ.get('MJPAD_DIAG_MS', '120'))   # 斜めが 出たとき 1方向に 落ちつくのを 待つ時間(ミリ秒)。 この麻雀ゲームは 斜めを 使わない
+ENV_SET = {k for k in ('MJPAD_HZ', 'MJPAD_DEBOUNCE_MS', 'MJPAD_HOLD') if k in os.environ}   # 環境変数で 決めたものは、自動の切りかえより 優先   # 同じ値が この回数 つづけて読めたときだけ、ゲームに伝える(読みまちがいの 一瞬の「左」などを 通さない)
 # uinput
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT = 0x40045564, 0x40045565, 0x40045567
 UI_DEV_SETUP, UI_ABS_SETUP, UI_DEV_CREATE, UI_DEV_DESTROY = 0x405c5503, 0x401c5504, 0x5501, 0x5502
@@ -30,12 +31,12 @@ BIT = {'start': 2, 'select': 4, 'down': 6, 'right': 7, 'up': 8, 'left': 9, 'a': 
 def profile_for(ident):
     """パッドの種類ごとの 設定(読む回数, 読みまちがいよけ, 押しをのばす秒)。 無線の受信機(クラシックコントローラーPro: IDの先頭が 01)は 押しが 20〜100msしか出ないので 速く読んで のばす。 有線は 左右を押すと 上下も一瞬まざる癖があるので、よけを強め、のばさない"""
     wireless = (PROFILE == 'wireless') or (PROFILE == 'auto' and len(ident) >= 1 and ident[0] == 0x01)
-    if wireless: hz, deb, hold = 200, 1, 0.1
-    else: hz, deb, hold = 100, 2, 0.0
+    if wireless: hz, deb, hold = 200, 5.0, 0.1   # 設定は 時間(ミリ秒)で 決める: 読む回数を かえても 効き目が かわらないように
+    else: hz, deb, hold = 100, 50.0, 0.0
     if 'MJPAD_HZ' in ENV_SET: hz = HZ
-    if 'MJPAD_DEBOUNCE' in ENV_SET: deb = DEBOUNCE
+    if 'MJPAD_DEBOUNCE_MS' in ENV_SET: deb = DEBOUNCE_MS
     if 'MJPAD_HOLD' in ENV_SET: hold = HOLD
-    return wireless, hz, deb, hold
+    return wireless, hz, max(1, int(round(deb * hz / 1000.0))), hold   # 読みまちがいよけは (時間 × 読む回数) の回数に 直して 返す
 
 
 def decode(word):
@@ -273,21 +274,22 @@ def trace(secs=30):
     """調べる用(英数字): ふだんの動き(読む→斜めの整理→読みまちがいよけ)を 動かして、「押した回数」と「ゲームに送った回数」を ならべる。 どこで 取りこぼすかを 見る。 (先に: sudo systemctl stop mjpad)"""
     bus = Bus()
     if not (bus.init() or bus.init_old()): print('no reply'); return
-    deb = Debounce(DEBOUNCE); pad = Pad(True); pad.send = lambda st: None
+    wl, hz, dn, hd = profile_for(bus.ident); deb = Debounce(dn); pad = Pad(True); pad.send = lambda st: None
+    print('profile=%s hz=%d debounce=%d reads hold=%.0fms' % ('wireless' if wl else 'wired', hz, dn, hd * 1000), flush=True)
     raw = {k: 0 for k in BIT}; sent = {'left': 0, 'right': 0, 'up': 0, 'down': 0, 'a': 0, 'b': 0}
-    prev = {k: False for k in BIT}; last_out = (0, 0, [0] * 8); diag_n = 0; t0 = time.time(); drop_diag = 0; reads = 0; bad = 0; hold = Holder()
+    prev = {k: False for k in BIT}; last_out = (0, 0, [0] * 8); diag_n = 0; t0 = time.time(); drop_diag = 0; reads = 0; bad = 0; hold = Holder(hd)
     print('trace %d s: press each d-pad direction 10 times, A and B too. Ctrl+C = stop' % secs, flush=True)
     try:
         while time.time() - t0 < secs:
             try: w = bus.read()
             except OSError: time.sleep(0.05); continue
             reads += 1; b = decode(w)
-            if b is None: bad += 1; time.sleep(1.0 / HZ); continue
+            if b is None: bad += 1; time.sleep(1.0 / hz); continue
             for k in BIT:
                 if b[k] and not prev[k]: raw[k] += 1
             prev = dict(b); b = hold.apply(b, time.time())
             dg = b['left'] != b['right'] and b['up'] != b['down']; diag_n = diag_n + 1 if dg else 0
-            st = to_state(b, last_out, wait_diag=diag_n <= 4)
+            st = to_state(b, last_out, wait_diag=diag_n <= DIAG_MS * hz / 1000.0)
             if dg and st is None: drop_diag += 1
             if st is not None:
                 out = deb.feed(st)
@@ -300,11 +302,11 @@ def trace(secs=30):
                     if k1[1] and not k0[1]: sent['a'] += 1
                     if k1[0] and not k0[0]: sent['b'] += 1
                     last_out = out
-            time.sleep(1.0 / HZ)
+            time.sleep(1.0 / hz)
     except KeyboardInterrupt: pass
     print('--- presses seen on the wire -> sent to the game ---', flush=True)
     for k in ('left', 'right', 'up', 'down', 'a', 'b'): print('%-6s raw %3d -> sent %3d' % (k, raw[k], sent[k]), flush=True)
-    print('reads %d, bad %d, diag-waiting %d, HZ=%d DEBOUNCE=%d' % (reads, bad, drop_diag, HZ, DEBOUNCE), flush=True)
+    print('reads %d, bad %d, diag-waiting %d, HZ=%d DEBOUNCE=%d reads' % (reads, bad, drop_diag, hz, dn), flush=True)
 
 
 def main():
@@ -326,7 +328,7 @@ def main():
         pad.close(); return
     try: os.nice(-5)   # ゲームより 少し 優先(ゲームが CPU を使っていても、読む間隔が くずれないように)
     except OSError: pass
-    bus = None; bad = 0; ok_once = False; deb = Debounce(DEBOUNCE); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ; t_cpu = time.time(); cpu0 = sum(os.times()[:2]); t_start = t_cpu
+    bus = None; bad = 0; ok_once = False; deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ; t_cpu = time.time(); cpu0 = sum(os.times()[:2]); t_start = t_cpu
     while True:
         try:
             if bus is None:
@@ -341,7 +343,7 @@ def main():
             else:
                 bad = 0; b = hold.apply(b, time.time()); dg = b['left'] != b['right'] and b['up'] != b['down']   # 斜め
                 diag_n = diag_n + 1 if dg else 0
-                st = to_state(b, pad.last, wait_diag=diag_n <= 4)   # 斜めが 5回(約0.12秒)つづいたら、横を優先して 決める
+                st = to_state(b, pad.last, wait_diag=diag_n <= DIAG_MS * hz / 1000.0)   # 斜めが 約0.12秒つづいたら、横を優先して 決める(時間で 数える)
                 if st is not None:
                     out = deb.feed(st)
                     if out is not None: pad.send(out)
