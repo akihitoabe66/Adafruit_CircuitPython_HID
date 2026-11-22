@@ -168,22 +168,35 @@ def selftest():
 
 
 def probe():
-    """調べる用: 返事・ID・生の値を 0.5秒ごとに 出す。 ボタンを押すと 値が かわる。 (先に: sudo systemctl stop mjpad)"""
+    """調べる用(英数字だけで出す: 実機の画面の文字では 日本語が ◆ になるため)。 返事・ID・生の値を 0.5秒ごとに 出す。 ボタンを押すと 値が かわる。 (先に: sudo systemctl stop mjpad)
+    出力の見かた: INIT=はじめの合図 / ID=機器の番号 / RAW6=番地0から読んだ6バイト / RAW2=番地4から読んだ2バイト(ボタン) / CHG=前から かわった / BTN=読みとれたボタン"""
     bus = Bus()
-    for name, f in (('合図A(0xF0 0x55 ...)', bus.init), ('合図B(0x40 0x00)', bus.init_old)):
-        try: ok = f(); print('%s -> %s  id=%s' % (name, '返事あり' if ok else '返事なし', bus.ident.hex()), flush=True)
-        except OSError as e: print('%s -> エラー %s' % (name, e), flush=True)
-    print('--- 読みかた(番地・待ち時間)ごとの結果 ---', flush=True)
-    for c in Bus.CFGS:
-        try: w = bus._try(*c); b = decode(w); print('番地0x%02x %dバイト 待ち%3.0fms -> %04x %s' % (c[0], c[1], c[2] * 1000, w, [k for k, v in b.items() if v] if b else '(読みまちがい)'), flush=True)
-        except OSError as e: print('番地0x%02x %dバイト 待ち%3.0fms -> エラー %s' % (c[0], c[1], c[2] * 1000, e), flush=True)
-    print('--- ボタンを押して、値が かわるか(20秒) ---', flush=True)
-    for _ in range(40):
+    print('mjpad probe (addr 0x52, i2c-1)', flush=True)
+    for name, f in (('A(F0 55, FB 00)', bus.init), ('B(40 00)', bus.init_old)):
+        try: ok = f(); print('INIT %s -> %s id=%s' % (name, 'OK' if ok else 'NO-REPLY', bus.ident.hex()), flush=True)
+        except OSError as e: print('INIT %s -> ERROR %s' % (name, e), flush=True)
+    try: bus.init()
+    except OSError: pass
+    print('--- press buttons now (20 s) ---', flush=True)
+    prev = None; chg = 0; seen = set(); ok_n = 0; err_n = 0
+    for i in range(40):
+        line = ['%2d' % i]
         try:
-            w = bus.read(); b = decode(w) if w is not None else None
-            print('ボタン語=%04x  押している=%s' % (w, [k for k, v in b.items() if v] if b else '(読みまちがい)'), flush=True)
-        except OSError as e: print('エラー %s' % e, flush=True)
-        time.sleep(0.5)
+            os.write(bus.fd, bytes([0x00])); time.sleep(0.003); r6 = os.read(bus.fd, 6)
+            line.append('RAW6=' + r6.hex(' '))
+            time.sleep(0.003); os.write(bus.fd, bytes([0x04])); time.sleep(0.003); r2 = os.read(bus.fd, 2)
+            line.append('RAW2=' + r2.hex(' '))
+            cur = r6 + r2
+            if prev is not None and cur != prev: line.append('CHG'); chg += 1
+            prev = cur; ok_n += 1
+            if len(r6) == 6:
+                w = r6[4] | (r6[5] << 8); b = decode(w)
+                if b:
+                    names = [k for k, v in b.items() if v]; seen.update(names); line.append('BTN=' + ','.join(names))
+        except OSError as e:
+            line.append('ERROR %s' % e); err_n += 1
+        print(' '.join(line), flush=True); time.sleep(0.5)
+    print('SUMMARY reads_ok=%d errors=%d changes=%d buttons_seen=%s' % (ok_n, err_n, chg, sorted(seen) or 'none'), flush=True)
 
 
 def watch(secs=20):
