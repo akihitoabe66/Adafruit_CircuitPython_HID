@@ -621,9 +621,16 @@ class Oled:
         c = [0xAE, 0xD5, 0x80, 0xA8, HEIGHT - 1, 0xD3, 0x00, 0x40, 0x8D, 0x14, 0x20, 0x02,
              0xA0 if FLIP else 0xA1, 0xC0 if FLIP else 0xC8, 0xDA, 0x12 if HEIGHT == 64 else 0x02, 0x81, 0xCF, 0xD9, 0xF1, 0xDB, 0x40, 0xA4, 0xA6, 0xAF]
         for x in c: self.cmd(x)
-        self.last = [None] * PAGES
+        self.last = [None] * PAGES; self.rr = 0; self.t_cfg = time.time()
+    def refresh_cfg(self):
+        """表示の設定(明るさ・電荷ポンプなど)を 送りなおす(画面は消さない)。 I2Cの乱れで 設定が ずれても、直るように"""
+        for x in (0x8D, 0x14, 0x20, 0x02, 0xDB, 0x40, 0xD9, 0xF1, 0x81, 0xCF, 0xA4, 0xA6): self.cmd(x)
+        self.t_cfg = time.time()
     def show(self, scr):
-        """変わったページの、変わった列の範囲だけを送る(I2Cはゆっくりなので、CPUを使いすぎないように)"""
+        """変わったページの、変わった列の範囲だけを送る(I2Cはゆっくりなので、CPUを使いすぎないように)。
+        ただし、I2Cの送りまちがい(CPUが忙しいとき、ソフトで動かすI2Cは 乱れることがある)が 残らないよう、1コマごとに 1ページずつ 全部を送りなおす"""
+        if time.time() - self.t_cfg > 20: self.refresh_cfg()
+        self.last[self.rr % PAGES] = None; self.rr += 1   # 順番に 1ページずつ「まだ送っていない」にして、全体を 約 PAGES コマで 送りなおす
         for p in range(PAGES):
             row = bytes(scr.buf[p]); old = self.last[p]
             if old == row: continue
