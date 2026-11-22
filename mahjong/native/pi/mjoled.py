@@ -587,35 +587,41 @@ def sensei_now(d, age):
     return sc == '勉強' or (sc in GAME_SCENES and d.get('teacher') == '1')   # 麻雀の勉強の階層は 麻雀先生。 クイズは ずんだもん(正解で喜ぶ)
 # 上の16ドットの飾り: ニューヨークの夜景(ビル・月・星)。 (x, 幅, 高さ)。 高さは 下の線(y=15)から数える。 エンパイア・ステート(階段状+とがった先)や ワン・ワールド・トレードセンター(細い塔)ふう
 CITY = [(0, 8, 7), (8, 6, 10), (14, 8, 6), (22, 5, 12), (27, 9, 8), (36, 10, 9), (46, 8, 10), (54, 9, 11), (63, 6, 13), (69, 9, 8), (78, 7, 11), (85, 8, 7), (93, 9, 10), (102, 6, 12), (108, 7, 8), (115, 6, 11), (121, 7, 9)]
-STARS = [(18, 1), (34, 2), (52, 1), (75, 2), (98, 1), (112, 2), (124, 1)]
+BAYER4 = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
 def decor(scr, tick):
-    """上の使わない帯(16ドット)の飾り: ニューヨークの夜景。 ビルの窓は まばら(1x2ドット)で ゆっくり またたく。 横線が入っても 目立たない。 とがった塔の先の灯りが 1秒ごとに ついたり きえたり"""
+    """上の使わない帯(16ドット)の飾り: ニューヨークの夜景を 白黒反転で。 空は 点の細かさで 上が暗く・下が明るい(ディザ)、ビルは 黒いシルエットで、窓だけ 小さく光る。
+    空に 細かい点を使うので、横線が入っても 空の質感に 見えて 目立たない。 月は白い丸、塔の先の灯りが 1秒ごとに 点滅"""
     if OY < 16: return
     ep = tick // 9   # 3秒ごとに 窓の灯りが すこし入れかわる
-    def px(x, y): scr.raw(x, y)
-    for x, w, h in CITY:
+    clr = lambda x, y: (0 <= x < WIDTH and 0 <= y < 16) and scr.buf.__getitem__(y // 8).__setitem__(x, scr.buf[y // 8][x] & ~(1 << (y % 8)))
+    for y in range(16):   # 空: 上は まばら、下ほど 明るい
+        dens = 8 + int(y * 0.5)   # 8..15 の しきい値(Bayer): 上は 半分くらい、下ほど ほぼ全部 光る
+        for x in range(WIDTH):
+            if BAYER4[y % 4][x % 4] < dens: scr.raw(x, y)
+    for x, w, h in CITY:   # ビルの シルエット(黒)
         top = 16 - h
-        for xx in range(x, x + w): px(xx, top)   # 屋根
-        for yy in range(top, 16): px(x, yy); px(x + w - 1, yy)   # 壁
+        for yy in range(top, 16):
+            for xx in range(x, x + w): clr(xx, yy)
+    # エンパイア・ステートふう(40〜42): 階段と とがった先(黒)
+    for yy in range(0, 7):
+        for xx in ((40, 41) if yy >= 3 else (41,)): clr(xx, yy)
+    for xx in range(39, 43): clr(xx, 6)
+    # ワン・ワールド・トレードセンターふう(66): 細い塔(黒)
+    for yy in range(0, 4): clr(66, yy); clr(67, yy) if yy >= 2 else None
+    for x, w, h in CITY:   # 窓(白の 1x2)
+        top = 16 - h
         for r, wy in enumerate(range(top + 2, 14, 3)):
             for c, wx in enumerate(range(x + 2, x + w - 2, 2)):
-                if ((x * 7 + r * 13 + c * 29 + ep * 17) % 3) != 0: px(wx, wy); px(wx, wy + 1)
-    # エンパイア・ステートふう: 36〜46 のビルの上に 階段と とがった先
-    for yy in range(3, 7): px(40, yy); px(41, yy)
-    for yy in range(0, 3): px(41, yy)
-    for xx in range(39, 43): px(xx, 6)
-    # ワン・ワールド・トレードセンターふう(63〜69): 細い塔
-    for yy in range(0, 3): px(66, yy)
-    if (tick // 3) % 2 == 0: px(66, 0); px(41, 0)   # 先の灯り
-    else:
-        scr.buf[0][66] &= 0xFE; scr.buf[0][41] &= 0xFE
-    # 月(三日月)と 星
-    for (cx, cy) in ((8, 2),):
-        for dy in range(-2, 3):
-            for dx in range(-2, 3):
-                if dx * dx + dy * dy <= 5 and not ((dx + 1) * (dx + 1) + (dy - 1) * (dy - 1) <= 3): px(cx + dx + 1, cy + dy + 1 if cy + dy + 1 < 6 else 5)
-    for k, (sx, sy) in enumerate(STARS):
-        if (k + ep) % 3 != 0: px(sx, sy)
+                if ((x * 7 + r * 13 + c * 29 + ep * 17) % 3) != 0: scr.raw(wx, wy); scr.raw(wx, wy + 1)
+    # 月: 黒いふち + 白い丸
+    for dy in range(-3, 4):
+        for dx in range(-3, 4):
+            d2 = dx * dx + dy * dy
+            if d2 <= 9: clr(100 + dx, 4 + dy)
+    for dy in range(-2, 3):
+        for dx in range(-2, 3):
+            if dx * dx + dy * dy <= 5: scr.raw(100 + dx, 4 + dy)
+    if (tick // 3) % 2 == 0: scr.raw(41, 0); scr.raw(66, 0)   # 塔の先の灯り(1秒ごと)
 def compose(scr, d, age, tick, ever_alive=False):
     scr = compose0(scr, d, age, tick, ever_alive)
     if '--nodecor' not in sys.argv and os.environ.get('MJOLED_DECOR', '1') != '0': decor(scr, tick)
