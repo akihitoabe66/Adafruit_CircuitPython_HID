@@ -38,6 +38,7 @@ if TYPE == 'piezo':   # 圧電: 高い音ほど 大きい
         'warn': [(4000, 120), (0, 80), (4000, 120), (0, 80), (4000, 120)],               # 熱の注意: ピッピッピッ
         'danger': [(4400, 90), (0, 40), (3600, 90), (0, 40), (4400, 90), (0, 40), (3600, 90)],   # 危険: 高く 速く(ゆれる音)
         'lowv': [(3600, 380), (0, 120), (3600, 380)],                                    # 電圧が弱い: ピー・ピー(長い音)
+        'bootfail': [(2093, 600), (0, 150), (2093, 600), (0, 150), (2093, 900)],         # 起動しっぱい: ひくい ピー・ピー・ピーー(ゲームが 立ち上がらない)
     }
 else:             # 電磁式: ひくめの 音
     PAT = {
@@ -46,6 +47,7 @@ else:             # 電磁式: ひくめの 音
         'warn': [(880, 120), (0, 80), (880, 120), (0, 80), (880, 120)],
         'danger': [(1319, 100), (0, 50), (1568, 100), (0, 50), (1319, 100), (0, 50), (1568, 100)],
         'lowv': [(660, 380), (0, 120), (660, 380)],
+        'bootfail': [(523, 600), (0, 150), (523, 600), (0, 150), (523, 900)],
     }
 
 
@@ -84,6 +86,16 @@ def play(pwm, name):
     pwm.off()
 
 
+def appliance():
+    """「コンセントを入れるだけで遊べる」設定(ゲーム自動起動)か。 手で起動する使い方のときは 起動しっぱいの音を 鳴らさない"""
+    import glob
+    for f in glob.glob('/home/*/.bash_profile') + ['/root/.bash_profile']:
+        try:
+            if 'mahjong-autostart' in open(f, errors='ignore').read(): return True
+        except OSError: pass
+    return False
+
+
 def main():
     pwm = Pwm()
     if '--test' in sys.argv or DRY and '--loop' not in sys.argv:
@@ -98,8 +110,12 @@ def main():
         try: open(flag, 'w').close()
         except OSError: pass
         play(pwm, 'poweron')
+    boot_check = up < 150 and appliance(); t_boot = time.time()
     while True:
         d, age = read_status(STATUS); now = time.time()
+        if boot_check:   # 電源ON から 150秒たっても ゲームが 状態を 出さない = 起動しっぱい
+            if d is not None and age < 6 and d.get('scene'): boot_check = False
+            elif now - t_boot > 150 - up: boot_check = False; play(pwm, 'bootfail')
         if d is not None and age < 6 and d.get('buzz', '') in ('0', '1', '2', '3'):   # ゲームの設定「ブザーの音」(0=なし 1=小 2=中 3=大)
             lv = int(d['buzz']); pwm.duty = max(1, VOLS[lv]); pwm.muted = lv == 0
         else: pwm.muted = False
