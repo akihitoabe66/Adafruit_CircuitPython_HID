@@ -28,12 +28,18 @@ except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     try: from oled_zunda import Z as ZU
     except ImportError: ZU = {}
-try:
-    from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES, SEASONS as PSEAS, SEA as PSEA, JOBS as PJOBS, COS as PCOS, FORM1 as PF1, FORM2 as PF2
-except ImportError:
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    try: from oled_pet import STAGE as PSTAGE, LAB as PLAB, LINES as PLINES, SEASONS as PSEAS, SEA as PSEA, JOBS as PJOBS, COS as PCOS, FORM1 as PF1, FORM2 as PF2
-    except ImportError: PSTAGE, PLAB, PLINES, PSEAS, PSEA, PJOBS, PCOS, PF1, PF2 = [], {}, {}, [], {}, [], (), {}, {}
+PSTAGE, PLAB, PLINES, PSEAS, PSEA, PJOBS, PCOS, PF1, PF2 = [], {}, {}, [], {}, [], (), {}, {}
+PET_LOADED = [False]
+def load_pet():
+    """ペットの絵(約200KB)は、最初の画面を出したあとで読みこむ(電源を入れてすぐ、OLEDに「起動中」を出すため)"""
+    global PSTAGE, PLAB, PLINES, PSEAS, PSEA, PJOBS, PCOS, PF1, PF2
+    PET_LOADED[0] = True
+    try:
+        try: import oled_pet as P
+        except ImportError:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import oled_pet as P
+        PSTAGE, PLAB, PLINES, PSEAS, PSEA, PJOBS, PCOS, PF1, PF2 = P.STAGE, P.LAB, P.LINES, P.SEASONS, P.SEA, P.JOBS, P.COS, P.FORM1, P.FORM2
+    except Exception as e: print('mjoled: ペットの絵を読めません(%s)' % e, flush=True)
 GAME_SCENES = ('対局', '結果', '対局終了', '昇段')
 WHO = {'v': 'zunda'}   # いま出している人: sensei(麻雀先生) か zunda(ずんだもん)
 I2C_SLAVE = 0x0703
@@ -647,22 +653,28 @@ DEMO = [('hello', 'タイトル', ''), ('home', 'ホーム', ''), ('think', '対
 def main():
     dry = '--dry' in sys.argv
     if '--selftest' in sys.argv:
+        load_pet()
         scr = Screen()
         d = {'scene': '対局', 'pose': 'think', 'spd': '30', 'draw': '33', 'max': '57', 'key': '12', 'msg': 'ロン!'}
         if '--zunda' in sys.argv: WHO['v'] = 'zunda'
         print(compose(scr, d, 0.1, 0).ascii()); return 0
-    try: os.nice(19)
-    except OSError: pass
+    low_prio = [False]   # 起動して 60秒たつまでは ふつうの優先度で動く(起動のときに 負荷が高くても、OLEDを すぐ出すため)。 そのあと、いちばん低い優先度に
     import random
     WHO['v'] = 'zunda'
     was_alive = False; need_repick = False
     oled = None; tick = 0; demo_i = 0; t_demo = 0; next_try = 0; ever_alive = False
     while True:
         t0 = time.time()
+        if not low_prio[0] and uptime() > 60:
+            low_prio[0] = True
+            try: os.nice(19)
+            except OSError: pass
+            try: os.sched_setscheduler(0, os.SCHED_IDLE, os.sched_param(0))
+            except Exception: pass
         if oled is None and not dry and t0 >= next_try:
             bus = find_bus()
             if bus is None:
-                print('mjoled: OLED が見つかりません(config.txt の i2c-gpio と、つなぎかたを確認)。 もう一度さがします', flush=True); next_try = t0 + (1 if uptime() < 90 else 10)  # 起動の直後は、1秒ごとに さがす(装置が できるのを待つ)
+                print('mjoled: OLED が見つかりません(config.txt の i2c-gpio と、つなぎかたを確認)。 もう一度さがします', flush=True); next_try = t0 + (0.3 if uptime() < 90 else 10)  # 起動の直後は、1秒ごとに さがす(装置が できるのを待つ)
             else:
                 try: oled = Oled(bus, ADDR); oled.init(); print('mjoled: i2c-%d の 0x%02X に つなぎました(%s %dx%d)' % (bus, ADDR, DRV, WIDTH, HEIGHT), flush=True)
                 except OSError as e: print('mjoled: 初期化に失敗: %s' % e, flush=True); oled = None; next_try = t0 + 10
@@ -684,6 +696,7 @@ def main():
                 try: os.close(oled.fd)
                 except Exception: pass
                 oled = None; next_try = time.time() + 3
+        if not PET_LOADED[0] and (oled is not None or dry or tick > 3): load_pet()   # 最初の画面(起動中)を出した あとで、ペットの絵を読む
         dt = time.time() - t0
         time.sleep(max(0.05, 1.0 / FPS - dt))
 
