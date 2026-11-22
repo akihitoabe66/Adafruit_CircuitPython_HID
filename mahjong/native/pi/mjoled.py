@@ -665,6 +665,15 @@ def main():
         d = {'scene': '対局', 'pose': 'think', 'spd': '30', 'draw': '33', 'max': '57', 'key': '12', 'msg': 'ロン!'}
         if '--zunda' in sys.argv: WHO['v'] = 'zunda'
         print(compose(scr, d, 0.1, 0).ascii()); return 0
+    if '--fill' in sys.argv or '--grid' in sys.argv:   # 画面の点検: 全部を白(--fill)、または 1ドットおきの格子(--grid)を 20秒 出す。 先に: sudo systemctl stop mjoled
+        bus = find_bus()
+        if bus is None: print('OLED が見つかりません'); return 1
+        o = Oled(bus, ADDR); o.init(); scr = Screen()
+        for y in range(HEIGHT):
+            for x in range(WIDTH):
+                if '--fill' in sys.argv or (x + y) % 2 == 0: scr._set(x, y, 1)
+        for _ in range(60): o.show(scr); time.sleep(0.33)
+        print('点検おわり。 sudo systemctl start mjoled で もどります'); return 0
     low_prio = [False]   # 起動して 60秒たつまでは ふつうの優先度で動く(起動のときに 負荷が高くても、OLEDを すぐ出すため)。 そのあと、いちばん低い優先度に
     import random
     WHO['v'] = 'zunda'
