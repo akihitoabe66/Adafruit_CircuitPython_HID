@@ -2,7 +2,7 @@
 (function () {
   const MJ = window.MJ;
   const GAME = ['game1', 'game2', 'game3', 'game4', 'game5', 'game6', 'game7', 'game10', 'game11'].map((n) => 'audio/' + n + '.mp3');
-  const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], BLADE = 'audio/blade_of_the_setting_sun.mp3', FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3', 'audio/game15.mp3', BLADE], HOME = 'audio/home.mp3';
+  const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], BLADE = 'audio/blade_of_the_setting_sun.mp3', FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3', 'audio/game15.mp3', BLADE], HOME = 'audio/home.mp3', TENKA_ORAS = 'audio/fields_of_fallen_banners.mp3'; // 天下分け目(名人+家康+黄門)のオーラスだけの曲
   const SFX = ['click', 'select', 'draw', 'deal4', 'deal1', 'sort1', 'sort2', 'deal', 'discard', 'call', 'kan', 'riichi', 'ron', 'tsumo', 'win', 'lose', 'drawgame', 'slam', 'start', 'end', 'ok', 'ng', 'error', 'dice_hit', 'dice_clack', 'ura_slide', 'ura_tap', 'hand_open'];
   const D = { bgm: 0.22 * 6 / 5 * 6 / 5 * 6 / 5, sfx: 0.7 * 8 / 5, voice: 0.85, read: 0.6 }; // 初期値(音量の目盛り5のとき)。 目盛り5 = 前の版の「BGM6・効果音8・読み上げ5」のバランス。 さらに BGMは、ほかの音とのバランスで、もう1段(×1.2)大きく
   try { const vv = localStorage.getItem('mj_vol_v'); if (vv === '3') { try { const b = localStorage.getItem('mj_vol_bgm'); if (b !== null) localStorage.setItem('mj_vol_bgm', String(Math.max(0, parseInt(b, 10) - 1))); } catch (e) { /* ignore */ } localStorage.setItem('mj_vol_v', '4'); } else if (vv !== '4') { (vv === '2' ? ['bgm'] : ['bgm', 'sfx', 'voice']).forEach((k) => localStorage.removeItem('mj_vol_' + k)); localStorage.setItem('mj_vol_v', '4'); } } catch (e) { /* ignore */ } // 前の版の目盛りで保存された音量は、1回だけ 5 にもどす
@@ -26,10 +26,13 @@
     revealOn() { A._rcur = cur; A.scale = 1; cur = ''; A.music(BLADE); }, // 新しい雀士が登場する画面: ノリが良く、わくわくする曲(blade_of_the_setting_sun)
     revealOff() { const q = A._rcur; A._rcur = null; if (q) { cur = ''; A.music(q); } },
     mapOff() { const q = A._pcur; A._pcur = null; if (q) { cur = ''; A.music(q); } },
-    home() { A.holding = false; A._pend = null; A.scale = 1; A.music(HOME); },
+    home() { A._tenkaOras = false; A.holding = false; A._pend = null; A.scale = 1; A.music(HOME); },
     track() { return A.gtrack; }, // いま(または さいごに)流している対局の曲(セーブに入れて、つづきから再開したとき 同じ曲を 頭から流す)
     game(g) {
-      if (g && g.bgmResume) { const q = g.bgmResume; g.bgmResume = null; if (GAME.concat(LATE, FINAL).indexOf(q) >= 0) { last = q; A.gtrack = q; A.scale = 1; cur = ''; A.music(q); return; } } // つづきから: そのときの曲を、頭から
+      if (g && g.bgmResume) { const q = g.bgmResume; g.bgmResume = null; if (GAME.concat(LATE, FINAL, [TENKA_ORAS]).indexOf(q) >= 0) { last = q; A.gtrack = q; A.scale = 1; A._tenkaOras = q === TENKA_ORAS; cur = ''; A.music(q); return; } }
+      if (g && g.tenka && typeof g.isOras === 'function' && g.isOras()) { // 天下分け目のオーラス: ずっと この曲(ほかの曲は えらばない。 局ごとの結果の曲にも 切りかえない)
+        A._tenkaOras = true; A.scale = 1; if (cur === TENKA_ORAS) return; last = TENKA_ORAS; A.gtrack = TENKA_ORAS; cur = ''; A.music(TENKA_ORAS); return; }
+      A._tenkaOras = false; // つづきから: そのときの曲を、頭から
       // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」から選ぶ
       const isGameTrack = GAME.indexOf(cur) >= 0 || LATE.indexOf(cur) >= 0 || FINAL.indexOf(cur) >= 0;
       const finalHand = !!g && g.kyoku % 4 === 3;
@@ -41,8 +44,8 @@
       const pool = finalHand && Math.random() < 0.6 && fin.length ? fin : cand;
       last = pool[Math.floor(Math.random() * pool.length)]; A.gtrack = last; cur = ''; A.music(last);
     },
-    resultCpuRon() { A.scale = 0.65; cur = ''; A.music(BLADE); }, /* CPU同士の「ロン」(人は関係ない): ノリの良い曲に切りかえる(前は 地図の曲と同じ曲だった。 地図の曲は 地図だけ) */
-    result(kind) { const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm' || kind === 'draw') return; /* 流局・CPU同士の上がり: 曲を切りかえず、対局のBGMをそのまま流す(切りかえの一瞬、音が消えるため) */ /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ A.scale = 0.65; cur = ''; A.music('audio/' + n + '.mp3'); },
+    resultCpuRon() { if (A._tenkaOras) return; A.scale = 0.65; cur = ''; A.music(BLADE); }, /* CPU同士の「ロン」(人は関係ない): ノリの良い曲に切りかえる(前は 地図の曲と同じ曲だった。 地図の曲は 地図だけ) */
+    result(kind) { if (A._tenkaOras) return; /* 天下分け目のオーラスは 結果の曲に 切りかえない */ const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm' || kind === 'draw') return; /* 流局・CPU同士の上がり: 曲を切りかえず、対局のBGMをそのまま流す(切りかえの一瞬、音が消えるため) */ /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ A.scale = 0.65; cur = ''; A.music('audio/' + n + '.mp3'); },
     endBgm(rank) { // 対局が終わったとき(順位の画面): 最後の局が 流局・CPU同士の上がりで、対局の曲が鳴りっぱなしにならないよう、順位に合わせた曲にする(すでに同じ種類の結果の曲なら そのまま)
       const fam = rank <= 2 ? 'win' : rank === 3 ? 'draw' : 'lose', m = /result_(win|draw|lose)/.exec(cur || ''); if (m && m[1] === fam) return;
       A.holding = false; A.scale = 0.65; cur = ''; A.music('audio/result_' + fam + '.mp3');
