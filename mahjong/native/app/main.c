@@ -467,10 +467,14 @@ static void stall_log(const char *kind, double ms){
   fprintf(stderr, "stall: %s %.0fms %s\n", kind, ms, cx);
   char p[1500]; snprintf(p, sizeof p, "%s/stall.log", datadir); FILE *fp = fopen(p, "a"); if (fp) { time_t t = time(NULL); struct tm *tm = localtime(&t); fprintf(fp, "%02d:%02d:%02d %s %.0fms %s\n", tm->tm_hour, tm->tm_min, tm->tm_sec, kind, ms, cx); fclose(fp); }
 }
-static void bgm_log(const char *what, double ms, const char *path){ /* BGMの異変を ~/mjdata/stall.log に書く(専用機では 書かない: 開発のときだけ MJ_LOG=1。 SDカードへの書きこみを 減らすため) */
-  if (!getenv("MJ_LOG")) return;
-  char p[1500]; snprintf(p, sizeof p, "%s/stall.log", datadir); FILE *fp = fopen(p, "a"); if (fp) { time_t t = time(NULL); struct tm *tm = localtime(&t); fprintf(fp, "%02d:%02d:%02d %s %.0fms %s\n", tm->tm_hour, tm->tm_min, tm->tm_sec, what, ms, path ? path : ""); fclose(fp); }
-  fprintf(stderr, "%s %.0fms %s\n", what, ms, path ? path : ""); }
+static void bgm_log(const char *what, double ms, const char *path){ /* 記録: 専用機では、あとで不具合を調べられるよう「大事な出来事」だけを mjdata/events.log に(1日に数行。 64KBを こえたら 古い方を .old に)。 開発のとき MJ_LOG=1 なら、ぜんぶ stall.log に */
+  int dev = getenv("MJ_LOG") != NULL;
+  int key = !strcmp(what, "health") || !strcmp(what, "audio-reopen") || !strcmp(what, "bgm-stream-fail") || !strcmp(what, "bgm-stopped") || !strcmp(what, "mem-free");
+  if (!dev && !key) return;
+  char p[1500]; snprintf(p, sizeof p, "%s/%s", datadir, dev ? "stall.log" : "events.log");
+  if (!dev) { struct stat sb; if (stat(p, &sb) == 0 && sb.st_size > 65536) { char q[1520]; snprintf(q, sizeof q, "%s.old", p); rename(p, q); } }
+  FILE *fp = fopen(p, "a"); if (fp) { double up = 0; FILE *uf = fopen("/proc/uptime", "r"); if (uf) { if (fscanf(uf, "%lf", &up) < 1) up = 0; fclose(uf); } fprintf(fp, "up%.0fs %s %.0fms %s\n", up, what, ms, path ? path : ""); fclose(fp); }
+  if (dev) fprintf(stderr, "%s %.0fms %s\n", what, ms, path ? path : ""); }
 extern const char *crash_dir;
 static void crash_h(int sig){ /* 落ちたとき、原因を ~/mjdata/crash.log に書く */
   char p[1500]; snprintf(p, sizeof p, "%s/crash.log", crash_dir ? crash_dir : "/tmp");

@@ -428,3 +428,4 @@
 - [x] 瞬断の記録は SDカードの書きこみを減らすため やめた
 - [x] 方針メモ: 「受信機があるのにパッドがない」「長く操作がない」では警告しない(離席・無線パッドの5分オートオフが ふつうにあるため)。電池の目安は「Startで起こしても ピッ↗ が鳴らない/反応しない」。もし受信機が オートオフ中も「つながっている」と返すなら、起こしたときの ピッ↗ は鳴らない(要 実機で確認: パッドを5分ほうっておく→Startで復帰→ピッ↗ が鳴るか、journalctl -u mjpad)
 - [ ] 専用機の片づけ: ログを書かない(MJ_LOG=1 のときだけ stall.log)、隠しコマンドは MJ_DEV=1 のときだけ。要ビルド(sh native/app/build.sh)。 boot_slim.sh on で 使わないサービスを止める。 実機: mjdata に stall.log が増えないこと、ふつうに遊べること
+- [ ] 記録: mjdata/events.log に 大事な出来事だけ(boot-start / game-exit rc= / game-exit-normal / health / audio-reopen / bgm-* / mem-free)。要ビルド。渡したあと不具合を言われたら、このファイルと crash.log を見る

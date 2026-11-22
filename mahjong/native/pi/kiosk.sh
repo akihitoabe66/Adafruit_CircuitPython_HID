@@ -15,6 +15,9 @@ if [ -n "$BOOTMNT" ]; then
   export MJ_DATA
 fi
 if [ -n "$MJ_NOAUTO" ] || [ -e "$MJ_DATA/DEV" ]; then DEV=1; fi
+# 記録(あとで不具合を調べる用。 1回の起動で 数行だけ。 64KBをこえたら 古い方を .old に)
+ev() { [ -n "$MJ_DATA" ] || return 0; f="$MJ_DATA/events.log"; [ "$(wc -c < "$f" 2>/dev/null || echo 0)" -gt 65536 ] && mv -f "$f" "$f.old"; echo "up$(cut -d. -f1 /proc/uptime)s $(date '+%F %T') $*" >> "$f" 2>/dev/null; }
+ev boot-start
 
 show() { pkill -x fbi 2>/dev/null; [ -f "$1" ] && command -v fbi >/dev/null 2>&1 && (sudo -n fbi -T 1 -d /dev/fb0 -noverbose -a "$1" >/dev/null 2>&1 &); }
 hide() { pkill -x fbi 2>/dev/null; sudo -n pkill -x fbi 2>/dev/null; }
@@ -27,6 +30,7 @@ try=0
 while :; do
   hide
   MJ_KIOSK=1 "$D/native/app/mj" "$D"; rc=$?
+  [ $rc -ne 0 ] && ev "game-exit rc=$rc"
   [ $rc -ge 128 ] && [ $try -lt 2 ] && { try=$((try+1)); show "$SP/booting.png"; sleep 1; continue; }
   break
 done
@@ -40,6 +44,7 @@ if [ -n "$DEV" ] || [ $rc -eq 10 ]; then
 fi
 
 # 終了: 書きこみを終えて、安全にしてから、「抜いてください」
+ev game-exit-normal
 show "$SP/shutting.png"
 sync; sleep 2; sync
 if [ -n "$BOOTMNT" ]; then
