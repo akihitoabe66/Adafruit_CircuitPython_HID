@@ -360,7 +360,7 @@ def main():
         pad.close(); return
     try: os.nice(-5)   # ゲームより 少し 優先(ゲームが CPU を使っていても、読む間隔が くずれないように)
     except OSError: pass
-    bus = None; bad = 0; ok_once = False; deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ; t_cpu = time.time(); cpu0 = sum(os.times()[:2]); t_start = t_cpu
+    bus = None; bad = 0; ok_once = False; was_down = False; pad_seq = 0; deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ; t_cpu = time.time(); cpu0 = sum(os.times()[:2]); t_start = t_cpu
     while True:
         try:
             if bus is None:
@@ -369,6 +369,11 @@ def main():
                 wl, hz, dn, hd = profile_for(bus.ident); deb = Debounce(dn); hold = Holder(hd); t_loop = time.time()
                 bus.prefer = None if wl else (0x00, 6, 0.008)   # 有線の互換品: 番地0・6バイト・返事を8ms待つ が 実機で いちばん 安定した
                 print('mjpad: controller ready id=%s profile=%s hz=%d debounce=%d hold=%.0fms' % (bus.ident.hex(), 'wireless' if wl else 'wired', hz, dn, hd * 1000), flush=True); bad = 0; ok_once = True
+                if was_down:   # つながっていなかったのが、つながった: ブザー(mjbuzz)に 知らせて「ピッピッ」と 鳴らす
+                    pad_seq += 1
+                    try: open('/dev/shm/mj_pad.txt', 'w').write('seq=%d\nid=%s\n' % (pad_seq, bus.ident.hex()))
+                    except OSError: pass
+                was_down = False
             w = bus.read(); b = decode(w) if w is not None else None
             if b is None:
                 bad += 1
@@ -382,7 +387,7 @@ def main():
                     if out is not None: pad.send(out)
         except OSError as e:
             if ok_once or bad: print('mjpad: %s' % e, flush=True)
-            ok_once = False
+            ok_once = False; was_down = True
             if bus is not None:
                 try: os.close(bus.fd)
                 except OSError: pass

@@ -38,6 +38,7 @@ if TYPE == 'piezo':   # 圧電: 高い音ほど 大きい
         'warn': [(4000, 120), (0, 80), (4000, 120), (0, 80), (4000, 120)],               # 熱の注意: ピッピッピッ
         'danger': [(4400, 90), (0, 40), (3600, 90), (0, 40), (4400, 90), (0, 40), (3600, 90)],   # 危険: 高く 速く(ゆれる音)
         'lowv': [(3600, 380), (0, 120), (3600, 380)],                                    # 電圧が弱い: ピー・ピー(長い音)
+        'padon': [(2637, 60), (0, 40), (3951, 90)],                                       # コントローラーを 認識した: ピッ↗(短く 高く)
         'bootfail': [(2093, 600), (0, 150), (2093, 600), (0, 150), (2093, 900)],         # 起動しっぱい: ひくい ピー・ピー・ピーー(ゲームが 立ち上がらない)
     }
 else:             # 電磁式: ひくめの 音
@@ -47,6 +48,7 @@ else:             # 電磁式: ひくめの 音
         'warn': [(880, 120), (0, 80), (880, 120), (0, 80), (880, 120)],
         'danger': [(1319, 100), (0, 50), (1568, 100), (0, 50), (1319, 100), (0, 50), (1568, 100)],
         'lowv': [(660, 380), (0, 120), (660, 380)],
+        'padon': [(784, 60), (0, 40), (1568, 90)],
         'bootfail': [(523, 600), (0, 150), (523, 600), (0, 150), (523, 900)],
     }
 
@@ -110,7 +112,7 @@ def main():
         try: open(flag, 'w').close()
         except OSError: pass
         play(pwm, 'poweron')
-    boot_check = up < 150 and appliance(); t_boot = time.time()
+    boot_check = up < 150 and appliance(); t_boot = time.time(); pad_seen = None; t_pad = 0
     while True:
         d, age = read_status(STATUS); now = time.time()
         if boot_check:   # 電源ON から 150秒たっても ゲームが 状態を 出さない = 起動しっぱい
@@ -124,6 +126,14 @@ def main():
             if scene == 'EXIT' and not exit_done: exit_done = True; play(pwm, 'exit')
             if scene not in ('EXIT', 'MAINT'): exit_done = False
         last_scene = scene
+        # コントローラーが つながった(mjpad が /dev/shm/mj_pad.txt を 書く): 認識の「ピッ↗」。 接点の ちらつきで 鳴りつづけないよう、5秒に1回まで
+        try:
+            pd = read_status('/dev/shm/mj_pad.txt')[0]; sq = pd.get('seq') if pd else None
+        except Exception: sq = None
+        if pad_seen is None: pad_seen = sq
+        elif sq is not None and sq != pad_seen:
+            pad_seen = sq
+            if now - t_pad > 5: t_pad = now; play(pwm, 'padon')
         h = health()
         # 鳴らすのは「温度が高すぎる(82C〜)」「電力が足りない(電圧が下がりっぱなし)」の 危険のときだけ。 注意(75C〜 など)は 画面の表示だけで 鳴らさない。 くり返しは 20秒に1回
         if h['level'] >= 2 and now - t_danger > 20: t_danger = now; play(pwm, 'lowv' if h.get('why') == 'LOWV' else 'danger')
