@@ -98,3 +98,6 @@ sudo sh native/pi/install_oled.sh
 
 ### 画面の点検
 - `sudo systemctl stop mjoled` のあと、`python3 mjoled.py --fill`(全部を白)や `--grid`(格子)を 20秒 出す。 上の 16〜20ドットだけ すじが入るなら、画面そのもの(黄色と青の 2色の画面の 上の黄色の帯)の見えかたの可能性。 全体が きれいなら、送りまちがいで、1コマずつの送りなおしで 直る。
+
+### すじが消えないとき(画面の故障を疑う前に)
+- 試す順: ①`--fill` / `--grid` で全面を見る ②ケースの穴・押さえで、画面のふち(特に ケーブルのある辺)を 押していないか。 外して 見る ③`/etc/default/mjoled` に `MJOLED_CONTRAST=0x7F`(明るさを下げる)、`MJOLED_CLK=0xF0`、`MJOLED_PRECH=0x22` を 1つずつ足して `sudo systemctl restart mjoled` ④config.txt の i2c-gpio に `,i2c_gpio_delay_us=5` ⑤別の OLED(0.96インチ SSD1306、数百円)に交換。

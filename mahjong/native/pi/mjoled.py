@@ -54,6 +54,9 @@ PAGES = HEIGHT // 8
 HEALTH = os.environ.get('MJHEALTH_FILE', '/dev/shm/mj_health.txt')
 T_WARN = float(os.environ.get('MJ_TEMP_WARN', '75')); T_DANGER = float(os.environ.get('MJ_TEMP_DANGER', '82'))   # 温度(C): 注意 / 危険(Pi は 80C で 自分で 遅くなり、85C で 強く 遅くなる)
 INA_BUS = int(os.environ.get('MJINA_BUS', '1')); INA_ADDR = int(os.environ.get('MJINA_ADDR', '0x40'), 0)   # 電圧・電流計(INA219 のモジュール)をつけたとき
+CONTRAST = int(os.environ.get('MJOLED_CONTRAST', '0xCF'), 0)   # 明るさ(0x00〜0xFF)。 すじが出るとき 下げてみる(例 0x7F)
+CLKDIV = int(os.environ.get('MJOLED_CLK', '0x80'), 0)   # 画面の駆動の速さ(0x80=ふつう。 0xF0 / 0x50 などを試す)
+PRECH = int(os.environ.get('MJOLED_PRECH', '0xF1'), 0)   # 充電の時間(0xF1=ふつう。 0x22 を試す)
 COLOFF = 2 if DRV == 'sh1106' else 0   # SH1106 は 132列のうち、左の2列が 見えない
 
 # ---- 5x7 の文字(1文字 = 縦の5列。 下位ビットが上) ----
@@ -622,13 +625,13 @@ class Oled:
     def cmd(self, *c): os.write(self.fd, bytes([0x00]) + bytes(c))
     def data(self, b): os.write(self.fd, bytes([0x40]) + bytes(b))
     def init(self):
-        c = [0xAE, 0xD5, 0x80, 0xA8, HEIGHT - 1, 0xD3, 0x00, 0x40, 0x8D, 0x14, 0x20, 0x02,
-             0xA0 if FLIP else 0xA1, 0xC0 if FLIP else 0xC8, 0xDA, 0x12 if HEIGHT == 64 else 0x02, 0x81, 0xCF, 0xD9, 0xF1, 0xDB, 0x40, 0xA4, 0xA6, 0xAF]
+        c = [0xAE, 0xD5, CLKDIV, 0xA8, HEIGHT - 1, 0xD3, 0x00, 0x40, 0x8D, 0x14, 0x20, 0x02,
+             0xA0 if FLIP else 0xA1, 0xC0 if FLIP else 0xC8, 0xDA, 0x12 if HEIGHT == 64 else 0x02, 0x81, CONTRAST, 0xD9, PRECH, 0xDB, 0x40, 0xA4, 0xA6, 0xAF]
         for x in c: self.cmd(x)
         self.last = [None] * PAGES; self.rr = 0; self.t_cfg = time.time()
     def refresh_cfg(self):
         """表示の設定(明るさ・電荷ポンプなど)を 送りなおす(画面は消さない)。 I2Cの乱れで 設定が ずれても、直るように"""
-        for x in (0x8D, 0x14, 0x20, 0x02, 0xDB, 0x40, 0xD9, 0xF1, 0x81, 0xCF, 0xA4, 0xA6): self.cmd(x)
+        for x in (0x8D, 0x14, 0x20, 0x02, 0xDB, 0x40, 0xD9, PRECH, 0x81, CONTRAST, 0xA4, 0xA6): self.cmd(x)
         self.t_cfg = time.time()
     def show(self, scr):
         """変わったページの、変わった列の範囲だけを送る(I2Cはゆっくりなので、CPUを使いすぎないように)。
