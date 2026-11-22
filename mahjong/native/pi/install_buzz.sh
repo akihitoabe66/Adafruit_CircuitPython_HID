@@ -12,7 +12,7 @@ fi
 grep -q '^dtoverlay=pwm,pin=18' "$CFG" || echo 'dtoverlay=pwm,pin=18,func=2' >> "$CFG"   # GPIO18 を PWM に
 install -m 755 mjbuzz.py /usr/local/bin/mjbuzz.py
 install -m 755 mjoled.py /usr/local/bin/mjoled.py   # 熱・電源の判定(health)を 同じ部品から 使う
-[ -f /etc/default/mjbuzz ] || printf '# 合図の設定(必要なものだけ、行頭の # を外す)\n#MJBUZZ=0\n#MJBUZZ_DUTY=20\n' > /etc/default/mjbuzz
+[ -f /etc/default/mjbuzz ] || printf '# 合図の設定(必要なものだけ、行頭の # を外す)\n#MJBUZZ=0\n#MJBUZZ_TYPE=piezo   # 圧電=piezo(標準) / 電磁式=coil\n#MJBUZZ_DUTY=50\n' > /etc/default/mjbuzz
 cat > /etc/systemd/system/mjbuzz.service <<'UNIT'
 [Unit]
 Description=Mahjong buzzer signals
