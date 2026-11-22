@@ -106,7 +106,7 @@ class Bus:
         """はじめの合図。 互換品(レプリカ)でも動くよう、ゆるく: どれかの合図が通れば よい。 ID は 記録するだけ(ちがっていても 使う)"""
         self.ident = b''
         self.w(0xF0, 0x55); self.w(0xFB, 0x00)   # 暗号なし(ふつうの Wii クラシックの合図)
-        try: self.w(0xFE, 0x01)   # ふつうの形式。 互換品が 受けつけなくても 気にしない
+        try: self.w(0xFE, 0x03)   # データの形式 3(6バイト。 ボタンは 4・5バイトめ)。 無線の受信機(クラシックコントローラーPro)は 形式 1 だと ボタンが 6・7バイトめに 移ってしまう。 互換品が 受けつけなくても 気にしない
         except OSError: pass
         os.write(self.fd, b'\xFA'); time.sleep(0.005); self.ident = os.read(self.fd, 6)   # 機器の ID(記録用)
         return len(self.ident) == 6
@@ -117,14 +117,14 @@ class Bus:
         os.write(self.fd, b'\xFA'); time.sleep(0.005); self.ident = os.read(self.fd, 6)
         return len(self.ident) == 6
 
-    CFGS = [(ptr, n, dly) for ptr in (0x04, 0x00) for n in ((2,) if ptr == 0x04 else (6,)) for dly in (0.001, 0.003, 0.008, 0.02)]
+    CFGS = [(ptr, n, dly) for ptr in (0x04, 0x00) for n in ((2,) if ptr == 0x04 else (6, 8)) for dly in (0.001, 0.003, 0.008, 0.02)]   # n=8: 形式1(ボタンは 6・7バイトめ)の受信機も 読めるように
 
     def _try(self, ptr, n, dly):
         """番地 ptr を指定して、n バイト読む。 返事までの待ち dly 秒。 ボタンの語(16bit)を返す"""
         time.sleep(0.001); os.write(self.fd, bytes([ptr])); time.sleep(dly)
         d = os.read(self.fd, n)
         if len(d) != n: raise OSError('短い')
-        return d[0] | (d[1] << 8) if n == 2 else d[4] | (d[5] << 8)   # 6バイトのときは、4・5バイトめが ボタン
+        return d[0] | (d[1] << 8) if n == 2 else d[6] | (d[7] << 8) if n == 8 else d[4] | (d[5] << 8)   # 6バイトのときは 4・5バイトめ、 8バイト(形式1)のときは 6・7バイトめが ボタン
 
     def read(self):
         """ボタンの語を読む。 互換品は 返事が遅いことがあるので、(番地・待ち時間)の組みあわせを 順に試して、動いたものを覚える"""
@@ -182,17 +182,18 @@ def probe():
     for i in range(40):
         line = ['%2d' % i]
         try:
-            os.write(bus.fd, bytes([0x00])); time.sleep(0.003); r6 = os.read(bus.fd, 6)
-            line.append('RAW6=' + r6.hex(' '))
+            os.write(bus.fd, bytes([0x00])); time.sleep(0.003); r6 = os.read(bus.fd, 8)
+            line.append('RAW8=' + r6.hex(' '))
             time.sleep(0.003); os.write(bus.fd, bytes([0x04])); time.sleep(0.003); r2 = os.read(bus.fd, 2)
             line.append('RAW2=' + r2.hex(' '))
             cur = r6 + r2
             if prev is not None and cur != prev: line.append('CHG'); chg += 1
             prev = cur; ok_n += 1
-            if len(r6) == 6:
-                w = r6[4] | (r6[5] << 8); b = decode(w)
-                if b:
-                    names = [k for k, v in b.items() if v]; seen.update(names); line.append('BTN=' + ','.join(names))
+            for lo, hi in ((4, 5), (6, 7)):   # 形式3(4・5バイトめ) と 形式1(6・7バイトめ)の どちらかに ボタンがある
+                if len(r6) > hi:
+                    b = decode(r6[lo] | (r6[hi] << 8))
+                    if b:
+                        names = [k for k, v in b.items() if v]; seen.update(names); line.append('BTN@%d=%s' % (lo, ','.join(names) or '-'))
         except OSError as e:
             line.append('ERROR %s' % e); err_n += 1
         print(' '.join(line), flush=True); time.sleep(0.5)
