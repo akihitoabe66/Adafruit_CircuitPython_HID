@@ -460,14 +460,15 @@ static void handle_event(SDL_Event *ep){
   else if (e.type == SDL_JOYBUTTONDOWN) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 1; { int b = e.jbutton.button; if (b >= 6 && b <= 9) return; /* スタート・セレクトは、長押しのメニュー専用 */ callkey((swapab ? (b == 0 || b == 2) : (b == 1 || b == 3)) ? "back" : "ok"); } }
 }
 
-static double stall_ms = 150; /* これより長く止まった(JSの処理・絵を描く)ときは、~/mjdata/stall.log に、何をしていたかを書く(MJ_STALL=ミリ秒で変更。0で書かない) */
+static double stall_ms = 0; /* これより長く止まった(JSの処理・絵を描く)ときは、~/mjdata/stall.log に、何をしていたかを書く(MJ_STALL=ミリ秒で変更。0で書かない) */
 static void stall_log(const char *kind, double ms){
   if (stall_ms <= 0 || ms < stall_ms) return; char cx[400] = "?";
   JSValue g = JS_GetGlobalObject(ctx), f = JS_GetPropertyStr(ctx, g, "__ctx"); if (JS_IsFunction(ctx, f)) { JSValue r = JS_Call(ctx, f, g, 0, NULL); const char *s = JS_ToCString(ctx, r); if (s) { snprintf(cx, sizeof cx, "%s", s); JS_FreeCString(ctx, s); } JS_FreeValue(ctx, r); } JS_FreeValue(ctx, f); JS_FreeValue(ctx, g);
   fprintf(stderr, "stall: %s %.0fms %s\n", kind, ms, cx);
   char p[1500]; snprintf(p, sizeof p, "%s/stall.log", datadir); FILE *fp = fopen(p, "a"); if (fp) { time_t t = time(NULL); struct tm *tm = localtime(&t); fprintf(fp, "%02d:%02d:%02d %s %.0fms %s\n", tm->tm_hour, tm->tm_min, tm->tm_sec, kind, ms, cx); fclose(fp); }
 }
-static void bgm_log(const char *what, double ms, const char *path){ /* BGMの異変を ~/mjdata/stall.log に書く */
+static void bgm_log(const char *what, double ms, const char *path){ /* BGMの異変を ~/mjdata/stall.log に書く(専用機では 書かない: 開発のときだけ MJ_LOG=1。 SDカードへの書きこみを 減らすため) */
+  if (!getenv("MJ_LOG")) return;
   char p[1500]; snprintf(p, sizeof p, "%s/stall.log", datadir); FILE *fp = fopen(p, "a"); if (fp) { time_t t = time(NULL); struct tm *tm = localtime(&t); fprintf(fp, "%02d:%02d:%02d %s %.0fms %s\n", tm->tm_hour, tm->tm_min, tm->tm_sec, what, ms, path ? path : ""); fclose(fp); }
   fprintf(stderr, "%s %.0fms %s\n", what, ms, path ? path : ""); }
 extern const char *crash_dir;
@@ -529,7 +530,7 @@ int main(int argc, char **argv){
     for (int i = 0; bases[i]; i++) { snprintf(b, sizeof b, "%s/video", bases[i]); JS_SetPropertyUint32(ctx, arr, k++, JS_NewString(ctx, b)); JS_SetPropertyUint32(ctx, arr, k++, JS_NewString(ctx, bases[i])); }
     JS_SetPropertyStr(ctx, g, "__videoDirs", arr); }
   reg(g, "print", j_print, 1); reg(g, "__now", j_now, 0); reg(g, "__quit", j_quit, 0); reg(g, "__load", j_load, 0); reg(g, "__save", j_save, 1); reg(g, "__swapab", j_swapab, 1); reg(g, "__shanten", j_shanten, 2); reg(g, "__slotlist", j_slotlist, 0); reg(g, "__slotload", j_slotload, 1); reg(g, "__slotsave", j_slotsave, 2); reg(g, "__slotdel", j_slotdel, 1);
-  { if (getenv("MJ_FPS")) JS_SetPropertyStr(ctx, g, "__perfEnv", JS_NewBool(ctx, 1)); }
+  { if (getenv("MJ_FPS")) JS_SetPropertyStr(ctx, g, "__perfEnv", JS_NewBool(ctx, 1)); if (getenv("MJ_DEV")) JS_SetPropertyStr(ctx, g, "__devCmds", JS_NewBool(ctx, 1)); } /* MJ_DEV=1 のときだけ 隠しコマンド(試験用)が 使える */
   { const char *tp = getenv("MJ_TEACHER"); if (tp) JS_SetPropertyStr(ctx, g, "__teacherEnv", JS_NewString(ctx, tp)); }
   { const char *cp = getenv("MJ_CPU"); if (cp) JS_SetPropertyStr(ctx, g, "__cpuEnv", JS_NewString(ctx, cp)); }
   { const char *sy = getenv("MJ_STYLE"); if (sy) JS_SetPropertyStr(ctx, g, "__styleEnv", JS_NewString(ctx, sy)); } /* MJ_STYLE=old で、前のバージョン(浮世絵版の前)の絵に戻す */

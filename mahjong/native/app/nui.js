@@ -69,6 +69,7 @@
   try { if (localStorage.getItem('mj_rules_ver') !== '3') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '3'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
   const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz' }, { label: '麻雀の勉強', act: 'study' }, { label: '設定', act: 'settings' }];
   const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
+  const DEV_CMDS = !!globalThis.__devCmds; // 隠しコマンド(試験用)は、専用機では 使えない(開発のとき MJ_DEV=1 で 使える)
   const PROMOSEQ = ['left', 'left', 'right', 'right', 'up', 'down', 'up', 'down', 'back', 'ok']; // 隠しコマンド(ホーム): 昇段の演出テスト(認定証→地図→新しい雀士)を開く
   const PERFSEQ = ['down', 'down', 'up', 'up', 'right', 'left', 'right', 'left', 'back', 'ok']; // 隠しコマンド(ホーム): 画面の左上に、遅れの診断を出す/消す
   const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'back', 'ok']; // 隠しコマンド(タイトル): 5件のセーブから選べる
@@ -2580,7 +2581,7 @@
     }
     if (S.mode === 'menu') { // ホーム
       const items = homeItems();
-      { // 隠しコマンド(↑↑↓↓←→←→ BA): 順番どおり、しかも続けて入れたときだけ(ガチャガチャでは開かない)
+      if (DEV_CMDS) { // 隠しコマンド(↑↑↓↓←→←→ BA): 順番どおり、しかも続けて入れたときだけ(ガチャガチャでは開かない)
         const nw = __now(); if (!S.hidN || nw - (S.hidT || 0) > 2500) S.hidN = 0; S.hidT = nw;
         if (k === HIDDEN[S.hidN]) S.hidN++; else S.hidN = k === HIDDEN[0] ? 1 : 0;
         if (S.hidN >= HIDDEN.length) { S.hidN = 0; S.slots = slotRead(); S.slotIdx = 0; S.mode = 'slots'; return; }
