@@ -5,6 +5,8 @@
  つなぎかた(coil): GPIO18 → 1kΩ → トランジスタ(2SC1815 など)のベース / エミッタ → GND / コレクタ → スピーカー → 3.3V。 スピーカーに 直列で 47〜100Ω、 両端に ダイオード(1N4148)。
  config.txt に  dtoverlay=pwm,pin=18,func=2  (install_buzz.sh が 入れる)。
  鳴らす合図: 起動完了(タイトルが出た)=上がるチャイム / ゲーム終了(電源を抜いてよい)=ピン・ポン / 熱・電源の警告=ピッピッピッ。
+
+ 音の大きさ: ゲームの設定「ブザーの音」(なし・小・中・大)が いちばん優先。 ゲームが 動いていないときは MJBUZZ_VOL(1〜3)か MJBUZZ_DUTY。
  環境変数: MJBUZZ=0 で 鳴らさない / MJBUZZ_DUTY(音の大きさ 1〜50。 piezo は 50 が いちばん大きい、 標準 piezo=50 coil=20) / MJBUZZ_TYPE。
  試験: python3 mjbuzz.py --test(全部の合図を 順に鳴らす) / --dry(鳴らさず 文字で)"""
 import os, sys, time
@@ -19,7 +21,11 @@ STATUS = os.environ.get('MJOLED_FILE', '/dev/shm/mj_oled.txt')
 PWM = os.environ.get('MJBUZZ_PWMCHIP', '/sys/class/pwm/pwmchip0')
 CH = os.environ.get('MJBUZZ_PIN', '0')
 TYPE = os.environ.get('MJBUZZ_TYPE', 'piezo').lower()
-DUTY = max(1, min(50, int(os.environ.get('MJBUZZ_DUTY', '50' if TYPE == 'piezo' else '20'))))
+VOLS = [0, 10, 25, 50] if TYPE == 'piezo' else [0, 6, 12, 20]   # 音の大きさ: なし / 小 / 中 / 大(PWMの デューティ%。 圧電は 50%が いちばん大きい)
+DUTY = max(1, min(50, int(os.environ.get('MJBUZZ_DUTY', str(VOLS[3])))))   # ゲームの設定が 届かないときの 大きさ
+if 'MJBUZZ_VOL' in os.environ:   # 1〜3(小・中・大)
+    try: DUTY = VOLS[max(1, min(3, int(os.environ['MJBUZZ_VOL'])))]
+    except ValueError: pass
 ON = os.environ.get('MJBUZZ', '1') != '0'
 DRY = '--dry' in sys.argv
 # 音の高さ(Hz)
@@ -42,6 +48,7 @@ else:
 
 
 class Pwm:
+    duty = DUTY
     def __init__(self):
         self.d = '%s/pwm%s' % (PWM, CH)
         if not DRY:
@@ -58,7 +65,7 @@ class Pwm:
         per = int(1e9 / hz)
         try: self._w('enable', 0)
         except OSError: pass
-        self._w('period', per); self._w('duty_cycle', per * DUTY // 100); self._w('enable', 1)
+        self._w('period', per); self._w('duty_cycle', per * self.duty // 100); self._w('enable', 1)
     def off(self):
         if DRY: return
         try: self._w('enable', 0)
@@ -66,7 +73,7 @@ class Pwm:
 
 
 def play(pwm, name):
-    if not ON: return
+    if not ON or getattr(pwm, 'muted', False): return
     for hz, ms in PAT[name]:
         pwm.tone(hz); time.sleep(ms / 1000.0)
     pwm.off()
@@ -80,6 +87,9 @@ def main():
     last_scene = None; ready_done = False; exit_done = False; t_warn = 0; t_danger = 0
     while True:
         d, age = read_status(STATUS); now = time.time()
+        if d is not None and age < 6 and d.get('buzz', '') in ('0', '1', '2', '3'):   # ゲームの設定「ブザーの音」(0=なし 1=小 2=中 3=大)
+            lv = int(d['buzz']); pwm.duty = max(1, VOLS[lv]); pwm.muted = lv == 0
+        else: pwm.muted = False
         scene = d.get('scene') if d is not None and (age < 4.0 or d.get('scene') in ('EXIT', 'MAINT')) else None
         if scene and scene != last_scene:
             if not ready_done and scene not in ('起動中', 'EXIT', 'MAINT'): ready_done = True; play(pwm, 'ready')   # 起動中のあと はじめて 別の場面に なった
