@@ -518,6 +518,9 @@ def compose_pet(scr, d, age, tick, ever_alive, h):
     """ホーム・起動中の、ペットの画面。 戻り値が None なら ふつうの画面にもどる"""
     if not PSTAGE or not (d is None or d.get('scene') == '起動中' or 'plays' in d): return None
     scr.clear(); plays = pet_int(d, 'plays') if d else 0
+    if d is None or d.get('scene') == '起動中':   # 起動中: ずんだもんが 目をこすって おきる(目を閉じた顔と、ひらいた顔が かわりばんこ)
+        scr.zface('content' if tick % 6 < 3 else 'smile', 0, 3)
+        scr.marquee('おきるのだ…', 66, 18, 60, tick); scr.text('WAIT %dS' % int(uptime()), 66, 40); return scr
     stg = pet_stage(pet_cp(d) if d else 0); sw, sh, srows = stg[1], stg[2], stg[3]; frm = pet_form(d) if d else None
     sleepy = d is not None and pet_int(d, 'idle') >= 180
     by = 2 + (0 if sleepy or tick % 2 == 0 else -2)   # ぴょこぴょこ(ねむいときは 動かない)
@@ -529,7 +532,8 @@ def compose_pet(scr, d, age, tick, ever_alive, h):
     X = 66
     if d is None or d.get('scene') == '起動中':
         scr.marquee('おきるのだ…', X, 18, 60, tick); scr.text('WAIT %dS' % int(uptime()), X, 40)
-    elif sleepy:
+    elif sleepy:   # 3分 ボタンなし: 目を閉じた顔で ねむる
+        scr.clear(); scr.zface('content', 0, 3)
         scr.marquee('ねむいのだ…', X, 18, 60, tick); scr.text('ZZZ' + '.' * (tick % 4), X, 40); scr.text('PLAY %d' % plays, X, 54)
     elif evolve_event(d) is not None:
         scr.clear(); ev = evolve_event(d)
