@@ -11,8 +11,8 @@ import fcntl, os, struct, sys, time
 
 ADDR = 0x52
 I2C_SLAVE = 0x0703
-HZ = int(os.environ.get('MJPAD_HZ', '40'))   # 1秒に読む回数(40回=25ms)。 Pi Zero は CPU が1つだけで、ゲームと取りあうので、多くしすぎない
-DEBOUNCE = int(os.environ.get('MJPAD_DEBOUNCE', '2'))   # 同じ値が この回数 つづけて読めたときだけ、ゲームに伝える(読みまちがいの 一瞬の「左」などを 通さない)
+HZ = int(os.environ.get('MJPAD_HZ', '80'))   # 1秒に読む回数(40回=25ms)。 Pi Zero は CPU が1つだけで、ゲームと取りあうので、多くしすぎない
+DEBOUNCE = int(os.environ.get('MJPAD_DEBOUNCE', '1'))   # 同じ値が この回数 つづけて読めたときだけ、ゲームに伝える(読みまちがいの 一瞬の「左」などを 通さない)
 # uinput
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT = 0x40045564, 0x40045565, 0x40045567
 UI_DEV_SETUP, UI_ABS_SETUP, UI_DEV_CREATE, UI_DEV_DESTROY = 0x405c5503, 0x401c5504, 0x5501, 0x5502
@@ -29,6 +29,25 @@ def decode(word):
     """16bitのボタンの語 → {名前: 押している?}。 読みまちがい(上下どちらかの1バイトが 0)のときは None"""
     if (word & 0xFF) == 0 or (word & 0xFF00) == 0: return None
     return {k: ((word >> b) & 1) == 0 for k, b in BIT.items()}
+
+
+HOLD = float(os.environ.get('MJPAD_HOLD', '100')) / 1000.0   # 押したのを 最低 この秒数(100ms)は 押したままに する(無線の受信機は、押しても 20〜100ms しか 値が出ないことがある)
+
+
+class Holder:
+    """一瞬だけ読めた押しを、ゲームが 受けとれる長さ(HOLD)まで のばす。 反対の方向(左↔右、上↔下)が 押されたら、すぐに そちらへ ゆずる"""
+    def __init__(self, hold=HOLD): self.hold = hold; self.until = {}
+    def apply(self, b, now):
+        for k, v in b.items():
+            if v: self.until[k] = now + self.hold
+        eff = {k: (v or self.until.get(k, 0) > now) for k, v in b.items()}
+        for a, c in (('left', 'right'), ('up', 'down')):
+            if b[a] and not b[c]: eff[c] = False; self.until[c] = 0
+            elif b[c] and not b[a]: eff[a] = False; self.until[a] = 0
+            elif eff[a] and eff[c]:   # どちらも のこっている: あとから押したほう
+                loser = a if self.until.get(a, 0) < self.until.get(c, 0) else c
+                eff[loser] = False; self.until[loser] = 0
+        return eff
 
 
 class Debounce:
@@ -164,6 +183,11 @@ def selftest():
     assert d.feed(A) is None and d.feed(A) == A and d.feed(A) is None   # 2回つづいて はじめて A
     assert d.feed(B) is None and d.feed(A) is None and d.feed(A) is None   # 1回だけの B(読みまちがい)は 通らない
     assert d.feed(B) is None and d.feed(B) == B   # 2回つづけば B
+    h = Holder(0.1); z = {k: False for k in BIT}; r = dict(z, right=True)
+    e = h.apply(r, 0.0); assert e['right']                                       # 押した
+    e = h.apply(z, 0.03); assert e['right']                                      # 30ms: まだ のばして いる
+    e = h.apply(z, 0.2); assert not e['right']                                   # 200ms: もう はなした
+    h = Holder(0.1); h.apply(dict(z, left=True), 0.0); e = h.apply(dict(z, right=True), 0.02); assert e['right'] and not e['left']   # 反対方向は すぐ ゆずる
     print('selftest OK')
 
 
@@ -238,7 +262,7 @@ def trace(secs=30):
     if not (bus.init() or bus.init_old()): print('no reply'); return
     deb = Debounce(DEBOUNCE); pad = Pad(True); pad.send = lambda st: None
     raw = {k: 0 for k in BIT}; sent = {'left': 0, 'right': 0, 'up': 0, 'down': 0, 'a': 0, 'b': 0}
-    prev = {k: False for k in BIT}; last_out = (0, 0, [0] * 8); diag_n = 0; t0 = time.time(); drop_diag = 0; reads = 0; bad = 0
+    prev = {k: False for k in BIT}; last_out = (0, 0, [0] * 8); diag_n = 0; t0 = time.time(); drop_diag = 0; reads = 0; bad = 0; hold = Holder()
     print('trace %d s: press each d-pad direction 10 times, A and B too. Ctrl+C = stop' % secs, flush=True)
     try:
         while time.time() - t0 < secs:
@@ -248,7 +272,7 @@ def trace(secs=30):
             if b is None: bad += 1; time.sleep(1.0 / HZ); continue
             for k in BIT:
                 if b[k] and not prev[k]: raw[k] += 1
-            prev = dict(b)
+            prev = dict(b); b = hold.apply(b, time.time())
             dg = b['left'] != b['right'] and b['up'] != b['down']; diag_n = diag_n + 1 if dg else 0
             st = to_state(b, last_out, wait_diag=diag_n <= 4)
             if dg and st is None: drop_diag += 1
@@ -287,7 +311,7 @@ def main():
             b = decode(w); print('word 0x%04x ->' % w, b and [k for k, v in b.items() if v], flush=True)
             if b: pad.send(to_state(b))
         pad.close(); return
-    bus = None; bad = 0; ok_once = False; deb = Debounce(DEBOUNCE); diag_n = 0
+    bus = None; bad = 0; ok_once = False; deb = Debounce(DEBOUNCE); diag_n = 0; hold = Holder()
     while True:
         try:
             if bus is None:
@@ -299,7 +323,7 @@ def main():
                 bad += 1
                 if bad >= 20: raise OSError('読みまちがいが つづいた')
             else:
-                bad = 0; dg = b['left'] != b['right'] and b['up'] != b['down']   # 斜め
+                bad = 0; b = hold.apply(b, time.time()); dg = b['left'] != b['right'] and b['up'] != b['down']   # 斜め
                 diag_n = diag_n + 1 if dg else 0
                 st = to_state(b, pad.last, wait_diag=diag_n <= 4)   # 斜めが 5回(約0.12秒)つづいたら、横を優先して 決める
                 if st is not None:
