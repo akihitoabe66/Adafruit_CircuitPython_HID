@@ -360,7 +360,7 @@ def main():
         pad.close(); return
     try: os.nice(-5)   # ゲームより 少し 優先(ゲームが CPU を使っていても、読む間隔が くずれないように)
     except OSError: pass
-    bus = None; bad = 0; ok_once = False; was_down = False; pad_seq = 0; st_bad = 0; st_drop = 0; st_t = time.time(); deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ; t_cpu = time.time(); cpu0 = sum(os.times()[:2]); t_start = t_cpu
+    bus = None; bad = 0; ok_once = False; was_down = False; pad_seq = 0; deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ; t_cpu = time.time(); cpu0 = sum(os.times()[:2]); t_start = t_cpu
     while True:
         try:
             if bus is None:
@@ -376,7 +376,7 @@ def main():
                 was_down = False
             w = bus.read(); b = decode(w) if w is not None else None
             if b is None:
-                bad += 1; st_bad += 1
+                bad += 1
                 if bad >= 20: raise OSError('読みまちがいが つづいた')
             else:
                 bad = 0; b = hold.apply(b, time.time()); dg = b['left'] != b['right'] and b['up'] != b['down']   # 斜め
@@ -387,7 +387,7 @@ def main():
                     if out is not None: pad.send(out)
         except OSError as e:
             if ok_once or bad: print('mjpad: %s' % e, flush=True)
-            ok_once = False; was_down = True; st_drop += 1
+            ok_once = False; was_down = True
             if bus is not None:
                 try: os.close(bus.fd)
                 except OSError: pass
@@ -395,9 +395,6 @@ def main():
             pad.send((0, 0, [0] * 8))   # つながっていない間は、ボタンを すべて はなした ことにする
             time.sleep(1.0); continue
         now = time.time()
-        if now - st_t >= 60:   # 電池が弱いと 瞬断が ふえるか 調べるための 記録: 1分ごとに、読みまちがい・つながりが切れた回数が あれば journalctl に 出す
-            if st_bad or st_drop: print('mjpad: link 1min bad_reads=%d drops=%d' % (st_bad, st_drop), flush=True)
-            st_bad = st_drop = 0; st_t = now
         if now - t_cpu >= 60 and now - t_start < 660:   # 起動して 10分のあいだ、1分ごとに 自分の CPU 使用率を 記録に出す(負担の確認用)
             c1 = sum(os.times()[:2]); print('mjpad: cpu %.1f%% (hz=%d)' % ((c1 - cpu0) / (now - t_cpu) * 100, hz), flush=True); t_cpu = now; cpu0 = c1
         t_loop += 1.0 / hz; dt = t_loop - time.time()   # 読むのに かかった時間を ひいて、周期を そろえる
