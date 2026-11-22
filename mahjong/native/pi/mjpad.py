@@ -278,6 +278,28 @@ def watch(secs=20):
     print('bad reads %d / read errors %d' % (bad, errs), flush=True)
 
 
+def rawwatch(secs=20):
+    """調べる用(英数字): 受信機の 8バイトを 約1msごとに 全部読み、どこか1つでも かわったら 時刻つきで 出す。 速いクリックで ボタンの語いがいに 痕跡が 出るかを 見る。 (先に: sudo systemctl stop mjpad)"""
+    bus = Bus()
+    if not (bus.init() or bus.init_old()): print('no reply'); return
+    print('rawwatch %d s: click UP and RIGHT quickly, many times. Every change of any of the 8 bytes is printed.' % secs, flush=True)
+    last = None; t0 = time.time(); n = 0; reads = 0; errs = 0
+    try:
+        while time.time() - t0 < secs:
+            try:
+                os.write(bus.fd, b'\x00'); time.sleep(0.0008); d = os.read(bus.fd, 8)
+            except OSError: errs += 1; time.sleep(0.002); continue
+            reads += 1
+            if d != last:
+                if last is not None:
+                    diff = ''.join('^^ ' if d[i] != last[i] else '   ' for i in range(min(len(d), len(last))))
+                    n += 1; print('%6.0fms %s\n         %s' % ((time.time() - t0) * 1000, d.hex(' '), diff), flush=True)
+                else: print('start    %s' % d.hex(' '), flush=True)
+                last = d
+    except KeyboardInterrupt: pass
+    print('rawwatch done: changes=%d reads=%d (%.0f reads/s) errors=%d' % (n, reads, reads / max(0.1, time.time() - t0), errs), flush=True)
+
+
 def trace(secs=30):
     """調べる用(英数字): ふだんの動き(読む→斜めの整理→読みまちがいよけ)を 動かして、「押した回数」と「ゲームに送った回数」を ならべる。 どこで 取りこぼすかを 見る。 (先に: sudo systemctl stop mjpad)"""
     bus = Bus()
@@ -320,6 +342,8 @@ def trace(secs=30):
 def main():
     if '--selftest' in sys.argv: selftest(); return
     if '--probe' in sys.argv: probe(); return
+    if '--rawwatch' in sys.argv:
+        i = sys.argv.index('--rawwatch'); rawwatch(int(sys.argv[i + 1]) if i + 1 < len(sys.argv) and sys.argv[i + 1].isdigit() else 20); return
     if '--trace' in sys.argv:
         i = sys.argv.index('--trace'); trace(int(sys.argv[i + 1]) if i + 1 < len(sys.argv) and sys.argv[i + 1].isdigit() else 30); return
     if '--watch' in sys.argv:
