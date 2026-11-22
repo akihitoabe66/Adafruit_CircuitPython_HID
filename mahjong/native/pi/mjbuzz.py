@@ -4,7 +4,6 @@
  つなぎかた(piezo): GPIO18(物理12番) → 100〜470Ω → サウンダーの片方 / もう片方 → GND(物理6番)。 トランジスタは 要らない。
  つなぎかた(coil): GPIO18 → 1kΩ → トランジスタ(2SC1815 など)のベース / エミッタ → GND / コレクタ → スピーカー → 3.3V。 スピーカーに 直列で 47〜100Ω、 両端に ダイオード(1N4148)。
  config.txt に  dtoverlay=pwm,pin=18,func=2  (install_buzz.sh が 入れる)。
- ペットの出来事(進化・たまご・ハート・節目の言葉・クイズの級・昇段・ねむい・おきた)も 鳴らす(OLED のたまごっち機能と 連動。 ゲームの状態ファイルの変化を見る)。
  鳴らす合図: 電源ON(Linuxが起きたとき 1回)=「ピポッ」 / ゲーム終了(電源を抜いてよい)=ゆっくり さがる4音 / 熱の注意=ピッピッピッ / 熱の危険=高く速い音 / 電圧が弱い=ピー・ピー。 ゲームの はじまりでは 鳴らさない。
 
  音の大きさ: ゲームの設定「ブザーの音」(なし・小・中・大)が いちばん優先。 ゲームが 動いていないときは MJBUZZ_VOL(1〜3)か MJBUZZ_DUTY。
@@ -13,10 +12,10 @@
 import os, sys, time
 
 try:
-    from mjoled import health, read_status, MILES
+    from mjoled import health, read_status
 except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from mjoled import health, read_status, MILES
+    from mjoled import health, read_status
 
 STATUS = os.environ.get('MJOLED_FILE', '/dev/shm/mj_oled.txt')
 PWM = os.environ.get('MJBUZZ_PWMCHIP', '/sys/class/pwm/pwmchip0')
@@ -39,17 +38,6 @@ if TYPE == 'piezo':   # 圧電: 高い音ほど 大きい
         'warn': [(4000, 120), (0, 80), (4000, 120), (0, 80), (4000, 120)],               # 熱の注意: ピッピッピッ
         'danger': [(4400, 90), (0, 40), (3600, 90), (0, 40), (4400, 90), (0, 40), (3600, 90)],   # 危険: 高く 速く(ゆれる音)
         'lowv': [(3600, 380), (0, 120), (3600, 380)],                                    # 電圧が弱い: ピー・ピー(長い音)
-        # ずんだもん(ペット)の出来事
-        'evolve1': [(2093, 80), (2637, 80), (3136, 80), (3951, 80), (4699, 260)],        # 進化: きらきら 上がる5音
-        'evolve2': [(2093, 90), (2637, 90), (3136, 90), (0, 40), (3136, 90), (3951, 90), (4699, 90), (0, 60), (3951, 120), (4699, 520)],   # 最終の姿: ファンファーレ
-        'egg': [(3951, 70), (0, 40), (4699, 70), (0, 160), (3951, 70), (0, 40), (4699, 70), (0, 160), (3136, 140), (3951, 200)],   # たまごにもどる: ピヨピヨ
-        'heart': [(4699, 70), (0, 30), (5588, 140)],                                     # ハート: チリン
-        'milestone': [(3136, 90), (0, 20), (3951, 200)],                                 # 節目の言葉: ポン
-        'qlv': [(2637, 90), (3136, 90), (3951, 260)],                                    # クイズの級が上がった
-        'qshi': [(2637, 90), (3136, 90), (3951, 90), (4699, 360)],                       # 師範
-        'dan': [(2093, 90), (2637, 90), (3136, 90), (3951, 90), (4699, 400)],            # 昇段
-        'sleepy': [(3136, 180), (0, 30), (2637, 180), (0, 30), (2093, 360)],             # ねむい
-        'wake': [(2637, 120), (0, 20), (2093, 120), (0, 20), (3136, 260)],               # おきた: ふぁ〜
     }
 else:             # 電磁式: ひくめの 音
     PAT = {
@@ -58,10 +46,6 @@ else:             # 電磁式: ひくめの 音
         'warn': [(880, 120), (0, 80), (880, 120), (0, 80), (880, 120)],
         'danger': [(1319, 100), (0, 50), (1568, 100), (0, 50), (1319, 100), (0, 50), (1568, 100)],
         'lowv': [(660, 380), (0, 120), (660, 380)],
-        'evolve1': [(1047, 80), (1319, 80), (1568, 80), (1976, 80), (2349, 260)], 'evolve2': [(1047, 90), (1319, 90), (1568, 90), (0, 40), (1568, 90), (1976, 90), (2349, 90), (0, 60), (1976, 120), (2349, 520)],
-        'egg': [(1976, 70), (0, 40), (2349, 70), (0, 160), (1976, 70), (0, 40), (2349, 70), (0, 160), (1568, 140), (1976, 200)], 'heart': [(2349, 70), (0, 30), (2794, 140)],
-        'milestone': [(1568, 90), (0, 20), (1976, 200)], 'qlv': [(1319, 90), (1568, 90), (1976, 260)], 'qshi': [(1319, 90), (1568, 90), (1976, 90), (2349, 360)],
-        'dan': [(1047, 90), (1319, 90), (1568, 90), (1976, 90), (2349, 400)], 'sleepy': [(1568, 180), (0, 30), (1319, 180), (0, 30), (1047, 360)], 'wake': [(1319, 120), (0, 20), (1047, 120), (0, 20), (1568, 260)],
     }
 
 
@@ -100,26 +84,6 @@ def play(pwm, name):
     pwm.off()
 
 
-def _i(v):
-    try: return int(v)
-    except (ValueError, TypeError): return 0
-def pet_event(prev, d):
-    """前の状態と くらべて、ペットの出来事(いちばん大きいもの1つ)を 返す。 なければ None"""
-    if prev is None: return None
-    if _i(d.get('cyc')) != _i(prev.get('cyc')) or (_i(d.get('cp')) < _i(prev.get('cp')) and _i(prev.get('cp')) >= 300): return 'egg'
-    f1o, f1n = prev.get('f1', ''), d.get('f1', ''); f2o, f2n = prev.get('f2', ''), d.get('f2', '')
-    if f2n in ('0', '1') and f2o not in ('0', '1'): return 'evolve2'
-    if f1n and not f1o: return 'evolve1'
-    qo, qn = _i(prev.get('ql')), _i(d.get('ql'))
-    if qn > qo: return 'qshi' if qn >= 11 else 'qlv'
-    if _i(d.get('dan')) > _i(prev.get('dan')): return 'dan'
-    po, pn = _i(prev.get('plays')), _i(d.get('plays'))
-    if pn // 50 > po // 50 and pn // 50 > 0: return 'heart'
-    if max([m for m in MILES if m <= pn] or [0]) > max([m for m in MILES if m <= po] or [0]): return 'milestone'
-    io, i_n = _i(prev.get('idle')), _i(d.get('idle'))
-    if io < 180 <= i_n: return 'sleepy'
-    if io >= 180 > i_n: return 'wake'
-    return None
 def main():
     pwm = Pwm()
     if '--test' in sys.argv or DRY and '--loop' not in sys.argv:
@@ -134,7 +98,6 @@ def main():
         try: open(flag, 'w').close()
         except OSError: pass
         play(pwm, 'poweron')
-    prev = None   # 前の状態(ペットの出来事を 見つけるため)。 はじめの1回は 音を鳴らさず 覚えるだけ
     while True:
         d, age = read_status(STATUS); now = time.time()
         if d is not None and age < 6 and d.get('buzz', '') in ('0', '1', '2', '3'):   # ゲームの設定「ブザーの音」(0=なし 1=小 2=中 3=大)
@@ -145,10 +108,6 @@ def main():
             if scene == 'EXIT' and not exit_done: exit_done = True; play(pwm, 'exit')
             if scene not in ('EXIT', 'MAINT'): exit_done = False
         last_scene = scene
-        if d is not None and age < 6 and 'plays' in d:
-            ev = pet_event(prev, d)
-            if ev and prev is not None and not (health()['level'] >= 1): play(pwm, ev)
-            prev = {k: d.get(k, '') for k in ('plays', 'cp', 'cyc', 'f1', 'f2', 'ql', 'dan', 'idle', 'scene')}
         h = health()
         if h['level'] >= 2 and now - t_danger > 6: t_danger = now; play(pwm, 'lowv' if h.get('why') == 'LOWV' else 'danger')
         elif h['level'] == 1 and now - t_warn > 90: t_warn = now; play(pwm, 'lowv' if h.get('why') == 'LOWV' else 'warn')
