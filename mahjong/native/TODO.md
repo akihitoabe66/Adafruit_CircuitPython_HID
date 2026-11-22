@@ -413,3 +413,4 @@
 - [ ] OLED(実機): 起動のはじめから「おはよう！ じゅんびちゅうなのだ…」で、ずんだもんが起きた顔(寝顔のままにならない)か。 ホームで数秒おきに CPU温度の画面が出るか。
 - [ ] 起動の棒が遅い件(実機・切り分け): ゲームの起動の最後に出る `preload: N files, X ms` と `boot-js N jobs Y ms` の数字を、①ふだん ②`sudo systemctl stop mjoled mjpad` のあと ③`MJOLED_DECOR=0` で、見くらべる。
 - [ ] 天下分け目(名人+家康+黄門)のオーラスで fields_of_fallen_banners が最後まで流れるか(局ごとの結果の曲に切りかわらない)。 ふつうのオーラスは これまで通り。 終了の順位の画面では 結果の曲に切りかわるか。
+- [ ] 通常のオーラスで warlord_s_final_move / the_master_s_final_hand が(game12〜15・blade とならんで)選ばれるか。
