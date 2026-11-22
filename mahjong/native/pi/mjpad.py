@@ -360,7 +360,7 @@ def main():
         pad.close(); return
     try: os.nice(-5)   # ゲームより 少し 優先(ゲームが CPU を使っていても、読む間隔が くずれないように)
     except OSError: pass
-    bus = None; bad = 0; ok_once = False; was_down = False; pad_seq = 0; deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ; t_cpu = time.time(); cpu0 = sum(os.times()[:2]); t_start = t_cpu
+    bus = None; bad = 0; ok_once = False; was_down = False; pad_seq = 0; deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ
     while True:
         try:
             if bus is None:
@@ -394,9 +394,6 @@ def main():
                 bus = None
             pad.send((0, 0, [0] * 8))   # つながっていない間は、ボタンを すべて はなした ことにする
             time.sleep(1.0); continue
-        now = time.time()
-        if now - t_cpu >= 60 and now - t_start < 660:   # 起動して 10分のあいだ、1分ごとに 自分の CPU 使用率を 記録に出す(負担の確認用)
-            c1 = sum(os.times()[:2]); print('mjpad: cpu %.1f%% (hz=%d)' % ((c1 - cpu0) / (now - t_cpu) * 100, hz), flush=True); t_cpu = now; cpu0 = c1
         t_loop += 1.0 / hz; dt = t_loop - time.time()   # 読むのに かかった時間を ひいて、周期を そろえる
         if dt > 0: time.sleep(dt)
         else: t_loop = time.time()
