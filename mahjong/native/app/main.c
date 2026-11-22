@@ -476,6 +476,14 @@ static void crash_h(int sig){ /* 落ちたとき、原因を ~/mjdata/crash.log 
   int fd = open(p, O_WRONLY | O_CREAT | O_APPEND, 0644); if (fd >= 0) { char m[64]; int n = snprintf(m, sizeof m, "signal %d\n", sig); (void)!write(fd, m, n); void *bt[40]; int c = backtrace(bt, 40); backtrace_symbols_fd(bt, c, fd); close(fd); }
   signal(sig, SIG_DFL); raise(sig); }
 const char *crash_dir = NULL;
+/* mj <ルート> --say <ファイル>: 声を1つだけ鳴らして終わる(kiosk.sh が、ゲームが終わったあとに「コンセントを抜いてもイイよ」を言うため)。 最初の0.7秒は無音で、テレビの音の出口を起こす */
+static int say_file(const char *rel){
+  char full[1500]; snprintf(full, sizeof full, "%s/%s", root, rel);
+  Mix_Init(MIX_INIT_MP3); if (SDL_Init(SDL_INIT_AUDIO) < 0 || !audio_open_dev()) { fprintf(stderr, "say: 音を開けません\n"); return 1; }
+  Mix_Chunk *c = Mix_LoadWAV(full); if (!c) { fprintf(stderr, "say: 開けません %s\n", full); return 1; }
+  SDL_Delay(700); Mix_PlayChannel(-1, c, 0); while (Mix_Playing(-1)) SDL_Delay(50);
+  SDL_Delay(300); Mix_CloseAudio(); SDL_Quit(); return 0;
+}
 int main(int argc, char **argv){
   const char *shots = NULL, *vplay = NULL; int auto_ = 0, maxframes = 0; char *files[64]; int nf = 0;
   for (int i = 1; i < argc; i++) {
@@ -486,6 +494,7 @@ int main(int argc, char **argv){
     else if (!strcmp(argv[i], "--frames") && i + 1 < argc) maxframes = atoi(argv[++i]);
     else if (i == 1) strncpy(root, argv[i], sizeof root - 1);
   }
+  for (int i = 1; i + 1 < argc; i++) if (!strcmp(argv[i], "--say")) return say_file(argv[i + 1]);
   boot_status(); { SDL_Thread *bt = SDL_CreateThread(boot_status_thread, "bootst", NULL); if (bt) SDL_DetachThread(bt); } /* 起動したことを、すぐ OLED に知らせ、JS が引きつぐまで 0.5秒ごとに 書きつづける(重い読みこみで 止まっても OLED が 寝ないように) */
   { const char *sv = getenv("MJ_STALL"); if (sv) stall_ms = atof(sv); }
   const char *fp = getenv("MJ_FONT"); if (!fp) fp = findfont(); if (!fp) { fprintf(stderr, "日本語フォントがありません: sudo apt install fonts-ipafont-gothic\n"); return 1; }
@@ -570,6 +579,6 @@ int main(int argc, char **argv){
     if (perf && nowms() - perf_t0 > 3000) { printf("fonts=%d\n", nfonts); printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); { long rss = 0; FILE *sf = fopen("/proc/self/statm", "r"); if (sf) { long a; if (fscanf(sf, "%ld %ld", &a, &rss) < 2) rss = 0; fclose(sf); } JSMemoryUsage mu; JS_ComputeMemoryUsage(rt, &mu); printf("perf2: 思考・進行 合計%.0fms 最大%.0fms / JS %ldMB / 全体 %ldMB / 絵%d 文字%d\n", perf_logic, perf_logicmax, (long)(mu.malloc_size / 1048576), rss * 4 / 1024, nimg, ntxt); } fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = perf_logic = perf_logicmax = 0; perf_n = perf_p = 0; }
   }
   save_wait(); save2_wait(); /* 書きかけのセーブがあれば、終わるのを待つ */
-  { const char *fp = getenv("MJ_OLED_FILE") ? getenv("MJ_OLED_FILE") : "/dev/shm/mj_oled.txt"; FILE *f = fopen(fp, "w"); if (f) { fprintf(f, quit_dev ? "scene=MAINT\npose=think\nmsg=MAINTENANCE\n" : "scene=EXIT\npose=calm\nmsg=UNPLUG OK\n"); fclose(f); } } /* 終わったことを、OLED(mjoled)に知らせる */
+  { const char *fp = getenv("MJ_OLED_FILE") ? getenv("MJ_OLED_FILE") : "/dev/shm/mj_oled.txt"; FILE *f = getenv("MJ_KIOSK") && !quit_dev ? NULL : fopen(fp, "w"); if (f) { fprintf(f, quit_dev ? "scene=MAINT\npose=think\nmsg=MAINTENANCE\n" : "scene=EXIT\npose=calm\nmsg=UNPLUG OK\n"); fclose(f); } } /* 終わったことを、OLED(mjoled)に知らせる */
   return quit_dev ? 10 : 0;
 }

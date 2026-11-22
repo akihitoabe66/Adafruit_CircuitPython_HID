@@ -26,7 +26,7 @@ hide() { pkill -x fbi 2>/dev/null; sudo -n pkill -x fbi 2>/dev/null; }
 try=0
 while :; do
   hide
-  "$D/native/app/mj" "$D"; rc=$?
+  MJ_KIOSK=1 "$D/native/app/mj" "$D"; rc=$?
   [ $rc -ge 128 ] && [ $try -lt 2 ] && { try=$((try+1)); show "$SP/booting.png"; sleep 1; continue; }
   break
 done
@@ -47,4 +47,9 @@ if [ -n "$BOOTMNT" ]; then
 fi
 sleep 1
 show "$SP/unplug.png"
+# 「コンセントを抜いてもイイよ」と言ってから、OLED・ブザー(終了のメロディ)に「抜いてよい」を知らせる
+"$D/native/app/mj" "$D" --say audio/yk/v_unplug.mp3 >/dev/null 2>&1
+printf 'scene=EXIT\npose=calm\nmsg=UNPLUG OK\n' > "${MJ_OLED_FILE:-/dev/shm/mj_oled.txt}" 2>/dev/null
+# Raspberry Pi 本体も、きちんと終了させる(メロディが終わって、テレビで「抜いて」の絵を少し見せてから)。 終了させたくないときは、セーブの置き場に NOHALT という名前の空のファイルを作る
+if [ -z "$MJ_DATA" ] || [ ! -e "$MJ_DATA/NOHALT" ]; then sleep 12; sudo -n systemctl poweroff 2>/dev/null || sudo -n poweroff 2>/dev/null; fi
 while :; do sleep 3600; done     # ここで止まる(コマンドの画面には、戻らない)

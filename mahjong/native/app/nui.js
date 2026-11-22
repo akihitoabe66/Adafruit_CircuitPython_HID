@@ -1606,6 +1606,7 @@
     S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd, rank: !!opts.rank }); if (opts.rank) { S.quiz.phase = 'intro'; dirty(); return; } quizNext(); dirty();
   }
   const qEndVoice = () => { try { if (NSND.has('v:otsukare')) NSND.speak(['v:otsukare']); } catch (e) { /* ignore */ } }; // クイズが終わって「おつかれさまでした」の画面になるとき、その声
+  const byeQuit = () => { try { if (NSND.has('v:shutdown')) { NSND.speak(['v:shutdown']); S.locked = true; setTimeout(() => __quit(), 2300); return; } } catch (e) { /* ignore */ } __quit(); }; // 終了を選んだら「ゲームを終了します」と言ってから終わる
   function quizNext() {
     const q = S.quiz; if (!q) return;
     if (q.n >= q.total) { if (q.rank && q.lvq && q.lvq.length) { q.phase = 'lvup'; q.lvi = 0; NSND.sfx('slam'); } else { q.phase = 'end'; qEndVoice(); } dirty(); return; }
@@ -2481,7 +2482,7 @@
     }
     if (S.confirmQ) {
       if (k === 'left' || k === 'right' || k === 'up' || k === 'down') S.confirmQ.idx = 1 - S.confirmQ.idx;
-      else if (k === 'back') S.confirmQ = null; else if (k === 'ok') { const i = S.confirmQ.idx; S.confirmQ = null; if (i === 0) __quit(); }
+      else if (k === 'back') S.confirmQ = null; else if (k === 'ok') { const i = S.confirmQ.idx; S.confirmQ = null; if (i === 0) byeQuit(); }
       return;
     }
     if (!BACKM.has(S.mode)) S.bbf = false;
