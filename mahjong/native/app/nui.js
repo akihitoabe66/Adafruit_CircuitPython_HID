@@ -1430,8 +1430,8 @@
     const g = S.game;
     g.players.forEach((p, i) => {
       const x = 62 + i * 178, d = r.delta[i];
-      rrect(x, y0, 168, 54, 10, [24, 56, 46]); text(p.name, x + 10, y0 + 2, fitSz(p.name, 20, 96, 14), WHITE);
-      { const bt = r.before[i] + ' → ' + r.after[i]; text(bt, x + 10, y0 + 29, fitSz(bt, 20, 150, 13), GREY); } text((d > 0 ? '+' : '') + d, x + 158, y0 + 4, 18, d > 0 ? [120, 230, 140] : d < 0 ? RED : GREY, 2);
+      const dt = (d > 0 ? '+' : '') + d, dw = gfx.measure(dt, 18); rrect(x, y0, 168, 54, 10, [24, 56, 46]); text(p.name, x + 10, y0 + 2, fitSz(p.name, 20, Math.max(56, 158 - dw - 20), 13), WHITE); // 名前は、右の増減の数字(+10000 など)に かさならない幅に入れる
+      { const bt = r.before[i] + ' → ' + r.after[i]; text(bt, x + 10, y0 + 29, fitSz(bt, 20, 150, 13), GREY); } text(dt, x + 158, y0 + 4, 18, d > 0 ? [120, 230, 140] : d < 0 ? RED : GREY, 2);
     });
   }
   function drawEnd(f) {
