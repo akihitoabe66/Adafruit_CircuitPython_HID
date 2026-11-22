@@ -309,14 +309,28 @@ static JSValue j_resume(JSContext *c, JSValueConst t, int n, JSValueConst *a){ i
 static int bgms_open(const char *path, int loop); static void bgms_close(void); static int bgms_active(void); static int bgms_failed(void); static int bgms_underruns(void); static int bgms_ms(void); /* video.h にある、BGM先読み再生 */
 static int bgm_want = 0, bgm_loop = 1, bgm_restarts = 0; static double bgm_load_max = 0; static char bgm_path[1400];
 static void bgm_log(const char *what, double ms, const char *path); /* あとで定義 */
-static JSValue j_music(JSContext *c, JSValueConst t, int n, JSValueConst *a){
-  if (!audio_ok) return JS_UNDEFINED;
-  const char *p = JS_ToCString(c, a[0]); int loop = n > 1 ? JS_ToBool(c, a[1]) : 1;
+static SDL_mutex *mu_bgm; /* 曲の切りかえと、止まったときの やりなおしが 同時に ならないように */
+static void do_music_body(const char *p, int loop);
+static void do_music(const char *p, int loop){ if (mu_bgm) SDL_LockMutex(mu_bgm); do_music_body(p, loop); if (mu_bgm) SDL_UnlockMutex(mu_bgm); }
+static void do_music_body(const char *p, int loop){ /* 曲を切りかえる本体(別スレッドで 動かす: 曲を開く・前の曲を止める間、本体の画面とボタンが 止まらないように) */
   if (bgm) { Mix_HaltMusic(); Mix_FreeMusic(bgm); bgm = NULL; } bgms_close(); bgm_want = 0;
   if (p && *p) { char full[1400]; snprintf(full, sizeof full, "%s/%s", root, p); double t0 = nowms();
     { size_t fl = strlen(full); if (fl > 4 && !strcmp(full + fl - 4, ".mp3") && !getenv("MJ_NOWAV")) { char alt[1400]; snprintf(alt, sizeof alt, "%.*s.wav", (int)(fl - 4), full); if (access(alt, R_OK) == 0) snprintf(full, sizeof full, "%s", alt); } } /* 同じ名前の .wav(tools/make_bgm_wav.sh で作る、展開のいらない BGM)があれば、そちらを使う */
-    if (!getenv("MJ_BGM_OLD") && bgms_open(full, loop)) { double lt = nowms() - t0; if (lt > bgm_load_max) bgm_load_max = lt; if (lt >= 80) bgm_log("bgm-open", lt, p); bgm_want = 2; bgm_loop = loop; snprintf(bgm_path, sizeof bgm_path, "%s", p); JS_FreeCString(c, p); return JS_UNDEFINED; } /* 先読み再生(ふだんは、こちら) */ bgm = Mix_LoadMUS(full); double lt = nowms() - t0; if (lt > bgm_load_max) bgm_load_max = lt; if (lt >= 80) bgm_log("bgm-load", lt, p);
+    if (!getenv("MJ_BGM_OLD") && bgms_open(full, loop)) { double lt = nowms() - t0; if (lt > bgm_load_max) bgm_load_max = lt; if (lt >= 80) bgm_log("bgm-open", lt, p); bgm_want = 2; bgm_loop = loop; snprintf(bgm_path, sizeof bgm_path, "%s", p); return; } /* 先読み再生(ふだんは、こちら) */ bgm = Mix_LoadMUS(full); double lt = nowms() - t0; if (lt > bgm_load_max) bgm_load_max = lt; if (lt >= 80) bgm_log("bgm-load", lt, p);
     if (!bgm) fprintf(stderr, "bgm? %s (%s)\n", full, Mix_GetError()); else { Mix_PlayMusic(bgm, loop ? -1 : 1); bgm_want = 1; bgm_loop = loop; snprintf(bgm_path, sizeof bgm_path, "%s", p); } }
+}
+static SDL_mutex *mu_req; static SDL_cond *cv_req; static SDL_Thread *th_req; static char req_path[1400]; static int req_loop, req_pend;
+static int music_mgr(void *u){ /* 曲の切りかえを うけつける スレッド(いちばん新しい注文だけ 処理する) */
+  setpriority(PRIO_PROCESS, (id_t)syscall(SYS_gettid), 3);
+  for (;;) { SDL_LockMutex(mu_req); while (!req_pend) SDL_CondWait(cv_req, mu_req);
+    char p[1400]; int loop = req_loop; snprintf(p, sizeof p, "%s", req_path); req_pend = 0; SDL_UnlockMutex(mu_req);
+    do_music(p, loop); }
+  return 0; }
+static JSValue j_music(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* すぐに 戻る(曲を開く仕事は music_mgr スレッドが する) */
+  if (!audio_ok) return JS_UNDEFINED;
+  const char *p = JS_ToCString(c, a[0]); int loop = n > 1 ? JS_ToBool(c, a[1]) : 1;
+  if (!th_req) { mu_bgm = SDL_CreateMutex(); mu_req = SDL_CreateMutex(); cv_req = SDL_CreateCond(); th_req = SDL_CreateThread(music_mgr, "bgmmgr", NULL); }
+  SDL_LockMutex(mu_req); snprintf(req_path, sizeof req_path, "%s", p ? p : ""); req_loop = loop; req_pend = 1; SDL_CondSignal(cv_req); SDL_UnlockMutex(mu_req);
   JS_FreeCString(c, p); return JS_UNDEFINED; }
 static JSValue j_musicinfo(JSContext *c, JSValueConst t, int n, JSValueConst *a){ JSValue arr = JS_NewArray(c); JS_SetPropertyUint32(c, arr, 0, JS_NewInt32(c, audio_ok && bgm_want ? (bgm_want == 2 ? (bgms_active() ? 1 : 0) : (Mix_PlayingMusic() ? 1 : 0)) : -1)); JS_SetPropertyUint32(c, arr, 1, JS_NewInt32(c, bgm_restarts)); JS_SetPropertyUint32(c, arr, 2, JS_NewInt32(c, (int)bgm_load_max)); JS_SetPropertyUint32(c, arr, 3, JS_NewInt32(c, bgm_want == 2 ? bgms_underruns() : 0)); JS_SetPropertyUint32(c, arr, 4, JS_NewInt32(c, bgm_want == 2 ? bgms_ms() : -1)); return arr; }
 static JSValue j_mvol(JSContext *c, JSValueConst t, int n, JSValueConst *a){ double v = 1; JS_ToFloat64(c, &v, a[0]); if (v < 0) v = 0; if (v > 1) v = 1; g_vvol = (int)(v * 128); { double ms = n > 1 ? ({ double q = 0; JS_ToFloat64(c, &q, a[1]); q; }) : 0; g_vtgt = (float)v; if (ms > 5) { g_vstep = (float)(fabs(v - g_vcur) / (44.1 * ms)); if (g_vstep <= 0) g_vstep = 1.0f; } else { g_vcur = (float)v; g_vstep = 0; } } if (audio_ok) Mix_VolumeMusic((int)(v * 128)); return JS_UNDEFINED; }
@@ -546,8 +560,10 @@ int main(int argc, char **argv){
     }
     if (keep > 0) { double t0 = nowms(); SDL_RenderClear(ren); SDL_RenderCopy(ren, tgt, NULL, NULL); vid_render(); for (int i = 0; i < ntop; i++) { if (topq[i].kind == 1) { SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); SDL_SetRenderDrawColor(ren, topq[i].r, topq[i].g, topq[i].b, topq[i].a); SDL_RenderFillRect(ren, &topq[i].d); } else if (topq[i].kind == 0) { SDL_SetTextureAlphaMod(topq[i].tx, topq[i].a); SDL_RenderCopyEx(ren, topq[i].tx, &topq[i].sr, &topq[i].d, topq[i].ang, NULL, SDL_FLIP_NONE); SDL_SetTextureAlphaMod(topq[i].tx, 255); } else { SDL_SetTextureAlphaMod(topq[i].tx, 255); SDL_RenderCopy(ren, topq[i].tx, &topq[i].sr, &topq[i].d); } } { static double st0 = 0; static int dn[16]; if (!st0) st0 = nowms(); const char *sp = getenv("MJ_SNAP"), *sl = getenv("MJ_SNAPS"); if (sp && sl) { char b[256]; strncpy(b, sl, 255); b[255] = 0; int ti = 0; for (char *t = strtok(b, ","); t && ti < 16; t = strtok(NULL, ","), ti++) if (!dn[ti] && nowms() - st0 >= atoi(t)) { dn[ti] = 1; char fn[1600]; snprintf(fn, sizeof fn, "%s_%s.bmp", sp, t); int ow, oh; SDL_GetRendererOutputSize(ren, &ow, &oh); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, ow, oh, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, fn); SDL_FreeSurface(su); } } } if (snappath[0]) { int ow, oh; SDL_GetRendererOutputSize(ren, &ow, &oh); SDL_Surface *su = SDL_CreateRGBSurfaceWithFormat(0, ow, oh, 32, SDL_PIXELFORMAT_ARGB8888); SDL_RenderReadPixels(ren, NULL, SDL_PIXELFORMAT_ARGB8888, su->pixels, su->pitch); SDL_SaveBMP(su, snappath); SDL_FreeSurface(su); snappath[0] = 0; } SDL_RenderPresent(ren); keep--; perf_pres += nowms() - t0; perf_p++; if (key_t0) { double l = nowms() - key_t0; kl_sum += l; kl_n++; if (l > kl_max) kl_max = l; key_t0 = 0; } }
     { static double bgm_chk = 0; double tn = nowms(); if (tn - bgm_chk > 500) { bgm_chk = tn; /* BGMが、止めていないのに止まっていたら、もう一度鳴らして記録する(原因を調べるため) */
+        if (audio_ok && mu_bgm && SDL_TryLockMutex(mu_bgm) == 0) { /* 曲を切りかえている最中は、何もしない(待たない) */
         if (audio_ok && bgm_want == 2 && bgms_failed()) { bgm_log("bgm-stream-fail", 0, bgm_path); bgms_close(); { char fp[1500]; snprintf(fp, sizeof fp, "%s/%s", root, bgm_path); bgm = Mix_LoadMUS(fp); if (bgm) { Mix_PlayMusic(bgm, bgm_loop ? -1 : 1); bgm_want = 1; } else bgm_want = 0; } } /* 先読み再生で開けなかったときは、ふつうの再生にもどる */
-        if (audio_ok && bgm_want == 1 && bgm && !Mix_PlayingMusic()) { bgm_restarts++; bgm_log("bgm-stopped", 0, bgm_path); Mix_PlayMusic(bgm, bgm_loop ? -1 : 1); } } }
+        if (audio_ok && bgm_want == 1 && bgm && !Mix_PlayingMusic()) { bgm_restarts++; bgm_log("bgm-stopped", 0, bgm_path); Mix_PlayMusic(bgm, bgm_loop ? -1 : 1); }
+        SDL_UnlockMutex(mu_bgm); } } }
     frames++; if (maxframes && frames >= maxframes) break;
     if (perf && nowms() - perf_t0 > 3000) { printf("fonts=%d\n", nfonts); printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); { long rss = 0; FILE *sf = fopen("/proc/self/statm", "r"); if (sf) { long a; if (fscanf(sf, "%ld %ld", &a, &rss) < 2) rss = 0; fclose(sf); } JSMemoryUsage mu; JS_ComputeMemoryUsage(rt, &mu); printf("perf2: 思考・進行 合計%.0fms 最大%.0fms / JS %ldMB / 全体 %ldMB / 絵%d 文字%d\n", perf_logic, perf_logicmax, (long)(mu.malloc_size / 1048576), rss * 4 / 1024, nimg, ntxt); } fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = perf_logic = perf_logicmax = 0; perf_n = perf_p = 0; }
   }

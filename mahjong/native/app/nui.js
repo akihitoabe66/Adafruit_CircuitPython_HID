@@ -2582,6 +2582,7 @@
       else if (k === 'back') { /* ホームでBボタンは、何もしない */ }
       else if (k === 'ok') {
         const it = items[S.menuIdx]; if (!it || it.off) return;
+        if (it.act === 'play') { try { if (NSND.has('v:hajimeru')) NSND.speak(['v:hajimeru']); } catch (e) { /* ignore */ } } // 「麻雀をはじめる」を押したとき、「この麻雀をはじめるのだ」の声
         if (it.act === 'play') later(() => { tl('play-pressed'); const l = slotRead(); tl('slots-read'); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else S.teachQ = { idx: teacherOn() ? 1 : 0, snap: null }; });
         else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => qlGens(RCATS), n: 10, rank: true }));
         else if (it.act === 'study') later(() => startStudy());
@@ -3146,7 +3147,6 @@
   function bootRun() { /* 最初の対局で要る準備を、起動の画面(進み具合の棒)のあいだに すべて済ませる */
     const jobs = warmTextJobs().concat(homeWarmJobs()), total = jobs.length || 1, t0 = __now(); let done = 0;
     S.mode = 'boot'; S.bootP = 0; tl('boot-start ' + total); dirty();
-    try { NSND.home(); } catch (e) { /* ignore */ } // タイトルの曲は、起動の棒のあいだに 先に鳴らしはじめる(タイトルが出てから 曲の準備を待たない)
     const run = () => {
       const t1 = __now(); while (jobs.length && __now() - t1 < 80) { jobs.shift()(); done++; }
       S.bootP = done / total; dirty();
