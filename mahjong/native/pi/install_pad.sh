@@ -22,6 +22,7 @@ Description=Mahjong Wii Classic pad (I2C to gamepad)
 After=local-fs.target
 [Service]
 ExecStart=/usr/bin/python3 /usr/local/bin/mjpad.py
+Nice=-5
 Restart=always
 RestartSec=2
 [Install]

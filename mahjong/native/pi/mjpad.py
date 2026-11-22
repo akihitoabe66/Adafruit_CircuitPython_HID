@@ -11,7 +11,7 @@ import fcntl, os, struct, sys, time
 
 ADDR = 0x52
 I2C_SLAVE = 0x0703
-HZ = int(os.environ.get('MJPAD_HZ', '80'))   # 1秒に読む回数(40回=25ms)。 Pi Zero は CPU が1つだけで、ゲームと取りあうので、多くしすぎない
+HZ = int(os.environ.get('MJPAD_HZ', '200'))   # 1秒に読む回数(40回=25ms)。 Pi Zero は CPU が1つだけで、ゲームと取りあうので、多くしすぎない
 DEBOUNCE = int(os.environ.get('MJPAD_DEBOUNCE', '1'))   # 同じ値が この回数 つづけて読めたときだけ、ゲームに伝える(読みまちがいの 一瞬の「左」などを 通さない)
 # uinput
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT = 0x40045564, 0x40045565, 0x40045567
@@ -249,7 +249,7 @@ def watch(secs=20):
                         d = now - start.pop(k)
                         if d < 0.04: short[k] = short.get(k, 0) + 1; note += '  SHORT %s %.0fms' % (k, d * 1000)
                 print('%6.0fms  word=%04x  %s%s%s' % ((now - t0) * 1000, w, ' '.join(names) or '(none)', warn, note), flush=True)
-            time.sleep(0.01)
+            time.sleep(0.001)
     except KeyboardInterrupt: pass
     print('--- summary (presses / of which shorter than 40ms) ---', flush=True)
     for k in BIT: print('%-7s %3d / short %d' % (k, total.get(k, 0), short.get(k, 0)), flush=True)
@@ -311,7 +311,9 @@ def main():
             b = decode(w); print('word 0x%04x ->' % w, b and [k for k, v in b.items() if v], flush=True)
             if b: pad.send(to_state(b))
         pad.close(); return
-    bus = None; bad = 0; ok_once = False; deb = Debounce(DEBOUNCE); diag_n = 0; hold = Holder()
+    try: os.nice(-5)   # ゲームより 少し 優先(ゲームが CPU を使っていても、読む間隔が くずれないように)
+    except OSError: pass
+    bus = None; bad = 0; ok_once = False; deb = Debounce(DEBOUNCE); diag_n = 0; hold = Holder(); t_loop = time.time()
     while True:
         try:
             if bus is None:
@@ -338,7 +340,9 @@ def main():
                 bus = None
             pad.send((0, 0, [0] * 8))   # つながっていない間は、ボタンを すべて はなした ことにする
             time.sleep(1.0); continue
-        time.sleep(1.0 / HZ)
+        t_loop += 1.0 / HZ; dt = t_loop - time.time()   # 読むのに かかった時間を ひいて、周期を そろえる
+        if dt > 0: time.sleep(dt)
+        else: t_loop = time.time()
 
 
 if __name__ == '__main__':
