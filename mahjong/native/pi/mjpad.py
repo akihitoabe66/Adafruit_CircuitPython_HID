@@ -201,41 +201,80 @@ def probe():
 
 
 def watch(secs=20):
-    """調べる用: ボタンの値を 100回/秒で 読み、値が 変わったときだけ、時刻(ミリ秒)つきで 出す。 十字キーを 押して 離して みて、一瞬 ちがう方向が 混じらないか 見る。
-    40ミリ秒より 短く 消えた入力は 「←一瞬だけ」と しるし、おわりに ボタンごとの 回数を まとめる。 (先に: sudo systemctl stop mjpad / あとで: sudo systemctl start mjpad)"""
+    """調べる用(英数字で出す): ボタンの値を 100回/秒で 読み、値が 変わったときだけ 時刻つきで出す。 40ms より短く 消えた入力は SHORT と しるす。 (先に: sudo systemctl stop mjpad)"""
     bus = Bus()
-    if not (bus.init() or bus.init_old()): print('返事がない'); return
-    print('id=%s  十字キー・A・B を 押して 離してください(%d秒)。 Ctrl+C で とちゅう終了' % (bus.ident.hex(), secs), flush=True)
+    if not (bus.init() or bus.init_old()): print('no reply'); return
+    print('id=%s  press and release the d-pad / A / B  (%d s). Ctrl+C = stop' % (bus.ident.hex(), secs), flush=True)
     last = None; t0 = time.time(); start = {}; total = {}; short = {}; bad = 0; errs = 0
     try:
         while time.time() - t0 < secs:
             now = time.time()
             try: w = bus.read()
-            except OSError as e: errs += 1; print('%6.0fms エラー %s' % ((now - t0) * 1000, e), flush=True); time.sleep(0.05); continue
+            except OSError as e: errs += 1; print('%6.0fms ERROR %s' % ((now - t0) * 1000, e), flush=True); time.sleep(0.05); continue
             b = decode(w)
             if w != last:
                 last = w
                 if b is None: bad += 1
-                names = [k for k, v in b.items() if v] if b else ['(読みまちがい)']
-                warn = '  ←あり得ない(左右か上下が同時)' if b and ((b['left'] and b['right']) or (b['up'] and b['down'])) else ''
+                names = [k for k, v in b.items() if v] if b else ['(bad-read)']
+                warn = '  IMPOSSIBLE(left+right or up+down)' if b and ((b['left'] and b['right']) or (b['up'] and b['down'])) else ''
                 note = ''
                 if b:
                     pressed = {k for k, v in b.items() if v}
                     for k in pressed - set(start): start[k] = now; total[k] = total.get(k, 0) + 1
                     for k in set(start) - pressed:
                         d = now - start.pop(k)
-                        if d < 0.04: short[k] = short.get(k, 0) + 1; note += '  ←%s が 一瞬だけ(%.0fms)' % (k, d * 1000)
-                print('%6.0fms  語=%04x  %s%s%s' % ((now - t0) * 1000, w, ' '.join(names) or '(なにも押していない)', warn, note), flush=True)
+                        if d < 0.04: short[k] = short.get(k, 0) + 1; note += '  SHORT %s %.0fms' % (k, d * 1000)
+                print('%6.0fms  word=%04x  %s%s%s' % ((now - t0) * 1000, w, ' '.join(names) or '(none)', warn, note), flush=True)
             time.sleep(0.01)
     except KeyboardInterrupt: pass
-    print('--- まとめ(押した回数 / うち 40ms未満の一瞬だけ) ---', flush=True)
-    for k in BIT: print('%-7s %3d回 / 一瞬だけ %d回' % (k, total.get(k, 0), short.get(k, 0)), flush=True)
-    print('読みまちがい %d回 / 読みエラー %d回' % (bad, errs), flush=True)
+    print('--- summary (presses / of which shorter than 40ms) ---', flush=True)
+    for k in BIT: print('%-7s %3d / short %d' % (k, total.get(k, 0), short.get(k, 0)), flush=True)
+    print('bad reads %d / read errors %d' % (bad, errs), flush=True)
+
+
+def trace(secs=30):
+    """調べる用(英数字): ふだんの動き(読む→斜めの整理→読みまちがいよけ)を 動かして、「押した回数」と「ゲームに送った回数」を ならべる。 どこで 取りこぼすかを 見る。 (先に: sudo systemctl stop mjpad)"""
+    bus = Bus()
+    if not (bus.init() or bus.init_old()): print('no reply'); return
+    deb = Debounce(DEBOUNCE); pad = Pad(True); pad.send = lambda st: None
+    raw = {k: 0 for k in BIT}; sent = {'left': 0, 'right': 0, 'up': 0, 'down': 0, 'a': 0, 'b': 0}
+    prev = {k: False for k in BIT}; last_out = (0, 0, [0] * 8); diag_n = 0; t0 = time.time(); drop_diag = 0; reads = 0; bad = 0
+    print('trace %d s: press each d-pad direction 10 times, A and B too. Ctrl+C = stop' % secs, flush=True)
+    try:
+        while time.time() - t0 < secs:
+            try: w = bus.read()
+            except OSError: time.sleep(0.05); continue
+            reads += 1; b = decode(w)
+            if b is None: bad += 1; time.sleep(1.0 / HZ); continue
+            for k in BIT:
+                if b[k] and not prev[k]: raw[k] += 1
+            prev = dict(b)
+            dg = b['left'] != b['right'] and b['up'] != b['down']; diag_n = diag_n + 1 if dg else 0
+            st = to_state(b, last_out, wait_diag=diag_n <= 4)
+            if dg and st is None: drop_diag += 1
+            if st is not None:
+                out = deb.feed(st)
+                if out is not None:
+                    x0, y0, k0 = last_out; x1, y1, k1 = out
+                    if x1 == -1 and x0 != -1: sent['left'] += 1
+                    if x1 == 1 and x0 != 1: sent['right'] += 1
+                    if y1 == -1 and y0 != -1: sent['up'] += 1
+                    if y1 == 1 and y0 != 1: sent['down'] += 1
+                    if k1[1] and not k0[1]: sent['a'] += 1
+                    if k1[0] and not k0[0]: sent['b'] += 1
+                    last_out = out
+            time.sleep(1.0 / HZ)
+    except KeyboardInterrupt: pass
+    print('--- presses seen on the wire -> sent to the game ---', flush=True)
+    for k in ('left', 'right', 'up', 'down', 'a', 'b'): print('%-6s raw %3d -> sent %3d' % (k, raw[k], sent[k]), flush=True)
+    print('reads %d, bad %d, diag-waiting %d, HZ=%d DEBOUNCE=%d' % (reads, bad, drop_diag, HZ, DEBOUNCE), flush=True)
 
 
 def main():
     if '--selftest' in sys.argv: selftest(); return
     if '--probe' in sys.argv: probe(); return
+    if '--trace' in sys.argv:
+        i = sys.argv.index('--trace'); trace(int(sys.argv[i + 1]) if i + 1 < len(sys.argv) and sys.argv[i + 1].isdigit() else 30); return
     if '--watch' in sys.argv:
         i = sys.argv.index('--watch'); watch(int(sys.argv[i + 1]) if i + 1 < len(sys.argv) and sys.argv[i + 1].isdigit() else 20); return
     dry = '--dry' in sys.argv
