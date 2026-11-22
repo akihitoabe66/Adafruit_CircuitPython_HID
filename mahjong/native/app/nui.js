@@ -1605,9 +1605,10 @@
   function startQuiz(opts) { // opts: { title, gens, n, onEnd(ok, n) }
     S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd, rank: !!opts.rank }); if (opts.rank) { S.quiz.phase = 'intro'; dirty(); return; } quizNext(); dirty();
   }
+  const qEndVoice = () => { try { if (NSND.has('v:otsukare')) NSND.speak(['v:otsukare']); } catch (e) { /* ignore */ } }; // クイズが終わって「おつかれさまでした」の画面になるとき、その声
   function quizNext() {
     const q = S.quiz; if (!q) return;
-    if (q.n >= q.total) { if (q.rank && q.lvq && q.lvq.length) { q.phase = 'lvup'; q.lvi = 0; NSND.sfx('slam'); } else q.phase = 'end'; dirty(); return; }
+    if (q.n >= q.total) { if (q.rank && q.lvq && q.lvq.length) { q.phase = 'lvup'; q.lvi = 0; NSND.sfx('slam'); } else { q.phase = 'end'; qEndVoice(); } dirty(); return; }
     q.phase = 'gen'; q.p = null; q.res = null; q.scroll = 0; q.idx = 0; dirty();
     setTimeout(() => {
       if (S.mode !== 'quiz' || S.quiz !== q) return;
@@ -1665,7 +1666,7 @@
     if (k === 'back') { if (q.phase === 'end' || q.phase === 'intro') { quizClose(); return; } q.confirm = { idx: 0 }; dirty(); return; }
     if (q.phase === 'gen') return;
     if (q.phase === 'intro') { if (k === 'ok') quizNext(); else if (k === 'back') quizClose(); dirty(); return; }
-    if (q.phase === 'lvup') { if (k === 'ok') { q.lvi++; if (q.lvi >= q.lvq.length) q.phase = 'end'; else NSND.sfx('slam'); } dirty(); return; }
+    if (q.phase === 'lvup') { if (k === 'ok') { q.lvi++; if (q.lvi >= q.lvq.length) { q.phase = 'end'; qEndVoice(); } else NSND.sfx('slam'); } dirty(); return; }
     if (q.phase === 'fail') { if (k === 'ok') quizNext(); return; }
     if (q.phase === 'end') { if (k === 'ok') quizClose(); return; }
     if (q.phase === 'ask') {
