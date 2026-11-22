@@ -32,7 +32,7 @@ def profile_for(ident):
     """パッドの種類ごとの 設定(読む回数, 読みまちがいよけ, 押しをのばす秒)。 無線の受信機(クラシックコントローラーPro: IDの先頭が 01)は 押しが 20〜100msしか出ないので 速く読んで のばす。 有線は 左右を押すと 上下も一瞬まざる癖があるので、よけを強め、のばさない"""
     wireless = (PROFILE == 'wireless') or (PROFILE == 'auto' and len(ident) >= 1 and ident[0] == 0x01)
     if wireless: hz, deb, hold = 200, 5.0, 0.1   # 設定は 時間(ミリ秒)で 決める: 読む回数を かえても 効き目が かわらないように
-    else: hz, deb, hold = 100, 50.0, 0.0
+    else: hz, deb, hold = 50, 50.0, 0.0   # 有線の互換品は 返事が遅く、速く読むと 失敗が つづく(1秒に100回で 実機で 確認)
     if 'MJPAD_HZ' in ENV_SET: hz = HZ
     if 'MJPAD_DEBOUNCE_MS' in ENV_SET: deb = DEBOUNCE_MS
     if 'MJPAD_HOLD' in ENV_SET: hold = HOLD
@@ -160,15 +160,22 @@ class Bus:
         return d[0] | (d[1] << 8) if n == 2 else d[6] | (d[7] << 8) if n == 8 else d[4] | (d[5] << 8)   # 6バイトのときは 4・5バイトめ、 8バイト(形式1)のときは 6・7バイトめが ボタン
 
     def read(self):
-        """ボタンの語を読む。 互換品は 返事が遅いことがあるので、(番地・待ち時間)の組みあわせを 順に試して、動いたものを覚える"""
+        """ボタンの語を読む。 互換品は 返事が遅いことがあるので、(番地・待ち時間)の組みあわせを 順に試して、動いたものを覚える。
+        1回 失敗しても すぐには 探しなおさず、同じ読みかたを もう1回 だけ 試す(探しなおしは 時間が かかり、記録も あれるため)"""
         if getattr(self, 'cfg', None):
             try: return self._try(*self.cfg)
-            except OSError: self.cfg = None   # 動かなくなった: 探しなおす
+            except OSError:
+                time.sleep(0.003)
+                try: return self._try(*self.cfg)
+                except OSError: self.last_cfg = self.cfg; self.cfg = None   # 2回つづけて だめ: 探しなおす
         last = None
         for c in self.CFGS:
             try:
                 w = self._try(*c)
-                if decode(w) is not None: self.cfg = c; print('mjpad: read ok ptr=0x%02x n=%d wait=%.0fms' % (c[0], c[1], c[2] * 1000), flush=True); return w
+                if decode(w) is not None:
+                    self.cfg = c
+                    if c != getattr(self, 'last_cfg', None): print('mjpad: read ok ptr=0x%02x n=%d wait=%.0fms' % (c[0], c[1], c[2] * 1000), flush=True)   # 前と ちがうときだけ 記録に出す
+                    self.last_cfg = c; return w
             except OSError as e: last = e
         raise last or OSError('読めない')
 
