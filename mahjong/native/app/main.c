@@ -165,7 +165,8 @@ static SDL_Texture *lay_prev = NULL; static int lay_in = 0; /* 面に描く前�
 static JSValue j_layerbegin(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int i = ai(c,a[0]); if (i < 0 || i >= 32) return JS_UNDEFINED; if (!lay[i]) { lay[i] = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, W, H); SDL_SetTextureBlendMode(lay[i], SDL_BLENDMODE_BLEND); } if (!lay_in) lay_prev = SDL_GetRenderTarget(ren); lay_in = 1; SDL_SetRenderTarget(ren, lay[i]); SDL_RenderSetViewport(ren, NULL); SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE); SDL_SetRenderDrawColor(ren, 0, 0, 0, 0); SDL_RenderClear(ren); SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND); return JS_UNDEFINED; }
 static JSValue j_layerend(JSContext *c, JSValueConst t, int n, JSValueConst *a){ SDL_SetRenderTarget(ren, lay_in ? lay_prev : tgt); lay_in = 0; SDL_RenderSetViewport(ren, &curview); return JS_UNDEFINED; }
 static JSValue j_grab(JSContext *c, JSValueConst t, int n, JSValueConst *a){ int i = ai(c,a[0]); if (i < 0 || i >= 32 || lay_in) return JS_UNDEFINED; if (!lay[i]) { lay[i] = SDL_CreateTexture(ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, W, H); SDL_SetTextureBlendMode(lay[i], SDL_BLENDMODE_BLEND); } SDL_SetRenderTarget(ren, lay[i]); SDL_RenderSetViewport(ren, NULL); SDL_SetTextureBlendMode(tgt, SDL_BLENDMODE_NONE); SDL_RenderCopy(ren, tgt, NULL, NULL); SDL_SetTextureBlendMode(tgt, SDL_BLENDMODE_BLEND); SDL_SetRenderTarget(ren, tgt); SDL_RenderSetViewport(ren, &curview); return JS_UNDEFINED; } /* いま描いた画面を、そのまま 絵のキャッシュに写しておく(動かない背景に、動くものを重ねる演出を軽くするため) */
-static JSValue j_status(JSContext *c, JSValueConst t, int n, JSValueConst *a){ /* OLED表示用の状態を、ファイルに書く(同じ内容なら書かない。 書くときは、別名に書いて置きかえ) */
+static volatile int g_status_js = 0; /* JS が 状態を 書きはじめたら 1(それまでは C の 起動中スレッドが 書きつづける) */
+static JSValue j_status(JSContext *c, JSValueConst t, int n, JSValueConst *a){ g_status_js = 1; /* OLED表示用の状態を、ファイルに書く(同じ内容なら書かない。 書くときは、別名に書いて置きかえ) */
   static char last[1024]; const char *s = n > 0 ? JS_ToCString(c, a[0]) : NULL; if (!s) return JS_UNDEFINED;
   if (strncmp(s, last, sizeof last - 1) != 0) { const char *fp = getenv("MJ_OLED_FILE") ? getenv("MJ_OLED_FILE") : "/dev/shm/mj_oled.txt"; char tmp[300]; snprintf(tmp, sizeof tmp, "%s.tmp", fp);
     FILE *f = fopen(tmp, "w"); if (f) { fputs(s, f); fclose(f); rename(tmp, fp); snprintf(last, sizeof last, "%s", s); } }
@@ -344,9 +345,10 @@ static int listdir(const char *sub, const char *ext, char **out, int max, int n)
   struct dirent *de; while ((de = readdir(dp)) && n < max) { size_t L = strlen(de->d_name), E = strlen(ext); if (L > E && !strcmp(de->d_name + L - E, ext)) { char p[300]; snprintf(p, sizeof p, "%s/%s", sub, de->d_name); out[n++] = strdup(p); } }
   closedir(dp); return n; }
 static void boot_status(void){ /* 起動中のあいだも、OLEDに「起動中」を知らせる(前の「電源を切ってね」が残らないように)。 1秒に1回まで */
-  static double last = -9999; double now = nowms(); if (now - last < 900) return; last = now;
+  static double last = -9999; double now = nowms(); if (g_status_js || now - last < 900) return; last = now;
   const char *fp = getenv("MJ_OLED_FILE") ? getenv("MJ_OLED_FILE") : "/dev/shm/mj_oled.txt"; char tmp[300]; snprintf(tmp, sizeof tmp, "%s.tmp", fp);
   FILE *f = fopen(tmp, "w"); if (f) { fprintf(f, "scene=起動中\npose=hello\nmsg=\nup=%d\n", (int)(now / 1000)); fclose(f); rename(tmp, fp); } }
+static int boot_status_thread(void *u){ while (!g_status_js) { boot_status(); SDL_Delay(500); } return 0; }
 static void loading_screen(int done, int total){
   boot_status();
   SDL_SetRenderTarget(ren, NULL); SDL_SetRenderDrawColor(ren, 14, 60, 44, 255); SDL_RenderClear(ren);
@@ -484,7 +486,7 @@ int main(int argc, char **argv){
     else if (!strcmp(argv[i], "--frames") && i + 1 < argc) maxframes = atoi(argv[++i]);
     else if (i == 1) strncpy(root, argv[i], sizeof root - 1);
   }
-  boot_status(); /* 起動したことを、すぐ OLED に知らせる(前の回の「電源を切ってね」を消す) */
+  boot_status(); { SDL_Thread *bt = SDL_CreateThread(boot_status_thread, "bootst", NULL); if (bt) SDL_DetachThread(bt); } /* 起動したことを、すぐ OLED に知らせ、JS が引きつぐまで 0.5秒ごとに 書きつづける(重い読みこみで 止まっても OLED が 寝ないように) */
   { const char *sv = getenv("MJ_STALL"); if (sv) stall_ms = atof(sv); }
   const char *fp = getenv("MJ_FONT"); if (!fp) fp = findfont(); if (!fp) { fprintf(stderr, "日本語フォントがありません: sudo apt install fonts-ipafont-gothic\n"); return 1; }
   strncpy(fontpath, fp, sizeof fontpath - 1);

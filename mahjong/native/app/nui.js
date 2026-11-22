@@ -3150,7 +3150,7 @@
     const run = () => {
       const t1 = __now(); while (jobs.length && __now() - t1 < 80) { jobs.shift()(); done++; }
       S.bootP = done / total; dirty();
-      if (jobs.length) setTimeout(run, 0); else { S.mode = 'title'; NSND.home(); tl('boot-done ' + Math.round(__now() - t0) + 'ms'); dirty(); }
+      if (jobs.length) setTimeout(run, 0); else { S.mode = 'title'; NSND.home(); tl('boot-done ' + Math.round(__now() - t0) + 'ms'); print('boot-js ' + total + ' jobs ' + Math.round(__now() - t0) + 'ms'); dirty(); }
     };
     setTimeout(run, 30);
   }

@@ -367,7 +367,7 @@ def compose_zunda(scr, d, age, tick, ever_alive):
     """ずんだもんの画面: 左に大きな顔(64x58)、右に 見出しと数字5行。 危険のときは ちかちか白黒"""
     h = health(); scr.clear(); X = 68
     final = d is not None and d.get('scene') in ('EXIT', 'MAINT')
-    alive = d is not None and (age < 4.0 or final)
+    alive = d is not None and (age < 4.0 or final or (d.get('scene') == '起動中' and age < 20))
     up = uptime(); booting = (not alive) and (not ever_alive) and up < 150
     scene = d.get('scene', '') if d else ''; msg = d.get('msg', '') if d else ''
     pose = d.get('pose', 'watch') if alive else ('hello' if booting else 'err' if ever_alive else 'sleep')
@@ -394,7 +394,7 @@ def compose_zunda(scr, d, age, tick, ever_alive):
         if scene in ('結果', '対局終了') and since >= 8: r = compose_pet(scr, d, age, tick, ever_alive, h)   # 結果の反応のあとは、ハートと 節目の言葉
         elif scene in ('クイズ', '勉強') and not msg and (tick // 3) % 4 == 3: scr.clear(); pet_gauge_page(scr, d, pet_int(d, 'plays'), tick); r = scr   # 答えるあいだに ときどき 3つの目盛り
         if r is not None: return r
-    if not alive and not booting: expr = 'worry' if ever_alive else 'content'
+    if not alive and not booting: expr = 'worry' if ever_alive else 'smile'   # ゲームが まだ動いていない待機: 寝顔ではなく 笑顔
     if (booting or (alive and not final and scene in ('ホーム', 'タイトル', '起動中') and h['level'] == 0)):
         r = compose_pet(scr, d, age, tick, ever_alive, h)
         if r is not None: return r
@@ -536,14 +536,32 @@ def pet_gauge_page(scr, d, plays, tick):
         else:
             dn = PJOBS_DAN[dan]
             if dn in PLAB: scr.bitmap(PLAB[dn][0], PLAB[dn][1], PLAB[dn][2], 68, y)
+def text_big(scr, s, x, y, k=2):
+    """5x7 の英数字を k倍の大きさで(温度などを 大きく 見せる)"""
+    for ch in s.upper():
+        g = F.get(ch, F['?'])
+        for c in range(5):
+            col = g[c]
+            for r in range(7):
+                if (col >> r) & 1: scr.box(x + c * k, y + r * k, k, k, 1)
+        x += 6 * k
+def pet_sys_page(scr, d, h, frm, stg):
+    """本体の状態の画面(数秒おきに 出る): CPU温度を 大きく、空きメモリ・負荷を 小さく"""
+    f = frm if frm else (0, 2, stg[1], stg[2], stg[3]); pet_place(scr, f[2], f[3], f[4], f[1])
+    t, la, mem, sw, psi, gm = sysinfo(); X = 66
+    scr.text('CPU TEMP', X, 0)
+    text_big(scr, t, X, 10, 2)
+    state = 'OK' if h['level'] == 0 else 'HOT' if h['why'] == 'HOT' else 'POWER'
+    scr.text(state + ('' if h['volt'] is None else ' %.1fV' % h['volt']), X, 28)
+    scr.text('FREE %sM' % mem, X, 37); scr.text('LOAD %s' % la, X, 46)
 def compose_pet(scr, d, age, tick, ever_alive, h):
     """ホーム・起動中の、ペットの画面。 戻り値が None なら ふつうの画面にもどる"""
     if not PSTAGE or not (d is None or d.get('scene') == '起動中' or 'plays' in d): return None
     scr.clear(); plays = pet_int(d, 'plays') if d else 0
     X = 66
     if d is None or d.get('scene') == '起動中':   # 起動中: ずんだもんが 目をこすって おきる(目を閉じた顔と、ひらいた顔が かわりばんこ)
-        scr.zface('content' if tick % 6 < 3 else 'smile', 0, 3)
-        scr.marquee('おきるのだ…', X, 14, 60, tick); scr.text('WAIT %dS' % int(uptime()), X, 36); return scr
+        scr.zface('content' if tick % 12 in (0, 1) else 'smile', 0, 3)   # ふだんは 目をひらいて、ときどき まばたき
+        scr.marquee('おはよう！ じゅんびちゅうなのだ…', X, 14, 60, tick); scr.text('WAIT %dS' % int(uptime()), X, 36); return scr
     stg = pet_stage(pet_cp(d)); frm = pet_form(d)
     sleepy = pet_int(d, 'idle') >= 180
     by = 1 if (not sleepy and tick % 2) else 0   # ぴょこぴょこ(ねむいときは 動かない)
@@ -554,18 +572,20 @@ def compose_pet(scr, d, age, tick, ever_alive, h):
     elif evolve_event(d) is not None:
         ev = evolve_event(d)
         pet_big(scr, d, ['うまれた', 'のだ', ''] if ev == 'egg' else ['しんか', 'したのだ', ''], (0, 16, 32))
-    elif (tick // 3) % 20 in (12, 13):
+    elif (tick // 3) % 24 in (12, 13):
         pet_gauge_page(scr, d, plays, tick)
-    elif (tick // 3) % 20 in (14, 15):
+    elif (tick // 3) % 24 in (14, 15):
         nm = pet_name_lines(d); pet_big(scr, d, nm + ([''] if len(nm) < 2 else []), (0, 16, 32))
         if 'あと' in PLAB: scr.bitmap(PLAB['あと'][0], PLAB['あと'][1], PLAB['あと'][2], 64, 32); pet_num(scr, pet_next(pet_cp(d)), 64 + PLAB['あと'][0], 32)
-    elif (tick // 3) % 20 in (16, 17):
+    elif (tick // 3) % 24 in (16, 17):
         pet_big(scr, d, ['あそぶと', 'すがたが', 'かわるぞ'], (0, 16, 32))
-    elif (tick // 3) % 20 in (18, 19) and d.get('lean') in ('riichi', 'ron', 'tsumo', 'naki', 'mamori', 'study', 'view', 'win', 'lose'):
+    elif (tick // 3) % 24 in (20, 21):
+        pet_sys_page(scr, d, h, frm, stg)
+    elif (tick // 3) % 24 in (18, 19) and d.get('lean') in ('riichi', 'ron', 'tsumo', 'naki', 'mamori', 'study', 'view', 'win', 'lose'):
         f = frm if frm else (0, 2, stg[1], stg[2], stg[3]); pet_place(scr, f[2], f[3], f[4], f[1])
         scr.line_marquee('h:' + d['lean'], X, 16, 60, tick)
     else:
-        if cos is not None and (tick // 3) % 20 < 12:
+        if cos is not None and (tick // 3) % 24 < 12:
             cw, ch, crows = cos[0]; pet_place(scr, cw, ch, crows, 1, by)   # 衣装は、そのままの大きさ(45x47前後)
         elif frm is not None: pet_place(scr, frm[2], frm[3], frm[4], frm[1], by)   # 進化した姿
         else: pet_place(scr, stg[1], stg[2], stg[3], 2, by)
@@ -622,7 +642,7 @@ def compose0(scr, d, age, tick, ever_alive=False):
     scr.clear()
     scene = d.get('scene', '') if d else ''
     final = d is not None and d.get('scene') in ('EXIT', 'MAINT')   # ゲームが 終わった印(時間がたっても そのまま出す)
-    alive = d is not None and (age < 4.0 or final)
+    alive = d is not None and (age < 4.0 or final or (d.get('scene') == '起動中' and age < 20))
     up = uptime()
     booting = (not alive) and (not ever_alive) and up < 150
     if alive: pose = d.get('pose', 'watch')
