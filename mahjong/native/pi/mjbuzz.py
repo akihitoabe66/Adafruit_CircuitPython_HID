@@ -109,8 +109,8 @@ def main():
             if scene not in ('EXIT', 'MAINT'): exit_done = False
         last_scene = scene
         h = health()
-        if h['level'] >= 2 and now - t_danger > 6: t_danger = now; play(pwm, 'lowv' if h.get('why') == 'LOWV' else 'danger')
-        elif h['level'] == 1 and now - t_warn > 90: t_warn = now; play(pwm, 'lowv' if h.get('why') == 'LOWV' else 'warn')
+        # 鳴らすのは「温度が高すぎる(82C〜)」「電力が足りない(電圧が下がりっぱなし)」の 危険のときだけ。 注意(75C〜 など)は 画面の表示だけで 鳴らさない。 くり返しは 20秒に1回
+        if h['level'] >= 2 and now - t_danger > 20: t_danger = now; play(pwm, 'lowv' if h.get('why') == 'LOWV' else 'danger')
         time.sleep(0.5)
 
 
