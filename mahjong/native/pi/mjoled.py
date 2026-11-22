@@ -585,21 +585,37 @@ def sensei_now(d, age):
     if d is None or age >= 4.0: return False
     sc = d.get('scene', '')
     return sc == '勉強' or (sc in GAME_SCENES and d.get('teacher') == '1')   # 麻雀の勉強の階層は 麻雀先生。 クイズは ずんだもん(正解で喜ぶ)
+# 上の16ドットの飾り: ニューヨークの夜景(ビル・月・星)。 (x, 幅, 高さ)。 高さは 下の線(y=15)から数える。 エンパイア・ステート(階段状+とがった先)や ワン・ワールド・トレードセンター(細い塔)ふう
+CITY = [(0, 8, 7), (8, 6, 10), (14, 8, 6), (22, 5, 12), (27, 9, 8), (36, 10, 9), (46, 8, 10), (54, 9, 11), (63, 6, 13), (69, 9, 8), (78, 7, 11), (85, 8, 7), (93, 9, 10), (102, 6, 12), (108, 7, 8), (115, 6, 11), (121, 7, 9)]
+STARS = [(18, 1), (34, 2), (52, 1), (75, 2), (98, 1), (112, 2), (124, 1)]
 def decor(scr, tick):
-    """上の使わない帯(16ドット)の飾り: 麻雀牌を ならべた 帯。 横線が入っても 目立たない、縦の線が多い 模様。 1秒ごとに 点の数が 1つずつ ずれて 流れる"""
+    """上の使わない帯(16ドット)の飾り: ニューヨークの夜景。 ビルの窓は まばら(1x2ドット)で ゆっくり またたく。 横線が入っても 目立たない。 とがった塔の先の灯りが 1秒ごとに ついたり きえたり"""
     if OY < 16: return
-    sh = (tick // 3) % 3
-    for i in range(14):
-        x0 = 2 + i * 9
-        for x in range(x0, x0 + 8):
-            scr.raw(x, 2); scr.raw(x, 13)
-        for y in range(2, 14):
-            scr.raw(x0, y); scr.raw(x0 + 7, y)
-        v = (i + sh) % 3
-        pips = ((3, 7),) if v == 0 else ((3, 4), (3, 9)) if v == 1 else ((2, 4), (4, 7), (2, 10))
-        for (a, b) in pips:   # 牌の中の 2x2 の点(1つ・2つ・3つ)
-            for dx in range(2):
-                for dy in range(2): scr.raw(x0 + a + dx, b + dy)
+    ep = tick // 9   # 3秒ごとに 窓の灯りが すこし入れかわる
+    def px(x, y): scr.raw(x, y)
+    for x, w, h in CITY:
+        top = 16 - h
+        for xx in range(x, x + w): px(xx, top)   # 屋根
+        for yy in range(top, 16): px(x, yy); px(x + w - 1, yy)   # 壁
+        for r, wy in enumerate(range(top + 2, 14, 3)):
+            for c, wx in enumerate(range(x + 2, x + w - 2, 2)):
+                if ((x * 7 + r * 13 + c * 29 + ep * 17) % 3) != 0: px(wx, wy); px(wx, wy + 1)
+    # エンパイア・ステートふう: 36〜46 のビルの上に 階段と とがった先
+    for yy in range(3, 7): px(40, yy); px(41, yy)
+    for yy in range(0, 3): px(41, yy)
+    for xx in range(39, 43): px(xx, 6)
+    # ワン・ワールド・トレードセンターふう(63〜69): 細い塔
+    for yy in range(0, 3): px(66, yy)
+    if (tick // 3) % 2 == 0: px(66, 0); px(41, 0)   # 先の灯り
+    else:
+        scr.buf[0][66] &= 0xFE; scr.buf[0][41] &= 0xFE
+    # 月(三日月)と 星
+    for (cx, cy) in ((8, 2),):
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                if dx * dx + dy * dy <= 5 and not ((dx + 1) * (dx + 1) + (dy - 1) * (dy - 1) <= 3): px(cx + dx + 1, cy + dy + 1 if cy + dy + 1 < 6 else 5)
+    for k, (sx, sy) in enumerate(STARS):
+        if (k + ep) % 3 != 0: px(sx, sy)
 def compose(scr, d, age, tick, ever_alive=False):
     scr = compose0(scr, d, age, tick, ever_alive)
     if '--nodecor' not in sys.argv and os.environ.get('MJOLED_DECOR', '1') != '0': decor(scr, tick)
