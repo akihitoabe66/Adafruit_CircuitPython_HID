@@ -89,6 +89,51 @@ F2 = [908, 252]; TORII_TOP = [913, 230]
 E_RED['EF'] = E_RED['EF'] + [F2]
 E_RED['FG'] = [F2, TORII_TOP, list(E_RED['FG'][-1])]   # 信濃 → 上の鳥居 → まん中の鳥居(G)。 間は 点線に そって たどる(赤い線は 点線から はなれていたので 通らない)
 E_ = {k: follow_dashes(v) for k, v in E_RED.items()}
+# ---- 東がわ(摂津→信濃→越後→奥州、駿河、江戸)は、 あとから 手で描いてもらった 赤い線(tools/map_src/route_east.png: 地図の (780,150) から 3倍に 拡大した 切りとり)に 合わせる。 手ぶれは たどるときに ならす
+_u = np.array(Image.open(os.path.join(SRC, 'route_east.png')).convert('RGB')).astype(int)
+_ur = ((_u[..., 0] > 200) & (_u[..., 1] < 60) & (_u[..., 2] < 60)).astype(np.uint8)
+_ur = cv2.morphologyEx(_ur, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (41, 41)))   # 白や黒の 書きこみで 切れた所を つなぐ
+_ur = (cv2.resize(_ur.astype(np.float32), (_u.shape[1] // 3, _u.shape[0] // 3), interpolation=cv2.INTER_AREA) > 0.45).astype(np.uint8)
+red2 = np.zeros((H, W), np.uint8); red2[150:150 + _ur.shape[0], 780:780 + _ur.shape[1]] = _ur
+dt2 = cv2.distanceTransform(red2, cv2.DIST_L2, 5); cost2 = np.where(red2 > 0, 1.0 / (dt2 + 0.5), 1e9)
+def snap2(p):
+    x, y = p; best = None
+    for dy in range(-30, 31):
+        for dx in range(-30, 31):
+            xx, yy = x + dx, y + dy
+            if 0 <= xx < W and 0 <= yy < H and red2[yy, xx] and (best is None or (dx * dx + dy * dy) < best[2]): best = (xx, yy, dx * dx + dy * dy)
+    return best[:2]
+def dijk2(s, t):
+    dd = {s: 0}; prev = {}; pq = [(0, s)]
+    while pq:
+        d, u = heapq.heappop(pq)
+        if u == t: break
+        if d > dd.get(u, 1e18): continue
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if dx == 0 and dy == 0: continue
+                v = (u[0] + dx, u[1] + dy)
+                if 0 <= v[0] < W and 0 <= v[1] < H and red2[v[1], v[0]]:
+                    nd = d + cost2[v[1], v[0]] * (1.414 if dx and dy else 1)
+                    if nd < dd.get(v, 1e18): dd[v] = nd; prev[v] = u; heapq.heappush(pq, (nd, v))
+    q = [t]
+    while q[-1] != s: q.append(prev[q[-1]])
+    return q[::-1]
+def trace2(a, b, keep_a=None, keep_b=None):
+    pts = np.array(dijk2(snap2(a), snap2(b)), np.float32)
+    k = 9; pad = np.pad(pts, ((k, k), (0, 0)), mode='edge'); sm = np.stack([np.convolve(pad[:, c], np.ones(2 * k + 1) / (2 * k + 1), mode='valid') for c in (0, 1)], 1)   # 手ぶれを ならす
+    sim = cv2.approxPolyDP(sm.astype(np.int32).reshape(-1, 1, 2), 3.0, False).reshape(-1, 2).tolist()
+    if keep_a: sim[0] = list(keep_a)
+    if keep_b: sim[-1] = list(keep_b)
+    return sim
+_E0 = list(nodes['E']); _G = (1022, 318); _H = (986, 428); _I = (1201, 387); _J = (1216, 217)
+_ef_old = [q for q in E_['EF'] if q[0] < 790]
+E_['EF'] = _ef_old + trace2((790, _ef_old[-1][1] if _ef_old else 417), tuple(F2), None, F2)[0:]
+E_['FG'] = trace2(tuple(F2), _G, F2, None)
+E_['GJ'] = trace2(_G, _J, E_['FG'][-1], None)
+E_['GH'] = trace2(_G, _H, E_['FG'][-1], None)
+E_['HI'] = trace2(_H, _I, E_['GH'][-1], None)
+nodes['I'] = tuple(E_['HI'][-1])
 def cut(poly, i, j): return poly[i:j + 1]
 # 段位ごとの 区間(1段ぶん)。 legs[i] = 段位 i → i+1 の道。 行き止まりの枝は、分かれ道まで 戻ってから 次へ
 de = E_['DE']; fg = E_['FG']; gh = E_['GH']; hi = E_['HI']; gj = E_['GJ']
