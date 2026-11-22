@@ -169,7 +169,8 @@ class Bus:
                 try: return self._try(*self.cfg)
                 except OSError: self.last_cfg = self.cfg; self.cfg = None   # 2回つづけて だめ: 探しなおす
         last = None
-        for c in self.CFGS:
+        order = ([getattr(self, 'prefer', None)] if getattr(self, 'prefer', None) else []) + [c for c in self.CFGS if c != getattr(self, 'prefer', None)]   # 有線は、いつも うまくいく読みかたを 先に 試す
+        for c in order:
             try:
                 w = self._try(*c)
                 if decode(w) is not None:
@@ -342,6 +343,7 @@ def main():
                 bus = Bus()
                 if not (bus.init() or bus.init_old()): raise OSError('返事がない(コントローラーが つながっていない?)')
                 wl, hz, dn, hd = profile_for(bus.ident); deb = Debounce(dn); hold = Holder(hd); t_loop = time.time()
+                bus.prefer = None if wl else (0x00, 6, 0.008)   # 有線の互換品: 番地0・6バイト・返事を8ms待つ が 実機で いちばん 安定した
                 print('mjpad: controller ready id=%s profile=%s hz=%d debounce=%d hold=%.0fms' % (bus.ident.hex(), 'wireless' if wl else 'wired', hz, dn, hd * 1000), flush=True); bad = 0; ok_once = True
             w = bus.read(); b = decode(w) if w is not None else None
             if b is None:
