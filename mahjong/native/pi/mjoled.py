@@ -57,6 +57,9 @@ INA_BUS = int(os.environ.get('MJINA_BUS', '1')); INA_ADDR = int(os.environ.get('
 CONTRAST = int(os.environ.get('MJOLED_CONTRAST', '0xCF'), 0)   # 明るさ(0x00〜0xFF)。 すじが出るとき 下げてみる(例 0x7F)
 CLKDIV = int(os.environ.get('MJOLED_CLK', '0x80'), 0)   # 画面の駆動の速さ(0x80=ふつう。 0xF0 / 0x50 などを試す)
 PRECH = int(os.environ.get('MJOLED_PRECH', '0xF1'), 0)   # 充電の時間(0xF1=ふつう。 0x22 を試す)
+OY = int(os.environ.get('MJOLED_TOP', '16'))   # 画面の上の何ドットを 使わないか(上の16ドットに すじが入る画面のため。 0 にすると 上まで使う)
+HU = HEIGHT - OY   # 使える高さ(ふつう 48)
+BK = 1.5   # 大きな絵(顔・姿)の倍率: 高さが 48ドットに おさまるように 1.5倍
 COLOFF = 2 if DRV == 'sh1106' else 0   # SH1106 は 132列のうち、左の2列が 見えない
 
 # ---- 5x7 の文字(1文字 = 縦の5列。 下位ビットが上) ----
@@ -94,13 +97,13 @@ class Screen:
     def clear(self):
         for p in self.buf:
             for i in range(WIDTH): p[i] = 0
-    def sprite(self, idx, x0, y0):   # y0 は 8の倍数
-        data = POSES[idx]; pg0 = y0 // 8
+    def sprite(self, idx, x0, y0):   # 麻雀先生の絵(40x48)。 縦8ドットずつの並び
+        data = POSES[idx]
         for pg in range(SH_ // 8):
-            if pg0 + pg >= PAGES: break
-            row = self.buf[pg0 + pg]
             for x in range(SW_):
-                if x0 + x < WIDTH: row[x0 + x] = data[pg * SW_ + x]
+                v = data[pg * SW_ + x]
+                for bit in range(8):
+                    if (v >> bit) & 1: self._set(x0 + x, y0 + pg * 8 + bit, 1)
     def pixel_on(self, x, y):
         return (self.buf[y // 8][x] >> (y % 8)) & 1
     def text(self, s, x, y, inv=False):   # y は どこでもよい(ページをまたぐ)。 inv=True は 白地に黒文字の帯
@@ -131,17 +134,22 @@ class Screen:
                     for r in range(7):
                         if (col >> r) & 1: self._set(x + c, y + 4 + r, 0 if inv else 1)
                 x += 6
-    def zface(self, name, x0, y0):
-        """ずんだもんの顔(32x28前後)を、ぴったり2倍(64x58)で描く"""
+    def zface(self, name, x0, y0, k=None):
+        """ずんだもんの顔(32x28前後)を 1.5倍(48x42)で描く(上の16ドットは 使わないので、2倍だと 入らない)"""
         rows = ZU.get(name) or ZU.get('smile')
-        if not rows: return
-        for j, v in enumerate(rows):
-            for i in range(32):
-                if (v >> (31 - i)) & 1:
-                    x = x0 + 2 * i; y = y0 + 2 * j
-                    self._set(x, y, 1); self._set(x + 1, y, 1); self._set(x, y + 1, 1); self._set(x + 1, y + 1, 1)
+        if rows: self.bitmap(32, len(rows), rows, x0, y0, BK if k is None else k)
     def bitmap(self, w, h, rows, x0, y0, k=1, clip=None):
-        """行ごとの整数(左が上位ビット)の絵を、k倍で描く。 clip=(左, 右) の外は描かない"""
+        """行ごとの整数(左が上位ビット)の絵を、k倍で描く(k は 1・2・3 などの整数か、1.5 など)。 clip=(左, 右) の外は描かない"""
+        if k != int(k):   # 小数倍: いちばん近い点を 取る
+            ow, oh = int(w * k + 0.5), int(h * k + 0.5)
+            for j in range(oh):
+                v = rows[min(h - 1, int(j / k))]
+                for i in range(ow):
+                    if (v >> (w - 1 - min(w - 1, int(i / k)))) & 1:
+                        x = x0 + i
+                        if clip is None or clip[0] <= x < clip[1]: self._set(x, y0 + j, 1)
+            return
+        k = int(k)
         for j, v in enumerate(rows):
             for i in range(w):
                 if (v >> (w - 1 - i)) & 1:
@@ -170,12 +178,13 @@ class Screen:
         off = (tick * 4) % (lw + 24)
         self.bitmap(lw, 16, cache, x - off, y, clip=(x, x + w))
         if off > lw - w: self.bitmap(lw, 16, cache, x - off + lw + 24, y, clip=(x, x + w))
-    def invert(self): self.buf = [bytearray(x ^ 0xFF for x in b) for b in self.buf]   # 白黒を ぎゃくに(警告のとき ちかちかさせる)
+    def invert(self): self.buf = [(bytearray(x ^ 0xFF for x in b) if i >= OY // 8 else b) for i, b in enumerate(self.buf)]   # 上の使わない帯は そのまま   # 白黒を ぎゃくに(警告のとき ちかちかさせる)
     def box(self, x, y, w, h, on=1):
         for yy in range(y, y + h):
             for xx in range(x, x + w): self._set(xx, yy, on)
     def _set(self, x, y, on):
-        if x < 0 or y < 0 or x >= WIDTH or y >= HEIGHT: return
+        y += OY
+        if x < 0 or y < OY or x >= WIDTH or y >= HEIGHT: return
         if on: self.buf[y // 8][x] |= 1 << (y % 8)
         else: self.buf[y // 8][x] &= ~(1 << (y % 8))
     def ascii(self):
@@ -321,11 +330,10 @@ def compose_danger(scr, h, tick):
     """危険の画面: ちかちか白黒が入れかわる。 麻雀先生が「電源を切って!」"""
     scr.clear()
     a, b = POSE['err'] if tick % 2 == 0 else POSE['angry']
-    scr.sprite(a if (tick % 2 == 0) else b, 0, 8 if PAGES >= 7 else 0)
+    scr.sprite(a if (tick % 2 == 0) else b, 0, 0)
     scr.text16('危険!', TEXT_X, 0, inv=True)
-    if h['why'] == 'LOWV': scr.text16('電圧が', TEXT_X, 18); scr.text16('たりない', TEXT_X, 34)
-    else: scr.text16('熱すぎ!', TEXT_X, 18); scr.text16('切って!', TEXT_X, 34)
-    scr.text(pwr_row(h)[:14], TEXT_X, 54)
+    if h['why'] == 'LOWV': scr.text16('電圧が', TEXT_X, 16); scr.text16('たりない', TEXT_X, 32)
+    else: scr.text16('熱すぎ!', TEXT_X, 16); scr.text16('切って!', TEXT_X, 32)
     if tick % 2 == 1: scr.invert()
     return scr
 
@@ -363,10 +371,10 @@ def compose_zunda(scr, d, age, tick, ever_alive):
     if msg in ZMSG: expr = ZMSG[msg]
     if scene == '昇段': expr = 'thumbs' if msg else 'peace'
     def rows(y0, L):
-        for i, r in enumerate(L): scr.text(r[:10], X, y0 + i * 9)
+        for i, r in enumerate(L[:3]): scr.text(r[:10], X, y0 + i * 9)
     if h['level'] >= 2:
         scr.zface('shock' if tick % 2 == 0 else 'sweat', 0, 3)
-        scr.text16('危険!', X, 0, inv=True); scr.text16('電圧が' if h['why'] == 'LOWV' else '熱すぎ!', X, 18); scr.text16('切って!', X, 34); scr.text(zpwr(h), X, 54)
+        scr.text16('危険!', X, 0, inv=True); scr.text16('電圧が' if h['why'] == 'LOWV' else '熱すぎ!', X, 16); scr.text16('切って!', X, 32)
         if tick % 2 == 1: scr.invert()
         return scr
     now = time.time()
@@ -375,8 +383,8 @@ def compose_zunda(scr, d, age, tick, ever_alive):
     if alive and not final and h['level'] == 0 and PSTAGE and d and 'plays' in d:
         r = None
         if scene == '昇段' and since >= 3 and PCOS:
-            j = pet_int(d, 'dan') % len(PCOS); cw, ch, crows = PCOS[j]; scr.clear(); by = 2 + (0 if tick % 2 == 0 else -2)
-            scr.bitmap(cw, ch, crows, 8, by + (64 - ch) // 2 - 2, 1); scr.line_marquee('c:' + PJOBS[j], 66, 20, 60, tick)
+            j = pet_int(d, 'dan') % len(PCOS); cw, ch, crows = PCOS[j]; scr.clear(); by = 0 if tick % 2 == 0 else 1
+            scr.bitmap(cw, ch, crows, 8, by + (HU - ch) // 2, 1); scr.line_marquee('c:' + PJOBS[j], 66, 16, 60, tick)
             return scr
         if scene in ('結果', '対局終了') and since >= 8: r = compose_pet(scr, d, age, tick, ever_alive, h)   # 結果の反応のあとは、ハートと 節目の言葉
         elif scene in ('クイズ', '勉強') and not msg and (tick // 3) % 4 == 3: scr.clear(); pet_gauge_page(scr, d, pet_int(d, 'plays'), tick); r = scr   # 答えるあいだに ときどき 3つの目盛り
@@ -388,9 +396,8 @@ def compose_zunda(scr, d, age, tick, ever_alive):
     scr.zface(expr, 0, 3)
     if booting: scr.text16('起動中' + '.' * (tick % 4), X, 0); rows(24, ['WAIT %dS' % int(up)])
     elif alive and final:
-        if scene == 'EXIT': scr.text16('終了', X, 0, inv=True); scr.text16('電源を', X, 18); scr.text16('抜いて', X, 34)
-        else: scr.text16('保守', X, 0, inv=True); rows(24, ['CTRL+Q', 'READY'])
-        rows(54, [zpwr(h)])
+        if scene == 'EXIT': scr.text16('終了', X, 0, inv=True); scr.text16('電源を', X, 16); scr.text16('抜いて', X, 32)
+        else: scr.text16('保守', X, 0, inv=True); rows(20, ['CTRL+Q', 'READY', zpwr(h)])
     elif alive:
         if h['level'] == 1 and tick % 2 == 0: scr.text16('高温' if h['why'] == 'HOT' else '電圧', X, 0, inv=True)
         elif msg: scr.text16(msg[:3], X, 0, inv=True)
@@ -398,8 +405,8 @@ def compose_zunda(scr, d, age, tick, ever_alive):
         elif scene == 'タイトル': scr.text('TITLE', X, 5)
         else: scr.text16(scene[:3], X, 0)
         pr = zpwr(h)
-        rows(18, ['SPD ' + num(d, 'spd'), 'DRAW ' + num(d, 'draw'), 'MAX ' + num(d, 'max'), 'KEY ' + num(d, 'key'), pr])
-        if d.get('audio') not in (None, '', 'ok'): rows(18, ['AUDIO STOP'])
+        rows(19, ['SPD %s D%s' % (num(d, 'spd'), num(d, 'draw')), 'MX%s KY%s' % (num(d, 'max'), num(d, 'key')), pr])
+        if d.get('audio') not in (None, '', 'ok'): rows(19, ['AUDIO STOP'])
     else:
         scr.text16('停止!' if ever_alive else '待機中', X, 0, inv=bool(ever_alive)); rows(24, [zpwr(h), 'LOAD ' + sysinfo()[1]])
     return scr
@@ -442,13 +449,18 @@ def pet_num(scr, n, x, y):
         lab = PLAB.get(ch)
         if lab: scr.bitmap(lab[0], lab[1], lab[2], x, y); x += lab[0]
     return x
-def pet_big(scr, d, lines, ys=(4, 22, 40), spr=None):
+def pet_place(scr, w, h, rows, k, by=0):
+    """左の 62x48 の中に、姿を まん中におく。 k=2 の絵は 1.5倍、k=1 は そのまま(衣装の絵は 45x47)"""
+    kk = BK if k == 2 else k
+    ow, oh = int(w * kk + 0.5), int(h * kk + 0.5)
+    scr.bitmap(w, h, rows, max(0, (62 - ow) // 2), max(0, (HU - oh) // 2 + by), kk)
+def pet_big(scr, d, lines, ys=(0, 16, 32), spr=None):
     """左に姿、右の 66ドットに 4文字までの見出しを 3つ(LAB の名前)"""
     f = spr or pet_form(d)
     if f is None:
         st = pet_stage(pet_cp(d)); w, h, rows, k = st[1], st[2], st[3], 2
     else: _, k, w, h, rows = f
-    scr.bitmap(w, h, rows, max(0, (62 - w * k) // 2), max(0, (64 - h * k) // 2), k)
+    pet_place(scr, w, h, rows, k)
     for t, y in zip(lines, ys):
         if t and t in PLAB: scr.bitmap(PLAB[t][0], PLAB[t][1], PLAB[t][2], 64, y)
 def pet_name_lines(d):
@@ -500,67 +512,66 @@ def pet_hearts(scr, plays, x, y):
     wbar = 47
     scr.box(x, y + 9, wbar, 3, 0); scr.box(x, y + 9, wbar, 1, 1); scr.box(x, y + 11, wbar, 1, 1); scr.box(x, y + 10, 1, 1, 1); scr.box(x + wbar - 1, y + 10, 1, 1, 1)
     scr.box(x + 1, y + 10, int((wbar - 2) * frac), 1, 1)
+def pet_bar(scr, x, y, w, h, fr):
+    scr.box(x, y, w, h, 1); scr.box(x + 1, y + 1, w - 2, h - 2, 0); scr.box(x + 1, y + 1, int((w - 2) * fr), h - 2, 1)
 def pet_gauge_page(scr, d, plays, tick):
-    """3つの目盛り: あそんだ(対局の数 / 500で満タン)、クイズ(答えた数 / 100で満タン)、だんい(無段〜永世名人 / 11)"""
+    """3つの目盛り(1段 16ドット): あそんだ(対局の数 / 500で満タン)、クイズ(いまの級)、だんい(無段〜永世名人)"""
     qc = pet_int(d, 'qc'); dan = max(0, min(11, pet_int(d, 'dan')))
-    for i, (nm, val, fr) in enumerate((('あそんだ', plays, min(1.0, plays / 500.0)), ('クイズ', qc, min(1.0, qc / 100.0)), ('だんい', None, dan / 11.0))):
-        y = i * 21
+    for i, nm in enumerate(('あそんだ', 'クイズ', 'だんい')):
+        y = i * 16
         if nm in PLAB: scr.bitmap(PLAB[nm][0], PLAB[nm][1], PLAB[nm][2], 0, y)
-        if nm == 'クイズ' and d.get('ql', '') != '' and val is not None:   # クイズの級(0=はじめ 1〜10=10級〜1級 11=師範)
-            ql = pet_int(d, 'ql'); x = 68
+        if nm == 'あそんだ':
+            scr.text(str(plays), 68, y); pet_bar(scr, 68, y + 9, 60, 6, min(1.0, plays / 500.0))
+        elif nm == 'クイズ':
+            ql = pet_int(d, 'ql') if d.get('ql', '') != '' else 0; x = 68
             if ql >= 11 and '師範' in PLAB: scr.bitmap(PLAB['師範'][0], PLAB['師範'][1], PLAB['師範'][2], x, y)
             elif 1 <= ql <= 10 and '級' in PLAB: x = pet_num(scr, 11 - ql, x, y); scr.bitmap(PLAB['級'][0], PLAB['級'][1], PLAB['級'][2], x, y)
-            scr.text(str(val), 108, y + 4)
-        elif val is not None: scr.text(str(val), 68, y + 4)
+            else: scr.text(str(qc), x, y + 4)
+            pet_bar(scr, 104, y + 5, 24, 6, min(1.0, qc / 100.0))
         else:
             dn = PJOBS_DAN[dan]
             if dn in PLAB: scr.bitmap(PLAB[dn][0], PLAB[dn][1], PLAB[dn][2], 68, y)
-        scr.box(0, y + 17, 128, 3, 0); scr.box(0, y + 17, 128, 1, 1); scr.box(0, y + 19, 128, 1, 1)
-        scr.box(0, y + 18, 1, 1, 1); scr.box(127, y + 18, 1, 1, 1); scr.box(1, y + 18, int(126 * fr), 1, 1)
 def compose_pet(scr, d, age, tick, ever_alive, h):
     """ホーム・起動中の、ペットの画面。 戻り値が None なら ふつうの画面にもどる"""
     if not PSTAGE or not (d is None or d.get('scene') == '起動中' or 'plays' in d): return None
     scr.clear(); plays = pet_int(d, 'plays') if d else 0
+    X = 66
     if d is None or d.get('scene') == '起動中':   # 起動中: ずんだもんが 目をこすって おきる(目を閉じた顔と、ひらいた顔が かわりばんこ)
         scr.zface('content' if tick % 6 < 3 else 'smile', 0, 3)
-        scr.marquee('おきるのだ…', 66, 18, 60, tick); scr.text('WAIT %dS' % int(uptime()), 66, 40); return scr
-    stg = pet_stage(pet_cp(d) if d else 0); sw, sh, srows = stg[1], stg[2], stg[3]; frm = pet_form(d) if d else None
-    sleepy = d is not None and pet_int(d, 'idle') >= 180
-    by = 2 + (0 if sleepy or tick % 2 == 0 else -2)   # ぴょこぴょこ(ねむいときは 動かない)
-    cos = pet_costume(d, plays) if d else None
-    if cos is not None and not sleepy and (tick // 3) % 10 < 7:
-        cw, ch, crows = cos[0]; scr.bitmap(cw, ch, crows, max(0, (62 - cw) // 2), by + (64 - ch) // 2 - 2, 1)   # 衣装は、そのままの大きさ(45x47前後)
-    elif frm is not None: scr.bitmap(frm[2], frm[3], frm[4], max(0, (62 - frm[2] * frm[1]) // 2), by + (64 - frm[3] * frm[1]) // 2 - 2, frm[1])   # 進化した姿
-    else: scr.bitmap(sw, sh, srows, max(0, (62 - sw * 2) // 2), by + (62 - sh * 2) // 2 - 2, 2)
-    X = 66
-    if d is None or d.get('scene') == '起動中':
-        scr.marquee('おきるのだ…', X, 18, 60, tick); scr.text('WAIT %dS' % int(uptime()), X, 40)
-    elif sleepy:   # 3分 ボタンなし: 目を閉じた顔で ねむる
-        scr.clear(); scr.zface('content', 0, 3)
-        scr.marquee('ねむいのだ…', X, 18, 60, tick); scr.text('ZZZ' + '.' * (tick % 4), X, 40); scr.text('PLAY %d' % plays, X, 54)
+        scr.marquee('おきるのだ…', X, 14, 60, tick); scr.text('WAIT %dS' % int(uptime()), X, 36); return scr
+    stg = pet_stage(pet_cp(d)); frm = pet_form(d)
+    sleepy = pet_int(d, 'idle') >= 180
+    by = 1 if (not sleepy and tick % 2) else 0   # ぴょこぴょこ(ねむいときは 動かない)
+    cos = pet_costume(d, plays)
+    if sleepy:   # 3分 ボタンなし: 目を閉じた顔で ねむる
+        scr.zface('content', 0, 3)
+        scr.marquee('ねむいのだ…', X, 14, 60, tick); scr.text('ZZZ' + '.' * (tick % 4), X, 33); scr.text('PLAY %d' % plays, X, 41)
     elif evolve_event(d) is not None:
-        scr.clear(); ev = evolve_event(d)
-        if ev == 'egg': pet_big(scr, d, ['うまれた', 'のだ', ''], (4, 22, 40))
-        else: pet_big(scr, d, ['しんか', 'したのだ'] + [''], (4, 22, 40))
+        ev = evolve_event(d)
+        pet_big(scr, d, ['うまれた', 'のだ', ''] if ev == 'egg' else ['しんか', 'したのだ', ''], (0, 16, 32))
     elif (tick // 3) % 20 in (12, 13):
-        scr.clear(); pet_gauge_page(scr, d, plays, tick)
+        pet_gauge_page(scr, d, plays, tick)
     elif (tick // 3) % 20 in (14, 15):
-        scr.clear(); nm = pet_name_lines(d); pet_big(scr, d, nm + ([''] if len(nm) < 2 else []), (0, 16, 38))
-        if 'あと' in PLAB: scr.bitmap(PLAB['あと'][0], PLAB['あと'][1], PLAB['あと'][2], 64, 38); pet_num(scr, pet_next(pet_cp(d)), 64 + PLAB['あと'][0], 38)
+        nm = pet_name_lines(d); pet_big(scr, d, nm + ([''] if len(nm) < 2 else []), (0, 16, 32))
+        if 'あと' in PLAB: scr.bitmap(PLAB['あと'][0], PLAB['あと'][1], PLAB['あと'][2], 64, 32); pet_num(scr, pet_next(pet_cp(d)), 64 + PLAB['あと'][0], 32)
     elif (tick // 3) % 20 in (16, 17):
-        scr.clear(); pet_big(scr, d, ['あそぶと', 'すがたが', 'かわるぞ'], (4, 22, 40))
+        pet_big(scr, d, ['あそぶと', 'すがたが', 'かわるぞ'], (0, 16, 32))
     elif (tick // 3) % 20 in (18, 19) and d.get('lean') in ('riichi', 'ron', 'tsumo', 'naki', 'mamori', 'study', 'view', 'win', 'lose'):
-        scr.clear(); scr.bitmap(*((lambda f: (f[2], f[3], f[4]))(pet_form(d)) if pet_form(d) else (pet_stage(pet_cp(d))[1], pet_stage(pet_cp(d))[2], pet_stage(pet_cp(d))[3])), 0, 4, 2 if pet_form(d) is None or pet_form(d)[1] == 2 else 1)
-        scr.line_marquee('h:' + d['lean'], 66, 24, 60, tick)
+        f = frm if frm else (0, 2, stg[1], stg[2], stg[3]); pet_place(scr, f[2], f[3], f[4], f[1])
+        scr.line_marquee('h:' + d['lean'], X, 16, 60, tick)
     else:
-        pet_hearts(scr, plays, X, 2)
+        if cos is not None and (tick // 3) % 20 < 12:
+            cw, ch, crows = cos[0]; pet_place(scr, cw, ch, crows, 1, by)   # 衣装は、そのままの大きさ(45x47前後)
+        elif frm is not None: pet_place(scr, frm[2], frm[3], frm[4], frm[1], by)   # 進化した姿
+        else: pet_place(scr, stg[1], stg[2], stg[3], 2, by)
+        pet_hearts(scr, plays, X, 0)
         g = pet_line_key(plays)
         hello = ZST.get('home_t')
         if hello is None: hello = ZST['home_t'] = time.time()
-        if cos is not None and time.time() - hello < 15: scr.line_marquee(cos[1], X, 17, 60, tick)   # 起動して15秒は、着ているものの あいさつ
-        elif g is None: scr.marquee('はじめまして', X, 17, 60, tick)
-        else: scr.line_marquee(g, X, 17, 60, tick)
-        scr.text('PLAY %d' % plays, X, 37); scr.text('WIN %d' % pet_int(d, 'wins'), X, 46); scr.text('BOOT %d' % pet_int(d, 'boots'), X, 55)
+        if cos is not None and time.time() - hello < 15: scr.line_marquee(cos[1], X, 14, 60, tick)   # 起動して15秒は、着ているものの あいさつ
+        elif g is None: scr.marquee('はじめまして', X, 14, 60, tick)
+        else: scr.line_marquee(g, X, 14, 60, tick)
+        scr.text('PLAY %d' % plays, X, 33); scr.text('WIN %d B%d' % (pet_int(d, 'wins'), pet_int(d, 'boots')), X, 41)
     return scr
 
 ROW_Y = 18   # 数字の行の はじまり(上の16ドットは 日本語の見出し)
@@ -589,32 +600,29 @@ def compose(scr, d, age, tick, ever_alive=False):
     elif ever_alive: pose = 'err'
     else: pose = 'sleep'
     a, b = POSE.get(pose, POSE['watch'])
-    scr.sprite(a if (tick % 2 == 0) else b, 0, 8 if PAGES >= 7 else 0)
+    scr.sprite(a if (tick % 2 == 0) else b, 0, 0)
     t, la, mem, sw, psi, gm = sysinfo()
     def rows_at(y0, rows, step=9):
         for i, r in enumerate(rows):
             yy = y0 + i * step
-            if r and yy + 7 <= HEIGHT: scr.text(r[:14], TEXT_X, yy)
+            if r and yy + 7 <= HU: scr.text(r[:14], TEXT_X, yy)
     if booting:
-        scr.text16('麻雀先生', TEXT_X, 0); scr.text16('ゲーム', TEXT_X, 18); scr.text16('起動中' + '.' * (tick % 4), TEXT_X, 34)
-        rows_at(54, ['WAIT %dS' % int(up)])
+        scr.text16('麻雀先生', TEXT_X, 0); scr.text16('ゲーム', TEXT_X, 16); scr.text16('起動中' + '.' * (tick % 4), TEXT_X, 32)
     elif alive and final:
-        if d.get('scene') == 'EXIT': scr.text16('終了', TEXT_X, 0, inv=True); scr.text16('電源を', TEXT_X, 18); scr.text16('抜いてね', TEXT_X, 34)
-        else: scr.text16('保守', TEXT_X, 0, inv=True); rows_at(24, ['CTRL+Q', 'READY'])
-        rows_at(54, [pwr_row(h)])
+        if d.get('scene') == 'EXIT': scr.text16('終了', TEXT_X, 0, inv=True); scr.text16('電源を', TEXT_X, 16); scr.text16('抜いてね', TEXT_X, 32)
+        else: scr.text16('保守', TEXT_X, 0, inv=True); rows_at(20, ['CTRL+Q', 'READY', pwr_row(h)])
     elif alive:
         msg = d.get('msg', '')
         if h['level'] == 1 and tick % 2 == 0: scr.text16('高温' if h['why'] == 'HOT' else '電圧' if h['why'] == 'LOWV' else '注意!', TEXT_X, 0, inv=True)   # 注意: 見出しが ときどき 警告に かわる
         elif msg: scr.text16(msg[:5], TEXT_X, 0, inv=True)
         else: scr.text16(scene[:5], TEXT_X, 0)
-        rows = ['SPD ' + num(d, 'spd', 'FPS'), 'DRAW ' + num(d, 'draw') + ' MAX ' + num(d, 'max'), 'KEY ' + num(d, 'key', 'MS'),
-                pwr_row(h), 'FREE ' + mem + ' SW ' + sw + 'M']
-        if d.get('audio') not in (None, '', 'ok'): rows[2] = 'AUDIO STOP'
-        rows_at(ROW_Y, rows)
+        rows = ['SPD %s D%s' % (num(d, 'spd'), num(d, 'draw')), 'MX%s KY%s' % (num(d, 'max'), num(d, 'key')), pwr_row(h)]
+        if d.get('audio') not in (None, '', 'ok'): rows[1] = 'AUDIO STOP'
+        rows_at(19, rows, 10)
     else:
         if ever_alive: scr.text16('停止!', TEXT_X, 0, inv=True)
         else: scr.text16('待機中', TEXT_X, 0)
-        rows_at(ROW_Y + 4, [pwr_row(h), 'LOAD ' + la, 'FREE ' + mem + ' SW ' + sw + 'M'])
+        rows_at(20, [pwr_row(h), 'LOAD ' + la, 'FREE ' + mem], 10)
     return scr
 
 # ---------- I2C ----------
