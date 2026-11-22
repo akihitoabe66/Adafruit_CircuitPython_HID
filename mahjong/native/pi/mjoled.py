@@ -47,7 +47,8 @@ ADDR = int(os.environ.get('MJOLED_ADDR', '0x3C'), 0)
 HEIGHT = int(os.environ.get('MJOLED_H', '64'))
 DRV = os.environ.get('MJOLED_DRV', 'ssd1306').lower()
 FLIP = os.environ.get('MJOLED_FLIP', '') not in ('', '0')
-FPS = max(1.0, float(os.environ.get('MJOLED_FPS', '3')))
+FPS = max(1.0, float(os.environ.get('MJOLED_FPS', '6')))   # 1秒に 描く回数。 上の帯(背景)の動きに 使う。 ふつうの画面の時間(tick)は 1秒に 3 のまま
+SUB = max(1, int(round(FPS / 3.0)))   # 背景の 何コマで ふつうの画面の 1コマ(tick)にするか
 STATUS = os.environ.get('MJOLED_FILE', '/dev/shm/mj_oled.txt')
 WIDTH = 128
 PAGES = HEIGHT // 8
@@ -106,6 +107,8 @@ class Screen:
                     if (v >> bit) & 1: self._set(x0 + x, y0 + pg * 8 + bit, 1)
     def raw(self, x, y):   # 上の使わない帯(すじが入る所)に 飾りを描くとき: オフセットなしで 1ドット
         if 0 <= x < WIDTH and 0 <= y < HEIGHT: self.buf[y // 8][x] |= 1 << (y % 8)
+    def rawclr(self, x, y):
+        if 0 <= x < WIDTH and 0 <= y < HEIGHT: self.buf[y // 8][x] &= ~(1 << (y % 8))
     def pixel_on(self, x, y):
         return (self.buf[y // 8][x] >> (y % 8)) & 1
     def text(self, s, x, y, inv=False):   # y は どこでもよい(ページをまたぐ)。 inv=True は 白地に黒文字の帯
@@ -585,46 +588,30 @@ def sensei_now(d, age):
     if d is None or age >= 4.0: return False
     sc = d.get('scene', '')
     return sc == '勉強' or (sc in GAME_SCENES and d.get('teacher') == '1')   # 麻雀の勉強の階層は 麻雀先生。 クイズは ずんだもん(正解で喜ぶ)
-# 上の16ドットの飾り: ニューヨークの夜景(ビル・月・星)。 (x, 幅, 高さ)。 高さは 下の線(y=15)から数える。 エンパイア・ステート(階段状+とがった先)や ワン・ワールド・トレードセンター(細い塔)ふう
-CITY = [(0, 8, 7), (8, 6, 10), (14, 8, 6), (22, 5, 12), (27, 9, 8), (36, 10, 9), (46, 8, 10), (54, 9, 11), (63, 6, 13), (69, 9, 8), (78, 7, 11), (85, 8, 7), (93, 9, 10), (102, 6, 12), (108, 7, 8), (115, 6, 11), (121, 7, 9)]
-BAYER4 = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))
-def decor(scr, tick):
-    """上の使わない帯(16ドット)の飾り: ニューヨークの夜景を 白黒反転で。 空は 点の細かさで 上が暗く・下が明るい(ディザ)、ビルは 黒いシルエットで、窓だけ 小さく光る。
-    空に 細かい点を使うので、横線が入っても 空の質感に 見えて 目立たない。 月は白い丸、塔の先の灯りが 1秒ごとに 点滅"""
-    if OY < 16: return
-    ep = tick // 9   # 3秒ごとに 窓の灯りが すこし入れかわる
-    clr = lambda x, y: (0 <= x < WIDTH and 0 <= y < 16) and scr.buf.__getitem__(y // 8).__setitem__(x, scr.buf[y // 8][x] & ~(1 << (y % 8)))
-    for y in range(16):   # 空: 上は まばら、下ほど 明るい
-        dens = 8 + int(y * 0.5)   # 8..15 の しきい値(Bayer): 上は 半分くらい、下ほど ほぼ全部 光る
-        for x in range(WIDTH):
-            if BAYER4[y % 4][x % 4] < dens: scr.raw(x, y)
-    for x, w, h in CITY:   # ビルの シルエット(黒)
-        top = 16 - h
-        for yy in range(top, 16):
-            for xx in range(x, x + w): clr(xx, yy)
-    # エンパイア・ステートふう(40〜42): 階段と とがった先(黒)
-    for yy in range(0, 7):
-        for xx in ((40, 41) if yy >= 3 else (41,)): clr(xx, yy)
-    for xx in range(39, 43): clr(xx, 6)
-    # ワン・ワールド・トレードセンターふう(66): 細い塔(黒)
-    for yy in range(0, 4): clr(66, yy); clr(67, yy) if yy >= 2 else None
-    for x, w, h in CITY:   # 窓(白の 1x2)
-        top = 16 - h
-        for r, wy in enumerate(range(top + 2, 14, 3)):
-            for c, wx in enumerate(range(x + 2, x + w - 2, 2)):
-                if ((x * 7 + r * 13 + c * 29 + ep * 17) % 3) != 0: scr.raw(wx, wy); scr.raw(wx, wy + 1)
-    # 月: 黒いふち + 白い丸
-    for dy in range(-3, 4):
-        for dx in range(-3, 4):
-            d2 = dx * dx + dy * dy
-            if d2 <= 9: clr(100 + dx, 4 + dy)
-    for dy in range(-2, 3):
-        for dx in range(-2, 3):
-            if dx * dx + dy * dy <= 5: scr.raw(100 + dx, 4 + dy)
-    if (tick // 3) % 2 == 0: scr.raw(41, 0); scr.raw(66, 0)   # 塔の先の灯り(1秒ごと)
+try:
+    import oled_bg as BG
+except ImportError:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try: import oled_bg as BG
+    except ImportError: BG = None
+def bg_kind(d, age):
+    """いまの場面に合う 背景(上の16ドット): リーチ中=星空 / 相手のリーチ=雨と稲妻 / 上がり・勝ち・昇段=花火 / クイズ・勉強=宇宙 / 3分放置=灯台と海 / ふだん=夜景(季節で 雪・桜)"""
+    if d is None or age >= 4.0: return 'city'
+    sc = d.get('scene', ''); msg = d.get('msg', ''); pose = d.get('pose', '')
+    if msg in ('リーチ中', 'リーチ!'): return 'stars'
+    if msg == '警戒!': return 'rain'
+    if msg in ('ロン!', 'ツモ!', '勝ち!', '昇段!', '逆転!', '必殺!', '正解!') or sc == '昇段' or (sc in ('結果', '対局終了') and pose in ('win', 'celebrate')): return 'fire'
+    if sc in ('クイズ', '勉強'): return 'space'
+    if pet_int(d, 'idle') >= 180: return 'sea'
+    si = ((max(1, pet_int(d, 'boots')) - 1) // 3 // 2) % 6   # 電源を入れた回数で 季節(お正月・春・夏・ハロウィン・秋・クリスマス)
+    return 'snow' if si in (0, 5) else 'sakura' if si == 1 else 'city'
+def decor(scr, f, kind='city'):
+    """上の使わない帯(16ドット)の背景アニメーション(oled_bg.py)"""
+    if OY < 16 or BG is None: return
+    BG.draw(scr, kind, f)
 def compose(scr, d, age, tick, ever_alive=False):
     scr = compose0(scr, d, age, tick, ever_alive)
-    if '--nodecor' not in sys.argv and os.environ.get('MJOLED_DECOR', '1') != '0': decor(scr, tick)
+    if '--nodecor' not in sys.argv and os.environ.get('MJOLED_DECOR', '1') != '0': decor(scr, tick * SUB, bg_kind(d, age))
     return scr
 def compose0(scr, d, age, tick, ever_alive=False):
     """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
@@ -736,7 +723,7 @@ def main():
     import random
     WHO['v'] = 'zunda'
     was_alive = False; need_repick = False
-    oled = None; tick = 0; demo_i = 0; t_demo = 0; next_try = 0; ever_alive = False
+    oled = None; tick = 0; fr = 0; base = None; demo_i = 0; t_demo = 0; next_try = 0; ever_alive = False
     while True:
         t0 = time.time()
         if not low_prio[0] and uptime() > 60:
@@ -762,7 +749,11 @@ def main():
         if '--zunda' in sys.argv: WHO['v'] = 'zunda'
         was_alive = alive_now
         if alive_now: ever_alive = True
-        scr = compose(Screen(), d, age, tick, ever_alive); tick += 1
+        if base is None or fr % SUB == 0:   # ふつうの画面は 1秒に 3回だけ作る(CPUを つかいすぎない)。 背景は 毎コマ 動かす
+            base = compose0(Screen(), d, age, tick, ever_alive); tick += 1
+        scr = Screen(); scr.buf = [bytearray(b) for b in base.buf]
+        if '--nodecor' not in sys.argv and os.environ.get('MJOLED_DECOR', '1') != '0': decor(scr, fr, bg_kind(d, age))
+        fr += 1
         if oled is not None:
             try: oled.show(scr)
             except OSError as e:

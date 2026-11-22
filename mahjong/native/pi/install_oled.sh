@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")"
 if [ "$1" = "--remove" ]; then
   systemctl disable --now mjoled.service 2>/dev/null || true
-  rm -f /etc/systemd/system/mjoled.service /usr/local/bin/mjoled.py /usr/local/bin/oled_sprites.py /usr/local/bin/oled_jp.py /usr/local/bin/oled_zunda.py /usr/local/bin/oled_pet.py
+  rm -f /etc/systemd/system/mjoled.service /usr/local/bin/mjoled.py /usr/local/bin/oled_sprites.py /usr/local/bin/oled_jp.py /usr/local/bin/oled_zunda.py /usr/local/bin/oled_pet.py /usr/local/bin/oled_bg.py
   systemctl daemon-reload; echo "取り除きました"; exit 0
 fi
 install -m 755 mjoled.py /usr/local/bin/mjoled.py
@@ -14,7 +14,8 @@ install -m 644 oled_sprites.py /usr/local/bin/oled_sprites.py
 install -m 644 oled_jp.py /usr/local/bin/oled_jp.py
 install -m 644 oled_zunda.py /usr/local/bin/oled_zunda.py
 install -m 644 oled_pet.py /usr/local/bin/oled_pet.py
-for f in mjoled oled_sprites oled_jp oled_zunda oled_pet; do python3 -m py_compile /usr/local/bin/$f.py; done   # 先に コンパイルしておく(起動のたびに 読みこみが 遅くならないように)
+install -m 644 oled_bg.py /usr/local/bin/oled_bg.py
+for f in mjoled oled_sprites oled_jp oled_zunda oled_pet oled_bg; do python3 -m py_compile /usr/local/bin/$f.py; done   # 先に コンパイルしておく(起動のたびに 読みこみが 遅くならないように)
 [ -f /etc/default/mjoled ] || printf '# OLEDの設定(必要なものだけ、行頭の # を外す)\n#MJOLED_BUS=3\n#MJOLED_ADDR=0x3C\n#MJOLED_H=64\n#MJOLED_DRV=ssd1306\n#MJOLED_FLIP=1\n#MJOLED_FPS=3\n' > /etc/default/mjoled
 cat > /etc/systemd/system/mjoled.service <<'UNIT'
 [Unit]
