@@ -17,6 +17,37 @@
   const acc = (h, n) => { const a = h.slice(-(n || 10)); return a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; };
   const pct = (x) => Math.round(x * 100) + '%';
 
+  const DORA = ['ドラ', '赤ドラ', '裏ドラ', '花牌(季節牌)'], num = (v) => v || 0;
+  const hanOf = (w) => (w && w.res && w.res.han) || 0;
+  // 鳴いた手に「役の見こみ」があるか(ざっくり): 役牌・風牌のポン / 全部が2〜8(タンヤオ) / 1色+字牌(混一色) / ポンが2つ以上(対々和)
+  const callHasYaku = (g, me) => {
+    const open = me.melds.filter((m) => m.kind !== 'ankan'); if (!open.length) return true;
+    const tiles = me.hand.map((h) => h.t); me.melds.forEach((m) => (m.tiles || []).forEach((q) => tiles.push(q.t)));
+    if (open.some((m) => m.kind !== 'chi' && (m.t >= 31 || m.t === 27 + g.seatWindOf(me) || m.t === 27 + g.roundWind))) return true;
+    if (tiles.every((t) => !MJ.isYaochu(t))) return true;
+    const suits = new Set(tiles.filter((t) => t < 27).map((t) => MJ.suitOf(t)));
+    if (suits.size <= 1) return true;
+    if (open.filter((m) => m.kind !== 'chi').length >= 2) return true;
+    return false;
+  };
+  const detail = (g, r, me, P) => { // 1局ぶんの 詳しい記録(上がった役・点・鳴き・振り込みの中身)を、合計の数字に足していく
+    const open = me.melds.some((m) => m.kind !== 'ankan'), won = r.type === 'win' ? r.wins.find((w) => w.winner.isHuman) : null, dealt = r.type === 'win' ? r.wins.find((w) => w.loser === me && !w.tsumo) : null;
+    if (open) { P.callHands = num(P.callHands) + 1; if (!won && !callHasYaku(g, me)) P.callNoYaku = num(P.callNoYaku) + 1; }
+    if (won) {
+      const ys = won.res.yaku.map((y) => y.n).filter((n) => DORA.indexOf(n) < 0), han = hanOf(won), pts = Math.max(0, r.delta[me.seat] || 0);
+      P.winHan = num(P.winHan) + han;
+      if (ys.length && ys.every((n) => n === 'リーチ')) P.winRo = num(P.winRo) + 1;
+      if (!me.riichi && !open) P.winDama = num(P.winDama) + 1;
+      if (han >= 5) P.winBig = num(P.winBig) + 1;
+      if (open) { P.winCall = num(P.winCall) + 1; P.winCallPts = num(P.winCallPts) + pts; } else { P.winMen = num(P.winMen) + 1; P.winMenPts = num(P.winMenPts) + pts; }
+      P.yk = P.yk || {}; ys.forEach((n) => { const k = n.replace(/ $/, ''); P.yk[k] = num(P.yk[k]) + 1; });
+    }
+    if (dealt) {
+      const w = dealt, t = w.winTile && w.winTile.t; P.dealBig = num(P.dealBig) + (hanOf(w) >= 5 ? 1 : 0); if (w.winner.riichi) P.dealRi = num(P.dealRi) + 1; if (open) P.dealCall = num(P.dealCall) + 1;
+      if (t != null) { const k = t >= 27 ? 'dealHon' : (t % 9 === 0 || t % 9 === 8) ? 'dealTer' : 'dealMid'; P[k] = num(P[k]) + 1; }
+    }
+  };
+
   const S = (MJ.Stats = {
     CATN, load, save, reset() { D = null; }, // 記録を消したあと、メモリの中も はじめにもどす
     tag(p) { if (p.tag) return p.tag; if (p.cat === 'score') return p.title === '何飜?' ? 'han' : p.title === '何符?' ? 'fu' : 'pts'; return p.cat || 'other'; },
@@ -36,6 +67,7 @@
         if (won) { P.win++; P.winPts = (P.winPts || 0) + Math.max(0, (r.delta && r.delta[0]) || 0); if (r.tsumo) P.tsumo++; else P.ron++; if (me.riichi) P.riichiWin++; }
         else if (r.delta && r.delta[0] < 0) { if (r.tsumo) P.tsumoed++; else P.deal++; }
       } else P.draw++;
+      try { detail(g, r, me, P); } catch (e) { /* ignore */ }
       save();
     },
     discard(effOk, safe) { // 打牌1回ぶん: effOk=true/false/null(数えない)、safe=[true(当たり牌を守った)/false(捨てて振り込む形)...]
@@ -67,6 +99,41 @@
     },
     weakest(n, minN) { // 正解率の低い種類(正解率が8割を超えるものは入れない)
       const d = load(); return Object.keys(d.quiz).filter((t) => d.quiz[t].n >= (minN || 3) && acc(d.quiz[t].h, 10) < 0.8).sort((a, b) => acc(d.quiz[a].h, 10) - acc(d.quiz[b].h, 10)).slice(0, n || 2);
+    },
+    detailDiag() { // 「くわしく見る」: 役と点数 / 鳴き / 振り込み の、具体的な指摘
+      const d = load(), P = d.play, H = P.hands || 0, W = P.win || 0, N = P.deal || 0, CH = P.callHands || 0, yk = P.yk || {};
+      const cats = [{ name: '役と点数', items: [] }, { name: '鳴き', items: [] }, { name: '振り込み', items: [] }];
+      const add = (c, lv, title, l1, l2) => cats[c].items.push({ lv, title, l1, l2: l2 || '' });
+      const avg = (a, n) => (n ? Math.round(a / n / 100) * 100 : 0), yen = (v) => v.toLocaleString ? v.toLocaleString() : String(v);
+      if (H >= 10) {
+        // 役と点数
+        if (W >= 4) {
+          const ro = num(P.winRo), ap = avg(P.winPts || 0, W);
+          if (ro / W >= 0.4) add(0, '!', '上がりの ' + Math.round(ro / W * 10) + '割が「リーチのみ」', '上がった ' + W + '回のうち ' + ro + '回が リーチのみです(平均 ' + yen(ap) + '点)。', '役を増やしましょう。タンヤオ・ピンフ・三色を 狙うと 点が 倍に なります。');
+          if (ap < 3000) add(0, '!', '1回の上がりが 安めです', '上がった ' + W + '回の 平均は ' + yen(ap) + '点です。', 'ドラを 使う・役牌を 鳴く・ツモも 足すと 高くなります。');
+          if (!P.winBig) add(0, '!', '満貫以上の手が まだ 0回', '高い手を 狙う場面が 少なめです。', 'リーチ+ツモ+ドラ や、役牌+ドラ を ねらってみましょう。');
+          else add(0, '○', '満貫以上を ' + P.winBig + '回', '大きな手を 上がれています。', null);
+          const miss = ['タンヤオ', '平和', '三色同順', '一気通貫', '七対子', '対々和', '混一色', '役牌'].filter((n) => !yk[n]);
+          if (miss.length >= 2 && W >= 5) add(0, 'i', 'まだ 上がったことのない役', miss.slice(0, 4).join('・'), '勉強の「ステップ3」で 形を おぼえると 手が 伸びます。');
+          const ts = P.tsumo || 0; if (ts / W >= 0.4) add(0, '○', 'ツモ上がりが 多いです', '上がりの ' + Math.round(ts / W * 10) + '割が ツモです。', null);
+        } else if (H >= 10) add(0, 'i', 'まだ 上がりが すくないです', '上がりが ' + W + '回です。あと ' + (4 - W) + '回ほどで 詳しく 見られます。', null);
+        // 鳴き
+        if (CH >= 4) {
+          const nb = num(P.callNoYaku); if (nb / CH >= 0.3) add(1, '!', '役のつかない 鳴きが ' + nb + '回', 'ポン・チーをした ' + CH + '局のうち ' + nb + '局は、役が 見こめない形でした。', '役牌(白發中・風牌)か タンヤオの 見こみが あるときだけ 鳴きましょう。');
+          else if (nb === 0) add(1, '○', '役のある 鳴きが できています', 'ポン・チーをした ' + CH + '局に 役のない 鳴きは ありませんでした。', null);
+          if (num(P.winCall) >= 2 && num(P.winMen) >= 2) { const a1 = avg(P.winCallPts, P.winCall), a2 = avg(P.winMenPts, P.winMen); if (a1 < a2 * 0.6) add(1, '!', '鳴くと 点が 安くなっています', '鳴いた上がり 平均 ' + yen(a1) + '点 / 鳴かない上がり 平均 ' + yen(a2) + '点。', '手が 良いときは 鳴かずに リーチも 考えましょう。'); }
+          if (num(P.winCall) / CH < 0.15) add(1, '!', '鳴いても あまり 上がれていません', CH + '局 鳴いて、上がれたのは ' + num(P.winCall) + '局です。', '鳴くなら 早い巡目で 役が はっきり している手だけに。');
+        } else if (H >= 12) add(1, 'i', '鳴きの記録が まだ すくないです', 'ポン・チーをした局が ' + CH + '局です(4局ほどで 見られます)。', null);
+        // 振り込み
+        if (N >= 3) {
+          if (num(P.dealRi) / N >= 0.5) add(2, '!', 'リーチに 振り込みが 多いです', '振り込み ' + N + '回のうち ' + P.dealRi + '回が リーチをかけた人でした。', 'リーチが かかったら、現物(その人が 捨てた牌)を 先に 切りましょう。');
+          if (num(P.dealBig) / N >= 0.3) add(2, '!', '大きな手に 振り込んでいます', '振り込み ' + N + '回のうち ' + P.dealBig + '回が 満貫以上でした。', 'ドラが 見えている人や 染め手の人には 特に 慎重に。');
+          if (num(P.dealCall) / N >= 0.5) add(2, '!', '鳴いた手で 振り込みが 多いです', '振り込み ' + N + '回のうち ' + P.dealCall + '回は 自分が 鳴いている局でした。', '鳴いたあとは 手牌が 少なく 守りにくいので 注意を。');
+          if (num(P.dealMid) / N >= 0.7 && N >= 4) add(2, 'i', '真ん中の牌(2〜8)での 振り込み', N + '回のうち ' + P.dealMid + '回が 真ん中の牌でした。', '相手の 捨て牌から スジや 現物を 確かめる 習慣を。');
+        } else if (H >= 12 && N < 3) add(2, '○', '振り込みが すくないです', H + '局で 振り込みは ' + N + '回です。守りが 堅いです。', null);
+      }
+      cats.forEach((c) => { c.warn = c.items.filter((i) => i.lv === '!').length; c.items.sort((a, b) => ('!i○'.indexOf(a.lv)) - ('!i○'.indexOf(b.lv))); c.items = c.items.slice(0, 3); });
+      return { cats, hands: H };
     },
     diag() { // 診断: いいところ・のばせるところ・記録
       const d = load(), P = d.play, H = P.hands, good = [], weak = [], notes = [];
