@@ -3093,7 +3093,7 @@
     let audio = 'ok'; try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi && mi[0] === 0) audio = 'BGM STOP'; } catch (e) { /* ignore */ }
     let mm = ['', '', '', '']; try { if (typeof gfx.mem === 'function') mm = gfx.mem().map((v) => Math.round(v)); } catch (e) { /* ignore */ }
     let petStr = ''; try { petStr = petStep(); } catch (e) { petStr = ''; }
-    let pet = ''; try { const rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0]; pet = 'plays=' + (rs.games || 0) + '\nwins=' + (rk[0] || 0) + '\nboots=' + bootN + '\nqc=' + (rs.qc || 0) + '\npt=' + (rs.pt || 0) + '\ndan=' + (rs.dan || 0) + '\nteacher=' + (teacherOn() ? 1 : 0) + '\nbuzz=' + buzzLv() + '\ncos=' + oledCos() + '\n' + petStr + 'idle=' + Math.floor((__now() - (S.lastKeyT || 0)) / 1000) + '\n'; } catch (e) { /* ignore */ } // ペット用: 遊んだ回数・1位の数・電源を入れた回数・クイズの数・経験値・段位
+    let pet = ''; try { const rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0]; pet = 'plays=' + (rs.games || 0) + '\nwins=' + (rk[0] || 0) + '\nboots=' + bootN + '\nqc=' + (rs.qc || 0) + '\npt=' + (rs.pt || 0) + '\ndan=' + (rs.dan || 0) + '\nteacher=' + (teacherOn() ? 1 : 0) + '\nbuzz=' + buzzLv() + '\ncos=' + oledCos() + '\n' + petStr + 'idle=' + Math.floor((__now() - Math.max(S.lastKeyT || 0, S.readyT || 0)) / 1000) + '\n'; } catch (e) { /* ignore */ } // ペット用: 遊んだ回数・1位の数・電源を入れた回数・クイズの数・経験値・段位
     const o = perf.o || {}, jp = (k) => (k ? (OLED_JP[k] || k) : '');
     return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\n' + pet;
   }
@@ -3212,7 +3212,7 @@
     const run = () => {
       const t1 = __now(); while (jobs.length && __now() - t1 < 80) { jobs.shift()(); done++; }
       S.bootP = done / total; dirty();
-      if (jobs.length) setTimeout(run, 0); else { S.mode = 'title'; NSND.home(); tl('boot-done ' + Math.round(__now() - t0) + 'ms'); print('boot-js ' + total + ' jobs ' + Math.round(__now() - t0) + 'ms'); dirty(); }
+      if (jobs.length) setTimeout(run, 0); else { S.mode = 'title'; S.readyT = __now(); NSND.home(); tl('boot-done ' + Math.round(__now() - t0) + 'ms'); print('boot-js ' + total + ' jobs ' + Math.round(__now() - t0) + 'ms'); dirty(); }
     };
     setTimeout(run, 30);
   }
