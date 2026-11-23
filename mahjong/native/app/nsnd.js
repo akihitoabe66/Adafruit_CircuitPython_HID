@@ -50,7 +50,7 @@
       const fam = rank <= 2 ? 'win' : rank === 3 ? 'draw' : 'lose', m = /result_(win|draw|lose)/.exec(cur || ''); if (m && m[1] === fam) return;
       A.holding = false; A.scale = 0.65; cur = ''; A.music('audio/result_' + fam + '.mp3');
     },
-    certOn() { A.scale = 0.65; const p = 'audio/result_win2.mp3'; if (cur !== p) { cur = ''; A.music(p); } }, // 認定証(昇段): おめでたい曲
+    certOn() { A.scale = 0.65; const p = 'audio/the_balcony_at_first_light.mp3'; if (cur !== p) { cur = ''; A.music(p); } }, // 認定証(昇段): ハンコを押すページの曲
     toggle() { A.on = !A.on; if (!A.on) { snd.music(''); cur = ''; } return A.on; },
     sfx(name, v) { if (SFX.indexOf(name) >= 0) snd.play('audio/sfx/' + name + '.wav', (v == null ? V.sfx : v)); },
     call(p, text) {

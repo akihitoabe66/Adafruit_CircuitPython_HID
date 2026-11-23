@@ -734,7 +734,8 @@
     { k: 'rules', label: '麻雀のルール設定' }, { k: 'teacher', label: '麻雀先生' }, { k: 'help', label: '遊び方' },
     { k: 'speed', label: '対戦相手の速さ', gap: true }, { k: 'cpulv', label: '対戦相手の強さ' },
     { k: 'vol', label: '音量ボリューム', gap: true }, { k: 'buzz', label: '本体ブザーの音量' }, { k: 'swap', label: '決定ボタンの入れ替え' },
-    { k: 'credits', label: '開発者', gap: true }, { k: 'reset', label: 'リセット(はじめから)' },
+    { k: 'credits', label: '開発者', gap: true }, { k: 'reset', label: 'リセット(はじめから)' }, { k: 'dbg', label: 'デバッグ(あとで消す)' }, // ← 一時的に復活(昇段の1点前・4局から などの確認用)。 確認がおわったら この項目を消す
+   
     { k: 'back', label: 'もどる', gap: true, back: true },
   ];
   /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
@@ -774,6 +775,7 @@
       } else if (i === RULE_ROWS.length) text('おすすめの設定に もどす', SW / 2, y + 6, 20, BLACK, 1);
       else { rrect(300, y + 6, 24, 24, 12, [255, 255, 255]); rrect(302, y + 8, 20, 20, 10, [230, 184, 48]); text('A', 312, y + 10, -13, [42, 26, 0], 1); text('決定する', SW / 2 + 12, y + 6, -21, [42, 26, 0], 1); }
     }
+    if (!dlg && top + VIS < n) { fill(70, 44 + (VIS - 2) * 38, 692, 36, [0, 0, 0], 85); fill(70, 44 + (VIS - 1) * 38, 692, 36, [0, 0, 0], 150); } // まだ下に つづきがあるとき: 下の2行を 少し暗くして、「下にもある」と 分かるように
     const note = i0 < RULE_ROWS.length ? RULE_ROWS[i0].note : (i0 === RULE_ROWS.length ? 'すべてのルールを、おすすめ(全国的な設定・赤ドラなし)にもどします。' : (any ? '変えた値は、「決定する」(または A)で決めるまで 使われません。' : '変えた所は ありません。 Aで もどります'));
     panel(70, 392, 692, 40, 8, [6, 44, 26], [90, 140, 110], 2, 235); text(note, SW / 2, 402, fitSz(note, 18, 670, 13), WHITE, 1);
     { const ft = any ? '◀ ▶ で変える　A: この設定に決める　B: 変更をやめて もどる' : '変えたルールは、次の対局から使われます'; text(ft, SW / 2, 438, 19, any ? YEL : [205, 224, 212], 1); }
@@ -789,7 +791,7 @@
   function drawSettings() {
     gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
     text('設定', SW / 2, 6, 28, YEL, 1);
-    const X0 = 206, X1 = 626, PT = 31, GAP = 11; let y = 38;
+    const X0 = 206, X1 = 626, PT = SETS.length > 11 ? 28 : 31, GAP = 11; let y = 38;
     SETS.forEach((s, i) => {
       if (s.gap) y += GAP - (i ? 0 : GAP);
       const sel = S.setIdx === i && !S.volP;
@@ -2277,24 +2279,28 @@
   }
   function diagKey(k) {
     const D = S.diag;
+    if (S.bbf) { if (k === 'down') S.bbf = false; else if (k === 'ok' || k === 'back') { S.bbf = false; S.mode = 'menu'; S.diag = null; } dirty(); return; } // 左上の「もどる」に合わせているとき
+    if (D.sub) { // アドバイスの中の「くわしく見る」: ▲▼ で 項目(役と点数・鳴き・振り込み)、戻るで アドバイスへ
+      if (k === 'back' || k === 'ok') D.sub = false; else if (k === 'up' || k === 'down') D.dc = Math.max(0, Math.min(2, (D.dc || 0) + (k === 'up' ? -1 : 1))); dirty(); return; }
     if (k === 'back') { S.mode = 'menu'; S.diag = null; }
-    else if (D.pg === 4 && (k === 'up' || k === 'down')) D.dc = Math.max(0, Math.min(2, (D.dc || 0) + (k === 'up' ? -1 : 1))); // 「くわしく」: ▲▼ で 項目(役と点数・鳴き・振り込み)
+    else if (D.pg === 2 && k === 'down') D.ab = 1 - (D.ab || 0); // アドバイスの ボタン(くわしく見る / 苦手を練習)を 切りかえる
     else if (D.pg === 0 && (k === 'up' || k === 'down') && !(k === 'up' && D.fi === 0)) { // 「強さ」の画面: ▲ で、左の項目(総合・攻撃力…)へ。そこに合わせると、右に説明が出る / ▼ で、下の札へもどる
       const fi = D.fi == null ? -1 : D.fi; D.fi = k === 'up' ? (fi < 0 ? 6 : fi - 1) : (fi >= 6 ? -1 : fi < 0 ? -1 : fi + 1); }
-    else if (k === 'up') { if (D.pg !== 0) D.fi = -1; S.bbf = true; } else if (k === 'left') { D.pg = Math.max(0, D.pg - 1); D.fi = -1; } else if (k === 'right') { D.pg = Math.min(4, D.pg + 1); D.fi = -1; } // 一番上の項目から ▲ で「もどる」へ: どの項目だったかは、おぼえておく(▼ で、そこへ もどる)
+    else if (k === 'up') { if (D.pg !== 0) D.fi = -1; S.bbf = true; } else if (k === 'left') { D.pg = Math.max(0, D.pg - 1); D.fi = -1; } else if (k === 'right') { D.pg = Math.min(3, D.pg + 1); D.fi = -1; } // 一番上の項目から ▲ で「もどる」へ: どの項目だったかは、おぼえておく(▼ で、そこへ もどる)
+    else if (k === 'ok' && D.pg === 2 && !(D.ab || 0)) { D.sub = true; D.dc = 0; } // 「くわしく見る」
     else if (k === 'ok' && D.pg >= 2) { S.diag = null; startPractice(); }
     dirty();
   }
   function diagTabs(pg, hint) { // 下の、ページの札
     const foc = !S.bbf && S.diag && diagFi(S.diag) < 0; // 下の札に カーソルがあるとき(上の項目や「もどる」に あるときは、いまのページを 目立たせない)
-    ['強さ', 'ポイント', 'アドバイス', '学習の記録', 'くわしく'].forEach((t, i) => { const x = 14 + i * 104, on = i === pg; panel(x, 428, 98, 32, 9, on ? (foc ? [60, 130, 60] : [40, 84, 54]) : [50, 70, 60], on ? (foc ? [255, 222, 96] : [112, 150, 112]) : [74, 97, 84], on && foc ? 4 : 2, 255); text(t, x + 49, 428 + Math.round((32 - 18) / 2) - 1, t.length >= 5 ? 16 : 18, on ? WHITE : [185, 201, 189], 1); });
+    ['強さ', 'ポイント', 'アドバイス', '学習の記録'].forEach((t, i) => { const x = 14 + i * 130, on = i === pg; panel(x, 428, 122, 32, 9, on ? (foc ? [60, 130, 60] : [40, 84, 54]) : [50, 70, 60], on ? (foc ? [255, 222, 96] : [112, 150, 112]) : [74, 97, 84], on && foc ? 4 : 2, 255); text(t, x + 61, 428 + Math.round((32 - 18) / 2) - 1, 18, on ? WHITE : [185, 201, 189], 1); });
     text(hint, 806, 428 + 8, 16, [210, 225, 205], 2);
   }
   const diagFi = (D) => (S.bbf ? -1 : D.fi == null ? -1 : D.fi); // 「もどる」に合わせているときは、項目の枠を出さない
-  const diagSlot = (D, f) => 10 + (D.pg === 0 ? (f == null ? diagFi(D) : f) + 1 : 7 + D.pg); // 診断は、ページ(と、強さの画面では 選んだ項目)ごとに、絵を使い回す: 強さ 8通り + 3ページ
+  const diagSlot = (D, f) => D.sub ? 21 : 10 + (D.pg === 0 ? (f == null ? diagFi(D) : f) + 1 : 7 + D.pg); // 診断は、ページ(と、強さの画面では 選んだ項目)ごとに、絵を使い回す: 強さ 8通り + 3ページ
   function drawDiag() {
     const D = S.diag; if (typeof gfx.layerBegin !== 'function') { drawDiagBody(); return; }
-    cached(diagSlot(D), 'dg' + D.pg + ':' + (D.pg === 0 ? diagFi(D) : D.pg === 4 ? D.dc || 0 : 0) + (S.bbf ? 'b' : ''), drawDiagBody);
+    cached(diagSlot(D), 'dg' + D.pg + ':' + (D.pg === 0 ? diagFi(D) : D.pg === 2 ? (D.sub ? 's' + (D.dc || 0) : 'a' + (D.ab || 0)) : 0) + (S.bbf ? 'b' : ''), drawDiagBody);
   }
   function drawDiagBody() {
     const D = S.diag, d = D.d, pg = D.pg, sg = D.sg;
@@ -2342,15 +2348,7 @@
       blocks.forEach((b, i) => { const y = 186 + i * 80; text(b[0], 614, y, 15, [200, 220, 205]); text(b[1], 614, y + 20, 30, WHITE); text(b[2], 614, y + 58, 14, [150, 240, 190]); });
       diagTabs(1, '◀ ▶ ページ  戻る: ホーム'); return;
     }
-    if (pg === 2) { // アドバイス
-      const tot = sg.total; tFace(tot != null && tot >= 60 ? 'ok' : 'advice', 'dg2', 22, 56, 76);
-      panel(112, 58, 706, 46, 12, CREAM, GREEN, 3, 255); text('あなたの 麻雀を 見ました。いいところと、のばせるところを お知らせします。', 128, 58 + Math.round((46 - 19) / 2) - 1, fitSz('あなたの 麻雀を 見ました。いいところと、のばせるところを お知らせします。', 19, 676, 14), INK);
-      const sec = (y, ttl, col, items, empty, avail) => { const f = fitRich(items.length ? items.slice(0, 3).map((t) => '・' + t).join('\n') : empty, [20, 19, 18, 17, 16], 668, avail - 62), h = f.h + 62; panel(112, y, 706, h, 12, CREAM, col, 3, 255); text(ttl, 130, y + 10, 21, col); richDraw(f.lines, 130, y + 42, f.sz, INK, 0); return h; };
-      const h1 = sec(112, '★ いいところ', [44, 90, 26], d.good, d.hands < 6 && d.quizN < 6 ? 'まだ、記録が すくないです。遊んだり、クイズを解くと、お知らせします。' : 'いまは、まだ 見つかっていません。', 150);
-      sec(112 + h1 + 10, '▲ のばせるところ', [160, 82, 26], d.weak, 'いまのところ、大きな 苦手は 見つかっていません。すばらしい!', 416 - (112 + h1 + 10));
-      diagTabs(2, '決定: 苦手を練習 戻る: ホーム'); return;
-    }
-    if (pg === 4) { // くわしく見る: 左で 項目(役と点数・鳴き・振り込み)、右に 具体的な指摘
+    if (pg === 2 && D.sub) { // アドバイスの中の「くわしく見る」: 左で 項目(役と点数・鳴き・振り込み)、右に 具体的な指摘
       const dd = D.dd, dc = D.dc || 0;
       dd.cats.forEach((c, i) => { const y = 60 + i * 86, sel = dc === i; panel(16, y, 210, 74, 12, sel ? YEL : CREAM, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255); text(c.name, 32, y + 10, 26, INK); text(c.warn ? '気になる ' + c.warn : c.items.length ? '問題なし' : dd.hands >= 10 ? '特になし' : 'まだ記録中', 32, y + 44, 18, c.warn ? [170, 60, 0] : [60, 110, 60]); });
       text('集めた局: ' + dd.hands + '局', 18, 330, 16, [205, 225, 210]);
@@ -2363,7 +2361,16 @@
         text(it.title, 290, y, 21, it.lv === '○' ? [150, 235, 170] : YEL);
         const f = fitRich(it.l1 + (it.l2 ? '\n' + it.l2 : ''), [20, 19, 18, 17, 16, 15], 512, pitch - 40); richDraw(f.lines, 290, y + 30, f.sz, [225, 238, 225], 0);
       });
-      diagTabs(4, '◀ ▶ ページ ▲▼ 項目'); return;
+      diagTabs(2, '▲▼ 項目  戻る: アドバイスへ'); return;
+    }
+    if (pg === 2) { // アドバイス
+      const tot = sg.total; tFace(tot != null && tot >= 60 ? 'ok' : 'advice', 'dg2', 22, 56, 76);
+      panel(112, 58, 398, 46, 12, CREAM, GREEN, 3, 255); text('いいところと のばせるところ', 128, 58 + Math.round((46 - 21) / 2) - 1, 21, INK); // 左は 見出し、右は ボタン
+      [['くわしく見る ▶', 524, 160], ['苦手を練習', 692, 126]].forEach((b, bi) => { const on = (D.ab || 0) === bi && !S.bbf; panel(b[1], 58, b[2], 46, 12, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 4 : 2, 255); text(b[0], b[1] + b[2] / 2, 58 + 11, 20, INK, 1); });
+      const sec = (y, ttl, col, items, empty, avail) => { const f = fitRich(items.length ? items.slice(0, 3).map((t) => '・' + t).join('\n') : empty, [20, 19, 18, 17, 16], 668, avail - 62), h = f.h + 62; panel(112, y, 706, h, 12, CREAM, col, 3, 255); text(ttl, 130, y + 10, 21, col); richDraw(f.lines, 130, y + 42, f.sz, INK, 0); return h; };
+      const h1 = sec(112, '★ いいところ', [44, 90, 26], d.good, d.hands < 6 && d.quizN < 6 ? 'まだ、記録が すくないです。遊んだり、クイズを解くと、お知らせします。' : 'いまは、まだ 見つかっていません。', 150);
+      sec(112 + h1 + 10, '▲ のばせるところ', [160, 82, 26], d.weak, 'いまのところ、大きな 苦手は 見つかっていません。すばらしい!', 416 - (112 + h1 + 10));
+      diagTabs(2, '▼ ボタン切替  決定'); return;
     }
     // 学習の記録
     {
