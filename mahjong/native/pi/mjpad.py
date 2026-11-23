@@ -360,7 +360,7 @@ def main():
         pad.close(); return
     try: os.nice(-5)   # ゲームより 少し 優先(ゲームが CPU を使っていても、読む間隔が くずれないように)
     except OSError: pass
-    bus = None; bad = 0; ok_once = False; was_down = False; pad_seq = 0; deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ
+    bus = None; bad = 0; bad_t0 = 0.0; ok_once = False; was_down = False; pad_seq = 0; deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ
     while True:
         try:
             if bus is None:
@@ -374,10 +374,13 @@ def main():
                     try: open('/dev/shm/mj_pad.txt', 'w').write('seq=%d\nid=%s\n' % (pad_seq, bus.ident.hex()))
                     except OSError: pass
                 was_down = False
-            w = bus.read(); b = decode(w) if w is not None else None
+            try: w = bus.read()
+            except OSError: w = None   # 1回の読みそこないでは つなぎなおさない(受信機は ときどき 返事を 落とす。 つなぎなおすと 約1秒 止まる)
+            b = decode(w) if w is not None else None
             if b is None:
+                if bad == 0: bad_t0 = time.time()
                 bad += 1
-                if bad >= 20: raise OSError('読みまちがいが つづいた')
+                if time.time() - bad_t0 > 0.6: raise OSError('読みまちがいが 0.6秒つづいた')   # 回数でなく 時間で 決める(読む回数が ちがっても 同じ)
             else:
                 bad = 0; b = hold.apply(b, time.time()); dg = b['left'] != b['right'] and b['up'] != b['down']   # 斜め
                 diag_n = diag_n + 1 if dg else 0
@@ -393,7 +396,7 @@ def main():
                 except OSError: pass
                 bus = None
             pad.send((0, 0, [0] * 8))   # つながっていない間は、ボタンを すべて はなした ことにする
-            time.sleep(1.0); continue
+            time.sleep(0.3); continue
         t_loop += 1.0 / hz; dt = t_loop - time.time()   # 読むのに かかった時間を ひいて、周期を そろえる
         if dt > 0: time.sleep(dt)
         else: t_loop = time.time()
