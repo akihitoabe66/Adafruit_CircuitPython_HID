@@ -1617,11 +1617,11 @@
     return out.length ? out : weightedGens(tags, boost);
   }
   function startPractice() { // 苦手な種類を、多めに出すクイズ
-    const weak = MJ.Stats.weakest(2, 3), tags = RCATS.concat(weak.filter((t) => !RCATS.includes(t)));
-    startQuiz({ title: weak.length ? '苦手をねらい撃ち' : '麻雀クイズ', gens: () => qlGens(tags, weak), n: 5, rank: true });
+    const weak = MJ.Stats.weakest(2, 3).filter((x) => { try { return !!catGen(x); } catch (e) { return false; } }), tags = weak.length ? weak : RCATS; // 苦手が見つかっていれば その種類だけ。 まだ なければ ふつうの問題
+    startQuiz({ title: weak.length ? '苦手をねらい撃ち' : '麻雀クイズ', gens: () => qlGens(tags, weak), n: 5, rank: true, direct: true });
   }
   function startQuiz(opts) { // opts: { title, gens, n, onEnd(ok, n) }
-    S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd, rank: !!opts.rank }); if (opts.rank) { S.quiz.phase = 'intro'; dirty(); return; } quizNext(); dirty();
+    S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd, rank: !!opts.rank }); if (opts.rank && !opts.direct) { S.quiz.phase = 'intro'; dirty(); return; } quizNext(); dirty();
   }
   const qEndVoice = () => { try { if (NSND.has('v:otsukare')) NSND.speak(['v:otsukare']); } catch (e) { /* ignore */ } }; // クイズが終わって「おつかれさまでした」の画面になるとき、その声
   const byeQuit = () => { try { if (NSND.has('v:shutdown')) { NSND.speak(['v:shutdown']); S.locked = true; setTimeout(() => __quit(), 2300); return; } } catch (e) { /* ignore */ } __quit(); }; // 終了を選んだら「ゲームを終了します」と言ってから終わる
@@ -2272,7 +2272,7 @@
     try { const mine = new Set(p.hand.map((x) => x.t)); g.players.forEach((q) => { if (q === p || q.hand.length % 3 !== 1) return; const c = MJ.toCounts(q.hand); if (MJ.shanten(c, q.melds.length) !== 0) return; const ws = MJ.waits(c.slice(), q.melds.length); if (ws.length && ws.some((w) => mine.has(w))) safe.push(!ws.includes(h.t)); }); } catch (e) { /* ignore */ }
     MJ.Stats.discard(effOk, safe);
   }
-  function startDiag() { try { petBump('st'); } catch (e) { /* ignore */ } S.mode = 'diag'; for (let i = 10; i <= 20; i++) S.lay[i] = null; /* 前に開いたときの絵(古い数字)を、使い回さない */ let rk = { hist: [] }, info = null; try { rk = MJ.Rank.get(); info = MJ.Rank.info(); } catch (e) { /* ignore */ } S.diag = { pg: 0, d: MJ.Stats.diag(), sg: MJ.Stats.strength(), dd: MJ.Stats.detailDiag(), dc: 0, rk, info }; dirty(); }
+  function startDiag() { try { petBump('st'); } catch (e) { /* ignore */ } S.mode = 'diag'; for (let i = 10; i <= 19; i++) S.lay[i] = null; /* 前に開いたときの絵(古い数字)を、使い回さない */ let rk = { hist: [] }, info = null; try { rk = MJ.Rank.get(); info = MJ.Rank.info(); } catch (e) { /* ignore */ } S.diag = { pg: 0, d: MJ.Stats.diag(), sg: MJ.Stats.strength(), dd: MJ.Stats.detailDiag(), dc: 0, rk, info }; dirty(); }
   function diagWarm() { // 入ったあと、「強さ」の各項目を選んだときの画面を、画面に出さずに 先に描いておく
     if (typeof gfx.layerBegin !== 'function' || memLow()) return; // メモリが少ないときは、先に描いておかない
     [0, 1, 2, 3, 4, 5, 6, -1].forEach((f, k) => setTimeout(() => { const D = S.diag; if (!D || S.mode !== 'diag' || D.pg !== 0) return; const keep = D.fi; try { D.fi = f; const kb = S.bbf; S.bbf = false; lay(diagSlot(D, f), 'dg0:' + f, drawDiagBody); S.bbf = kb; } catch (e) { /* ignore */ } D.fi = keep; }, 600 + k * 300));
@@ -2299,7 +2299,7 @@
     text(hint, 806, 428 + 8, 16, [210, 225, 205], 2);
   }
   const diagFi = (D) => (S.bbf ? -1 : D.fi == null ? -1 : D.fi); // 「もどる」に合わせているときは、項目の枠を出さない
-  const diagSlot = (D, f) => D.sub ? 21 : 10 + (D.pg === 0 ? (f == null ? diagFi(D) : f) + 1 : 7 + D.pg); // 診断は、ページ(と、強さの画面では 選んだ項目)ごとに、絵を使い回す: 強さ 8通り + 3ページ
+  const diagSlot = (D, f) => D.sub ? 17 : D.pg === 0 ? 10 + (f == null ? diagFi(D) : f) + 1 : D.pg === 1 ? 18 : D.pg === 2 ? 19 : 16; // ホームの絵(20〜27)と ぶつからないように 10〜19 だけ使う // 診断は、ページ(と、強さの画面では 選んだ項目)ごとに、絵を使い回す: 強さ 8通り + 3ページ
   function drawAdviceBtns(D) { // アドバイスの ボタン: 左の見出しとは 見た目を 変えて(緑の ふくらんだ札)、「押せる」と 分かるように
     const foc = D.fz === 'btn' && !S.bbf;
     [['くわしく見る', 524, 160], ['苦手を練習', 692, 126]].forEach((b, bi) => {
@@ -2537,7 +2537,7 @@
       return;
     }
     if (!BACKM.has(S.mode)) S.bbf = false;
-    else if (S.bbf) { if (k === 'ok' || k === 'back') { S.bbf = false; k = 'back'; } else { if (k === 'down') S.bbf = false; dirty(); return; } } // 「もどる」ボタンに合わせているとき
+    else if (S.bbf) { if (k === 'ok' || k === 'back') { S.bbf = false; k = 'back'; } else { if (k === 'down') { S.bbf = false; if (S.mode === 'diag' && S.diag && S.diag.pg === 2 && !S.diag.sub) S.diag.fz = 'btn'; } dirty(); return; } } // 診断のアドバイス: 「もどる」から ▼ で、さっきの ボタンへ // 「もどる」ボタンに合わせているとき
     if (S.mode === 'quiz') { quizKey(k); return; }
     if (S.mode === 'dict') { dictKey(k); return; }
     if (S.mode === 'study') { studyKey(k); return; }
