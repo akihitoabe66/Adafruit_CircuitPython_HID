@@ -36,7 +36,7 @@
       // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」から選ぶ
       const isGameTrack = GAME.indexOf(cur) >= 0 || LATE.indexOf(cur) >= 0 || FINAL.indexOf(cur) >= 0;
       const finalHand = !!g && g.kyoku % 4 === 3;
-      if (isGameTrack && !(finalHand && FINAL.indexOf(cur) < 0 && !A._finalDone)) return; // いま対局の曲が流れているなら、局ごとに曲を替えない(曲の読み込みで、音が途切れるため)
+      if (isGameTrack && !A._chg && !(finalHand && FINAL.indexOf(cur) < 0 && !A._finalDone)) return; A._chg = false; // 流局・CPU同士の上がりのあとは 結果の曲に切りかえなかったので、次の局で 曲を替える // いま対局の曲が流れているなら、局ごとに曲を替えない(曲の読み込みで、音が途切れるため)
       A.scale = 1; if (!finalHand) A._finalDone = false;
       if (finalHand) A._finalDone = true;
       const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []).filter((x) => x !== last);
@@ -45,7 +45,7 @@
       last = pool[Math.floor(Math.random() * pool.length)]; A.gtrack = last; cur = ''; A.music(last);
     },
     resultCpuRon() { if (A._tenkaOras) return; A.scale = 0.65; cur = ''; A.music(BLADE); }, /* CPU同士の「ロン」(人は関係ない): ノリの良い曲に切りかえる(前は 地図の曲と同じ曲だった。 地図の曲は 地図だけ) */
-    result(kind) { if (A._tenkaOras) return; /* 天下分け目のオーラスは 結果の曲に 切りかえない */ const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm' || kind === 'draw') return; /* 流局・CPU同士の上がり: 曲を切りかえず、対局のBGMをそのまま流す(切りかえの一瞬、音が消えるため) */ /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ A.scale = 0.65; cur = ''; A.music('audio/' + n + '.mp3'); },
+    result(kind) { if (A._tenkaOras) return; /* 天下分け目のオーラスは 結果の曲に 切りかえない */ const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm' || kind === 'draw') { A._chg = true; return; } /* 流局・CPU同士の上がり: 曲を切りかえず、対局のBGMをそのまま流す(切りかえの一瞬、音が消えるため) */ /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ A.scale = 0.65; cur = ''; A.music('audio/' + n + '.mp3'); },
     endBgm(rank) { // 対局が終わったとき(順位の画面): 最後の局が 流局・CPU同士の上がりで、対局の曲が鳴りっぱなしにならないよう、順位に合わせた曲にする(すでに同じ種類の結果の曲なら そのまま)
       const fam = rank <= 2 ? 'win' : rank === 3 ? 'draw' : 'lose', m = /result_(win|draw|lose)/.exec(cur || ''); if (m && m[1] === fam) return;
       A.holding = false; A.scale = 0.65; cur = ''; A.music('audio/result_' + fam + '.mp3');

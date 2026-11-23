@@ -1616,7 +1616,7 @@
   }
   function startPractice() { // 苦手な種類を、多めに出すクイズ
     const weak = MJ.Stats.weakest(2, 3), tags = RCATS.concat(weak.filter((t) => !RCATS.includes(t)));
-    startQuiz({ title: weak.length ? '苦手をねらい撃ち' : '麻雀クイズ', gens: () => qlGens(tags, weak), n: 10, rank: true });
+    startQuiz({ title: weak.length ? '苦手をねらい撃ち' : '麻雀クイズ', gens: () => qlGens(tags, weak), n: 5, rank: true });
   }
   function startQuiz(opts) { // opts: { title, gens, n, onEnd(ok, n) }
     S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd, rank: !!opts.rank }); if (opts.rank) { S.quiz.phase = 'intro'; dirty(); return; } quizNext(); dirty();
@@ -1688,7 +1688,7 @@
     if (q.phase === 'end') { if (k === 'ok') quizClose(); return; }
     if (q.phase === 'ask') {
       const p = q.p;
-      if (p.kind === 'tile') { const n = q.disp.length; if (k === 'left') q.idx = wrap(q.idx - 1, n); else if (k === 'right') q.idx = wrap(q.idx + 1, n); else if (k === 'ok') quizAnswer(q.disp[q.idx]); }
+      if (p.kind === 'tile') { const n = q.disp.length; if (k === 'left') q.idx = wrap(q.idx - 1, n); else if (k === 'right') q.idx = wrap(q.idx + 1, n); else if (k === 'up') q.idx = 0; else if (k === 'down') q.idx = n - 1; else if (k === 'ok') quizAnswer(q.disp[q.idx]); } // ▲ で 左はし、▼ で 右はし
       else { const n = q.opts.length; if (k === 'left' || k === 'right') q.idx = wrap(q.idx + (k === 'left' ? -1 : 1), n); else if (k === 'up') q.idx = Math.max(0, q.idx - 2); else if (k === 'down') q.idx = Math.min(n - 1, q.idx + 2); else if (k === 'ok') quizAnswer(q.opts[q.idx].id); }
       dirty(); return;
     }
@@ -1707,7 +1707,7 @@
     const q = S.quiz; const p = q.p;
     if (q.phase === 'gen') { quizFrame(q.title, '', '', ''); text('問題を作っています…', SW / 2, 200, 28, WHITE, 1); return; }
     if (q.phase === 'intro') { // はじめる前: いまの級と、分野ごとの星
-      const D = qlLoad(), I = qlInfo(D.c); quizFrame(q.title, '', '', '決定ボタンで はじめる(10問)  /  戻るボタンで もどる');
+      const D = qlLoad(), I = qlInfo(D.c); quizFrame(q.title, '', '', '決定ボタンで はじめる(5問)  /  戻るボタンで もどる');
       panel(60, 62, SW - 120, 92, 14, [6, 36, 24], [150, 190, 140], 3, 235); text('あなたの級', 90, 70, 22, [210, 225, 205]); text(I.name, 90, 98, 44, YEL);
       text(I.sh ? '次の星まで あと ' + I.left + '問' : I.nextName + ' まで あと ' + I.left + '問', SW - 90, 74, 22, WHITE, 2);
       fill(280, 112, SW - 370, 22, [8, 24, 18]); frame(280, 112, SW - 370, 22, [150, 190, 140], 2); fill(282, 114, Math.max(0, Math.round((SW - 374) * I.prog)), 18, YEL);
@@ -1730,7 +1730,7 @@
       tFace(pass ? 'ok' : 'cheer', 'qe' + q.total + q.ok, SW - 240, 250, 170);
       if (q.rank) { const I = qlInfo(qlLoad().c), ns = (q.ev || []).length; text('つづけて 正解  ' + (q.bestRun || 0) + '問' + ((q.bestRun || 0) >= (qlLoad().bs || 0) && (q.bestRun || 0) > 0 ? '  (自己ベスト)' : ''), 60, 296, 22, WHITE); text(I.name + (I.sh ? '(★' + I.stars + ')' : '') + '   ' + (I.sh ? '次の星' : I.nextName) + ' まで あと ' + I.left + '問', 60, 332, 22, [210, 225, 205]);
         if (ns) text((q.ev || []).slice(0, 2).map((x) => QCAT_N[x.tag] + 'の星').join('・') + ' が ふえたのだ！', 60, 368, 22, YEL); if (q.xp) text('経験値 +' + q.xp + ' 点', 60, 400, 22, [255, 190, 150]); }
-      text(q.onEnd && q.learn ? (pass ? 'ごうかく! 「おぼえた」に しました' : 'もう一度 読んで、またチャレンジしましょう') : (q.ok >= 8 ? 'すばらしい! 本格派ですね' : q.ok >= 5 ? 'よくできました' : 'またチャレンジしましょう'), SW / 2, 240, 24, [255, 190, 150], 1); return;
+      text(q.onEnd && q.learn ? (pass ? 'ごうかく! 「おぼえた」に しました' : 'もう一度 読んで、またチャレンジしましょう') : (q.ok >= q.total * 0.8 ? 'すばらしい! 本格派ですね' : q.ok >= q.total * 0.5 ? 'よくできました' : 'またチャレンジしましょう'), SW / 2, 240, 24, [255, 190, 150], 1); return;
     }
     if (q.phase === 'res') {
       const r = q.res.r, col = r === 'ok' ? [255, 110, 90] : r === 'near' ? [255, 200, 70] : [200, 210, 200];
@@ -1743,7 +1743,7 @@
       if (q.rh > 236) text((q.scroll > 0 ? '▲ ' : '') + '▼ つづき', SW - 30, 398, 18, GREY, 2);
       return;
     }
-    quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, p.kind === 'tile' ? '◀ ▶ で牌をえらんで 決定ボタン(切る牌)' : '◀ ▶ ▲ ▼ で えらんで 決定ボタン');
+    quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, p.kind === 'tile' ? '◀ ▶ で牌をえらんで 決定ボタン(▲ 左はし ▼ 右はし)' : '◀ ▶ ▲ ▼ で えらんで 決定ボタン');
     tFace('advice', 'q' + q.n + (q.title || ''), SW - 196, 3, 44);
     richDraw(q.head, 30, 54, q.hsz, WHITE, 0);
     if (q.rv) drawQRiver(q);
@@ -2360,7 +2360,7 @@
 
   /* ---------- クレジット(設定から) ---------- */
   const CREDITS = [
-    ['開発', 'Akihito Abe'], ['SPECIAL THANKS', 'Myumi'],
+    ['開発', 'Akihito Abe'], ['SPECIAL THANKS', 'Mayumi'],
     ['音声(あなたの掛け声など)', 'VOICEVOX:ずんだもん'],
     ['音声(CPUの掛け声)', 'Open JTalk(pyopenjtalk)。音響モデル: Mei (MMDAgent Example Characters) CC BY 3.0'],
     ['ビデオ', '「7人孫爺の健康麻雀教室」(麻雀の勉強の動画・サムネイル)'],
@@ -2611,7 +2611,7 @@
         const it = items[S.menuIdx]; if (!it || it.off) return;
         if (it.act === 'play') { try { if (NSND.has('v:hajimeru')) NSND.speak(['v:hajimeru']); } catch (e) { /* ignore */ } } // 「麻雀をはじめる」を押したとき、「この麻雀をはじめるのだ」の声
         if (it.act === 'play') later(() => { tl('play-pressed'); const l = slotRead(); tl('slots-read'); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else askTeach(null); });
-        else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => qlGens(RCATS), n: 10, rank: true }));
+        else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => qlGens(RCATS), n: 5, rank: true }));
         else if (it.act === 'study') later(() => startStudy());
         else if (it.act === 'settings') later(() => { S.mode = 'settings'; S.setIdx = 0; });
       }

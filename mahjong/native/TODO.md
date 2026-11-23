@@ -430,3 +430,4 @@
 - [ ] 専用機の片づけ: ログを書かない(MJ_LOG=1 のときだけ stall.log)、隠しコマンドは MJ_DEV=1 のときだけ。要ビルド(sh native/app/build.sh)。 boot_slim.sh on で 使わないサービスを止める。 実機: mjdata に stall.log が増えないこと、ふつうに遊べること
 - [ ] 記録: mjdata/events.log に 大事な出来事だけ(boot-start / game-exit rc= / game-exit-normal / health / audio-reopen / bgm-* / mem-free)。要ビルド。渡したあと不具合を言われたら、このファイルと crash.log を見る
 - [ ] 無線パッドが一定周期で止まる: 1回の読みそこないで つなぎなおし(約1秒停止)していたのを、0.6秒つづいたときだけに。 install_pad.sh をやりなおして、止まらなくなったか。 まだ止まるなら journalctl -u mjpad の「controller ready」の間隔を見せてもらう
+- [ ] 直し: クレジットの Mayumi / 流局・CPU同士の上がりのあと次の局でBGMを替える / クイズ「何を切る」▲で左はし▼で右はし / クイズは5問ごと

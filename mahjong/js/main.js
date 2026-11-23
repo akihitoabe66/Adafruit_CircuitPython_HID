@@ -307,7 +307,7 @@
       <h3>開発</h3>
       <p><b>Akihito Abe</b></p>
       <h3>SPECIAL THANKS</h3>
-      <p><b>Myumi</b></p>
+      <p><b>Mayumi</b></p>
       <h3>音声(掛け声)</h3>
       <p>pyopenjtalk(Open JTalk)で生成。音響モデル: Mei (MMDAgent Example Characters) — <b>CC BY 3.0</b></p>
       <h3>BGM</h3>
