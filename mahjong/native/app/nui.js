@@ -762,7 +762,7 @@
   function drawRules() {
     gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
     text('麻雀のルール', SW / 2, 6, 28, YEL, 1);
-    const n = RULE_ROWS.length + 2, i0 = S.ruleIdx || 0, VIS = 9, top = Math.max(0, Math.min(n - VIS, i0 - 4)), any = ruleAnyChanged(), dlg = !!S.ruleDlg;
+    const n = RULE_ROWS.length + 2, i0 = S.ruleIdx || 0, VIS = 9, top = Math.max(0, Math.min(n - VIS, i0 - 6)) /* カーソルは、下から3行目まで 行ける(そこから先で 一覧が動く) */, any = ruleAnyChanged(), dlg = !!S.ruleDlg;
     for (let v = 0; v < VIS; v++) {
       const i = top + v, y = 44 + v * 38, sel = i === i0 && !dlg; if (i >= n) break;
       const last = i === RULE_ROWS.length + 1;
