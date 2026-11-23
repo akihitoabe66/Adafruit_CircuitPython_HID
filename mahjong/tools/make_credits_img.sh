@@ -3,9 +3,9 @@
 cd "$(dirname "$0")/.." || exit 1
 S=$(mktemp -d); cat > "$S/c.js" <<'EOT'
 globalThis.__creditsLive = true;
-let t = 1500; const K = (k, d) => { setTimeout(() => window.__key(k), t); t += d || 350; };
-K('ok', 1500); K('down'); K('down'); K('down'); K('ok', 800); for (let i = 0; i < 9; i++) K('down', 250); K('ok', 1200);
-setTimeout(() => gfx.snap(__shotDir + '/credits.bmp'), t); t += 300; setTimeout(() => window.__key('right'), t);
+setTimeout(() => { window.__openSettings(); for (let i = 0; i < 8; i++) window.__key('down'); window.__key('ok'); }, 1500);   // 設定の「開発者」(上から9番め)を開く
+setTimeout(() => gfx.snap(__shotDir + '/credits.bmp'), 2200);
+setTimeout(() => window.__key('right'), 2500);
 EOT
 mkdir -p "$S/shots" "$S/d"
 MJ_WINDOWED=832x468 MJ_DATA="$S/d" MJ_SCRIPT="$S/c.js" SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy timeout 20 ./native/app/mj . --shots "$S/shots" >/dev/null 2>&1
