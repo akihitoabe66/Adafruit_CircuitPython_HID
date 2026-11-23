@@ -1703,6 +1703,7 @@
     if (left) text(left, 24, 8, 28, WHITE); if (title) { const sz = gfx.measure(title, 28) > 440 ? 22 : 28; text(title, SW / 2, sz === 28 ? 8 : 12, sz, YEL, 1); } if (right) text(right, SW - 24, 14, 18, YEL, 2);
     if (hint) { let hs = 20; while (hs > 15 && gfx.measure(hint, hs) > SW - 40) hs--; text(hint, SW / 2, SH - 29, hs, [210, 225, 205], 1); }
   }
+  let QSEQ = 0;
   function drawQuiz() {
     const q = S.quiz; const p = q.p;
     if (q.phase === 'gen') { quizFrame(q.title, '', '', ''); text('問題を作っています…', SW / 2, 200, 28, WHITE, 1); return; }
@@ -1743,10 +1744,16 @@
       if (q.rh > 236) text((q.scroll > 0 ? '▲ ' : '') + '▼ つづき', SW - 30, 398, 18, GREY, 2);
       return;
     }
-    quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, p.kind === 'tile' ? '◀ ▶ で牌をえらんで 決定ボタン(▲ 左はし ▼ 右はし)' : '◀ ▶ ▲ ▼ で えらんで 決定ボタン');
+    const stat = () => { // 動かない部分(枠・先生・問題文・河・上がり牌・鳴き牌)は 1枚の絵にしておき、カーソルが動いたときは 牌の列だけ 描きなおす(Pi では 全部描きなおすと 間に合わず、連打が 詰まって 加速していた)
+      quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, p.kind === 'tile' ? '◀ ▶ で牌をえらんで 決定ボタン(▲ 左はし ▼ 右はし)' : '◀ ▶ ▲ ▼ で えらんで 決定ボタン');
     tFace('advice', 'q' + q.n + (q.title || ''), SW - 196, 3, 44);
     richDraw(q.head, 30, 54, q.hsz, WHITE, 0);
     if (q.rv) drawQRiver(q);
+      const n0 = q.disp.length, x00 = Math.round((SW - (n0 * 48 + (p.win ? 62 : 0))) / 2), HY0 = 342;
+      if (p.win) { const x = x00 + n0 * 48 + 14; text('上がり牌', x + 22, HY0 - 26, 18, YEL, 1); frame(x - 2, HY0 - 2, 48, 62, YEL, 2); tile(p.win.t, x, HY0, 44, 58, p.win.red); }
+      if (p.melds && p.melds.length) { let mx = 30; p.melds.forEach((m) => { (m.tiles || []).forEach((tl) => { tile(tl.t, mx, 402, 20, 26, tl.red); mx += 22; }); mx += 8; }); text('鳴いている牌', mx + 4, 404, 18, GREY); }
+    };
+    if (typeof gfx.layerBegin === 'function') cached(12, 'qz' + (p._id || (p._id = ++QSEQ)), stat); else stat();
     if (p.kind === 'choice') q.opts.forEach((o, i) => {
       const x = 30 + (i % 2) * 394, y = 202 + Math.floor(i / 2) * 62, sel = q.idx === i;
       panel(x, y, 378, 54, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 3, 255); rrect(x + 10, y + 10, 34, 34, 17, sel ? [160, 110, 0] : GREEN); text('ABCD'[i], x + 27, y + 12, 24, WHITE, 1);
@@ -1755,8 +1762,6 @@
     });
     const n = q.disp.length, x0 = Math.round((SW - (n * 48 + (p.win ? 62 : 0))) / 2), HYq = 342;
     q.disp.forEach((h, i) => { const sel = p.kind === 'tile' && q.idx === i, x = x0 + i * 48, y = HYq - (sel ? 12 : 0); if (sel) { rrect(x - 5, y - 5, 54, 68, 7, [160, 110, 0]); rrect(x - 3, y - 3, 50, 64, 6, YEL); } tile(h.t, x, y, 44, 58, h.red); });
-    if (p.win) { const x = x0 + n * 48 + 14; text('上がり牌', x + 22, HYq - 26, 18, YEL, 1); frame(x - 2, HYq - 2, 48, 62, YEL, 2); tile(p.win.t, x, HYq, 44, 58, p.win.red); }
-    if (p.melds && p.melds.length) { let mx = 30; p.melds.forEach((m) => { (m.tiles || []).forEach((tl) => { tile(tl.t, mx, 402, 20, 26, tl.red); mx += 22; }); mx += 8; }); text('鳴いている牌', mx + 4, 404, 18, GREY); }
   }
   /* ---------- 麻雀用語じてん(勉強の中から開く。データは dictdata.js = Edge版の用語辞典) ---------- */
   const DCAT = [['基本・牌', '牌の呼び方'], ['役', '役'], ['点数・符', '点数・符'], ['待ち・形', '待ちと形'], ['鳴き', '鳴き'], ['守備・押し引き', '守りと攻め'], ['局・ルール', '局とルール'], ['俗称・スラング', '俗称']];
