@@ -2543,7 +2543,7 @@
       return;
     }
     if (!BACKM.has(S.mode)) S.bbf = false;
-    else if (S.bbf) { if (k === 'ok' || k === 'back') { S.bbf = false; k = 'back'; } else { if (k === 'down') { S.bbf = false; if (S.mode === 'diag' && S.diag && S.diag.pg === 2 && !S.diag.sub) S.diag.fz = 'btn'; } dirty(); return; } } // 診断のアドバイス: 「もどる」から ▼ で、さっきの ボタンへ // 「もどる」ボタンに合わせているとき
+    else if (S.bbf) { if (k === 'ok' || k === 'back') { S.bbf = false; k = 'back'; } else if (k === 'up' && S.mode === 'video' && S.vid && S.vid.view !== 'play' && S.vid.files.length) { S.bbf = false; if (S.vid.view === 'home') S.vid.hs = 1; else { S.vid.sel = S.vid.files.length - 1; vFit(); } dirty(); return; } /* ビデオ: 「もどる」から ▲ で、いちばん下(最後の番号)へ。 ▼ で一番上に回るのと、行き来できる */ else { if (k === 'down') { S.bbf = false; if (S.mode === 'diag' && S.diag && S.diag.pg === 2 && !S.diag.sub) S.diag.fz = 'btn'; } dirty(); return; } } // 診断のアドバイス: 「もどる」から ▼ で、さっきの ボタンへ // 「もどる」ボタンに合わせているとき
     if (S.mode === 'quiz') { quizKey(k); return; }
     if (S.mode === 'dict') { dictKey(k); return; }
     if (S.mode === 'study') { studyKey(k); return; }
