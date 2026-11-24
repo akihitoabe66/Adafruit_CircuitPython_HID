@@ -1,0 +1,3222 @@
+/* ネイティブ版の画面と操作(試作)。ゲームの頭脳(game.js)が呼ぶ「ui」を、SDL2の描画で作る。
+   画面は 720x428。キー: left/right/up/down/ok/back */
+(function () {
+  const MJ = window.MJ; const W = 720, H = 428, SW = 832, SH = 468; // W,H=卓の大きさ / SW,SH=画面全体(右に操作の列)
+  const S = { mode: 'title', titleIdx: 0, setIdx: 0, confirmQ: null, game: null, dirty: true, bub: {}, banner: null, keep: 0, pressT: -9999, locked: false, lay: [], teachQ: null, homeBot: false, homeBotIdx: 0, playQ: null, intro: null, dice: null, statsPg: -1, rankScr: null, side: null, coach: null, vx: 0, vy: 0, hint: null, waitKey: '', waitInfo: null, fly: null, deal: null, pick: null, lastD: null, saveP: null, menuP: null, slots: [], hid: [], shotN: 0, shotR: 0, self: null, react: null, result: null, end: null, menuIdx: 0, ui: null };
+  /* 絵文字・記号(🎉 ✓ など)は、実機の日本語フォントに無く、四角(☒)で出てしまう。 文字を描く前に、ぜんぶ取りのぞく(★ ☆ ▲ ▼ ◀ ▶ ① などは、フォントにあるので そのまま) */
+  const EMO = /[\u{1F000}-\u{1FFFF}\u{2600}-\u{2604}\u{2607}-\u{27BF}\u{FE0F}]/u, EMOG = /[\u{1F000}-\u{1FFFF}\u{2600}-\u{2604}\u{2607}-\u{27BF}\u{FE0F}]/gu;
+  const EMO_ALT = { '🥇': '①', '🥈': '②', '🥉': '③', '⚠': '▲', '🚨': '▲', '🔔': '▲', '⚔': '◆', '🛡': '◆', '⚖': '◆', '🧠': '◆', '🧩': '◆', '🎯': '◎', '🚫': '×', '✕': '×', '✨': '★', '🎉': '★', '🏅': '★', '🔥': '★', '⚡': '★', '👑': '★', '💡': '☆', '🎓': '■', '📘': '■', '📊': '■', '📖': '■', '📚': '■', '🔖': '■', '✏': '■', '🧮': '■', '🔊': '■', '🀄': '■', '✂': '■', '⏱': '■', '🔍': '◇', '🔎': '◇', '👀': '◇', '⏭': '▶', '✓': '○' }; // 絵文字の代わりに 出す記号(日本語フォントにある 形): メダル→①②③ / 注意→▲ / 構え・考え方→◆ / 目標→◎ / 禁止→× など
+  const clean = (s) => { s = String(s); return EMO.test(s) || /[✕✓]/.test(s) ? s.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}]\uFE0F?/gu, (c) => EMO_ALT[c] || (c === '★' || c === '☆' ? c : '')).replace(/\uFE0F/g, '').replace(/^\s+/, '') : s; };
+  ['text', 'measure', 'textTop', 'textRot'].forEach((k) => { try { const o = gfx[k]; if (typeof o === 'function') gfx[k] = function (s, ...r) { return o(clean(s), ...r); }; } catch (e) { /* ignore */ } });
+  window.__S = S; // 試験用(説明ページ用の画面を撮るのに使う)
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const tl = (ev) => { try { const t = __now(); (S.tl || (S.tl = [])).push(Math.round(t % 1000000) + ' ' + ev); if (S.tl.length > 120) S.tl.shift(); S.tlDirty = true; } catch (e) { /* ignore */ } }; // 待ちが長いときの調査用: 出来事の時刻を、最近の120件だけ 覚えておく(save.json の mj_tl に、数秒ごとに書く)
+  const dirty = () => { S.dirty = true; S.full = true; }; // full: 画面ぜんたいを描きなおす(カーソルだけのときは、手牌のところだけ描く)
+  const menuHold = (on) => { globalThis.__menuHold = on; try { if (on) snd.pauseAll(); else snd.resumeAll(); } catch (e) { /* ignore */ } }; // メニューを開いている間は、声も、吹き出しの時間も、止める
+  const openMenu = () => { S.menuP = { idx: 0 }; MJ.paused = true; menuHold(true); dirty(); }; // ゲーム中のメニュー(対局を止める)
+  const WIND = ['東', '南', '西', '北'];
+  try { MJ.loadRules && MJ.loadRules(); } catch (e) { /* ignore */ }
+  MJ.MEMO_CAP = 30000; // 計算の記憶表の上限(メモリを食いすぎないように)
+  if (globalThis.__teacherEnv) { try { localStorage.setItem('mj_teacher', globalThis.__teacherEnv); } catch (e) { /* ignore */ } } // 例: MJ_TEACHER=1 ./mj .
+  MJ.AI_BUDGET = 3; // CPUの思考の時間上限: 相手の番はコントローラーを受け付けないので、PCの約3倍の時間をかけて、きちんと考えさせる(Pi Zeroは遅いので、これで、ふつうのPCと同じくらい)。自分の番の解説の計算は、下で短くする
+  if (globalThis.__cpuEnv && MJ.CPU_SPEEDS.includes(globalThis.__cpuEnv)) { let sv = null; try { sv = localStorage.getItem('mj_cpuspeed'); } catch (e) { /* ignore */ } if (sv === null || globalThis.__cpuForce) MJ.setCpuSpeed(globalThis.__cpuEnv); } // 例: MJ_CPU=fast ./mj .(保存された設定が ないときだけ。 起動のたびに 上書きして「高速に戻る」のを防ぐ)
+
+
+  /* ---------- セーブ(手動・最新から5件) ---------- */
+  const wrap = (i, n) => (i + n) % n;
+  const pressing = () => __now() - S.pressT < (S.pressMs || 100);
+  const postQ = []; const afterPresent = (fn) => { postQ.push(fn); }; // 今の絵が画面に出てから(次のコマの はじめに)実行する
+  /* 「もどる」ボタン(画面の左上): 戻る(B)だけで出入りしていた画面に、見える「もどる」を足す。 ▲ で、このボタンへ / 決定で戻る / ▼ で元の場所へ */
+  const BACKM = new Set(['diag', 'study', 'learn', 'dict', 'video', 'howto', 'stats', 'slots']);
+  function drawBack(x, label) { x = x === undefined ? 12 : x; const on = !!S.bbf, bw = 3, R = globalThis.__bkR || 9; rrect(x, 11, 124, 36, R, on ? [160, 110, 0] : GREEN, 255); rrect(x + bw, 11 + bw, 124 - 2 * bw, 36 - 2 * bw, R - bw, on ? YEL : CREAM, 255); text(label || '◀ もどる', x + 62, 19, 19, INK, 1); }
+  const later = (fn, ms) => { S.pressT = __now(); S.pressMs = ms || 60; S.locked = true; dirty(); setTimeout(() => { S.pressT = -9999; dirty(); setTimeout(() => { S.locked = false; fn(); dirty(); }, 8); }, S.pressMs); }; // 押している間のあと、いちど「もとの形にもどった絵」を描いてから、次の画面へ(描くのがおそい機械でも、へこんだ絵のまま、つぎの画面にならないように) // 押したボタンが光ってから、次へ
+  const NSLOT = 5;
+  function slotRead() { // 読める(壊れていない)ものだけ、新しい順に
+    const out = [];
+    try { __slotlist().forEach((q) => { try { const t = __slotload(q); const v = t && JSON.parse(t); if (v && v.snap && v.snap.scores && v.snap.chars) out.push({ seq: q, v }); } catch (e) { /* 壊れたものは、とばす */ } }); } catch (e) { /* ignore */ }
+    return out;
+  }
+  function slotWrite(snap) {
+    let seq = 1; try { const l = __slotlist(); if (l.length) seq = l[0] + 1; } catch (e) { /* ignore */ }
+    const ok = __slotsave(seq, JSON.stringify({ seq, snap }));
+    try { __slotlist().slice(NSLOT).forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ }
+    return ok;
+  }
+  const kyokuText = (sn) => ['東', '南', '西', '北'][Math.min(3, Math.floor(sn.kyoku / 4))] + ['一', '二', '三', '四'][sn.kyoku % 4] + '局' + (sn.honba ? ' ' + sn.honba + '本場' : '') + (sn.mid ? '・途中から' : '');
+  const teacherOn = () => { try { return localStorage.getItem('mj_teacher') === '1'; } catch (e) { return false; } };
+  const askTeach = (snap) => { if (teacherOn()) { S.teachQ = { idx: 1, snap }; return; } S.hint = null; S.waitKey = ''; startGame(snap); }; // 麻雀先生が「なし」のときは、確認を出さずに そのまま はじめる
+  const teacherLabel = () => '麻雀先生: ' + (teacherOn() ? 'あり' : 'なし');
+  const dmarkOn = () => { try { return localStorage.getItem('mj_dmark') !== '0'; } catch (e) { return true; } }; // 麻雀先生の「安全牌の印」(現物・スジ…)。ふだんは、あり
+  const DTAG = (tag) => (/^現物/.test(tag) ? '現物' : /^全見え/.test(tag) ? '全見え' : /^字牌/.test(tag) ? '字牌' : /^スジ/.test(tag) ? 'スジ' : /^半スジ/.test(tag) ? '半スジ' : /^カベ/.test(tag) ? 'カベ' : /^ワンチャンス/.test(tag) ? 'ワンC' : '無スジ');
+  const DCOL = { safe: [[44, 150, 88], [255, 255, 255]], ok: [[60, 120, 200], [255, 255, 255]], warn: [[236, 184, 40], [28, 28, 24]], danger: [[214, 62, 52], [255, 255, 255]] };
+  function dangerMarks(g, p) { // リーチをかけた人がいるとき、手牌の牌ごとの安全さ(現物・スジ・無スジ…)。同じ番の間は、1回だけ計算
+    if (!teacherOn() || !dmarkOn() || g.fast || S.deal) return null;
+    const rii = g.players.filter((q) => q !== p && q.riichi); if (!rii.length) return null;
+    const key = g.seq + ':' + p.hand.map((h) => h.id).join(',') + ':' + rii.length; if (S._dm && S._dm.key === key && S._dmw && !S._dmw.todo.length) return S._dm.map;
+    // 計算は軽いので、手牌ぶん まとめて 1回で(印が、左から順に ぱたぱた出ない)
+    let w = S._dmw; if (!w || w.key !== key) { let vis = null; try { vis = MJ.AI.visible(g, p); } catch (e) { vis = null; } w = S._dmw = { key, map: {}, todo: [...new Set(p.hand.map((h) => h.t))], vis, ss: {} }; S._dm = { key, map: w.map, hc: g.handCount }; }
+    while (w.todo.length && w.vis) { const t = w.todo.shift(); /* 1牌あたり 0.002ms ほど(測定)なので、全部まとめて計算する。 前は1コマに2種類ずつで、実機では 左から ぱたぱたと出ていた */ try { const A = MJ.AI; const per = rii.map((q) => A.danger1(g, w.vis, t, q, w.ss[q.name] || (w.ss[q.name] = A.safeSet(g, q)), 2)); const wo = per.reduce((m, x) => (x.score > m.score ? x : m), per[0]), sc = per.reduce((a, x) => a + x.score, 0), r = MJ.Coach.rate(sc); w.map[t] = { tag: DTAG(wo.tag), cls: r.cls }; } catch (e) { /* ignore */ } }
+    if (w.todo.length && w.vis) dirty(); // まだ計算していない牌があるあいだは、次のコマも描く(印が、途中で止まって、カーソルを動かすまで出ない、をなくす)
+    return w.map;
+  }
+  function staleMarks(g, p) { // 相手の番: 自分の番に計算した印を、そのまま使う(同じ局で、リーチをかけた人がいるあいだだけ)
+    if (!teacherOn() || !dmarkOn() || !S._dm || !S._dm.map || S._dm.hc !== g.handCount || g.fast || S.deal) return null;
+    return g.players.some((q) => q !== p && q.riichi) ? S._dm.map : null;
+  }
+  const toggleTeacher = () => { try { localStorage.setItem('mj_teacher', teacherOn() ? '0' : '1'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; if (teacherOn() && S.game && !S.game.watching) { S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); } }; // あいさつは、はじめの1局めか、途中で先生を つけた直後だけ
+  const speedLabel = () => 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()];
+  const COMMON_RULES = { yakitori: false, length: 'east', kuitan: true, aka: 0, ippatsu: true, ura: true, tobi: true, doubleRon: true, sanchahou: true, suchaRiichi: false, kuikae: false, kazoe: true, flower: false, start: 25000 }; // 全国的な(一般的な)ルール。ただし赤ドラは、はじめはなし
+  try { if (localStorage.getItem('mj_rules_ver') !== '3') { Object.assign(MJ.RULES, COMMON_RULES); MJ.saveRules(); localStorage.setItem('mj_rules_ver', '3'); } } catch (e) { /* ignore */ } // はじめの設定(版が替わったときも、一度だけ入れなおす)
+  const homeItems = () => [{ label: '麻雀をはじめる', act: 'play' }, { label: '麻雀クイズ', act: 'quiz' }, { label: '麻雀の勉強', act: 'study' }, { label: '設定', act: 'settings' }];
+  const firstOn = (items, from, dir) => { for (let i = 0; i < items.length; i++) { const j = wrap(from + dir * i, items.length); if (!items[j].off) return j; } return from; };
+  const DEV_CMDS = !!globalThis.__devCmds; // 隠しコマンド(試験用)は、専用機では 使えない(開発のとき MJ_DEV=1 で 使える)
+  const PROMOSEQ = ['left', 'left', 'right', 'right', 'up', 'down', 'up', 'down', 'back', 'ok']; // 隠しコマンド(ホーム): 昇段の演出テスト(認定証→地図→新しい雀士)を開く
+  const PERFSEQ = ['down', 'down', 'up', 'up', 'right', 'left', 'right', 'left', 'back', 'ok']; // 隠しコマンド(ホーム): 画面の左上に、遅れの診断を出す/消す
+  const HIDDEN = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right', 'back', 'ok']; // 隠しコマンド(タイトル): 5件のセーブから選べる
+
+  /* ---------- 描く道具 ---------- */
+  const fill = (x, y, w, h, c, a) => gfx.fill(x, y, w, h, c[0], c[1], c[2], a == null ? 255 : a);
+  const frame = (x, y, w, h, c, t) => gfx.frame(x, y, w, h, c[0], c[1], c[2], t || 1);
+  const text = (s, x, y, sz, c, al) => gfx.text(String(s), x, y, sz, c[0], c[1], c[2], al || 0);
+  const WHITE = [255, 255, 255], BLACK = [20, 20, 20], YEL = [255, 220, 40], GREY = [170, 190, 175], RED = [235, 70, 60];
+  const TSZ = { '44x58': 't44', '26x33': 't26', '15x20': 't15', '20x27': 't20', '36x48': 't36' };
+  function tile(t, x, y, w, h, red, dim) {
+    fill(x + 1, y + 1, w, h, [0, 0, 0], 70);
+    const sz = TSZ[w + 'x' + h] || null; // あらかじめ縮小した絵があれば、それを使う(毎回の拡大縮小をなくす。小さい牌は、模様がつぶれないよう きれいに縮めてある)
+    let src = MJ.tileSrc(t, red); if (sz) src = src.replace('img/tiles/', 'img/' + sz + '/');
+    if (!gfx.image(src, x, y, w, h, dim ? 100 : 255) && !(sz && gfx.image(MJ.tileSrc(t, red), x, y, w, h, dim ? 100 : 255))) { fill(x, y, w, h, [240, 240, 230]); text(MJ.tileName(t), x + w / 2, y + 2, 10, BLACK, 1); }
+  }
+  function panel(x, y, w, h, r, c, bc, bw, a) { r = Math.max(3, Math.min(7, Math.round(r * 0.55))); rrect(x, y, w, h, r, bc, a); rrect(x + bw, y + bw, w - 2 * bw, h - 2 * bw, Math.max(1, r - bw), c, a); } // 角の丸い板(縁つき)
+  function rrect(x, y, w, h, r, c, a) { // 角の丸い四角(縁をなめらかに。左右・上下で同じ形)。C側に 1回で頼む(実機では、細かい塗りを何十回も呼ぶと 遅い)
+    if (typeof gfx.rrect === 'function') { if (a === undefined) a = 255; gfx.rrect(Math.round(x), Math.round(y), Math.round(w), Math.round(h), Math.round(r), c[0], c[1], c[2], a); return; }
+    r = Math.min(r, Math.floor(h / 2), Math.floor(w / 2)); if (a === undefined) a = 255;
+    for (let dy = 0; dy < r; dy++) {
+      const d = r - dy - 0.5, xo = r - Math.sqrt(Math.max(0, r * r - d * d)), xi = Math.ceil(xo - 1e-6), cov = xi - xo;
+      fill(x + xi, y + dy, w - 2 * xi, 1, c, a); fill(x + xi, y + h - 1 - dy, w - 2 * xi, 1, c, a);
+      if (cov > 0.04 && xi >= 1) { const aa = Math.round(a * cov); fill(x + xi - 1, y + dy, 1, 1, c, aa); fill(x + w - xi, y + dy, 1, 1, c, aa); fill(x + xi - 1, y + h - 1 - dy, 1, 1, c, aa); fill(x + w - xi, y + h - 1 - dy, 1, 1, c, aa); }
+    }
+    fill(x, y + r, w, h - 2 * r, c, a);
+  }
+  function back(x, y, w, h, side) { // 裏向きの牌(Edge版と同じ: 青い面と、クリーム色の縁)
+    fill(x, y, w, h, [243, 236, 212]);
+    // クリーム色の縁(牌の上の面)は、卓の外がわ。青い背は、卓の中がわ
+    if (side === 'l') fill(x + w - Math.round(w * 0.72), y, Math.round(w * 0.72), h, [74, 143, 224]); else if (side === 'r') fill(x, y, Math.round(w * 0.72), h, [74, 143, 224]); else if (side === 'self') fill(x, y, w, Math.round(h * 0.72), [74, 143, 224]); else fill(x, y + h - Math.round(h * 0.72), w, Math.round(h * 0.72), [74, 143, 224]);
+    frame(x, y, w, h, [138, 150, 168], 1);
+  }
+  function button(x, y, w, h, label, sel) {
+    panel(x, y, w, h, 7, sel ? YEL : WHITE, sel ? [160, 110, 0] : [120, 120, 120], sel ? 3 : 1);
+    text(label, x + w / 2, y + (h - 18) / 2 - 1, 18, BLACK, 1);
+  }
+  /* あなた(ずんだもん)の表情: 場面ごとに切りかわる。16枚(img/zunda/01〜16)。 */
+  const ZN = { normal: 1, happy: 2, think: 3, fight: 4, call: 5, shock: 6, smug: 7, laugh: 8, focus: 9, relief: 10, grumpy: 11, what: 12, win: 13, lose: 14, dokidoki: 15, point: 16 };
+  /* 絵のバージョン: ふだんは「浮世絵版」(img/uk/…)。ふだんは浮世絵版。起動のとき MJ_STYLE=old を付けると、前のバージョンの絵(img/chars, img/zunda, img/title_art.webp)に戻る */
+  MJ.RankScale = true; // 実機版: ポイントに「相手の強さ」をかける(js/rank.js)
+  const UKIYO = globalThis.__styleEnv !== 'old'; // ふだんは浮世絵版。MJ_STYLE=old で、前のバージョンの絵
+  const skin = (p) => (UKIYO && typeof p === 'string' ? p.replace(/^img\/(chars\/face|zunda|title_art)/, 'img/uk/$1') : p);
+  const YOU_OLD = globalThis.__youEnv === 'old'; // 起動のとき MJ_YOU=old を付けると、前の「あなた」の絵(img/you)に戻る。 ふだんは ずんだもん
+  const youSrc = () => YOU_OLD ? 'img/you/' + String(MJ.youIndex()).padStart(2, '0') + '.webp' : skin('img/zunda/' + String(ZN[S.mood && S.moodUntil > __now() ? S.mood : 'normal']).padStart(2, '0') + '.webp');
+  function setMood(m, ms) { S.mood = m; S.moodUntil = __now() + (ms || 60000); dirty(); }
+  const BW = 360, BH = 110, FSZ = 94, BUBP = { 0: [250, 150], 1: [336, 150], 2: [360, 40], 3: [70, 150] }; // セリフの吹き出し(と、ポン・チー・ロンなどの宣言)の大きさ・顔の大きさ・席ごとの位置
+  const CALL_V = globalThis.__callEnv === 'old' ? 0 : globalThis.__callEnv === 'new2' ? 2 : globalThis.__callEnv === 'new3' ? 3 : 4; // ふだんは 4(影3枚+太字+太いふち)。 MJ_CALL=old で、前の見た目に戻る // 宣言の見た目の試験: 2=顔に角丸の縁+白ぶち文字+影 / 3=影を、さらに濃く
+  const CALL_NEW = globalThis.__callEnv === 'new'; // 宣言(ポン・チー・ロン・リーチ)を、セリフと同じ見た目・位置にする(試験中)
+  const TYADJ = 0; // 宣言の文字を、顔の中心に合わせるための微調整
+  /* 顔の向き: 右向きの人は下家(右の席)で、左向きの人は上家(左の席)で、左右反転する(正面向きと対面は、そのまま)。番号はキャラクターの番号 */
+  const FACE_R = new Set([1, 2, 3, 10, 11, 23, 25, 26, 27, 29, 30]), FACE_L = new Set([4, 5, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 24, 28, 31, 32]); // 6・19は正面向き
+  const faceFlip = (ch, seat) => !!ch && ((seat === 1 && FACE_R.has(ch.id)) || (seat === 3 && FACE_L.has(ch.id)));
+  const overlayOn = () => !!(S.menuP || S.soundP || S.teachQ || S.playQ || S.confirmQ || S.resetQ || S.saveP || S.side || S.coach); // 窓・メニューが開いている間は、顔(必ず手前に出る描き方)を、窓の下に描く
+  function face(p, x, y, w, h, low) {
+    low = low || overlayOn(); const ch = p.char; const src = skin(p.isHuman ? youSrc() : (MJ.faceSrc ? MJ.faceSrc(ch, faceFlip(ch, p.seat)) : ch.face));
+    if (w >= 48 && !low) { fill(x, y, w, h, [90, 110, 100]); gfx.imageTop(src, x, y, w, h); return; } // 大きな顔は、窓の解像度でくっきり描く(縦横の比は、切り取って合わせる)
+    if (!gfx.image(src, x, y, w, h)) fill(x, y, w, h, [90, 110, 100]);
+  }
+  function star(cx, cy, r, c) { // 星(横線で塗る)
+    const P = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.4 : r; P.push([cx + rr * Math.cos(a), cy + rr * Math.sin(a)]); }
+    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r * 0.82); y++) { const xs = []; for (let i = 0; i < 10; i++) { const a = P[i], b = P[(i + 1) % 10]; if ((a[1] <= y + 0.5) !== (b[1] <= y + 0.5)) xs.push(a[0] + (y + 0.5 - a[1]) / (b[1] - a[1]) * (b[0] - a[0])); } xs.sort((m, n) => m - n); for (let k = 0; k + 1 < xs.length; k += 2) fill(Math.round(xs[k]), y, Math.max(1, Math.round(xs[k + 1]) - Math.round(xs[k])), 1, c); }
+  }
+  function stars(cx, y, lv) { for (let i = 0; i < 5; i++) { const x = cx + (i - 2) * 22; star(x, y, 10, [240, 190, 40]); if (i >= lv) star(x, y, 7.2, [14, 20, 32]); } }
+  const rel = (s) => s; // 自分は seat 0
+  const posOf = { 0: 'bottom', 1: 'right', 2: 'top', 3: 'left' };
+
+  /* ---------- 卓の描画 ---------- */
+  /* Edge版の卓と同じ配置(座標は、画面 832x468 の中) */
+  const HX0 = 17, HPITCH = 45.5, HY = 387, HW = 44, HH = 58, RW = 26, RH = 33;
+  const handX = (i, gap) => Math.round(HX0 + i * HPITCH + (gap ? 15 : 0));
+  function riverPos(seat, i, p) { // 河の i 番目の牌: 外枠の位置と、回す角度。リーチ宣言の牌は、その席から見て左に90度まわして横向きに置く(あとの牌は、横向きの分だけずれる)
+    const c = i % 6, r = Math.floor(i / 6), ds = p && p.discards ? p.discards : [], ri = ds.findIndex((d) => d.riichi), D = RH - RW;
+    const sameRow = ri >= 0 && Math.floor(ri / 6) === r, sh = sameRow && ri < i ? D : 0, me = ri === i;
+    if (seat === 0) return me ? { x: 281 + c * RW, y: 268 + r * RH + D, rot: 270, bw: RH, bh: RW } : { x: 281 + c * RW + sh, y: 268 + r * RH, rot: 0, bw: RW, bh: RH };
+    if (seat === 2) return me ? { x: 412 - c * RW - D, y: 127 - r * RH, rot: 90, bw: RH, bh: RW } : { x: 412 - c * RW - sh, y: 127 - r * RH, rot: 180, bw: RW, bh: RH };
+    if (seat === 3) return me ? { x: 181 - r * 35, y: 157 + c * RW, rot: 0, bw: RW, bh: RH } : { x: 181 - r * 35, y: 157 + c * RW + sh, rot: 90, bw: RH, bh: RW };
+    return me ? { x: 503 + r * 35 + D, y: 287 - c * RW - D, rot: 180, bw: RW, bh: RH } : { x: 503 + r * 35, y: 287 - c * RW - sh, rot: 270, bw: RH, bh: RW };
+  }
+  function tileR(t, x, y, w, h, red, dim, rot) {
+    if (!rot) { tile(t, x, y, w, h, red, dim); return; }
+    if (!gfx.imageRot(MJ.tileSrc(t, red), x, y, w, h, dim ? 100 : 255, rot)) { const bw = (rot === 90 || rot === 270) ? h : w, bh = (rot === 90 || rot === 270) ? w : h; fill(x, y, bw, bh, [240, 240, 230]); }
+  }
+  const BAR = [8, 26, 18];
+  function barPieces(g, p) {
+    const sw = g.seatWindOf(p), parts = [{ s: WIND[sw], c: sw === 0 ? [235, 90, 70] : [120, 160, 230], sz: 20 }, { s: p.name, c: WHITE, sz: 20 }, { s: String(p.score).replace(/\B(?=(\d{3})+(?!\d))/g, ','), c: p.score < 0 ? RED : YEL, sz: 22 }];
+    if (p.riichi) parts.push({ s: 'リーチ中', c: [255, 96, 80], sz: 19, b: 1 });
+    return parts;
+  }
+  const WIND_BG = [[214, 64, 52], [36, 150, 92], [52, 110, 210], [138, 92, 206]]; // 東・南・西・北の色(Edge版と同じく、家ごとに色を分ける)
+  const SEAT_C = [[229, 57, 53], [58, 138, 238], [47, 191, 106], [165, 107, 255]]; // 家ごとの色(あなた=赤・下家=青・対面=緑・上家=紫。Edge版と同じ)
+  function drawBar(g, p, x, y, w, h, rot) {
+    const act = g.turn === p.seat, sw = g.seatWindOf(p), CH = 24, ST = 8, bg = WIND_BG[sw], sc = SEAT_C[p.seat], YK = !!(MJ.RULES.yakitori && g.winCnt && !g.winCnt[p.seat]); // 焼き鳥: まだ上がっていない人には、「やきとり」の牌
+    if (act) { rrect(x - 8, y - 8, w + 16, h + 16, 11, [255, 210, 60], 80); rrect(x - 4, y - 4, w + 8, h + 8, 9, [255, 255, 255]); panel(x, y, w, h, 7, [255, 214, 58], [255, 255, 255], 2); } // いま番の人: 黄色い板に白い縁・金色の光(Edge版と同じ)
+    else panel(x, y, w, h, 7, BAR, [190, 190, 182], 2, 215);
+    // 家の色の帯(板のはしの太い線)
+    if (!rot) rrect(x + 2, y + 2, ST, h - 4, 3, sc); else if (rot === 90) rrect(x + 2, y + 2, w - 4, ST, 3, sc); else rrect(x + 2, y + h - 2 - ST, w - 4, ST, 3, sc);
+    const parts = barPieces(g, p).slice(1).map((q, i) => ({ s: q.s, sz: q.sz, b: q.b, c: act ? (i === 0 ? [27, 27, 18] : i === 1 ? [120, 60, 0] : [200, 30, 30]) : q.c }));
+    const off = ST + 8;
+    { const avail = (rot ? h : w) - off - CH - 10 - 8 - (YK ? 24 : 0), tot = parts.reduce((a, q) => a + gfx.measure(q.s, q.sz), 0) + 12 * (parts.length - 1), k = Math.min(1, avail / tot); if (k < 1) parts.forEach((q) => { q.sz = Math.max(10, Math.floor(q.sz * k)); }); } // はみ出すときは、文字を小さくして、板に収める
+    if (!rot) {
+      const cy0 = y + (h - CH) / 2; rrect(x + off, cy0, CH, CH, 5, bg); text(WIND[sw], x + off + CH / 2, cy0 + 2, 18, WHITE, 1);
+      let cx = x + off + CH + 10; parts.forEach((q) => { const ty = y + Math.round((h - q.sz) / 2) + 1; if (q.b) { text(q.s, cx + 1, ty, q.sz, q.c); text(q.s, cx, ty + 1, q.sz, q.c); } text(q.s, cx, ty, q.sz, q.c); cx += gfx.measure(q.s, q.sz) + 12 + (q.b ? 1 : 0); }); return;
+    }
+    if (rot) parts.forEach((q) => { if (q.sz > 19) q.sz = 19; }); // 横向きの板(上家・下家)は、字を少し小さくして、カンマが枠からはみ出ないように
+    const cxm = x + w / 2, cc = rot === 90 ? y + off + CH / 2 : y + h - off - CH / 2;
+    rrect(Math.round(cxm - CH / 2), Math.round(cc - CH / 2), CH, CH, 5, bg); gfx.textRot(WIND[sw], Math.round(cxm), Math.round(cc), 18, 255, 255, 255, rot);
+    let cy = y + off + CH + 10;
+    parts.forEach((q) => { const tw = gfx.measure(q.s, q.sz), dx = rot === 90 ? 3 : -3, bx = q.b ? 1 : 0; // 文字の下がわ(カンマ)が出るほうと逆に、少しよせる
+      if (rot === 90) { gfx.textRot(q.s, Math.round(cxm) + dx, Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); if (bx) gfx.textRot(q.s, Math.round(cxm) + dx + 1, Math.round(cy + tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 90); cy += tw + 12; } else { gfx.textRot(q.s, Math.round(cxm) + dx, Math.round(y + h - (cy - y) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); if (bx) gfx.textRot(q.s, Math.round(cxm) + dx - 1, Math.round(y + h - (cy - y) - tw / 2), q.sz, q.c[0], q.c[1], q.c[2], 270); cy += tw + 12; } });
+    if (YK) { if (!rot) gfx.image('img/yakitori.webp', x + w - 24, y + Math.round((h - 19) / 2), 14, 19, 255); else gfx.image('img/yakitori.webp', x + Math.round((w - 14) / 2), y + h - 25, 14, 19, 255); }
+  }
+  /* 副露: 席ごとの向きで並べ、鳴いた牌は90度回して、鳴かれた相手の側に置く */
+  function meldWH(p, w, h) { let L = 0; for (const m of p.melds) { const n = m.tiles.length, ci = calledIdx(p, m); for (let i = 0; i < n; i++) L += (i === ci ? h : w) + 1; L += 6; } return L; }
+  function calledIdx(p, m) { if (!m.from && m.from !== 0) return -1; if (m.from < 0 || m.from === p.seat) return -1; const n = m.tiles.length, rel = (m.from - p.seat + 4) % 4; return rel === 3 ? 0 : rel === 1 ? n - 1 : Math.min(1, n - 1); }
+  function drawMelds(p, ax, ay, w, h) { // (ax,ay): 副露の置き場の左上。長さは meldWH
+    const seat = p.seat, rot0 = [0, 270, 180, 90][seat], horiz = seat === 0 || seat === 2, total = meldWH(p, w, h);
+    let pos = 0;
+    for (const m of p.melds) {
+      const n = m.tiles.length, ci = calledIdx(p, m);
+      for (let i = 0; i < n; i++) {
+        const side = i === ci, len = side ? h : w, tl = m.tiles[i];
+        const off = (seat === 0 || seat === 3) ? pos : total - pos - len; // 席の左から右へ並べた位置 → 画面の位置
+        let bx, by, bw, bh, rot;
+        if (horiz) { bx = ax + off; bw = side ? h : w; bh = side ? w : h; by = seat === 0 ? ay + h - bh : ay; }
+        else { by = ay + off; bw = side ? w : h; bh = side ? h : w; bx = seat === 3 ? ax : ax + h - bw; }
+        rot = side ? (rot0 + 90) % 360 : rot0;
+        if (m.kind === 'ankan' && (i === 0 || i === 3)) back(bx, by, bw, bh, seat === 0 ? 'self' : seat === 3 ? 'l' : seat === 1 ? 'r' : undefined);
+        else tileR(tl.t, bx, by, w, h, tl.red, false, rot);
+        pos += len + 1;
+      }
+      pos += 6;
+    }
+  }
+  const sideY0 = (p) => { const m = p.melds.length ? meldWH(p, 16, 22) : 0; return m ? Math.min(66, 312 - m - 29 - (13 - 3 * p.melds.length) * 17) : 66; }; // 上家・下家の手牌(伏せ牌)の いちばん上。 副露(下から上へ のびる)と、ツモ牌(上がったときは 8ピクセルずらして 枠つき)が かさならないように
+  function drawRiver(g, p) {
+    const fr = []; // 枠は、牌を全部描いたあとに、上から描く(次の牌が重なって、枠の片側が消えないように)
+    p.discards.forEach((d, i) => {
+      if (S.fly && S.fly.d === d && __now() < S.fly.t0 + S.fly.dur) return; // 飛んでいる間は、河には描かない
+      const q = riverPos(p.seat, i, p);
+      const isLast = g.lastDiscard && g.lastDiscard.d === d && !(g.turn === 0 && !S.react && g.lastDiscard.by !== 0); // 自分の番になったら、直前の捨て牌の枠は消す
+      tileR(d.tile.t, q.x, q.y, RW, RH, d.tile.red, d.called, q.rot);
+      if (isLast || d.riichi) fr.push([q, isLast, !!d.riichi]);
+    });
+    fr.forEach(([q, isLast, rc]) => { if (isLast) frame(q.x - 2, q.y - 2, q.bw + 4, q.bh + 4, YEL, 2); if (rc) frame(q.x - 1, q.y - 1, q.bw + 2, q.bh + 2, RED, isLast ? 1 : 2); });
+  }
+  /* ---------- 麻雀先生(バランス型) ---------- */
+  function teacherAdvice(g, p, opts) {
+    const A = MJ.AI; const ob = MJ.AI_BUDGET; MJ.AI_BUDGET = 0.4; let an; try { an = A.analyze(g, p, { know: 2, deep: true, deepN: 6, budget: 60 }); } finally { MJ.AI_BUDGET = ob; } // 自分の番は、カーソルが引っかからないよう、短く
+    if (!an.evals.length) return null;
+    const stc = an.opps.length ? A.stance(g, p, an, 'balance') : null;
+    const pick = stc && stc.pick ? stc.pick : A.byEff(an.evals)[0];
+    const rch = opts.riichi.includes(pick.t) && pick.sh === 0 && (stc ? (stc.kind === 'push' && A.wantRiichi(g, p, pick, an)) : A.wantRiichi(g, p, pick, an));
+    let say = ''; // 初心者に分かるひとこと(リーチを受けているとき)
+    if (stc) {
+      const tg = pick.danger ? pick.danger.tag : '', tn = MJ.tileName(pick.t), ip = an.opps.some((q) => q.ippatsu);
+      const tgJ = /^現物/.test(tg) ? '現物(相手が捨てた牌)なので 安全です' : /^全見え/.test(tg) ? '全部見えているので 安全です' : /^字牌/.test(tg) ? '字牌なので わりと安全です' : /^スジ/.test(tg) ? 'スジなので わりと安全です' : /^(半スジ|カベ|ワンチャンス)/.test(tg) ? 'あまり危なくない牌です' : tg ? 'すこし危ない牌ですが、これが いちばんマシです' : '';
+      const head = ip ? '一発(リーチのすぐあと)は 危険です。' : 'リーチを受けています。';
+      say = stc.kind === 'fold' ? head + (tgJ ? tn + 'は' + tgJ + '。' : '') + '今回は 安全に おりましょう。' : stc.kind === 'mid' ? head + (tgJ ? tn + 'は' + tgJ + '。' : '') + '危なくない牌を選んで、手を進めましょう。' : head + (pick.sh === 0 ? 'テンパイしています。' : 'まだ テンパイでは ありませんが、') + (stc.ev ? '上がれる見込みは 約' + Math.round(stc.pw * 100) + '%、 ロンされる危険は 約' + Math.round(stc.pd * 100) + '%。 前に出ましょう。' : (pick.sh === 0 && pick.wl ? '待ちは あと' + pick.wl + '枚、山は のこり' + g.live.length + '枚。 ' : '') + '手が整っているので、思い切って 勝負しましょう。');
+    }
+    return { tile: pick.tile, t: pick.t, sh: pick.sh, n: pick.ukeire ? pick.ukeire.n : 0, label: stc ? stc.label : '', why: stc ? stc.why : '', say, riichi: rch, minSh: an.minSh };
+  }
+  function waitInfoOf(g) { // いまの手牌がテンパイなら、あたり牌と、見えていない残りの枚数
+    const p = g.players[0]; let hand = p.hand.filter((h) => h !== p.drawn), plan = false;
+    if (S.self && S.self.rm) { // リーチする牌を選んでいる間は、その牌を切ったあとの待ち(予定)を出す
+      const h = myTiles(p)[S.self.idx]; if (!h) return null; hand = p.hand.filter((x) => x !== h); plan = true;
+    }
+    if (hand.length % 3 !== 1) return null;
+    const key = (plan ? 'P' : '') + hand.map((h) => h.id).join(',') + '|' + p.melds.length + '|' + g.players.map((q) => q.discards.length).join(',');
+    if (key === S.waitKey) return S.waitInfo; S.waitKey = key; S.waitInfo = null;
+    const c = MJ.toCounts(hand); if (MJ.shanten(c, p.melds.length) !== 0) return null;
+    const ws = MJ.waits(c.slice(), p.melds.length); if (!ws.length) return null;
+    const seen = Array(34).fill(0); hand.forEach((h) => seen[h.t]++); if (p.drawn && hand.indexOf(p.drawn) < 0 && !plan) seen[p.drawn.t]++;
+    g.players.forEach((q) => { q.discards.forEach((d) => { if (!d.called) seen[d.tile.t]++; }); q.melds.forEach((m) => m.tiles.forEach((h) => seen[h.t]++)); });
+    g.doraInd.forEach((d) => seen[d.t]++);
+    S.waitInfo = ws.slice(0, 5).map((t) => ({ t, left: Math.max(0, 4 - seen[t]), plan, fu: !!(p.tempFuriten || p.riichiFuriten || ws.some((w) => p.discardTypes.has(w))) })); return S.waitInfo;
+  }
+  /* ---------- 右の操作の列(Edge版と同じ並び): MENU / 局 / あたり牌 / 解説 / 麻雀先生 ---------- */
+  const SIDE_ORDER = [0, 3, 1, 2]; // 上から: MENU(と音) / 解説 / 麻雀先生
+  function sbtn(x, y, w, h, c1, c2, lines, focus, sz) {
+    if (focus) rrect(x - 3, y - 3, w + 6, h + 6, 7, [255, 255, 255]); rrect(x, y, w, h, 4, c2); rrect(x, y, w, h - 3, 4, c1);
+    lines.forEach((l, i) => text(l, x + w / 2, y + (h - lines.length * (sz + 3)) / 2 + i * (sz + 3), sz, WHITE, 1));
+  }
+  function drawSide(g) {
+    const f = S.side ? S.side.idx : -1;
+    sbtn(726, 6, 64, 32, [235, 120, 30], [160, 70, 10], [''], f === 0, 13); text('MENU', 765, 14, 15, WHITE, 1); [0, 1, 2].forEach((i) => fill(731, 15 + i * 5, 10, 2, WHITE));
+    sbtn(796, 6, 30, 32, [50, 90, 160], [25, 50, 100], [''], f === 3, 13); fill(803, 17, 4, 10, WHITE); fill(807, 14, 3, 16, WHITE); fill(810, 11, 3, 22, WHITE); fill(816, 17, 2, 10, WHITE);
+    if (g.tenka) { rrect(728, 92, 98, 22, 8, [190, 40, 40]); text('天下分け目', 777, 94, 14, WHITE, 1); } // 家康と黄門が そろった 一戦
+    if (g.town != null && !g.practice) { rrect(728, 92, 98, 22, 8, [40, 110, 170]); text('修行の対局', 777, 94, 14, WHITE, 1); }
+    if (g.practice) { rrect(728, 92, 98, 22, 8, [160, 70, 140]); text(g.watching ? '観戦(記録なし)' : '練習(記録なし)', 777, 94, 14, WHITE, 1); } // 練習対局のしるし
+    { const lb = g.kyokuLabel().split(' '); text(lb[0], 776, 44, 24, WHITE, 1); text((lb[1] ? lb[1] + ' ' : '') + ({ single: '一局戦', south: '東南戦' }[g.length] || '東風戦'), 776, 70, 16, [200, 215, 200], 1); }
+    {
+      const w = waitInfoOf(g);
+      if (w) { // あたり牌: 4種類までは大きく(2列)、それより多いときだけ小さく(3列)
+        const big = w.length <= 4, cols = big ? 2 : 3, rows = Math.ceil(w.length / cols), tw = big ? 38 : 28, th = big ? 50 : 38, pitch = big ? 46 : 32, rh = big ? 74 : 58, fs = big ? 16 : 14;
+        const ph = 34 + rows * rh + (w[0].fu ? 22 : 0); panel(726, 88, 100, ph, 10, [6, 44, 26], [255, 220, 40], 2, 235); text(w[0].plan ? '待ち(予定)' : 'あたり牌', 776, 92, w[0].plan ? 17 : 18, YEL, 1);
+        w.forEach((x, i) => { const tx = 731 + (i % cols) * pitch + (big ? 2 : 0), ty = 118 + Math.floor(i / cols) * rh; tile(x.t, tx, ty, tw, th); text('あと' + x.left, tx + tw / 2, ty + th + 2, fs, WHITE, 1); });
+        if (w[0].fu) text('フリテン', 776, 88 + ph - 24, 16, [255, 120, 100], 1); }
+    }
+    const dy = g.practice ? -30 : 0; // 練習・観戦は ボタンが1つ多いので、全体を上へ(下が、画面で切れない)
+    sbtn(726, 322 + dy, 100, 46, [40, 90, 190], [20, 50, 120], [''], f === 1, 24); gfx.image('img/teacher/t12.webp', 730, 324 + dy, 38, 40, 255); text('解説', 792, 332 + dy, 22, WHITE, 1);
+    sbtn(726, 376 + dy, 100, 56, teacherOn() ? [30, 120, 80] : [90, 90, 90], teacherOn() ? [15, 70, 45] : [50, 50, 50], ['麻雀先生', teacherOn() ? 'あり' : 'なし'], f === 2, 19);
+    if (g.practice) sbtn(726, 410, 100, 28, g.openHands ? [190, 110, 30] : [90, 90, 90], g.openHands ? [110, 60, 10] : [50, 50, 50], [g.openHands ? '手牌を とじる' : '全員の手牌'], f === 4, 14); // 練習・観戦: 全員の手牌を ひらく/とじる
+  }
+  function wrapText(s, sz, maxw) { // 文字列を、幅に収まるように、行に分ける
+    const out = []; let cur = '';
+    for (const ch of String(s)) { if (ch === '\n') { out.push(cur); cur = ''; continue; } if (gfx.measure(cur + ch, sz) > maxw && !'。、,.」』)）!?!?…ー'.includes(ch)) { out.push(cur); cur = ch; } else cur += ch; }
+    if (cur) out.push(cur); return out;
+  }
+  /* Edge版の解説(coach.js が作るカード)を、文字のカードに直して使う */
+  const htmlText = (h) => String(h).replace(/<span class="tile[^>]*>[\s\S]*?<\/svg><\/span>/g, '').replace(/<br\s*\/?>/g, '\n').replace(/<li>/g, '\n・').replace(/<\/li>/g, '\n').replace(/<\/div>/g, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/\n{3,}/g, '\n\n').trim();
+  function parseCards(html) {
+    const out = [], re = /<div class="cc(?: [^"]*)?"><div class="cc-h">([\s\S]*?)<\/div><div class="cc-b">([\s\S]*?)<\/div><\/div>(?=<div class="cc|\s*$)/g; let m;
+    while ((m = re.exec(html))) out.push({ title: htmlText(m[1]), text: htmlText(m[2]) });
+    return out;
+  }
+  function buildCoach() {
+    const g = S.game; if (!g) return [];
+    try {
+      if (S.self) { const a = MJ.Coach.selfAdvice(g, S.self.p, S.self.opts, S.self.st || {}); return parseCards(a.html); }
+      if (S.react && S.reactArgs) return parseCards(MJ.Coach.reactAdvice(g, S.reactArgs.q, S.reactArgs.o));
+    } catch (e) { print('coach err ' + (e && e.stack || e)); }
+    return [];
+  }
+  const shortTitle = (t) => /おすすめ|★/.test(t) ? 'おすすめ' : /どうして/.test(t) ? 'どうして?' : /役/.test(t) ? '目指す役' : /警戒|危/.test(t) ? '警戒' : /手牌/.test(t) ? '手牌' : (t.replace(/^[^\u3040-\u9fff]+/, '').slice(0, 4) || t.slice(0, 4));
+  /* 麻雀先生の顔(Edge版と同じ表情の組み合わせ)。key が同じあいだは、同じ顔のまま */
+  const TM = { ok: ['21', '22', '31', '32', '35'], pass: ['15', '25', '24', '34', '12'], advice: ['26', '36', '16', '13', '12'], aim: ['16', '13', '26', '36', '12'], warn: ['24', '34', '25', '15'], cheer: ['35', '31', '21', '32', '22'], greet: ['14', '21', '11', '36'] };
+  const tPick = (mood, key) => { const c = S._tp || (S._tp = {}), k = mood + ':' + key; if (!c[k]) { const a = TM[mood] || TM.advice, last = S._tpLast || (S._tpLast = {}); let n = a[Math.floor(Math.random() * a.length)]; if (a.length > 1 && n === last[mood]) n = a[(a.indexOf(n) + 1) % a.length]; last[mood] = n; const ks = Object.keys(c); if (ks.length > 60) delete c[ks[0]]; c[k] = n; } return 'img/teacher/t' + c[k] + '.webp'; };
+  const TW = {"11": 229, "12": 219, "13": 243, "14": 234, "15": 177, "16": 221, "21": 228, "22": 191, "23": 237, "24": 215, "25": 195, "26": 176, "31": 214, "32": 205, "33": 235, "34": 225, "35": 236, "36": 187}; // 先生の顔の絵の、高さ240のときの幅(ゆがめず出すため)
+  const tFace = (mood, key, x, y, h) => { const bw = Math.round(h * 0.95), pth = tPick(mood, key), tw = TW[(pth.match(/t(\d+)\.webp/) || [])[1]] || 228, w = Math.round(h * tw / 240); gfx.image(pth, x + Math.round((bw - w) / 2), y, w, h); return bw; }; // gfx.image で描く(imageTop は 先に描いた絵のうえに出る札で、カーソルを動かして手牌だけ描きなおすとき、消えてしまっていた)
+  function drawCoach() {
+    panel(10, 8, 700, 412, 18, [14, 40, 32], [240, 210, 120], 3, 247);
+    const c = S.coach, cards = c.cards;
+    { const t0 = cards[c.tab] ? cards[c.tab].title : ''; tFace(/警戒|危/.test(t0) ? 'warn' : /おすすめ|★/.test(t0) ? 'ok' : 'advice', 'c' + c.tab + t0, 14, 9, 38); } text('麻雀先生', 58, 14, 20, YEL);
+    if (!teacherOn()) { text('麻雀先生が「なし」です。右の「麻雀先生」ボタンで「あり」にしてください。', 28, 80, 18, WHITE); text('決定・もどる で とじる', 360, 392, 20, GREY, 1); return; }
+    if (!cards.length) { text('あなたの番(または、ポン・チーなどの選択)のときに、開いてください。', 28, 80, 18, WHITE); text('決定・もどる で とじる', 360, 392, 20, GREY, 1); return; }
+    const tw = Math.min(110, Math.floor(540 / cards.length));
+    cards.forEach((cd, i) => { const on = c.tab === i; fill(150 + i * (tw + 4), 14, tw, 30, on ? YEL : [60, 90, 80]); text(shortTitle(cd.title), 150 + i * (tw + 4) + tw / 2, 16, 18, on ? BLACK : WHITE, 1); });
+    const cd = cards[c.tab];
+    if (!cd.fit) { // 入りきる いちばん大きな字で(スクロールさせない)。最後まで入らないときだけ、小さな字で、スクロール
+      for (const sz of [26, 24, 22, 20, 18]) {
+        const lines = []; wrapText(cd.title, sz + 2, 650).forEach((l) => lines.push({ t: l, h: 1 })); lines.push({ t: '', h: 0 }); wrapText(cd.text, sz, 650).forEach((l) => lines.push({ t: l, h: 0 }));
+        const hh = lines.reduce((a2, l) => a2 + (l.h ? Math.round((sz + 2) * 1.4) : Math.round(sz * 1.4)), 0); cd.fit = { sz, lines, hh }; if (hh <= 322) break;
+      }
+    }
+    const F = cd.fit, top = c.scroll || 0; let y = 54; gfx.clip(10, 50, 700, 330);
+    F.lines.slice(top).forEach((l) => { text(l.t, 28, y, l.h ? F.sz + 2 : F.sz, l.h ? YEL : WHITE); y += l.h ? Math.round((F.sz + 2) * 1.4) : Math.round(F.sz * 1.4); }); gfx.clip();
+    if (F.hh > 322) text((top > 0 ? '↑ ' : '') + '↓ つづき', 690, 384, 18, GREY, 2);
+    text('← → カードをえらぶ   ↑ ↓ 文章をうごかす   決定・もどる とじる', 360, 392, 18, GREY, 1);
+  }
+  const fitSz = (str, sz, maxw, min) => { while (sz > min && gfx.measure(str, sz) > maxw) sz--; return sz; }; // 幅に入るまで、字を小さくする
+  function drawTeacher(g) {
+    if (!teacherOn()) return;
+    const h = S.hint, s = S.self; if (s && s.rm) return; // リーチする牌をえらぶ間は、案内の文字だけ
+     if (S.wnote && __now() < S.wnote.until && S.game && S.game.watching) { const w = S.wnote; panel(6, 262, 700, 74, 10, [6, 44, 26], [255, 220, 40], 2, 240); text('麻雀先生の解説', 18, 266, 16, YEL); text(w.a, 18, 286, fitSz(w.a, 21, 676, 15), WHITE); text(w.b, 18, 312, fitSz(w.b, 18, 676, 14), [200, 225, 205]); return; } // 観戦中: CPUが捨てた理由
+     if ((!h || !s || s.row !== 0) && !S.react && S.tmsg && __now() < S.tmsg.until) { panel(6, 268, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('advice', 'm' + S.tmsg.until, 12, 270, 60); text('麻雀先生', 80, 272, 16, YEL); text(S.tmsg.text, 80, 294, fitSz(S.tmsg.text, 21, 480, 16), WHITE); return; }
+    if (!h || !s || s.row !== 0) return;
+    const l1 = '★ おすすめ: ' + MJ.tileName(h.t) + (h.riichi ? ' を切ってリーチ' : ' を切る');
+    if (h.say) { // リーチを受けているとき: 理由を 分かりやすく 2行で
+      const wr = (str, sz, mw) => { const o = []; let c = ''; for (const ch of str) { if (gfx.measure(c + ch, sz) > mw) { o.push(c); c = ch; } else c += ch; } if (c) o.push(c); return o.slice(0, 3); };
+      panel(6, 214, 566, 118, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('ok', 'h' + h.t + (h.riichi ? 'r' : ''), 12, 220, 60);
+      text(l1, 80, 218, fitSz(l1, 24, 484, 18), YEL); wr(h.say, 19, 484).forEach((ln, i) => text(ln, 80, 250 + i * 26, 19, WHITE));
+      return;
+    }
+    const l2 = (h.sh === 0 ? 'テンパイです' : 'あと' + h.sh + '歩で テンパイ') + (h.n && h.sh <= 1 ? '。 前に進める牌が あと' + h.n + '枚' : ''); // 数が大きすぎるとき(まだ遠いとき)は 出さない // むずかしい言葉(受け入れ)は使わない
+    panel(6, 268, 566, 64, 10, [6, 44, 26], [255, 220, 40], 2, 240); tFace('ok', 'h' + h.t + (h.riichi ? 'r' : ''), 12, 270, 60);
+    const run = (parts, x, y, sz, col) => { let cx = x; parts.forEach((q) => { text(q, cx, y, sz, col); cx += gfx.measure(q, sz); }); }; // 文章を部品に分けて描く: 毎回ちがう文字の並びを 1行まるごと作ると 実機で 重い(0.2秒ほど)。 部品なら、2回目から 作りおきを使える
+    const p1 = ['★ おすすめ: ', MJ.tileName(h.t), h.riichi ? ' を切ってリーチ' : ' を切る'], p2 = h.sh === 0 ? ['テンパイです'] : ['あと', String(h.sh), '歩で テンパイ'].concat(h.n && h.sh <= 1 ? ['。 前に進める牌が あと', String(h.n), '枚'] : []);
+    run(p1, 80, 272, fitSz(l1, 24, 484, 18), YEL); run(p2, 80, 301, fitSz(l2, 19, 484, 14), WHITE);
+  }
+
+  /* ---------- 軽い動き(牌が河へ飛ぶ・配牌・札の拡大) ---------- */
+  function startFly(g, ld) {
+    if (g.fast || ld.by == null) return;
+    const p = g.players[ld.by], i = p.discards.indexOf(ld.d); if (i < 0) return;
+    const q = riverPos(ld.by, i, p);
+    const from = ld.by === 0 && S.pick ? S.pick : ({ 2: [330, 20], 3: [10, 150], 1: [690, 150] }[ld.by] || [360, 300]);
+    S.fly = { d: ld.d, t: ld.tile.t, red: ld.tile.red, from, to: [q.x, q.y], rot: q.rot, bw: q.bw, bh: q.bh, t0: __now(), dur: FLY_END }; S.pick = null;
+  }
+  /* 捨て牌: 3コマ(案B)。「ひょい」少し浮く → 「ぴゅっ」河の手前へ → 「タン!」河に置いて、白い枠が一瞬光る。途中をつながない */
+  const FLY_F = [[0, 0.05, 1.12], [45, 0.78, 1.2], [95, 1, 1]], FLY_END = 165;
+  function drawFly() {
+    const f = S.fly; if (!f) return; const e = __now() - f.t0; let fr = FLY_F[0]; for (const q of FLY_F) if (e >= q[0]) fr = q;
+    const k = fr[1], sc = fr[2], x = f.from[0] + (f.to[0] - f.from[0]) * k, y = f.from[1] + (f.to[1] - f.from[1]) * k;
+    const w0 = Math.round(HW + (RW - HW) * k), h0 = Math.round(HH + (RH - HH) * k), w = Math.round(w0 * sc), h = Math.round(h0 * sc);
+    const bw0 = (f.rot === 90 || f.rot === 270) ? h0 : w0, bh0 = (f.rot === 90 || f.rot === 270) ? w0 : h0, bw = (f.rot === 90 || f.rot === 270) ? h : w, bh = (f.rot === 90 || f.rot === 270) ? w : h;
+    tileR(f.t, Math.round(x - (bw - bw0) / 2), Math.round(y - (bh - bh0) / 2), w, h, f.red, false, f.rot); // 置かれる向きのまま飛ぶ
+    if (k === 1) frame(f.to[0] - 3, f.to[1] - 3, f.bw + 6, f.bh + 6, [255, 255, 255], 2); // タン!
+  }
+  /* 配牌: 4牌ずつ配られ、最後に「チャッ」と並び替わる */
+  /* 配牌: 親から反時計回りに、4牌ずつ(12牌)→ 1牌ずつ。配り終わると「チャ!」と牌が少し上がって並びかわり、「タンッ!」と手牌の位置にそろう */
+  const FLY_MS = 140, DEAL_R = [0, 400, 800, 1200], DEAL_J = 120, DEAL_LIFT = 1900, DEAL_DROP = 2340, DEAL_END = 2720, SRT_L = 200, SRT_S = 240, SRT_D = 150;
+  /* 配牌の山(2段重ねの牌が、輪になっている)。親の側から、反時計回りに、2つ(=4牌)ずつ取られていく */
+  const WALL_P = 15, WALL_X0 = 232, WALL_Y0 = 62;
+  const WALL_MEMO = {}; /* 画面の大きさは固定なので、親ごとの山の位置は 一度だけ計算する */
+  function wallList(dealer) {
+    if (WALL_MEMO[dealer]) return WALL_MEMO[dealer];
+    const out = [], side = (sd, i) => (sd === 0 ? { x: WALL_X0 + i * WALL_P, y: WALL_Y0 + 236, w: 14, h: 18, sd: '' } : sd === 1 ? { x: WALL_X0 + 261, y: Math.round(WALL_Y0 + 20 + (16 - i) * 12.8), w: 18, h: 12, sd: 'r' } : sd === 2 ? { x: WALL_X0 + (16 - i) * WALL_P, y: WALL_Y0, w: 14, h: 18, sd: '' } : { x: WALL_X0 - 24, y: Math.round(WALL_Y0 + 20 + i * 12.8), w: 18, h: 12, sd: 'l' });
+    for (let q = 0; q < 4; q++) for (let i = 0; i < 17; i++) out.push(side((dealer + q) % 4, i));
+    WALL_MEMO[dealer] = out; return out;
+  }
+  function drawWall(sr, half, dealer) {
+    wallList(dealer).forEach((p, idx) => { if (idx < sr) return; if (!(idx === sr && half)) back(p.x + 2, p.y - 2, p.w, p.h, p.sd || undefined); back(p.x, p.y, p.w, p.h, p.sd || undefined); });
+  }
+  /* 山から取った牌のかたまり: 2牌重ねの山を2つ(4牌)、となりあわせのまま手元へ動く。着くと、パッと手牌の位置に並ぶ */
+  function drawBlock(f, tx, ty) {
+    const v = f.ov === 'l' || f.ov === 'r', ns = f.cnt > 1 ? 2 : 1, w = 14, h = 18, ww = v ? 18 : 14, hh = v ? 12 : 18, ax = v ? 0 : 15, ay = v ? 12.8 : 0;
+    const bw = v ? 18 : 14 + ax * (ns - 1), bh = v ? 12 + ay * (ns - 1) : 18, k = f.k, u = 1 - (1 - k) * (1 - k), lift = Math.round(Math.sin(k * Math.PI) * 10);
+    const sx = f.org[0] - ww / 2, sy = f.org[1] - hh / 2, ex = tx - bw / 2, ey = ty - bh / 2;
+    const x0 = Math.round(sx + (ex - sx) * u), y0 = Math.round(sy + (ey - sy) * u) - lift;
+    for (let m = 0; m < ns; m++) { const x = Math.round(x0 + ax * m), y = Math.round(y0 + ay * m); if (f.cnt > 1 || m < 1) back(x + 2, y - 2, ww, hh, f.ov || undefined); back(x, y, ww, hh, f.ov || undefined); }
+  }
+  function dealState() {
+    const d = S.deal, ALL = { n: 99, ns: [99, 99, 99, 99], fly: [[], [], [], []], sorted: true, lift: 0, wall: false }; if (!d) return ALL;
+    if (d.seq === S.drawSeq && d.last) return d.last; // 1コマの中で、何度よばれても同じ答え
+    { // 重い1コマ(読み込みなど)があっても、アニメが飛ばないよう、時計を最大50msしか進めない。はじめは、描きが安定するまで少し待つ(最長1.5秒)
+      const nw = __now(); if (!d.c0) d.c0 = nw;
+      if (d._ln) { const dt = nw - d._ln, ex = dt - 50; d.calm = dt < 80 ? (d.calm || 0) + 1 : 0; if (ex > 0 && (d.str || 0) < 700) { const e2 = Math.min(ex, 700 - (d.str || 0)); d.str = (d.str || 0) + e2; d.t0 += e2; if (d.gt) for (let i = 0; i < d.gt.length; i++) d.gt[i] += e2; } } // 時計を止める量は、合計700msまで(それ以上 重いときは、実際の時間どおりに 進める。進まないまま 固まって見えないように)
+      d._ln = nw; if (!d.go) { if (nw >= d.t0 - 60 && (d.calm || 0) < 4 && nw - d.c0 < 1500) d.t0 = nw + 60; else d.go = true; }
+    }
+    const t = __now() - d.t0; if (t >= DEAL_END && d.groups >= 16 && __now() - d.gt[15] > FLY_MS) { S.deal = null; NSND.release(); return ALL; }
+    // 配った回数(親から反時計回りに、1人ぶん=1回): 時間で決まる目標まで、1コマに1回ずつ進める(遅い機械でも、1人ずつ見える)
+    let target = 0; for (let r = 0; r < 4; r++) for (let j = 0; j < 4; j++) if (t >= DEAL_R[r] + j * DEAL_J) target++;
+    if (d.groups == null) d.groups = 0;
+    if (!d.gt) d.gt = [];
+    if (!d.org) d.org = [];
+    if (d.groups < target) { const dl0 = S.game ? S.game.dealer : 0, tb = d.groups < 12 ? d.groups * 4 : 48 + (d.groups - 12), wp = wallList(dl0)[Math.min(67, tb >> 1)]; d.org[d.groups] = [wp.x + wp.w / 2, wp.y + wp.h / 2]; (d.ov || (d.ov = []))[d.groups] = wp.sd; d.gt[d.groups] = __now(); d.groups++; if (d.groups % 4 === 1) NSND.sfx(d.groups > 12 ? 'deal1' : 'deal4', 0.5); }
+    // 1人ぶん(4牌)ずつ、卓の中央から飛んできて、手元に収まる。飛んでいるあいだは ns(おさまった数)に入れず、fly に入れる
+    const ns = [0, 0, 0, 0], dl = S.game ? S.game.dealer : 0, fly = [[], [], [], []], nowT = __now(), dealt = [0, 0, 0, 0];
+    for (let k = 0; k < d.groups; k++) { const sd = (dl + (k % 4)) % 4, cnt = k < 12 ? 4 : 1, age = nowT - d.gt[k]; if (age < FLY_MS) fly[sd].push({ from: dealt[sd], cnt, k: Math.min(1, age / FLY_MS), org: d.org[k], ov: d.ov[k] }); else ns[sd] += cnt; dealt[sd] += cnt; }
+    const all = d.groups >= 16, sorted = all && t >= DEAL_LIFT; if (sorted && !d.liftSfx) { d.liftSfx = 1; NSND.sfx('sort1', 0.7); }
+    if (all && t >= DEAL_DROP && !d.dropSfx) { d.dropSfx = 1; NSND.sfx('discard', 0.7); }
+    const lift = 0;
+    let tiles = 0; for (let k = 0; k < d.groups; k++) tiles += k < 12 ? 4 : 1;
+    d.seq = S.drawSeq; d.last = { n: ns[0], ns, fly, sorted, lift, st: t - DEAL_LIFT, wall: true, sr: tiles >> 1, half: tiles & 1 };
+    return d.last;
+  }
+  const lay = (i, key, fn) => { const c = S.lay[i]; if (!c || c.key !== key) { gfx.layerBegin(i); fn(); gfx.layerEnd(); S.lay[i] = { key }; } }; // 絵を、画面に出さずに、キャッシュの面に描いておく(先に用意するとき)
+  const cached = (i, key, fn) => { lay(i, key, fn); gfx.layer(i); };
+  /* ---------- 裏ドラ確認のアニメ(王牌の7本のうえに かさねて描く) ---------- */
+  const URA_T = { start: 0.5, slide: 0.28, hold1: 0.6, hold2: 0.5, lift: 0.12, drop: 0.11, gap: 0.45, end: 2.2 }; // 秒
+  const URA_C = { BLUE: [74, 140, 222], BLUE_L: [140, 190, 246], CREAM: [240, 234, 212], FACE: [252, 249, 238] };
+  const URA_X = (i) => 356 + i * 18, /* 1牌ずつ、すきま1pxで 均等に(右端は481。下家のリーチ棒(x=484〜)に 重ならない) */ URA_YU = 191, URA_YL = 205, URA_W = 17, URA_HS = 22, URA_HC = 7, URA_SLIDE = 23, URA_LIFT = 3;
+  function uraTile(x, y, kind, tl) { // 牌1枚: 上の面(伏せ=青 / 表=数字)+ 手前の白い側面(表の牌は いちばん下の縁だけ 青い線)
+    const hh = URA_HS + URA_HC, fy = y + 9;
+    rrect(x, y + 1, URA_W, hh, 3, [0, 0, 0], 60);
+    if (kind === 'up') { rrect(x, fy, URA_W, hh - 9, 3, URA_C.BLUE); rrect(x, fy, URA_W, hh - 9 - 3, 3, URA_C.CREAM); } else rrect(x, fy, URA_W, hh - 9, 3, URA_C.CREAM);
+    if (kind === 'down') { rrect(x, y, URA_W, URA_HS, 3, URA_C.BLUE_L); rrect(x + 1, y + 1, URA_W - 2, URA_HS - 2, 2, URA_C.BLUE); }
+    else { rrect(x, y, URA_W, URA_HS, 3, URA_C.CREAM); rrect(x + 1, y + 1, URA_W - 2, URA_HS - 2, 2, URA_C.FACE); tile(tl.t, x + 1, y + 1, URA_W - 2, URA_HS - 2, tl.red); }
+  }
+  function uraWallStatic(g) { // ふだんの王牌: アニメと同じ形・同じ場所に描く
+    const isInd = {}; (g.doraInd || []).slice(0, 5).forEach((d, k) => { if (d) isInd[4 - k] = d; });
+    for (let i = 0; i < 7; i++) uraTile(URA_X(i), URA_YL, 'down');
+    for (let i = 0; i < 7; i++) uraTile(URA_X(i), URA_YU, isInd[i] ? 'up' : 'down', isInd[i]);
+  }
+  /* ---------- 決めゼリフのカットイン(js/banter5.js の MJ.CutIn が、出すかどうかを決める) ---------- */
+  const CI_T = 2800, CI_COL = { ron: { band: [90, 20, 16], edge: [255, 210, 58], tag: 'ロン' }, tsumo: { band: [14, 74, 88], edge: [127, 232, 255], tag: 'ツモ' } };
+  const ciEase = (x) => { x = Math.max(0, Math.min(1, x)); return 1 - Math.pow(1 - x, 3); };
+  const ciSize = (t) => fitSz(t, 42, 520, 18);
+  function cutinShow(g, ci) { return new Promise((res) => { S.bub = {}; S.sayQ = []; g._cutinWinner = ci.p; S.cutin = { ci, t0: __now(), res }; NSND.sfx('slam', 0.7); dirty(); }); }
+  function cutinEnd() { const C = S.cutin; if (!C) return; S.cutin = null; dirty(); try { C.res(); } catch (e) { /* ignore */ } }
+  function drawCutin() {
+    const C = S.cutin; { const nw = __now(); if (!C.n) { C.n = 1; C.t0 = nw; C.f0 = nw; } else if (C.n === 1) { C.n = 2; if (nw - C.f0 > 400) C.t0 = nw - 120; } /* 時計は、最初に描いたときから数える */ } /* 最初の1コマが重くて止まったときは、そのぶんの時間を使わない(カットインが、見えないまま 終わらないように) */
+    const t = __now() - C.t0; if (t >= CI_T) { cutinEnd(); return; }
+    const K = CI_COL[C.ci.tsumo ? 'tsumo' : 'ron'], inn = ciEase(t / 340), out = t > 2400 ? ciEase((t - 2400) / 400) : 0, dimA = Math.round(140 * Math.min(1, t / 250) * (1 - out));
+    gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], dimA); gfx.image('img/cutin_' + (C.ci.tsumo ? 'tsumo' : 'ron') + '.webp', 0, 0, SW, SH, Math.round(220 * Math.min(1, t / 250) * (1 - out)));
+    const bx = Math.round(-SW * (1 - inn) - SW * out), by = 170;
+    fill(bx, by, SW, 128, K.band); fill(bx, by + 4, SW, 20, [20, 12, 6], 150); fill(bx, by + 104, SW, 20, [20, 12, 6], 150); fill(bx, by, SW, 4, K.edge); fill(bx, by + 124, SW, 4, K.edge);
+    const fx = Math.round(44 - 330 * (1 - ciEase((t - 100) / 300)) - 330 * out); // 顔: 左から入る
+    rrect(fx - 8, 88, 206, 206, 6, [26, 18, 8]); rrect(fx - 5, 91, 200, 200, 5, K.edge); rrect(fx - 1, 95, 192, 192, 4, [255, 255, 255]); face(C.ci.p, fx + 1, 97, 188, 188, true);
+    const tx = Math.round(250 + 620 * (1 - ciEase((t - 170) / 330)) + 620 * out), sz = ciSize(C.ci.text);
+    text(C.ci.p.name, tx, by + 10, -19, K.edge, 0); [[-2, -2], [2, -2], [-2, 2], [3, 3]].forEach((d) => text(C.ci.text, tx + d[0], by + 40 + d[1], -sz, [0, 0, 0], 0)); text(C.ci.text, tx, by + 40, -sz, WHITE, 0);
+    if (t > 340 && out < 0.5 && !C.ci.gyaku) { const a = Math.min(255, Math.round((t - 340) * 2.5)); rrect(704, 18, 108, 44, 6, K.edge, a); rrect(707, 21, 102, 38, 5, K.band, a); text(K.tag, 758, 24, -26, WHITE, 1); } // 逆転のカットインは、札(ロン/ツモ)を出さない(カットインそのものが目立つので)
+    dirty();
+  }
+  function winRvDone() { const W = S.winRv; if (!W) return; S.winRv = null; S.winRvHold = { ws: W.ws }; /* 裏ドラの確認のあいだも、開いた手牌を 見せたままにする(結果の画面が出るまで) */ dirty(); try { W.res(); } catch (e) { /* ignore */ } }
+  function uraDone() { const U = S.ura; if (!U) return; S.ura = null; dirty(); try { U.res(); } catch (e) { /* ignore */ } }
+  function uraSkip() { // 決定ボタン: 「トンッ」と置かれたところまで すぐ進む。 もう一度 押すと 結果の画面へ
+    const U = S.ura; if (!U) return;
+    if (U.vt < U.lastD + 0.05) { U.items.forEach((it) => { if (!it.sp) it.sp = 1; if (!it.tp && it !== U.items[U.items.length - 1]) it.tp = 1; }); U.vt = U.lastD + 0.05; dirty(); } else uraDone();
+  }
+  function drawUra() {
+    const U = S.ura; if (!U) return; const now = __now(); U.vt += Math.min(now - (U.l || now), 50) / 1000; U.l = now; const t = U.vt;
+    U.items.forEach((it) => { if (!it.sp && t >= it.s0) { it.sp = 1; NSND.sfx('ura_slide'); } if (!it.tp && t >= it.d1) { it.tp = 1; NSND.sfx('ura_tap'); } });
+    fill(354, 186, 130, 58, [6, 44, 26]); // 王牌の絵を、いったん おおう(右端は484まで。下家のリーチ棒(x=484〜)を 消さない)
+    const st = {}; U.items.forEach((it) => { st[it.col] = it; });
+    const e3 = (x) => { x = Math.max(0, Math.min(1, x)); return 1 - Math.pow(1 - x, 3); }, e2 = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+    for (let i = 0; i < 7; i++) { // 下の牌
+      const it = st[i], x = URA_X(i);
+      if (!it) { uraTile(x, URA_YL, 'down'); continue; }
+      if (t >= it.d1) { const u = (t - it.d1) / 0.2, sq = u < 1 ? Math.round(Math.sin(u * Math.PI) * (1 - u) * 1.0) : 0; uraTile(x, URA_YL + sq, 'up', it.ura); }
+      else { let lift = 0; if (t >= it.l0 && t < it.l1) lift = URA_LIFT * e2((t - it.l0) / URA_T.lift); else if (t >= it.l1) lift = URA_LIFT * (1 - Math.pow((t - it.l1) / URA_T.drop, 2)); uraTile(x, URA_YL - Math.round(t >= it.s0 ? lift : 0), 'down'); }
+    }
+    for (let i = 0; i < 7; i++) { // 上の牌(ドラ表示牌は、上へ出る)
+      const it = st[i], x = URA_X(i);
+      if (!it) { uraTile(x, URA_YU, 'down'); continue; }
+      uraTile(x, URA_YU - Math.round(URA_SLIDE * e3((t - it.s0) / URA_T.slide)), 'up', it.ind);
+    }
+    if (t >= U.endT) { uraDone(); return; }
+    dirty();
+  }
+  function drawTable(g) {
+    if (!g.doraInd || !g.players[0].hand) return; // 始まる前は、まだ描くものがない
+    gfx.clear(32, 74, 60);
+    fill(140, 8, 440, 300, [24, 56, 46]); // 卓の中ほど
+    if (g.blank) return;
+    const P = g.players;
+    if (S.fly && __now() >= S.fly.t0 + S.fly.dur) S.fly = null; // 着いたら、その同じコマから、河の絵に入れる(ちらつき防止)
+    const DS = dealState();
+    // 河(変わったときだけ描き直し、あとは1枚の絵を貼る)
+    const rkey = P.map((p) => p.discards.length + ':' + p.discards.map((d) => (d.called ? 1 : 0)).join('') + ':' + p.discards.indexOf(g.lastDiscard && g.lastDiscard.d)).join('|') + (g.turn === 0 && !S.react ? 't' : 'o') + (S.fly ? 'f' : '');
+    cached(0, rkey, () => P.forEach((p) => drawRiver(g, p)));
+    const okey = [S.deal ? 'd' : '-', g.turn, P.map((p) => (p.flowers || []).length).join(''), g.live.length, g.kyotaku, g.kyokuLabel(), (MJ.RULES.yakitori ? (g.winCnt || []).join('') : ''), (g.doraInd || []).map((d) => d.id).join(','), P.map((p) => p.hand.length + ':' + p.score + ':' + (p.riichi ? 1 : 0) + ':' + p.melds.length + ':' + p.melds.map((m) => m.tiles.length).join('') + ':' + g.seatWindOf(p)).join('|')].join('#');
+    cached(1, okey, () => {
+    // 副露
+    drawMelds(P[2], 520, 34, 16, 22); drawMelds(P[3], 3, 312 - meldWH(P[3], 16, 22), 16, 22); drawMelds(P[1], 694, 312 - meldWH(P[1], 16, 22), 16, 22);
+    // 名札(横長の板)
+    drawBar(g, P[2], 190, 3, 322, 28, 0); drawBar(g, P[3], 35, 21, 27, 280, 90); drawBar(g, P[1], 643, 21, 27, 280, 270); drawBar(g, P[0], 446, 317, 262, 34, 0);
+    // 季節牌(花牌)をもっている人は、名札のそばに小さく並べる
+    P.forEach((p) => { const fl = p.flowers || []; fl.forEach((f, i) => { const [fx, fy] = p.seat === 0 ? [448 - (i + 1) * 20, 324] : p.seat === 2 ? [518 + i * 20, 5] : p.seat === 3 ? [36 + i * 20, 304] : [640 + i * 20, 304]; tile(f.t, fx, fy, 16, 22, false); }); });
+    if (!S.deal) { // 配牌のあいだは、中央の情報を出さない(山の輪を見せるため)
+    // 中央の情報
+    panel(218, 163, 281, 101, 14, [6, 44, 26], [90, 140, 110], 2);
+    const lb = g.kyokuLabel().split(' '); text(lb[0], 234, 170, 28, WHITE); text('供託 ' + g.kyotaku + (lb[1] ? '  ' + lb[1] : ''), 234, 204, 17, [200, 215, 200]);
+    text('残り', 234, 228, 18, WHITE); text(String(g.live.length), 280, 220, 34, YEL); text('枚', 334, 230, 18, WHITE);
+    uraWallStatic(g); // 王牌(7本・2段): 裏ドラのアニメと同じ、新しい描きかたで(ドラ表示牌は、表にして立てる)
+    [[0, 322, 249, 72, 10, 'c0'], [2, 322, 167, 72, 10, 'c180'], [1, 484, 177, 10, 72, 'c90'], [3, 222, 177, 10, 72, 'c90']].forEach((r) => { if (P[r[0]].riichi) gfx.image('img/tenbo_' + r[5] + '.webp', r[1], r[2], r[3], r[4], 255); }); // リーチ棒: 中央の板の縁の内側に、立てた人の方向で
+    }
+    });
+    if (DS.wall) cached(3, 'w' + g.dealer + ':' + DS.sr + ':' + DS.half, () => drawWall(DS.sr, DS.half, g.dealer)); // 配牌の山
+    { // 伏せた手牌(小さな牌): 配牌のあいだは1人ずつ増えるので、層の外で毎回描く
+      const nHand = (p) => Math.min(p.hand.length, DS.ns[p.seat]);
+      const pos = { 2: (i) => [265 + i * 17, 32], 3: (i) => [3, sideY0(P[3]) + i * 17], 1: (i) => [692, sideY0(P[1]) + i * 17] }, bk = { 2: [16, 24, undefined], 3: [24, 16, 'l'], 1: [24, 16, 'r'] };
+      const drawBacks = (sd) => { const b = bk[sd]; for (let i = 0; i < nHand(P[sd]); i++) { const q = pos[sd](i); back(q[0], q[1], b[0], b[1], b[2]); } };
+      const flying = [2, 3, 1].some((sd) => (DS.fly[sd] || []).length);
+      if (g.openHands && !flying && typeof gfx.layerBegin === 'function') { // 全員の手牌を ひらく(練習・観戦): 小さな牌を、1枚の層にして貼る
+        const key = 'o' + [2, 3, 1].map((sd) => P[sd].hand.map((h) => h.id).join('.')).join('|');
+        cached(5, key, () => [2, 3, 1].forEach((sd) => { const tl = P[sd].hand.filter((h) => h !== P[sd].drawn).sort((a, b) => a.t - b.t); if (P[sd].drawn && P[sd].hand.includes(P[sd].drawn)) tl.push(P[sd].drawn); tl.forEach((h, i) => { const q = pos[sd](i); if (sd === 2) tileR(h.t, q[0], q[1], 16, 24, h.red, false, 180); else tileR(h.t, q[0], q[1], 16, 24, h.red, false, sd === 3 ? 90 : 270); }); }));
+      } else if (!flying && typeof gfx.layerBegin === 'function') cached(4, 'bk' + nHand(P[2]) + ',' + nHand(P[3]) + ',' + nHand(P[1]) + ':' + P[3].melds.length + P[1].melds.length, () => [2, 3, 1].forEach(drawBacks)); // 配り終わったあとは、他の3人の伏せ牌を1枚の絵にして貼る(毎回 100回以上 描かない)
+      [2, 3, 1].forEach((sd) => {
+        const b = bk[sd]; if (flying || typeof gfx.layerBegin !== 'function') drawBacks(sd);
+        (DS.fly[sd] || []).forEach((f) => { const q0 = pos[sd](f.from), q1 = pos[sd](f.from + f.cnt - 1); drawBlock(f, (q0[0] + q1[0] + b[0]) / 2, (q0[1] + q1[1] + b[1]) / 2); }); // 山から、となりあわせのまま手元へ
+      });
+    }
+    // 自分の手牌
+    drawHand(g);
+    // 吹き出し
+    if (S.result || S.deal || S.end) S.winRvHold = null; // 結果の画面・つぎの配牌・対局の終わりでは、開いた手牌を もう出さない
+    const rvS = S.winRv || S.winRvHold;
+    if (rvS) { // CPUが上がった: 手牌を、伏せ牌の位置に、表にして 倒す(上がり牌は すこし はなして、黄色い枠)
+      const POS = { 2: (i) => [265 + i * 17, 32], 3: (i) => [3, sideY0(P[3]) + i * 17], 1: (i) => [692, sideY0(P[1]) + i * 17] }, ROT = { 2: 180, 3: 90, 1: 270 };
+      rvS.ws.forEach((w) => { const sd = w.winner.seat; if (!POS[sd]) return; const tl = w.view.concealed.slice(); tl.forEach((h, i) => { const q = POS[sd](i); tileR(h.t, q[0], q[1], 16, 24, h.red, false, ROT[sd]); });
+        if (w.winTile) { const n = tl.length, q = POS[sd](n), dx = sd === 2 ? 8 : 0, dy = sd === 2 ? 0 : 8, x = q[0] + dx, y = q[1] + dy; if (w.winner.hand && w.winner.hand.length > n) fill(q[0], q[1], sd === 2 ? 16 : 24, sd === 2 ? 24 : 16, sd === 2 ? [24, 56, 46] : [32, 74, 60]); /* ツモ上がり: 手牌に入っていた ツモ牌の伏せ牌が、ずらした上がり牌の横に のこらないように、卓の色で かくす */ tileR(w.winTile.t, x, y, 16, 24, w.winTile.red, false, ROT[sd]); if (sd === 2) frame(x - 1, y - 1, 18, 26, YEL, 2); else frame(x - 1, y - 1, 26, 18, YEL, 2); } });
+    }
+    drawFly(); drawTeacher(g);
+    const now = __now();
+    const BUB = BUBP; // 上家・下家は、同じ高さ(麻雀先生の帯(y268〜)に かさならない高さ)。吹き出しは、いつも同じ大きさ(顔も、いつも同じ大きさ)
+    const calling = (S.banner && S.banner.call) || S.ryu || S.ura || S.winRv || S.cutin; // ポン・チー・リーチなどの宣言のあいだは、セリフを描かない(かぶらないように)
+    for (const k of Object.keys(S.bub)) { const b = S.bub[k]; if (b.until < now) { delete S.bub[k]; continue; } if (calling) continue;
+      const pos = BUB[k] || [300, 200], tw = BW - FSZ - 34; let bsz = 20, lines = wrapText(b.text, bsz, tw);
+      for (const z of [20, 19, 18, 17, 16]) { bsz = z; lines = wrapText(b.text, z, tw); if (lines.length <= 3) break; } lines = lines.slice(0, 3);
+      const lh = bsz + 5, ty0 = pos[1] + 30 + Math.round((72 - lines.length * lh) / 2) + 0; // 3行より少ないときは、まん中によせる
+      rrect(pos[0] + 2, pos[1] + 3, BW, BH, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, BH, 10, [240, 243, 238]);
+      if (b.p) { face(b.p, pos[0] + 8, pos[1] + 8, FSZ, FSZ, !!S.menuP); } // 話している人の顔
+      text(b.name, pos[0] + FSZ + 20, pos[1] + 8, 17, [80, 90, 86]); lines.forEach((l, i) => text(l, pos[0] + FSZ + 20, ty0 + i * lh, bsz, [30, 34, 32])); }
+
+    if (S.ryu) { // 「流局」: 黒い帯に大きな白文字が、左から流れてきて止まる。少し置いて、すっと消える
+      const t = __now() - S.ryu.t0, k = Math.min(1, t / 380), e = 1 - (1 - k) * (1 - k), out = t > 1600 ? Math.min(1, (t - 1600) / 350) : 0, a = Math.round(200 * (1 - out));
+      for (let i = 0; i < 12; i++) fill(0, 170 + Math.round(i * 9.5), W, 10, [0, 0, 0], a); // 帯
+      const cx = Math.round(W / 2 - (1 - e) * 560), sz = 96, ty = 224 - sz / 2;
+      if (out < 1) { [[-4, 0], [4, 0], [0, -4], [0, 4], [3, 3]].forEach((dd) => text('流局', cx + dd[0], ty + dd[1], sz, [0, 0, 0], 1)); text('流局', cx, ty, sz, [255, 244, 207], 1); }
+    }
+    if (__auto && globalThis.__shotDir && !S._stbl && g.players[2].discards.length >= 4 && g.players[3].discards.length >= 4) { S._stbl = 1; gfx.shot(__shotDir + '/table.bmp'); }
+    // 演出: 札の文字が、少し大きいところから縮んで止まる
+    if (S.banner && S.banner.call && S.banner.p && CALL_V) { // 宣言(試験): 顔(セリフと同じ大きさ・角丸の白い縁)と、白ぶちの大きな文字+影。吹き出しの背景は、なし
+      const bn = S.banner, pos = BUBP[bn.p.seat] || [250, 150], sd = bn.p.seat, k = 1, sz = 76, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [230, 0, 18] : [196, 139, 255];
+      const gx = pos[0] + 8, gy = pos[1] + 8; // 顔の位置は、セリフの顔と、まったく同じ(吹き出しの左上から8px)
+      face(bn.p, gx, gy, FSZ, FSZ); rframe(gx - 3, gy - 3, FSZ + 6, FSZ + 6, 8, 4, [255, 255, 255]); rframe(gx - 5, gy - 5, FSZ + 10, FSZ + 10, 9, 2, [30, 30, 30]); // 顔の縁(白+外に細い黒。角は、小さな丸み)
+      const tx = gx + FSZ + 16, ty = gy + Math.round((FSZ - sz) / 2) + TYADJ, sh = CALL_V >= 3 ? [[8, 10, [30, 56, 46]], [6, 8, [14, 30, 24]], [4, 5, [0, 0, 0]]] : [[5, 6, [6, 20, 14]]], fz = CALL_V === 4 && gfx.bold ? -sz : sz, ol = CALL_V === 4 ? 5 : 4; // 4=太字(ボールド)+ふちも少し太く
+      sh.forEach((o) => text(bn.text, tx + o[0], ty + o[1], fz, o[2], 0)); // 影(CALL_V===3 は、ぼかしのように3枚かさねて、濃く)
+      [[-ol, 0], [ol, 0], [0, -ol], [0, ol], [-ol + 1, -ol + 1], [ol - 1, -ol + 1], [-ol + 1, ol - 1], [ol - 1, ol - 1]].forEach((d) => text(bn.text, tx + d[0], ty + d[1], fz, [255, 255, 255])); text(bn.text, tx, ty, fz, col);
+    } else if (S.banner && S.banner.call && S.banner.p && CALL_NEW) { // 宣言: セリフと同じ吹き出し・同じ位置に、色のついた大きな文字
+      const bn = S.banner, pos = BUBP[bn.p.seat] || [250, 150], k = Math.min(1, (__now() - bn.t0) / 160), sz = k < 0.5 ? 72 : 64, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [230, 0, 18] : [150, 80, 220];
+      rrect(pos[0] + 2, pos[1] + 3, BW, BH, 10, [0, 0, 0], 70); rrect(pos[0], pos[1], BW, BH, 10, [240, 243, 238]);
+      face(bn.p, pos[0] + 8, pos[1] + 8, FSZ, FSZ); text(bn.p.name, pos[0] + FSZ + 20, pos[1] + 8, 17, [80, 90, 86]);
+      const cx = pos[0] + FSZ + 20 + Math.round((BW - FSZ - 34) / 2), ty = pos[1] + 30 + Math.round((72 - sz) / 2) + TYADJ;
+      [[-2, 0], [2, 0], [0, -2], [0, 2], [2, 2]].forEach((d) => text(bn.text, cx + d[0], ty + d[1], sz, [40, 30, 30], 1)); text(bn.text, cx, ty, sz, col, 1);
+    } else if (S.banner && S.banner.call && S.banner.p) { // ポン・チー・ロンなど: 顔と、色のついた大きな文字(Edge版と同じ)
+      const bn = S.banner, k = Math.min(1, (__now() - bn.t0) / 160), sz = 84, col = bn.text === 'リーチ' ? [225, 36, 28] : (bn.text === 'ロン' || bn.text === 'ツモ') ? [230, 0, 18] : [196, 139, 255];
+      // 鳴いた人の席の側に出す: 対面=中央の上 / 上家=左 / 下家=右(上家と同じ高さ) / 自分=中央の下
+      const FB = 124, tw = gfx.measure(bn.text, sz), bw = FB + 16 + tw, sd = bn.p.seat, by = sd === 2 ? 10 : sd === 0 ? 258 : 144; // 席の側に、はっきり寄せる(上家=左はし / 下家=右はし / 対面=上はし / 自分=下はし)
+      const bx = sd === 3 ? 18 : sd === 1 ? 702 - bw : Math.round((W - bw) / 2);
+      face(bn.p, bx, by, FB, FB);
+      { const tx = bx + FB + 16, ty = by + Math.round((FB - sz) / 2) + TYADJ; text(bn.text, tx + 5, ty + 7, sz, [0, 0, 0], 0); [[-4, 0], [4, 0], [0, -4], [0, 4], [-3, -3], [3, -3], [-3, 3], [3, 3]].forEach((d) => text(bn.text, tx + d[0], ty + d[1], sz, [255, 255, 255])); text(bn.text, tx, ty, sz, col); }
+    } else if (S.banner) { // 局のはじまり: 4人の顔(★つき)を席の位置に出し、まん中に「東二局 一本場」
+      fill(0, 0, W, H, [26, 58, 48]); fill(30, 30, W - 60, H - 60, [34, 72, 60]); fill(90, 70, W - 180, H - 140, [40, 84, 68]); // 緑のしずかな背景(サイコロの画面と同じ)
+      const P4 = g.players, FS = 84, SEATS = [{ s: 0, x: 318, y: 292, pc: 360, py: 386, cx: 284, cy: 292 }, { s: 1, x: 590, y: 128, pc: 632, py: 218, cx: 680, cy: 130 }, { s: 2, x: 318, y: 16, pc: 360, py: 106, cx: 284, cy: 18 }, { s: 3, x: 46, y: 128, pc: 88, py: 218, cx: 8, cy: 130 }];
+      SEATS.forEach((o) => { const p = P4[o.s]; face(p, o.x, o.y, FS, FS); plate(o.pc, o.py, p.name, p.char && p.char.level ? p.char.level : 0);
+        const sw = g.seatWindOf(p); rrect(o.cx, o.cy, 28, 28, 5, [255, 255, 255]); rrect(o.cx + 2, o.cy + 2, 24, 24, 4, WIND_BG[sw]); text(WIND[sw], o.cx + 14, o.cy + 3, 20, WHITE, 1); });
+      const lb = String(S.banner.text).split(' '), my = lb[1] ? 0 : 20; rrect(236, 170, 248, 108, 6, [4, 18, 12], 240);
+      text(lb[0], 363, 176 + my, 66, [0, 0, 0], 1); text(lb[0], 360, 173 + my, 66, YEL, 1); if (lb[1]) { text(lb[1], 362, 243, 32, [0, 0, 0], 1); text(lb[1], 360, 241, 32, WHITE, 1); } }
+  }
+  function myTiles(p) { const hs = p.hand.filter((h) => h !== p.drawn); if (p.drawn) hs.push(p.drawn); return hs; }
+  function allowed(s, h) { const p = s.p; if (p.riichi) return h === p.drawn; if (s.opts.forbid.includes(h.t)) return false; if (s.rm) return s.opts.riichi.includes(h.t); return true; }
+  const b0w = (btns) => (btns.length >= 3 ? 150 : 170);
+  function actBtn(x, y, w, h, label, sub, sel, pass, kind, subCol) { // 操作ボタン: 選んでいるものは黄色、ほかは白。リーチ・ツモは、色つきで目立たせる
+    const kc = null; // リーチ・ツモも、ほかのボタンと同じ(選んでいる = 黄色 / ほか = 白)
+    if (kc) rrect(x - 6, y - 6, w + 12, h + 12, 10, kc[1], 90);
+    if (sel) rrect(x - 4, y - 4, w + 8, h + 8, 10, [30, 30, 30]); if (sel) rrect(x - 2, y - 2, w + 4, h + 4, 8, [255, 255, 255]);
+    rrect(x + 1, y + 3, w, h, 6, [0, 0, 0], 90);
+    rrect(x, y, w, h, 6, sel ? [196, 150, 20] : kc ? kc[0] : [150, 156, 150]); rrect(x, y, w, h - 3, 6, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : kc ? kc[1] : [245, 247, 244]);
+    const col = [26, 26, 20], big = !sub;
+    if (sub) { text(label, x + w / 2, y + 3, 20, col, 1); text(sub, x + w / 2, y + 26, 15, subCol || [90, 90, 80], 1); } else text(label, x + w / 2, y + (h - 3 - (big ? 26 : 20)) / 2, big ? 26 : 20, col, 1);
+  }
+  function reactHL(r, g) { // 副露に使う牌(手牌の中で、金の枠をつける)
+    const b = r.btns[r.idx]; if (!b || !b.d) return null; const ld = g.lastDiscard; const need = {};
+    const add = (t) => { need[t] = (need[t] || 0) + 1; };
+    if (r.pick) r.chis[r.pick.idx].use.forEach(add);
+    else if (b.d.act === 'pon') { add(ld.tile.t); add(ld.tile.t); } else if (b.d.act === 'kan') { add(ld.tile.t); add(ld.tile.t); add(ld.tile.t); }
+    else if (b.d.act === 'chi') (b.d.use || [].concat(...r.chis.map((c) => c.use))).forEach((t, i, a) => { if (b.d.use) add(t); else if (!need[t]) add(t); });
+    return need;
+  }
+  function drawHand(g) {
+    const p = g.players[0]; const s = S.self; const hs = myTiles(p);
+    const gapAt = p.drawn ? hs.length - 1 : -1; const DS = dealState(), shown = Math.min(hs.length, DS.n);
+    let order = hs; if (!DS.sorted && S.deal && S.deal.perm) order = S.deal.perm.filter((j) => j < hs.length).map((j) => hs[j]); // 配られている間は、並び替える前の順で見せる
+    S._hl = S.react ? reactHL(S.react, g) : null;
+    const L = [], DM = (S.self || g.watching) ? dangerMarks(g, p) : staleMarks(g, p); // 相手の番のあいだも、印は 消さずに 出しつづける(自分の番になったときだけ、計算しなおす)
+    order.forEach((h, i) => {
+      if (i >= shown) return;
+      let x = handX(i, i === gapAt), y = HY - (DS.lift || 0), rot = 0, fl = false;
+      if (DS.sorted && S.deal && S.deal.perm && DS.st < SRT_L + SRT_S + SRT_D + 100) { // 並べかえ(案D): ふつうの牌はほとんど動かず、逆さの牌だけ高く跳ねて、回って正しい向きにもどる
+        const pf = S.deal.perm.filter((j) => j < hs.length), k = pf.indexOf(i), tp = (S.deal.tp || (S.deal.tp = {}));
+        if (k >= 0) {
+          fl = !!(S.deal.flip && S.deal.flip[k]); const t2 = tp[k] || (tp[k] = fl ? { h: 36 + Math.random() * 16, dl: Math.random() * 90 } : { h: 3 + Math.random() * 5, dl: 0 });
+          const e = DS.st - t2.dl, cl = (v) => Math.max(0, Math.min(1, v)), ez = (u) => 1 - Math.pow(1 - u, 3), u1 = cl(e / SRT_L), u2 = cl((e - SRT_L) / SRT_S), u3 = cl((e - SRT_L - SRT_S) / SRT_D);
+          const fx = handX(k, k === gapAt); x = Math.round(fx + (handX(i, i === gapAt) - fx) * ez(u2)); y = HY - Math.round(t2.h * ez(u1) * (1 - ez(u3)));
+          if (fl) { const p = cl((e - SRT_L * 0.3) / (SRT_L + SRT_S * 0.8)); rot = p < 0.34 ? 180 : p < 0.67 ? 90 : 0; }
+        }
+      }
+      const sel = s ? (!S.side && s.row === 0 && s.idx === i) : (!S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && S.curIdx < hs.length && S.curIdx === i) || (!S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && S.curIdx >= hs.length && hs.length % 3 !== 1 && i === hs.length - 1);
+      const dim = s ? !allowed(s, h) : false;
+      if (sel) y -= 8;
+      const hl = S.react && S._hl && S._hl[h.t] > 0 ? (S._hl[h.t]--, true) : false;
+      L.push({ h, x, y, sel, dim, hl, rot, flip: !DS.sorted && !!(S.deal && S.deal.flip && S.deal.flip[i]) });
+    });
+    const one = (o) => {
+      const { h, x, y } = o;
+      if (o.sel) { rrect(x - 5, y - 5, HW + 10, HH + 10, 6, YEL, 90); rrect(x - 3, y - 3, HW + 6, HH + 6, 5, YEL); } // 選んでいる牌: 角の丸い金色の枠(Edge版ふう)
+      else if (o.hl) rrect(x - 3, y - 3, HW + 6, HH + 6, 4, YEL);
+      if (o.rot === 90) tileR(h.t, x + (HW - HH) / 2, y + (HH - HW) / 2, HW, HH, h.red, false, 90);
+      else if (o.rot === 180 || o.flip) tileR(h.t, x, y, HW, HH, h.red, false, 180); else tile(h.t, x, y, HW, HH, h.red, o.dim && !o.hl); // 配られている間は、ときどき逆さの牌がまじる(並べかえると、そろう)
+      if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, y + HH + 2, 16, YEL, 1); /* 星は牌の下(上は 安全牌の印や「あなた」の帯と重なって見えない) */
+      if (DM && DM[h.t] && !o.rot && !o.flip) { const m = DM[h.t], c = DCOL[m.cls] || DCOL.warn, w = Math.max(30, gfx.measure(m.tag, 13) + 10); const cx = x + Math.round((HW - w) / 2); rrect(cx - 1, y - 14, w, 17, 6, [255, 255, 255]); rrect(cx, y - 13, w - 2, 15, 5, c[0]); text(m.tag, cx + (w - 2) / 2, y - 13, 13, c[1], 1); } // 麻雀先生の印: 牌の左上に
+    };
+    (DS.fly && DS.fly[0] || []).forEach((f) => { drawBlock(f, (handX(f.from, false) + handX(f.from + f.cnt - 1, false) + HW) / 2, HY + HH / 2); }); // 山から取った牌が、となりあわせのまま飛んでくる
+    if (DS.sorted && S.deal && DS.st < SRT_L + SRT_S + SRT_D + 100) L.sort((a, b) => b.y - a.y); // 高く浮いている牌ほど、あとから(上に)描く
+    L.forEach((o) => { if (!o.sel && !o.hl) one(o); });
+    L.forEach((o) => { if (o.sel || o.hl) one(o); }); // 枠のある牌は、あとから描く(となりの牌に、枠が隠れないように)
+    if (!p.drawn && DS.sorted && hs.length % 3 === 1 && !S.result) { const px = handX(hs.length, true), onSlot = !s && !S.react && !S.side && S.mode === 'game' && !S.deal && S.curIdx != null && S.curIdx >= hs.length; if (onSlot) { rrect(px - 3, HY - 3, HW + 6, HH + 6, 5, YEL); rrect(px, HY, HW, HH, 4, [60, 70, 60]); } else rrect(px, HY, HW, HH, 4, [0, 0, 0], 95); } // 14枚目の場所(まだ引いていない)。カーソルがあれば、そこに残る // まだ引いていない14枚目の場所に、黒い半透明の影(Edge版と同じ)
+    drawMelds(p, 713 - meldWH(p, 31, 40), 398, 31, 40);
+    if (s) {
+      const bw = b0w(s.btns), tot = s.btns.length * bw + (s.btns.length - 1) * 14; let bx = Math.round(360 - tot / 2); // 雀卓の中央、自牌のすぐ上に、大きく出す
+      s.btns.forEach((b, i) => { actBtn(bx, 332, bw, 44, b.label, b.sub || '', s.row === 1 && s.idx === i, false, b.act, b.subCol); bx += bw + 14; });
+      if (s.rm) { rrect(190, 296, 340, 30, 6, [0, 0, 0], 200); text('リーチする牌をえらんで決定', 360, 300, 19, YEL, 1); }
+    }
+    if (S.react) {
+      const r = S.react; const ld = g.lastDiscard; const who = ld ? g.players[ld.by].name : '';
+      if (ld) { { const tn = MJ.tileName(ld.tile.t); panel(8, 328, 182, 46, 6, [6, 44, 26], [90, 140, 110], 2, 235); tile(ld.tile.t, 14, 335, 26, 33, ld.tile.red); text(who + ' の', 46, 331, fitSz(who + ' の', 16, 138, 11), [200, 225, 205]); text(tn, 46, 350, fitSz(tn, 20, 138, 14), WHITE); } } // ボタン(x=196〜)に かくれないよう、名前と牌を 2行にして、せまい枠に収める
+      const nb = r.btns.length, bgap = nb <= 3 ? 14 : 8, bww = nb <= 3 ? 124 : Math.floor((516 - (nb - 1) * bgap) / nb); // 4つ以上(カン・ポン・チー・見送る)でも、右の端(x=712)に はみ出さない
+      let bx = 196; r.btns.forEach((b, i) => { actBtn(bx, 332, bww, 40, b.label, b.sub || '', r.idx === i && !r.pick && !S.side, b.pass); bx += bww + bgap; }); // 解説にカーソルがあるときは、ボタンの選択を消す
+      if (r.note) text(r.note, 246, 340, 20, YEL);
+      if (r.pick) { // チーの組み合わせ
+        const n = r.chis.length, gw = 118, pw = 150 + n * (gw + 8) + 6; panel(8, 268, pw, 58, 6, [10, 30, 22], [90, 140, 110], 2, 240); text('チーの組み合わせ', 18, 286, 18, YEL);
+        r.chis.forEach((c, i) => { const gx = 150 + i * (gw + 8), ts = c.use.concat([ld.tile.t]).sort((a, b) => a - b); panel(gx, 273, gw, 48, 5, [20, 50, 36], r.pick.idx === i ? YEL : [120, 130, 120], r.pick.idx === i ? 3 : 1);
+          ts.forEach((t, k) => { const tx = gx + 6 + k * 37; if (t === ld.tile.t) rrect(tx - 2, 276, 36, 43, 3, [255, 100, 150]); tile(t, tx, 278, 32, 40, t === ld.tile.t ? ld.tile.red : false); }); });
+      }
+    }
+  }
+  function drawTitle() {
+    if (typeof gfx.layerBegin === 'function') cached(28, 'tbg', () => { gfx.clear(32, 74, 60); gfx.image(skin('img/title_art.webp'), 0, 0, SW, SH, 255); }); else { gfx.clear(32, 74, 60); gfx.image(skin('img/title_art.webp'), 0, 0, SW, SH, 255); } // タイトルの文字は、絵に入っている。背景は 1枚の絵として使い回す
+    const f = S.titleIdx, pr = pressing();
+    const sc = (i) => { // 選んでいるボタンは少し大きく。押すと「ぎゅっと縮んで、ぽんと跳ねる」
+      if (i !== f) return 1; if (!pr) return 1.06; const k = (__now() - S.pressT) / (S.pressMs || 100);
+      return k < 0.35 ? 1.06 - (k / 0.35) * 0.08 : 0.98 + ((k - 0.35) / 0.65) * 0.06; }; // ほんの少し沈んで、すぐ戻る(振れ幅は 小さく・短く)
+    const img = (path, x, y, w, h, i) => {
+      const k = sc(i), W2 = Math.round(w * k), H2 = Math.round(h * k), X2 = Math.round(x - (W2 - w) / 2), Y2 = Math.round(y - (H2 - h) / 2);
+      if (i === f && gfx.imageSil) { // 選んでいるボタン: ボタンの形(透明なところは除く)にそって、黄色く光る縁
+        const ring = (r, al) => { for (let q = 0; q < 8; q++) { const an = q * Math.PI / 4; gfx.imageSil(path, X2 + Math.round(Math.cos(an) * r), Y2 + Math.round(Math.sin(an) * r), W2, H2, al); } };
+        ring(5, 90); ring(3, 255);
+      }
+      gfx.image(path, X2, Y2, W2, H2, 255);
+    };
+    if (UKIYO) { // 浮世絵版: 藍色の板に金の細い線(和風の、シンプルなボタン)。選んでいるボタンは朱色
+      const wb = (i, x, y, w, h, label, sz, badge) => {
+        const k = sc(i), W2 = Math.round(w * k), H2 = Math.round(h * k), X = Math.round(x - (W2 - w) / 2), Y = Math.round(y - (H2 - h) / 2), on = i === f, GOLD = [214, 176, 84];
+        const R = Math.max(6, Math.min(10, Math.round(H2 * 0.15))), base = on ? [178, 38, 28] : [22, 38, 82]; // 角を丸く
+        rrect(X + 2, Y + 4, W2, H2, R, [0, 0, 0], 110);
+        if (on) rrect(X - 4, Y - 4, W2 + 8, H2 + 8, R + 4, pr ? [255, 240, 170] : [255, 252, 235]);
+        rrect(X, Y, W2, H2, R, GOLD); rrect(X + 2, Y + 2, W2 - 4, H2 - 4, Math.max(2, R - 2), base);
+        rrect(X + 6, Y + 6, W2 - 12, H2 - 12, Math.max(2, R - 5), GOLD); rrect(X + 7, Y + 7, W2 - 14, H2 - 14, Math.max(2, R - 6), base); // 内がわの細い金の線
+        const fs = Math.round(sz * k), tw = gfx.measure(label, fs), ty = Y + Math.round((H2 - fs) / 2) - 1;
+        if (badge) { const r = Math.round(fs * 0.62), bx = X + Math.round((W2 - tw) / 2) - r * 2 - 8; rrect(bx, ty + Math.round((fs - 2 * r) / 2) + 1, r * 2, r * 2, r, GOLD); text(badge, bx + r, ty + Math.round((fs - 2 * r) / 2) + 1 + Math.round((r * 2 - fs * 0.8) / 2) - 1, Math.round(fs * 0.8), [22, 38, 82], 1); text(label, X + Math.round(W2 / 2) + r + 4, ty, fs, [252, 244, 220], 1); } else text(label, X + Math.round(W2 / 2), ty, fs, [252, 244, 220], 1);
+      };
+      wb(0, (SW - 250) / 2, SH - 132, 250, 62, 'はじめる', 34, 'A');
+      wb(1, (SW - 190) / 2, SH - 58, 190, 42, 'ゲーム終了', 22); // はじめるの下に、ひとまわり小さく
+    } else {
+    img('img/btn_start.webp', (SW - 250) / 2, SH - 140, 250, 78, 0);
+    img('img/btn_exit.webp', (SW - 170) / 2, SH - 56, 170, 40, 1);
+    }
+  }
+  function btnR(x, y, w, h, r, sel, off, label, sz, arrow) {
+    if (sel) { rrect(x - 5, y - 5, w + 10, h + 10, r + 5, [30, 30, 30]); rrect(x - 3, y - 3, w + 6, h + 6, r + 3, [255, 255, 255]); rrect(x, y, w, h, r, pressing() ? [255, 246, 170] : [253, 213, 63]); if (pressing()) rrect(x - 9, y - 9, w + 18, h + 18, r + 9, [255, 255, 255], 90); }
+    else rrect(x, y, w, h, r, off ? [200, 206, 200] : [238, 242, 236], off ? 200 : 245);
+    if (arrow && sel) text('▶', x + 24, y + (h - (sz - 6)) / 2, sz - 6, BLACK);
+    text(label, x + (arrow ? 80 : 66), y + (h - sz) / 2, sz, off ? [150, 156, 150] : BLACK);
+  }
+  const HOME_BOTTOM = [{ k: 'exit', label: 'ゲーム終了' }, { k: 'rank', label: '成績・' }, { k: 'diag', label: 'あなたの診断' }];
+  function brownBtn(x, y, w, h, label, sel, sz) { // Edge版と同じ、茶色の板に金の縁のボタン
+    if (sel) rrect(x - 4, y - 4, w + 8, h + 8, 10, pressing() ? [255, 246, 170] : [255, 255, 255]);
+    rrect(x, y, w, h, 6, [201, 154, 61]); rrect(x + 2, y + 2, w - 4, h - 4, 4, sel ? [120, 84, 36] : [74, 52, 24]);
+    text(label, x + w / 2, y + (h - (sz || 18)) / 2, sz || 18, sel ? [255, 245, 200] : [243, 227, 176], 1);
+  }
+  const homeSlot = () => 20 + (S.homeBot ? 4 + S.homeBotIdx : Math.min(3, S.menuIdx));
+  const homeKey = () => 'h' + S.menuIdx + ':' + (S.homeBot ? 1 : 0) + ':' + S.homeBotIdx + ':' + teacherLabel() + ':' + (function () { try { return MJ.Rank.label(); } catch (e) { return ''; } })() + ':' + homeItems().map((i) => (i.off ? 1 : 0)).join('') + ':' + (S.teachQ || S.playQ || S.confirmQ ? 1 : 0);
+  function drawHome() { // 動かない画面: 選んでいる項目ごとの絵を、いちど描いたら 使い回す(押している間の動きだけ、そのつど描く)
+    if (pressing() || typeof gfx.layerBegin !== 'function') { drawHomeBody(); return; }
+    cached(homeSlot(), homeKey(), drawHomeBody);
+  }
+  function homeWarmJobs() { /* ホームの全部の状態の絵を、画面に出さずに先に描いておく(起動の画面のあいだに済ませる) */
+    if (typeof gfx.layerBegin !== 'function') return [];
+    const st = [[false, 0, 0], [false, 1, 0], [false, 2, 0], [false, 3, 0], [true, 0, 0], [true, 0, 1], [true, 0, 2]];
+    return st.map((q) => () => { const keep = [S.menuIdx, S.homeBot, S.homeBotIdx]; try { S.homeBot = q[0]; if (q[0]) S.homeBotIdx = q[2]; else S.menuIdx = q[1]; lay(homeSlot(), homeKey(), drawHomeBody); } catch (e) { /* ignore */ } S.menuIdx = keep[0]; S.homeBot = keep[1]; S.homeBotIdx = keep[2]; });
+  }
+  function drawHomeBody() {
+    gfx.clear(32, 74, 60);
+    gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255);
+    if (UKIYO) gfx.image('img/uk/logo.webp', 36, 6, 272, 149, 255); else gfx.image('img/logo.webp', 52, 22, 244, 139, 255); // 浮世絵版: タイトルの絵から切り抜いた、ぼかし楕円のロゴ
+    rrect(21, 165, 292, 170, 16, [10, 18, 32], 150); // 左の説明: 半透明の黒い囲い(Edge版と同じ)
+    const ot = (s, x, y, sz, c) => { [[-1, 1], [1, 1], [0, 2]].forEach((d) => text(s, x + d[0], y + d[1], sz, [0, 0, 0], 0)); text(s, x, y, sz, c, 0); };
+    const HELP = { play: ['麻雀をはじめる', '3人の相手と、麻雀を', 'うちます。つづきから', '始めることもできます。'], quiz: ['麻雀クイズ', '問題に答えて、腕を', 'みがきます。苦手な問題', 'は、多めに出ます。'], study: ['麻雀の勉強', '点数計算・用語じてん', '・ビデオで、順番に', '学べます。'], diag: ['あなたの診断', '遊び方やクイズの結果', 'から、いいところと、', '伸ばせるところを見ます。'], settings: ['設定', '音の大きさや、CPUの', '速さ、ボタンの入れ替', 'えを変えます。'], exit: ['ゲーム終了', '遊ぶのをやめます。', '電源を切る前の画面へ', ''], rank: ['成績', 'いまの段位と、これま', 'での成績を見ます。', '対戦成績もここから。'] };
+    { const its = homeItems(), key = S.homeBot ? HOME_BOTTOM[S.homeBotIdx].k : (its[S.menuIdx] || its[0]).act, hp = HELP[key] || HELP.play;
+      ot(hp[0], 38, 177, 32, [255, 225, 74]); hp.slice(1).forEach((l, i) => ot(l, 38, 232 + i * 32, 23, WHITE)); }
+    const items = homeItems(); const IY = [58, 145, 227, 309];
+    items.forEach((it, i) => { const sel = !it.off && !S.homeBot && S.menuIdx === i && !S.teachQ && !S.playQ && !S.confirmQ; if (sel) btnR(370, IY[i] - (i ? 4 : 0), 433, 67, 7, true, false, it.label, 34, true); else btnR(383, IY[i], 408, 58, 7, false, it.off, it.label, 32, false); });
+    const BW = [[150, 230]];
+    HOME_BOTTOM.forEach((b, i) => {
+      const row = i >> 1, col = i & 1, lab = b.k === 'rank' ? '成績・' + MJ.Rank.label() : b.k === 'teacher' ? teacherLabel() : b.label, sel = S.homeBot && S.homeBotIdx === i && !S.teachQ && !S.playQ && !S.confirmQ;
+      const bxs = [21, 170, 21], bws = [143, 143, 292], bys = [345, 345, 397]; brownBtn(bxs[i], bys[i], bws[i], 44, lab, sel, 19); // 左の説明の枠に、左右をそろえた2段(上: 終了・成績 / 下: 診断)
+    });
+  }
+    const BZ_JP = ['なし', '小', '中', '大']; const buzzLv = () => { try { const v = parseInt(localStorage.getItem('mj_buzz'), 10); return v >= 0 && v <= 3 ? v : 3; } catch (e) { return 3; } }; // ブザー(本体のスピーカー)の音の大きさ
+  const OLED_CO = ['auto', 'none', 'season', 'job'], OLED_CO_JP = ['おまかせ', 'ふつうのまま', '季節だけ', '職業だけ']; const oledCos = () => 'auto'; /* 衣装は ペット(たまごっち)の育ちで決まる。 設定からは 消した */ // ずんだもんの衣装(OLED): おまかせ(季節と職業が かわりばんこ) / ふつうのまま / 季節だけ / 職業だけ
+  const VS_JP = ['なし', 'ふつう', 'つよい'];
+  const vsharpLv = () => 2; // ビデオのくっきりは いちばん強いまま(設定からは 消した)
+  try { if (typeof __vsharp === 'function') __vsharp(vsharpLv()); } catch (e) { /* ignore */ }
+  const swapOn = () => { try { const v = localStorage.getItem('mj_swapab'); return v === null ? true : v === '1'; } catch (e) { return true; } };
+  try { __swapab(swapOn() ? 1 : 0); } catch (e) { /* ignore */ }
+  try { localStorage.setItem('mj_perf', '0'); } catch (e) { /* ignore */ } // 遅れの診断(テスト表示)は、起動のたびに オフにもどす(つけたままに しない)
+  const perfOn = () => { try { const v = localStorage.getItem('mj_perf'); return v === '1' ? true : v === '0' ? false : !!globalThis.__perfEnv; } catch (e) { return false; } }; // 隠しコマンド・設定で切りかえたら、それを優先(MJ_PERF=1 で起動しても、オフにできる)
+  const SETS = [ // gap: この項目の前に すきまを あける。 back: 下の「もどる」(見た目が ちがう)
+    { k: 'rules', label: '麻雀のルール設定' }, { k: 'teacher', label: '麻雀先生' }, { k: 'help', label: '遊び方' },
+    { k: 'speed', label: '対戦相手の速さ', gap: true }, { k: 'cpulv', label: '対戦相手の強さ' },
+    { k: 'vol', label: '音量ボリューム', gap: true }, { k: 'buzz', label: '本体ブザーの音量' }, { k: 'swap', label: '決定ボタンの入れ替え' },
+    { k: 'credits', label: '開発者', gap: true }, { k: 'reset', label: 'リセット(はじめから)' }, { k: 'dbg', label: 'デバッグ(あとで消す)' }, // ← 一時的に復活(昇段の1点前・4局から などの確認用)。 確認がおわったら この項目を消す
+   
+    { k: 'back', label: 'もどる', gap: true, back: true },
+  ];
+  /* 麻雀のルール(一般的な設定が、はじめの値)。変えると、次の対局から使われる */
+  const RULE_ROWS = [
+    { k: 'yakitori', label: '焼き鳥', vals: [[false, 'なし'], [true, 'あり']], note: '最後まで一度も上がれなかった人は、上がった人に1000点ずつ払います(あなたも)。' },
+    { k: 'length', label: '対局の長さ', vals: [['east', '東風戦(東1〜4局)'], ['south', '東南戦(東1〜南4局)'], ['single', '一局だけ']], note: '一局だけは、練習向きです。' },
+    { k: 'kuitan', label: '喰いタン', vals: [[true, 'あり'], [false, 'なし']], note: 'ありだと、鳴いた手でも、2〜8だけの手(タンヤオ)で上がれます。' },
+    { k: 'aka', label: '赤ドラ', vals: [[3, 'あり(赤5を3枚)'], [0, 'なし']], note: '赤い5は、持っているだけで1飜(点が増えます)。' },
+    { k: 'ippatsu', label: '一発', vals: [[true, 'あり'], [false, 'なし']], note: 'リーチして1巡以内に上がると、1飜ふえます。' },
+    { k: 'ura', label: '裏ドラ', vals: [[true, 'あり'], [false, 'なし']], note: 'リーチして上がると、裏のドラ表示牌をめくります。' },
+    { k: 'tobi', label: '飛び(0点より下)', vals: [[true, '終了する'], [false, '続ける']], note: '持ち点が0点より下になったら、ゲームを終わりにするか。' },
+    { k: 'doubleRon', label: 'ダブロン', vals: [[true, 'あり'], [false, 'なし(頭ハネ)']], note: '同じ牌で2人が上がれるとき、2人とも上がりにするか。' },
+    { k: 'suchaRiichi', label: '四家立直(全員リーチ)', vals: [[false, '続ける'], [true, '流局にする']], note: '4人全員がリーチをかけたとき、その局を流局にするか。 ふつうは、そのまま続けます。' },
+    { k: 'sanchahou', label: '三家和(3人ロン)', vals: [[true, '流局にする'], [false, '3人とも上がる']], note: '3人が同時にロンしたとき、その局を流局にするか。' },
+    { k: 'kuikae', label: '喰い替え', vals: [[false, '禁止'], [true, '許可']], note: '鳴いた直後に、同じ(近い)牌を切ること。ふつうは禁止です。' },
+    { k: 'kazoe', label: '数え役満', vals: [[true, 'あり'], [false, 'なし(三倍満まで)']], note: '13飜以上を、役満として数えるか。' },
+    { k: 'flower', label: '季節牌(花牌)', vals: [[false, 'なし'], [true, 'あり']], note: '春夏秋冬の4枚を山に入れます。持つと1飜。' },
+    { k: 'start', label: '持ち点', vals: [[25000, '25,000点'], [30000, '30,000点'], [35000, '35,000点']], note: 'はじめの持ち点です。' },
+  ];
+  /* ルールの設定: ◀ ▶ では「下書き」を変えるだけ。 いちばん下の「決定する」を A で押して、「この変更で よろしいですか?」→ はい で、はじめて保存する */
+  const ruleEff = (k) => (S.ruleDraft && k in S.ruleDraft) ? S.ruleDraft[k] : MJ.RULES[k];
+  const ruleChanged = (k) => !!(S.ruleDraft && k in S.ruleDraft) && String(S.ruleDraft[k]) !== String(MJ.RULES[k]);
+  const ruleAnyChanged = () => RULE_ROWS.some((r) => ruleChanged(r.k));
+  function drawRules() {
+    gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
+    text('麻雀のルール', SW / 2, 6, 28, YEL, 1);
+    const n = RULE_ROWS.length + 2, i0 = S.ruleIdx || 0, VIS = 9, top = Math.max(0, Math.min(n - VIS, i0 - 6)) /* カーソルは、下から3行目まで 行ける(そこから先で 一覧が動く) */, any = ruleAnyChanged(), dlg = !!S.ruleDlg;
+    for (let v = 0; v < VIS; v++) {
+      const i = top + v, y = 44 + v * 38, sel = i === i0 && !dlg; if (i >= n) break;
+      const last = i === RULE_ROWS.length + 1;
+      panel(70, y, 692, 35, 8, sel || (last && any && !dlg) ? YEL : WHITE, sel ? [160, 110, 0] : last && any ? [200, 140, 20] : [110, 110, 110], sel ? 3 : 2);
+      if (i < RULE_ROWS.length) {
+        const r = RULE_ROWS[i], ev = ruleEff(r.k), cur = r.vals.find((q) => String(q[0]) === String(ev)) || r.vals[0], common = String(COMMON_RULES[r.k]) === String(cur[0]), ch = ruleChanged(r.k);
+        text(r.label, 90, y + 6, 20, BLACK); text('◀', 440, y + 7, 18, [90, 90, 80], 1); text(cur[1], 580, y + 6, 20, ch ? [212, 101, 26] : BLACK, 1); text('▶', 724, y + 7, 18, [90, 90, 80], 1);
+        if (ch) { rrect(290, y + 7, 72, 22, 4, [232, 115, 28]); text('変更あり', 326, y + 6, 15, WHITE, 1); }
+        else if (common) { rrect(290, y + 7, 72, 22, 4, [60, 140, 90]); text('おすすめ', 326, y + 6, 16, WHITE, 1); }
+      } else if (i === RULE_ROWS.length) text('おすすめの設定に もどす', SW / 2, y + 6, 20, BLACK, 1);
+      else { rrect(300, y + 6, 24, 24, 12, [255, 255, 255]); rrect(302, y + 8, 20, 20, 10, [230, 184, 48]); text('A', 312, y + 10, -13, [42, 26, 0], 1); text('決定する', SW / 2 + 12, y + 6, -21, [42, 26, 0], 1); }
+    }
+    if (!dlg && top + VIS < n) { fill(70, 44 + (VIS - 2) * 38, 692, 36, [0, 0, 0], 85); fill(70, 44 + (VIS - 1) * 38, 692, 36, [0, 0, 0], 150); } // まだ下に つづきがあるとき: 下の2行を 少し暗くして、「下にもある」と 分かるように
+    const note = i0 < RULE_ROWS.length ? RULE_ROWS[i0].note : (i0 === RULE_ROWS.length ? 'すべてのルールを、おすすめ(全国的な設定・赤ドラなし)にもどします。' : (any ? '変えた値は、「決定する」(または A)で決めるまで 使われません。' : '変えた所は ありません。 Aで もどります'));
+    panel(70, 392, 692, 40, 8, [6, 44, 26], [90, 140, 110], 2, 235); text(note, SW / 2, 402, fitSz(note, 18, 670, 13), WHITE, 1);
+    { const ft = any ? '◀ ▶ で変える　A: この設定に決める　B: 変更をやめて もどる' : '変えたルールは、次の対局から使われます'; text(ft, SW / 2, 438, 19, any ? YEL : [205, 224, 212], 1); }
+    if (dlg) { // 確認の窓: ◀ ▶ で えらんで、A で決める(B は「いいえ・つづける」)
+      overlay(170); const D = S.ruleDlg, big = D.type === 'confirm', ttl = big ? 'この変更で よろしいですか?' : '変更を やめて もどりますか?', sub = big ? '変えた値を 保存して、次の対局から使います。' : '変えた値は、保存されません。', labs = big ? ['はい', 'いいえ'] : ['やめて もどる', 'つづける'];
+      panel(150, 130, 532, 190, 14, [20, 60, 42], [240, 210, 120], 3); text(ttl, 416, 148, 26, YEL, 1); text(sub, 416, 192, 19, [210, 225, 212], 1);
+      const bw = big ? 150 : 190, bx = [416 - bw - 14, 416 + 14];
+      labs.forEach((l, j) => { const on = D.idx === j; panel(bx[j], 236, bw, 54, 10, on ? [255, 216, 48] : [235, 235, 225], on ? [154, 110, 0] : [120, 120, 110], on ? 4 : 2); text(l, bx[j] + bw / 2, 248, -22, BLACK, 1); });
+      text('◀ ▶ で えらんで、 A で 決定', 416, 296, 16, [210, 225, 212], 1);
+    }
+    if (S.ruleToast && __now() < S.ruleToast) { rrect(206, 172, 420, 96, 16, [255, 255, 255]); rrect(209, 175, 414, 90, 14, [44, 138, 77]); text('✓ 設定しました', 416, 186, -32, WHITE, 1); text('次の対局から使われます', 416, 230, 18, [225, 245, 230], 1); dirty(); }
+  }
+  function drawSettings() {
+    gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 120);
+    text('設定', SW / 2, 6, 28, YEL, 1);
+    const X0 = 206, X1 = 626, PT = SETS.length > 11 ? 28 : 31, GAP = 11; let y = 38;
+    SETS.forEach((s, i) => {
+      if (s.gap) y += GAP - (i ? 0 : GAP);
+      const sel = S.setIdx === i && !S.volP;
+      if (s.back) { const bw = 200, bx = (SW - bw) / 2; rrect(bx - (sel ? 3 : 0), y + 2 - (sel ? 3 : 0), bw + (sel ? 6 : 0), 36 + (sel ? 6 : 0), 18, sel ? YEL : [210, 225, 212]); rrect(bx + 2, y + 4, bw - 4, 32, 16, sel ? [60, 130, 100] : [40, 90, 70]); text('◀ もどる', SW / 2, y + 8, 22, [235, 245, 238], 1); y += PT + 8; return; }
+      panel(X0, y, X1 - X0, PT - 3, 9, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2);
+      text(s.label, X0 + 16, y + 3, 22, BLACK);
+      const R = (str, sz) => text(str, X1 - 16, y + 3, sz || 22, BLACK, 2);
+      if (s.k === 'speed') R(MJ.CPU_SPEED_JP[MJ.cpuSpeed()]);
+      else if (s.k === 'cpulv') R(CPU_LV[cpuLv()]);
+      else if (s.k === 'teacher') R(teacherOn() ? (dmarkOn() ? 'あり(安全牌の印つき)' : 'あり') : 'なし', teacherOn() && dmarkOn() ? 18 : 22);
+      else if (s.k === 'swap') R(swapOn() ? '入れ替え' : 'ふつう');
+      else if (s.k === 'buzz') R(BZ_JP[buzzLv()]);
+      else if (s.k === 'rules' || s.k === 'credits' || s.k === 'help' || s.k === 'vol') R('▶');
+      y += PT;
+    });
+    if (S.volP) { // 音量ボリューム: 中央の窓に BGM・効果音・声
+      fill(0, 0, SW, SH, [0, 0, 0], 150); const x = 146, y0 = 96, w = 540, h = 276; panel(x, y0, w, h, 16, [20, 60, 42], [240, 210, 120], 3); text('音量ボリューム', SW / 2, y0 + 12, 28, YEL, 1);
+      [['BGM', 'bgm'], ['効果音', 'sfx'], ['声', 'voice']].forEach((r, k) => {
+        const yy = y0 + 62 + k * 54, sel = S.volP.idx === k, lv = NSND.getLevel(r[1]);
+        panel(x + 18, yy, w - 36, 46, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2); text(r[0], x + 34, yy + 8, 24, BLACK);
+        for (let j = 0; j < 10; j++) fill(x + 150 + j * 26, yy + 11, 22, 24, j < lv ? [30, 130, 80] : [200, 200, 195]);
+        text(String(lv), x + w - 32, yy + 8, 24, BLACK, 2);
+      });
+      text('◀ ▶ で 大きさを変える　B か A: もどる', SW / 2, y0 + h - 38, 18, [210, 225, 212], 1);
+    }
+  }
+  /* DEBUG-BEGIN(デバッグ用の画面: 設定の「デバッグ」。 あとで、このブロックと、設定の項目 dbg と、rank.js の debugSetPt を消す) */
+  const DBG_ROWS = ['経験値', '昇段の1点前にする', '東風戦 東四局から はじめる', '南風戦 南四局から はじめる', '名人にして 天下分け目を はじめる', '東四局: 自分が逆転できる(1位と1100点差)', '東四局: CPUが逆転する(自分が1位)', 'もどる'];
+  function drawDbg() {
+    gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
+    text('デバッグ(あとで消します)', SW / 2, 8, 28, YEL, 1);
+    const R = MJ.Rank, st = R.get(), DANS = R.DAN, nx = DANS[st.dan + 1];
+    DBG_ROWS.forEach((l, i) => { const y = 48 + i * 40, sel = (S.dbgIdx || 0) === i; panel(110, y, 612, 36, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2); text(l, 130, y + 3, 24, BLACK);
+      if (i === 0) { text('◀', 470, y + 5, 22, [90, 90, 80], 1); text(st.pt + '点', 560, y + 4, 26, BLACK, 1); text('▶', 664, y + 5, 22, [90, 90, 80], 1); } });
+    text('いまの段位: ' + MJ.DAN_NAME(st.dan) + (nx && nx[1] >= 99999 ? '    永世名人は 点ではなく、天下分け目で 1位' : nx ? '    つぎの段(' + nx[0] + ')まで あと ' + Math.max(0, nx[1] - st.pt) + '点' : ''), SW / 2, 374, 20, [255, 236, 170], 1);
+    text('経験値: ◀ ▶ で 10点ずつ(長押しで はやく)。 対局は、そのまま はじまります', SW / 2, 400, 17, [205, 224, 212], 1);
+    if (S.dbgMsg && __now() < S.dbgMsg.until) { rrect(116, 426, 600, 34, 10, [44, 138, 77]); text(S.dbgMsg.t, 416, 431, 20, WHITE, 1); dirty(); }
+  }
+  function dbgKey(k) {
+    const n = DBG_ROWS.length, i = S.dbgIdx || 0, R = MJ.Rank;
+    if (k === 'up' || k === 'down') { S.dbgIdx = wrap(i + (k === 'up' ? -1 : 1), n); return; }
+    if (k === 'back') { S.mode = 'settings'; return; }
+    if (i === 0 && (k === 'left' || k === 'right')) { const st = R.get(); R.debugSetPt(Math.min(3000, st.pt + (k === 'left' ? -10 : 10))); S.dbgMsg = { t: '経験値を ' + R.get().pt + '点 に しました', until: __now() + 1400 }; NSND.sfx('select', 0.4); return; }
+    if (k !== 'ok') return;
+    if (i === 1) { const st = R.get(), nx = R.DAN[st.dan + 1]; if (nx && nx[1] >= 99999) { if (st.pt > 3000) R.debugSetPt(R.DAN[10][1]); S.dbgMsg = { t: '永世名人は 点では なれません(下の「天下分け目」で 1位)', until: __now() + 2600 }; } else if (nx) { R.debugSetPt(nx[1] - 1); S.dbgMsg = { t: '昇段の1点前(' + R.get().pt + '点)に しました', until: __now() + 1600 }; } }
+    else if (i === 2 || i === 3) { const south = i === 3, K = south ? 7 : 3; S.mode = 'menu'; S.rankScr = null; startGame({ length: south ? 'south' : 'east', chars: pickChars(null, false).map((c) => c.id), dealer: (Math.floor(Math.random() * 4) + K) % 4, kyoku: K, honba: 0, kyotaku: 0, roundWind: south ? 1 : 0, handCount: K, scores: [25000, 25000, 25000, 25000] }, {}); } // 東四局(親は4番めの席)・南四局から。 点は みんな 25000
+    else if (i === 4) { R.debugSetPt(R.DAN[10][1]); const ids = [1, 7].concat(pickChars(null, false).map((c) => c.id).filter((id) => id !== 1 && id !== 7)).slice(0, 3); S.mode = 'menu'; S.rankScr = null; startGame({ length: 'east', chars: ids, dealer: Math.floor(Math.random() * 4), kyoku: 0, honba: 0, kyotaku: 0, roundWind: 0, handCount: 0, scores: [25000, 25000, 25000, 25000] }, { dice: true }); } // 名人(1845点)+徳川家康+水戸黄門。 東風戦で 1位 → 永世名人
+    else if (i === 5 || i === 6) { const me = i === 5; S.mode = 'menu'; S.rankScr = null; startGame({ length: 'east', chars: pickChars(null, false).map((c) => c.id), dealer: (Math.floor(Math.random() * 4) + 3) % 4, kyoku: 3, honba: 0, kyotaku: 0, roundWind: 0, handCount: 3, scores: me ? [25000, 26100, 24450, 24450] : [26000, 25200, 24400, 24400] }, {}); } // 東四局。 点の並びは、ひとつ上げれば 1位が入れ替わる(自分が逆転 / CPUが逆転)
+    else if (i === 7) S.mode = 'settings';
+  }
+  /* DEBUG-END */
+  /* ---------- 対局のはじめの演出: 顔の登場 → 東一局 → 勝負! → サイコロ ---------- */
+  const SEATPOS = { 0: [SW / 2 - 28, 372], 1: [SW - 190, 130], 2: [SW / 2 - 28, 16], 3: [110, 130] };
+  function seatBox(p, s, x, y, big, wind) {
+    const fs = big ? 64 : 56; face(p, x, y, fs, fs);
+    text(p.name, x + fs / 2, y + fs + 4, 20, WHITE, 1);
+    if (wind) text(wind, x - 14, y + 18, 26, wind === '東' ? RED : YEL, 1);
+  }
+  const shotOnce = (nm) => { if (__auto && globalThis.__shotDir && !S['_s' + nm]) { S['_s' + nm] = 1; gfx.view(0, 0); gfx.shot(__shotDir + '/' + nm + '.bmp'); gfx.view(S.vx, S.vy); } };
+  function plate(cx, y, name, lv) { // 名前の板(角の丸い、黒地に金の縁)
+    const w = Math.max(lv ? 128 : 100, gfx.measure(name, 21) + 34), x = Math.round(cx - w / 2), h = lv ? 56 : 38;
+    rrect(x - 2, y - 2, w + 4, h + 4, 7, [240, 200, 60]); rrect(x, y, w, h, 5, [14, 20, 32]);
+    text(name, cx, y + 6, 21, WHITE, 1); if (lv) stars(cx, y + 40, Math.min(5, lv));
+  }
+  function stage() { // 緑のしずかな背景(中央が少し明るい)
+    gfx.clear(16, 66, 50);
+    [[0.05, 0.05, 0.9, 0.9, 14], [0.12, 0.12, 0.76, 0.76, 14], [0.2, 0.2, 0.6, 0.6, 14], [0.3, 0.3, 0.4, 0.4, 14]].forEach((r) => fill(Math.round(SW * r[0]), Math.round(SH * r[1]), Math.round(SW * r[2]), Math.round(SH * r[3]), [60, 150, 110], r[4]));
+  }
+  const stageC = () => { if (typeof gfx.layerBegin === 'function') cached(29, 'stage', stage); else stage(); }; // 背景(重ね塗りが 重い)を 1枚の絵にして、使いまわす
+  function drawIntro() {
+    const it = S.intro, g = S.game, t = __now() - it.t0; stageC();
+    const P = g.players, st = (p) => (p.char && p.char.level ? p.char.level : 0), wf = (x, y, z) => { rrect(x - 3, y - 3, z + 6, z + 6, 8, [255, 255, 255]); rframe(x - 5, y - 5, z + 10, z + 10, 9, 2, [30, 30, 30]); rframe(x - 3, y - 3, z + 6, z + 6, 8, 4, [255, 255, 255]); };
+    const pl = (p, cx, y, lv) => (g.dealer === p.seat ? dealerPlate(cx, y, p.name, t) : plate(cx, y, p.name, lv)); // 親は、金色の「親」の名札
+    const wc = (p, x, y) => { const sw = g.seatWindOf(p); rrect(x, y, 36, 36, 6, [255, 255, 255]); rrect(x + 2, y + 2, 32, 32, 5, WIND_BG[sw]); text(WIND[sw], x + 18, y + 4, 26, WHITE, 1); }; // 東南西北のチップ
+    if (t > 0) { wf(360, 18, 112); face(P[2], 360, 18, 112, 112); pl(P[2], 416, 140, st(P[2])); wc(P[2], 306, 22); }
+    if (t > 0) { wf(70, 150, 112); face(P[3], 70, 150, 112, 112); pl(P[3], 126, 268, st(P[3])); wc(P[3], 22, 154); }
+    if (t > 0) { wf(650, 150, 112); face(P[1], 650, 150, 112, 112); pl(P[1], 706, 268, st(P[1])); wc(P[1], 774, 154); }
+    if (t > 0) { wf(60, 336, 92); try { gfx.imageTop(youSrc(), 60, 336, 92, 92); } catch (e) { /* ignore */ } pl(P[0], 246, 366, 0); wc(P[0], 18, 340); }
+    const T1 = it.t1 || 1700; // 「勝負!」を出す時刻(局の読み上げが、ながいときは、おわるまで待つ)
+    if (t > 400 && !it.v1) { it.v1 = 1; S.skipKyokuVoice = true; try { const d = NSND.readKyoku(g, () => { it.kyDone = true; }); it.t1 = Math.max(1700, 400 + Math.round((d || 0) * 1000) + 350); } catch (e) { /* ignore */ } }
+    if (t >= T1 && !it.v2 && (it.kyDone || t > T1 + 3500)) { it.v2 = 1; it.t1 = t; NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } } // 「局」の読み上げが、実際に おわってから「勝負!」(画面が止まって 声が おくれても、重ならない)
+    if (t > 400 && !it.v2) { const k = Math.min(1, (t - 400) / 160), sz = k < 0.5 ? 96 : 78; fill(192, 190, 448, 90, [0, 0, 0], 170); text(g.kyokuLabel().split(' ')[0], SW / 2, 235 - sz / 2, sz, YEL, 1); }
+    if (it.v2 && t < it.t1 + 1200) { const k = Math.min(1, (t - it.t1) / 160), sz = k < 0.5 ? 110 : 90; fill(192, 180, 448, 110, [0, 0, 0], 170); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((dd) => text('勝負!', SW / 2 + dd[0], 235 - sz / 2 + dd[1], sz, [255, 255, 255], 1)); text('勝負!', SW / 2, 235 - sz / 2, sz, [225, 40, 30], 1); }
+    if (t > 300) shotOnce('intro1'); if (t > 1000) shotOnce('intro2'); if (t > 2200) shotOnce('intro3');
+    if (it.v2 && t >= it.t1 + 1200) { S.intro = null; it.done(); }
+    dirty();
+  }
+  const PIP = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  function drawDie(x, y, v, s) { // 平らなサイコロ。顔の絵(最後に描く)より上に重なるよう、fillTop で描く
+    s = s || 72; const F = (xx, yy, w, h, c, a) => gfx.fillTop(xx, yy, w, h, c[0], c[1], c[2], a == null ? 255 : a);
+    F(x + 3, y + 5, s, s, [0, 0, 0], 80); F(x, y, s, s, [120, 120, 110]); F(x + 2, y + 2, s - 4, s - 4, [250, 248, 240]);
+    const u = s / 3.2, pr = Math.max(3, Math.round(s / 13));
+    (PIP[v] || []).forEach((i) => { const cx = x + Math.round(s / 2 + ((i % 3) - 1) * u * 0.9), cy = y + Math.round(s / 2 + (Math.floor(i / 3) - 1) * u * 0.9); F(cx - pr, cy - pr, pr * 2, pr * 2, v === 1 ? [220, 40, 40] : [30, 30, 30]); });
+  }
+  const DPOS = { 2: [SW / 2 - 40, 30], 3: [70, 150], 1: [SW - 150, 150], 0: [SW / 2 - 40, 330] };
+  function dealerPlate(cx, y, name, rv) { // 親の名札: 金色の板に、左端に赤い「親」の札(脈打つ光つき)
+    const TW = 40, w = Math.max(150, gfx.measure(name, 21) + 34 + TW), x = Math.round(cx - w / 2), h = 38, pu = 0.5 + 0.5 * Math.sin(rv / 140);
+    rrect(x - 8, y - 8, w + 16, h + 16, 8, [255, 190, 30], Math.round(60 + 100 * pu));
+    rrect(x - 3, y - 3, w + 6, h + 6, 7, [255, 255, 255]); rrect(x, y, w, h, 5, [255, 214, 58]); rrect(x, y + 17, w, h - 17, 5, [244, 190, 20]); rrect(x, y, w, 26, 5, [255, 226, 110]);
+    rrect(x, y, TW, h, 5, [214, 48, 40]); rrect(x + TW - 6, y, 6, h, 0, [214, 48, 40]);
+    text('親', x + TW / 2, y + 7, 24, WHITE, 1); text(name, x + TW + (w - TW) / 2, y + 7, 21, [35, 26, 0], 1);
+  }
+  function diceSeat(p, s, hi, wind, rv, part) { // サイコロの画面の、4人の顔(大きく)と名前。rv: 親が決まったあとの経過ミリ秒(親だけ、跳ねて、光る)。part: 'static'(板・光・風) / 'face'(顔の絵)
+    let x = DPOS[s][0], y = DPOS[s][1], fs = 80, dealer = rv != null;
+    if (s === 0 && p.char && p.char.level) y -= 22; // 観戦・練習: 下の席が CPU(星つきの名札)のとき、名札が 画面の下で切れないように 少し上へ
+    const y00 = y - DPOS[s][1]; // 名札・風の札の位置は、この分も ずらす
+    if (dealer) { const k = Math.min(1, rv / 380), ex = k < 0.6 ? 80 + (k / 0.6) * 36 : 116 - ((k - 0.6) / 0.4) * 14; fs = Math.round(ex); x -= Math.round((fs - 80) / 2); y -= Math.round((fs - 80) / 2); }
+    if (part !== 'face') {
+      if (dealer) { const pu = 0.5 + 0.5 * Math.sin(rv / 140); rrect(x - 16, y - 16, fs + 32, fs + 32, 12, [255, 190, 30], Math.round(70 + 110 * pu)); rrect(x - 10, y - 10, fs + 20, fs + 20, 9, [255, 230, 90], Math.round(150 + 105 * pu)); rrect(x - 4, y - 4, fs + 8, fs + 8, 6, [255, 255, 255]); }
+      else if (hi) { rrect(x - 8, y - 8, fs + 16, fs + 16, 8, [255, 120, 40]); rrect(x - 5, y - 5, fs + 10, fs + 10, 6, [255, 230, 80]); }
+      else { rframe(x - 5, y - 5, fs + 10, fs + 10, 9, 2, [30, 30, 30]); rframe(x - 3, y - 3, fs + 6, fs + 6, 8, 4, [255, 255, 255]); } // 顔の縁(白+外に細い黒。角は、小さな丸み)。 顔の絵は、これより上に重なる
+      fill(x, y, fs, fs, [90, 110, 100]);
+      if (dealer) dealerPlate(DPOS[s][0] + 40, DPOS[s][1] + 100 + y00, p.name, rv); else plate(DPOS[s][0] + 40, DPOS[s][1] + 96 + y00, p.name, p.char && p.char.level ? p.char.level : 0);
+      if (wind) { const wi = ['東', '南', '西', '北'].indexOf(wind); rrect(x - 46, y + 6, 38, 38, 6, [255, 255, 255]); rrect(x - 44, y + 8, 34, 34, 5, WIND_BG[wi]); text(wind, x - 27, y + 11, 28, WHITE, 1); }
+    } else face(p, x, y, fs, fs);
+  }
+  /* ---------- サイコロの転がり(あらかじめ計算した軌道 DICEPAT + 絵 img/dice を、回して重ねるだけ。3D計算なし) ---------- */
+  const DK = 0.8125, DSC = 0.8, DSZ = 96 * DK * DSC, DC = [416, 222]; // DSC: サイコロの大きさの倍率(軌道の距離も、同じ倍率で縮めて、ぶつかる見え方を そろえる) // 画面の倍率 / 止まる位置(2つの中心)
+  function drawDice2(d, now) {
+    const P = d.pat; if (!P || !d.started) return;
+    const fT = d.rolling ? Math.min(P.n - 1, (d.vt - d.rt0) * 24 / 1000) : P.n - 1, f0 = Math.floor(fT), f1 = Math.min(P.n - 1, f0 + 1), fr = fT - f0;
+    if (d.rolling) { // 跳ねたとき「ドッ」(強いほど、大きく)。ぶつかる音は、なし
+      if (d._ef == null) d._ef = -1;
+      if (f0 > d._ef) { P.bounce.forEach((bl) => bl.forEach((e) => { if (e[0] > d._ef && e[0] <= f0) NSND.sfx('dice_hit', Math.min(0.9, 0.25 + 0.65 * e[1])); })); d._ef = f0; }
+    }
+    if (!d.off) { const sg = Math.random() < 0.5 ? 1 : -1; d.off = [[Math.round((Math.random() - 0.5) * 14), sg * (3 + Math.round(Math.random() * 4))], [Math.round((Math.random() - 0.5) * 14), -sg * (3 + Math.round(Math.random() * 4))]]; d.tilt = [(Math.random() < 0.5 ? 1 : -1) * (2 + Math.random() * 5), (Math.random() < 0.5 ? 1 : -1) * (2 + Math.random() * 5)]; } // 止まったとき、2つの高さ・向きを そろえない(そろいすぎて見えるため)
+    const lerp = (a, b) => a + (b - a) * fr;
+    const items = [0, 1].map((di) => {
+      const a = P.p[di][f0], b = P.p[di][f1], x = lerp(a[0], b[0]) * DSC, z = lerp(a[1], b[1]) * DSC, h = lerp(a[2], b[2]) * DSC;
+      const Ti = Math.max(8, P.rest[di]), u = Math.min(1, fT / Ti), u2 = Math.min(1, u * (di ? 1.18 : 1)); // 2つで、回る量・止まる早さ・ゆらぎを変える(同期しない)
+      const ang = -(di ? 300 : 430) * Math.pow(1 - u2, di ? 1.7 : 2.2) - (di ? 28 * Math.sin(fT * 0.55) * (1 - u2) : 0);
+      const sc = 0.72 + 0.28 * Math.max(0, Math.min(1, (z / DK / DSC + 11) / 145)); // 奥へいくほど、少し小さく
+      return { di, x: DC[0] + x + d.off[di][0], gz: DC[1] + z + d.off[di][1], h, ang: -ang + d.tilt[di], sf: Math.max(0, Math.min(1, (P.rest[di] - fT) / 6)), mix: Math.max(0, Math.min(1, (u - 0.2) / 0.16)), sz: Math.round(DSZ * sc) };
+    }).sort((p, q) => p.gz - q.gz); // 奥のものから描く
+    items.forEach((o) => {
+      const hp = Math.min(o.h / DK / DSC, 130), sw = Math.round(o.sz * (0.8 - hp / 450)), sh = Math.round(sw * 24 / 64);
+      if (o.sf > 0) gfx.imageRotTop('img/dice/shadow.webp', o.x, o.gz + o.sz * 0.26, Math.round(sw * 1.15), sh, Math.round((255 - hp / 2) * o.sf), 0); // 影は、止まるころに消える(止まったら、影なし)
+      const cy = o.gz - o.h - o.sz * 0.15, A = 'img/dice/a' + (o.di ? d.b : d.a) + '.webp', B = 'img/dice/b' + ((o.di * 3 + 1) % 6) + '.webp'; // 最初は別の向きの絵 → 空中で、出目の絵へ溶けこむ(止まる前に終わる)
+      if (o.mix < 1) gfx.imageRotTop(B, o.x, cy, o.sz, o.sz, 255, o.ang);
+      if (o.mix > 0) gfx.imageRotTop(A, o.x, cy, o.sz, o.sz, Math.round(255 * o.mix), o.ang);
+    });
+  }
+  const CD_SZ = gfx.bold ? -112 : 112, CD_COL = [64, 111, 93];
+  function drawDice() {
+    const d = S.dice, g = S.game, now = __now();
+    const dtf = d._ln ? now - d._ln : 0; d._ln = now; { const cl = (d.vstr || 0) < 1200 ? Math.min(dtf, 50) : dtf; d.vstr = (d.vstr || 0) + (dtf - cl); d.vt = (d.vt || 0) + cl; } // 動きの時計: 1コマが重くても、50msぶんしか進めない(最初の数コマが飛んで、いきなり終わりに見えるのを防ぐ)
+    if (!d.t00) d.t00 = now; if (d._ln2 !== undefined) d.calm = dtf < 80 ? (d.calm || 0) + 1 : 0; d._ln2 = 1; // 画面の描きが安定する(軽い コマが 続く)まで、転がしはじめを待つ(最長2.5秒)
+    if (!d.started && d.vt > 600 && ((d.calm || 0) >= 5 || now - d.t00 > 2500)) { d.started = true; d.rolling = true; d.t0 = now; d.rt0 = d.vt; NSND.sfx('deal4'); }
+    const total = d.a + d.b, cStart = d.t1 + 700, cStep = 380, tLast = cStart + (total - 1) * cStep, CD_HOLD = 900, revealAt = tLast + CD_HOLD; // 最後の席(数字は「1」)に光が着いたら、CD_HOLD(0.9秒)そこで止まって脈打ち、そのあと親が大きく出る
+    const P = g.players, counting = d.settled && now >= cStart && now < revealAt, done = d.settled && now >= revealAt;
+    if (done && !d.revealT) { d.revealT = now; NSND.sfx('start', 0.8); NSND.sfx('slam', 0.8); }
+    const rt = d.revealT ? now - d.revealT : -1; // 親が決まってからの経過(ミリ秒): 〜1500 親を見せる / 〜2900「東一局」/ 〜4100「勝負!」
+    if (rt > 1500 && !d.v1) { d.v1 = 1; afterPresent(() => { NSND.sfx('slam'); try { const dur = NSND.readKyoku(g, () => { d.kyDone = true; }); d.T2 = Math.max(2900, 1500 + Math.round((dur || 0) * 1000) + 350); } catch (e) { /* ignore */ } }); } // 声は、文字が画面に出たあとに(描くのが遅い実機で、声だけ先に出ないように) // 「勝負!」は、局の読み上げが おわってから
+    const T2 = d.T2 || 2900;
+    if (rt > T2 && !d.v2 && (d.kyDone || rt > T2 + 3500)) { d.v2 = 1; d.T2 = rt; afterPresent(() => { NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }); }
+    if (d.v2 && rt > d.T2 + 1200 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); }
+    const step = counting ? Math.min(total, Math.floor((now - cStart) / cStep) + 1) : 0, hiSeat = counting ? (step - 1) % 4 : -1;
+    if (counting && d._lastStep !== step) { d._lastStep = step; NSND.sfx('select', 0.5); }
+    const winds = (sd) => (done ? ['東', '南', '西', '北'][(sd - d.target + 4) % 4] : '');
+    const seatsStatic = () => { stage(); [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, sd === hiSeat, winds(sd), done && sd === d.target ? now - d.revealT : null, 'static')); };
+    if (done) seatsStatic(); else cached(2, 'd' + (d.id || 0) + ':' + hiSeat, seatsStatic); // 動かない部分は、1枚の絵にして貼る(サイコロのアニメを、カクつかせないため)
+    if (counting && now >= tLast) { const sd = hiSeat, x = DPOS[sd][0], y = DPOS[sd][1], pu = 0.5 + 0.5 * Math.sin((now - tLast) / 80); rrect(x - 14, y - 14, 108, 108, 12, [255, 190, 30], Math.round(50 + 120 * pu)); } /* 最後の席で止まっている間: 光が脈打つ(アニメ案どおり) */
+    [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, false, '', done && sd === d.target ? now - d.revealT : null, 'face'));
+    if (!d.pat) d.pat = DICEPAT[Math.floor(Math.random() * DICEPAT.length)]; // 転がり方は、数種類から ランダムに
+    if (d.started && d.rolling && (d.vt - d.rt0) * 24 / 1000 >= d.pat.n + 2) { d.rolling = false; d.settled = true; d.t1 = now; }
+    const big = rt > 1500; // 「東一局」「勝負!」のあいだは、サイコロと案内の帯を消して、そのまま中央に大きく出す(画面は切り替えない)
+    if (!big && d.settled && !done) { const left = counting ? total - step + 1 : total; text(String(left), 595, 150, CD_SZ, CD_COL, 1); } /* 親決めのカウントダウン: 出た目の合計を、サイコロの右横に うすく出し、光が1つ進むごとに 1ずつ減らす(1になった席が親)。 15%の濃さ(背景と白を混ぜた色) */
+    if (!big) {
+      gfx.fillTop(190, 262, 452, 32, 0, 0, 0, 190); const T2 = (str, y, sz2, c) => gfx.textTop(str, SW / 2, y, sz2, c[0], c[1], c[2], 1);
+      if (!d.started) T2('サイコロを振ります  (Aボタンで スキップ)', 267, 20, YEL);
+      else if (d.rolling) T2('…', 267, 22, WHITE);
+      else if (!done) T2('合計 ' + total + ' …  あなたから 左回りに 数えます', 268, 19, WHITE);
+      else T2(P[d.target].name + ' が 親です', 265, 24, YEL);
+      if (!globalThis.__nodice) drawDice2(d, now); // サイコロは、黒い帯より上を通る(最後に描く) // サイコロは、黒い帯より上を通る(最後に描く)
+    } else if (!d.v2) { const k = Math.min(1, (rt - 1500) / 160), sz2 = k < 0.5 ? 96 : 78; fill(240, 192, 352, 104, [0, 0, 0], 200); text(g.kyokuLabel().split(' ')[0], SW / 2, 244 - sz2 / 2, sz2, YEL, 1); }
+    else { const k = Math.min(1, (rt - T2) / 160), sz2 = k < 0.5 ? 110 : 90; fill(240, 192, 352, 104, [0, 0, 0], 200); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((dd) => text('勝負!', SW / 2 + dd[0], 244 - sz2 / 2 + dd[1], sz2, [255, 255, 255], 1)); text('勝負!', SW / 2, 244 - sz2 / 2, sz2, [225, 40, 30], 1); }
+    if (globalThis.__nodice && globalThis.__shotDir && !d._snapped) { d._snapped = 1; gfx.snap(globalThis.__shotDir + '/dicefull.bmp'); } // 試験用
+    if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
+    if (d.started || true) dirty();
+  }
+  /* ---------- 対戦成績の画面 ---------- */
+  /* ---------- 雀士列伝: 出会った相手の顔と紹介。まだの人は黒いシルエット。段位が足りない人は鍵つき ---------- */
+  const metLoad = () => { let a = []; try { a = JSON.parse(localStorage.getItem('mj_met') || '[]'); if (!Array.isArray(a)) a = []; } catch (e) { a = []; } try { Object.keys(MJ.Rank.get().opp || {}).forEach((k) => { if (!a.includes(+k)) a.push(+k); }); } catch (e) { /* ignore */ } return a; }; // 出会った人 = 列伝に記録した人 + 対戦成績に記録がある人(列伝を入れる前に対戦した人も、含める)
+  const metMark = (ids) => { const a = metLoad(); let ch = false; (ids || []).forEach((i) => { if (i > 0 && !a.includes(i)) { a.push(i); ch = true; } }); if (ch) { try { localStorage.setItem('mj_met', JSON.stringify(a)); } catch (e) { /* ignore */ } } };
+  const rosList = () => MJ.CHARS.slice().sort((a, b) => MJ.unlockDan(a.id) - MJ.unlockDan(b.id) || a.id - b.id);
+  const ROS_PER = 12;
+  function rosLeave() { // 対戦相手の画面を出る: 段位の画面から入ったときは、段位の画面へ。成績から入ったときは、成績へ
+    if (S.rosFrom) { S.rosFrom = null; S.ros = null; S.mode = S.statsPrev || 'menu'; } else S.ros = null; dirty();
+  }
+  /* ---------- 練習対局(記録なし): 雀士列伝で えらんだ人と対戦 / CPU同士を観戦 ---------- */
+  const rosState = (c) => (MJ.unlockDan(c.id) > (MJ.Rank.get().maxdan || 0) ? 0 : 2); // 段位が足りた人は 顔と説明が出る(2) / まだの人は 鍵つき(0)。 「出会う」条件は なし
+  function startFreeMatch(ids, watch) { // 記録に残らない対局(段位・成績・出会った雀士・つづきには ふれない)
+    const chars = ids.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean);
+    S.mode = 'menu'; S.rankScr = null; startGame(null, { practice: true, chars, watch });
+  }
+  function rosNeed(R) { return R.mode === 'play' ? 3 : R.mode === 'watch' ? 4 : 0; } // えらぶ人数(フリー対局=3人 / CPUの観戦=4人)
+  function rosEnd(R) { R.mode = null; R.pick = []; R.go = false; R.tb = null; } // えらぶモードを やめる
+  function rosKey(k) {
+    const R = S.ros, L = rosList(), n = L.length, pages = Math.ceil(n / ROS_PER), pg = Math.floor(R.sel / ROS_PER), i = R.sel % ROS_PER, c = i % 4, r = Math.floor(i / 4), need = rosNeed(R);
+    if (!R.pick) R.pick = [];
+    if (S.bbf) { // 左上の「もどる」(えらぶモードでは「やめる」)に合わせているとき
+      if (k === 'ok' || k === 'back') { S.bbf = false; if (R.mode) { rosEnd(R); dirty(); return; } rosLeave(); return; }
+      if (k === 'down') { S.bbf = false; R.tb = null; R.sel = Math.min(n - 1, pg * ROS_PER); } /* もどる/やめる → 1段目の左はし */ else if (k === 'right' && !R.mode) { S.bbf = false; R.tb = 1; }
+      dirty(); return;
+    }
+    if (k === 'back') { if (R.mode) { rosEnd(R); dirty(); return; } rosLeave(); return; }
+    if (R.tb) { // 上のバーの、丸い2つのボタン(1=フリー対局 / 2=CPUの観戦)
+      if (k === 'ok') { R.mode = R.tb === 1 ? 'play' : 'watch'; R.pick = []; R.go = false; R.tb = null; NSND.sfx('select', 0.5); }
+      else if (k === 'left') { if (R.tb === 1) { R.tb = null; S.bbf = true; } else R.tb = 1; }
+      else if (k === 'right') { if (R.tb === 1) R.tb = 2; }
+      else if (k === 'down') { const col = R.tb === 1 ? 1 : 2; R.tb = null; R.sel = Math.min(n - 1, pg * ROS_PER + col); } // フリー対局 → 1段目の左から2列目 / CPUの観戦 → 左から3列目
+      dirty(); return;
+    }
+    if (R.go) { // 人数がそろったあとの「この3人で はじめる」
+      if (k === 'ok') { const ids = R.pick.slice(), watch = R.mode === 'watch'; S.ros = null; S.rosFrom = null; startFreeMatch(ids, watch); return; }
+      if (k === 'up' || k === 'left' || k === 'down') R.go = false;
+      dirty(); return;
+    }
+    if (k === 'ok') {
+      const ch = L[R.sel], say = (t) => { S.toast = { text: t, until: __now() + 2200 }; dirty(); setTimeout(dirty, 2300); };
+      if (rosState(ch) === 0) { say('まだ 登場していません'); return; }
+      if (!R.mode) { say('上の「フリー対局」か「CPUの観戦」で えらべます'); return; }
+      const at = R.pick.indexOf(ch.id);
+      if (at >= 0) { R.pick.splice(at, 1); R.go = false; NSND.sfx('select', 0.4); } // もう一度 決定: はずす
+      else if (R.pick.length >= need) { say('もう ' + need + '人 えらんでいます(はずすときは その人で 決定)'); return; }
+      else { R.pick.push(ch.id); NSND.sfx('select', 0.6); if (R.pick.length === need) R.go = true; }
+      dirty(); return;
+    }
+    if (k === 'left') { if (c > 0) R.sel--; else if (pg > 0) R.sel = Math.min(n - 1, (pg - 1) * ROS_PER + r * 4 + 3); else if (!R.mode) { rosLeave(); return; } }
+    else if (k === 'right') { if (c < 3 && R.sel + 1 < n) R.sel++; else if (pg < pages - 1) R.sel = Math.min(n - 1, (pg + 1) * ROS_PER + r * 4); }
+    else if (k === 'up') { if (r > 0) R.sel -= 4; else if (R.mode || c === 0) S.bbf = true; else R.tb = c === 1 ? 1 : 2; } // 1段目から ▲: 真上に近いボタンへ(いちばん左=もどる(やめる) / 左から2列目=フリー対局 / 右の2列=CPUの観戦)
+    else if (k === 'down') { if (r < 2 && R.sel + 4 < n) R.sel += 4; else if (need && R.pick.length === need) R.go = true; }
+    dirty();
+  }
+  function drawRoster() {
+    if (!S.ros.pick) S.ros.pick = []; // (入り方によらず、選んだ人の一覧を かならず持たせる)
+    const R = S.ros, L = rosList(), n = L.length, pages = Math.ceil(n / ROS_PER), pg = Math.floor(R.sel / ROS_PER), mx = MJ.Rank.get().maxdan || 0, dan = MJ.Rank.get().dan || 0;
+    const need = rosNeed(R), full = need > 0 && R.pick.length === need;
+    const state = (c) => (MJ.unlockDan(c.id) > mx ? 0 : 2); // 2=登場している / 0=まだ登場しない(鍵)
+    const X0 = 24, DX = 112, Z = 84, pad = (k) => ('0' + k).slice(-2);
+    const useLay = typeof gfx.layerBegin === 'function';
+    const drawCard = (k, sel) => { // 1人ぶん(sel=カーソルが あたっている: 黄色い台の上に、文字は 黒)
+      const idx = pg * ROS_PER + k; if (idx >= n) return; const c = L[idx], st = state(c), x = X0 + (k % 4) * DX, y = 64 + Math.floor(k / 4) * 116;
+      if (sel) { rrect(x - 8, y - 8, Z + 16, Z + 40, 10, [160, 110, 0]); rrect(x - 5, y - 5, Z + 10, Z + 34, 8, YEL); }
+      if (st === 2) { rrect(x - 3, y - 3, Z + 6, Z + 6, 8, [255, 255, 255]); frame(x - 5, y - 5, Z + 10, Z + 10, [30, 30, 30], 1); gfx.image(skin(c.face), x, y, Z, Z, 255); text((c.short || c.name).slice(0, 7), x + Z / 2, y + Z + 6, 15, sel ? INK : WHITE, 1); }
+      else {
+        gfx.image('img/sil/' + pad(c.id) + '.webp', x, y, Z, Z, 255); frame(x - 1, y - 1, Z + 2, Z + 2, [30, 40, 50], 2);
+        if (st === 0) { fill(x, y, Z, Z, [0, 0, 0], 90); gfx.image('img/lock.webp', x + Z / 2 - 16, y + Z / 2 - 22, 32, 44, 255); text(MJ.DAN_NAME(MJ.unlockDan(c.id)) + 'で登場', x + Z / 2, y + Z + 6, 14, sel ? INK : [255, 214, 120], 1); }
+        else text('？？？？', x + Z / 2, y + Z + 6, 15, sel ? INK : [200, 210, 220], 1);
+      }
+    };
+    const drawStatic = () => { // 動かない部分: 背景・12人の一覧・次のページののぞき窓・矢印・ページの点・人数(ページか段位が かわるまで 1枚の絵)
+      gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 165); fill(0, 50, SW, 2, [150, 190, 140], 160);
+      for (let k = 0; k < ROS_PER; k++) drawCard(k, false);
+      if (pg < pages - 1) { // 次のページの1列目を、左半分くっきり・右半分は透明になっていく絵で見せる(先に まだ人がいると 分かるように)+ 半透明の矢印
+        const nx = X0 + 4 * DX;
+        for (let r = 0; r < 3; r++) { const idx = (pg + 1) * ROS_PER + r * 4; if (idx >= n) break; const c = L[idx], st = state(c), y = 64 + r * 116; gfx.image('img/peek/' + (st === 2 ? 'f' : 's') + pad(c.id) + '.webp', nx, y, Z, Z, 255); if (st === 0) gfx.image('img/lock.webp', nx + 10, y + Z / 2 - 22, 32, 44, 150); }
+        gPoly([[528, 196], [528, 244], [552, 220]], YEL, 200);
+      }
+      if (pg > 0) gPoly([[14, 198], [14, 242], [0, 220]], YEL, 200);
+      for (let k = 0; k < pages; k++) { const cx = 190 + k * 26; rrect(cx - 7, 424, 14, 14, 7, k === pg ? YEL : [80, 100, 90]); }
+      text('登場した ' + L.filter((x) => state(x) === 2).length + ' / ' + n + '人', 24, 423, 16, YEL); text((pg + 1) + ' / ' + pages, 280, 423, 16, [200, 220, 205]);
+    };
+    if (useLay) cached(30, 'ro' + pg + ':' + mx, drawStatic); else drawStatic();
+    if (!R.mode) {
+      const pill = (x, w, lab, on) => { if (on) { rrect(x - 3, 14, w + 6, 36, 18, [255, 255, 255]); rrect(x, 17, w, 30, 15, [160, 110, 0]); rrect(x + 3, 20, w - 6, 24, 12, YEL); } else { rrect(x, 17, w, 30, 15, GREEN); rrect(x + 3, 20, w - 6, 24, 12, CREAM); } text(lab, x + w / 2, 23, -16, INK, 1); }; // 丸い小さなボタン。 下の線は「もどる」にそろえる
+      pill(140, 118, 'フリー対局', R.tb === 1); pill(268, 128, 'CPUの観戦', R.tb === 2);
+      text('対戦相手を 見る', 498, 11, 24, YEL, 1);
+      text('いまの段位', 664, 18, 16, [216, 230, 218], 1); text(MJ.DAN_NAME(dan), 770, 10, 28, YEL, 1); // ただの表示(ボタンではない)
+    } else { // えらぶモード: 上のバーに、何人えらぶか・いくつ えらんだか
+      fill(130, 3, 692, 46, [10, 40, 28]);
+      const lab = (R.mode === 'play' ? 'フリー対局' : 'CPUの観戦') + ':', msg = full ? need + '人 そろいました' : need + '人 おえらびください';
+      let tx = 150; text(lab, tx, 11, 26, YEL); tx += gfx.measure(lab, 26) + 14; text(msg, tx, 11, 26, full ? [159, 227, 168] : WHITE); tx += gfx.measure(msg, 26) + 22; text(R.pick.length + ' / ' + need, tx, 7, -34, WHITE);
+    }
+    { const kSel = R.sel - pg * ROS_PER; if (!S.bbf && !R.tb && !R.go && kSel >= 0 && kSel < ROS_PER) { drawCard(kSel, true);
+        const k2 = kSel + 4, i2 = pg * ROS_PER + k2; // 下の段の人の 枠の上の細い帯は、元の描く順(あとから)のまま、台の上に かさねる(帯だけ描くので、文字は 二重にならない)
+        if (k2 < ROS_PER && i2 < n) { const x2 = X0 + (k2 % 4) * DX, y2 = 64 + Math.floor(k2 / 4) * 116; gfx.clip(x2 - 8, y2 - 8, Z + 16, 9); if (state(L[i2]) === 2) { rrect(x2 - 3, y2 - 3, Z + 6, Z + 6, 8, [255, 255, 255]); frame(x2 - 5, y2 - 5, Z + 10, Z + 10, [30, 30, 30], 1); } else frame(x2 - 1, y2 - 1, Z + 2, Z + 2, [30, 40, 50], 2); gfx.clip(); }
+      } } // カーソルのところだけ、毎回 かさねて描く
+    const c = L[R.sel], st = state(c), px = 612, py = 64, pw = 200;
+    const drawPanel = () => { // 右の説明の枠: えらんでいる人が かわるまで 1枚の絵(文章のならべかたの計算も、そのとき1回だけ)
+      panel(px, py, pw, 348, 14, [6, 28, 18], [140, 190, 130], 3, 255);
+      if (st === 2) { rrect(px + 43, py + 13, 114, 114, 8, WHITE); gfx.image(skin(c.face), px + 44, py + 14, 112, 112, 255); text(c.short || c.name, px + pw / 2, py + 134, fitSz(c.short || c.name, 22, 180, 14), YEL, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', px + pw / 2, py + 166, 14, WHITE, 1); const el = MJ.effLevel ? MJ.effLevel(c.level, dan) : c.level; if (el > c.level) text('いまの段位では ' + MJ.starStr(el), px + pw / 2, py + 186, 14, YEL, 1); text('打ち方: ' + (MJ.styleLabel ? MJ.styleLabel(c) : (MJ.STYLE_JP[c.style] || '')), px + pw / 2, py + (el > c.level ? 206 : 188), 14, WHITE, 1); const f = fitRich(c.desc || '', [15, 14, 13], 176, 104); richDraw(f.lines, px + 12, py + 232, f.sz, [230, 240, 225], 0); }
+      else { gfx.image('img/sil/' + pad(c.id) + '.webp', px + 44, py + 14, 112, 112, 255); frame(px + 43, py + 13, 114, 114, [30, 40, 50], 2); if (st === 0) gfx.image('img/lock.webp', px + 77, py + 45, 46, 64, 255); text('？？？？', px + pw / 2, py + 134, 22, YEL, 1); const ud = MJ.unlockDan(c.id), m = MJ.DAN_NAME(ud) + 'になると、\n' + townName(ud) + 'の街に 登場します。'; const f = fitRich(m, [15, 14, 13], 176, 120); richDraw(f.lines, px + 12, py + 176, f.sz, [230, 240, 225], 0); }
+    };
+    if (useLay) cached(31, 'pn' + c.id + ':' + dan + ':' + st, drawPanel); else drawPanel();
+    if (!full) text(R.mode ? '決定: この人を えらぶ・はずす    戻る: やめる' : '◀ ▶ ▲ ▼ で えらぶ    戻る: もどる', SW / 2 + 80, SH - 28, 15, [210, 225, 205], 1);
+    if (R.pick.length) { // えらんだ人: 黄色い枠と、赤い番号の丸。 枠を ぜんぶ描いてから、番号の丸を いちばん上に
+      const pos = (id) => { const idx = L.findIndex((q) => q.id === id); if (idx < 0 || Math.floor(idx / ROS_PER) !== pg) return null; const kk = idx % ROS_PER; return [X0 + (kk % 4) * DX, 64 + Math.floor(kk / 4) * 116]; };
+      R.pick.forEach((id) => { const q = pos(id); if (q) frame(q[0] - 4, q[1] - 4, Z + 8, Z + 8, [255, 214, 0], 4); });
+      R.pick.forEach((id, n2) => { const q = pos(id); if (q) { rrect(q[0] + Z - 22, q[1] - 8, 32, 32, 16, [255, 255, 255]); rrect(q[0] + Z - 20, q[1] - 6, 28, 28, 14, [200, 50, 40]); text(String(n2 + 1), q[0] + Z - 6, q[1] - 4, 21, WHITE, 1); } });
+    }
+    if (full) { // 人数がそろったら、右下に「はじめる」
+      const lab = R.mode === 'watch' ? 'この' + need + '人で 観戦する' : 'この' + need + '人で はじめる';
+      if (R.go) rrect(477, 407, 336, 54, 14, [255, 255, 255]); rrect(480, 410, 330, 48, 12, R.go ? [160, 110, 0] : [120, 130, 120]); rrect(483, 413, 324, 42, 10, R.go ? YEL : CREAM); text(lab, 645, 420, -25, INK, 1);
+    }
+  }
+  function drawStats() {
+    if (S.ros) { drawRoster(); return; }
+    const R = MJ.Rank, f = R.info(), s = f.s, pg = S.statsPg;
+    gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
+    text('対戦成績', SW / 2, 12, 30, YEL, 1);
+    const total = s.games || 0, avg = total ? ((s.ranks[0] + s.ranks[1] * 2 + s.ranks[2] * 3 + s.ranks[3] * 4) / total).toFixed(1) : '-';
+    gfx.image(youSrc(), 40, 70, 150, 150, 255); text(f.name, 115, 230, 26, YEL, 1); text('平均順位 ' + avg + '位', 115, 266, 22, WHITE, 1);
+    s.ranks.forEach((c, i) => { const y = 70 + i * 40; text((i + 1) + '位', 230, y + 6, 20, WHITE); text(c + '回', 330, y + 6, 20, YEL, 2); fill(345, y + 4, 200, 24, [60, 70, 66]); fill(345, y + 4, total ? Math.round(200 * c / total) : 0, 24, [230, 190, 70]); });
+    text('対局数 ' + total + '    1位の割合 ' + (total ? Math.round(s.ranks[0] / total * 100) : 0) + '%', 230, 236, 18, WHITE);
+    const opps = Object.keys(s.opp).map((id) => ({ c: MJ.CHARS.find((x) => x.id === +id), o: s.opp[id] })).filter((x) => x.c).sort((a, b) => b.o.n - a.o.n);
+    const pages = Math.max(1, Math.ceil(opps.length / 3)), cur = opps.slice(pg * 3, pg * 3 + 3);
+    if (!cur.length) text('まだ、対戦の記録がありません。', 600, 120, 18, WHITE, 1);
+    cur.forEach((x, i) => { const y = 70 + i * 92; fill(560, y, 252, 84, [235, 235, 225], 235); gfx.image(skin(x.c.face), 566, y + 6, 72, 72, 255); text(x.c.short || x.c.name, 646, y + 8, 18, BLACK); text('対戦 ' + x.o.n + '回', 646, y + 34, 15, [70, 70, 70]); text('勝ち ' + x.o.w + '  勝率 ' + Math.round(x.o.w / x.o.n * 100) + '%', 646, y + 56, 15, [20, 90, 50]); });
+    text('◀ ' + (pg + 1) + ' / ' + pages + ' ▶', 686, 352, 16, WHITE, 1);
+    rrect(300, 392, 232, 38, 12, [40, 100, 70]); text('▼ 対戦相手を 見る', 416, 398, 20, WHITE, 1);
+  }
+  /* ---------- 段位の画面(背景の絵の座標は、絵のピクセル 1404x768) ---------- */
+  /* ---------- 昇段のおいわい: 認定証(あなたの絵・判子つき)→ 新しい雀士の登場 ---------- */
+  /* ---------- 昇段の地図(源平討魔伝ふう): 段位が上がると、ずんだもんが 九州から 関東へ 歩いていく ---------- */
+  const MAP_DAN = ['無段', '初段', '二段', '三段', '四段', '五段', '六段', '七段', '八段', '九段', '名人', '永世名人'];
+  const MAP_SAY_BASE = [ // 段位ごとの、ずんだもんの ひとこと(その段位に 着いたとき)。 ★録音(audio/yk/m_*.mp3 など)の あるセリフは、録音と同じ文章。 かってに 変えない
+    'ここは 肥後国、熊本。ぼくの 麻雀の旅が はじまるのだ!', '初段! 筑前国、福岡で 腕だめしなのだ。博多ラーメンが 食べたいのだ', '二段! 海を わたって 讃岐国へ。うどんが おいしそうなのだ', '三段! 安芸国、広島に とうちゃく。強い相手が ふえてきたのだ',
+    '四段! 山城国、京の都なのだ。人が いっぱいなのだ', '五段! 摂津国、大阪に 来たのだ。やっと 一人前なのだ', '六段! 信濃国、長野の 山あいなのだ。空気が おいしいのだ', '七段! 北の 越後国、新潟まで 来たのだ。海が きれいなのだ',
+    '八段! 遠い 奥州まで 来たのだ。寒いけど 負けないのだ', '九段! 駿河国、静岡に とうちゃく。富士山が 目の前なのだ', '名人! ついに ゴールの 江戸、東京なのだ! 天下は もう目の前なのだ', '永世名人! ここ江戸で 天下統一なのだ!'];
+  const MAP_PLACE_BASE = ['肥後国(熊本)', '筑前国(福岡)', '讃岐国(香川)', '安芸国(広島)', '山城国(京都)', '摂津国(大阪)', '信濃国(長野)', '越後国(新潟)', '奥州', '駿河国(静岡)', '江戸(東京)', '江戸(東京)'];
+  const MAP_SETS = [ // 道すじは 2通り(ふだんは 1=おすすめ)(隠しコマンドの演出テストで 切りかえて 見られる)。 0=赤い線どおり 1=おすすめ(伊勢あり)
+    { say: MAP_SAY_BASE, place: MAP_PLACE_BASE },
+    { say: MAP_SAY_BASE.map((x, i) => (i === 6 ? '六段! 伊勢神宮に お参りなのだ。力が わいてくるのだ' : i === 7 ? '七段! 信濃国、長野の 山あいなのだ。空気が おいしいのだ' : x)), place: MAP_PLACE_BASE.map((x, i) => (i === 6 ? '伊勢国(三重)' : i === 7 ? '信濃国(長野)' : x)) }];
+  const townName = (d) => { const raw = MAP_SETS[mapSetNo()].place[Math.min(Math.max(d, 0), 11)] || '', m = raw.match(/\((.*)\)/); return d >= 10 ? '江戸' : m ? m[1] : raw.replace(/国$/, ''); }; // 段位 d の街の名前(例: 四段 → 京都)
+  const mapSetNo = () => (S.mapSet == null ? 1 : S.mapSet) % MAP2.sets.length;
+  // 地図(巻物)の置きかた: 元の絵(1375x768)から 巻物の部分を切り出し、画面の 780x392 に 収まる大きさで出す
+  const MAP_V = (() => { const k = Math.min(780 / MAP2.bw, 392 / MAP2.bh), w = MAP2.bw * k, h = MAP2.bh * k; return { k, w, h, x0: Math.round((SW - w) / 2), y0: 8 }; })();
+  const mapPt = (q) => [MAP_V.x0 + (q[0] - MAP2.ox) * MAP_V.k, MAP_V.y0 + (q[1] - MAP2.oy) * MAP_V.k];
+  const mapStop = (d, L) => mapPt(d <= 0 ? L[0][0] : L[d - 1][L[d - 1].length - 1]);
+  const MAP_T = { slide: 1400, hold: 1100, dwell: 1500 };
+  /* 旅のはじまり: ずんだもんのポーズ絵(tools/make_zunda_poses.py で作る img/map/zp_*.webp)。 [幅, 高さ, 足もとの中心x, 足もとの線y](絵の左上から) */
+  const ZP = {stand: [46, 80, 24, 75], arms: [49, 81, 23, 73], jump: [53, 73, 25, 73], fists: [51, 80, 25, 75], hip: [47, 80, 25, 75], shout: [53, 81, 25, 76], fist1: [48, 80, 28, 75]};
+  const ZK = 0.92; /* 地図のずんだもんは、元の絵より 一回り(約1割)小さく */ const zpDraw = (nm, sx, sy, dy) => { const z = ZP[nm]; gfx.image('img/map/zp_' + nm + '.webp', sx - Math.round(z[2] * ZK), sy + 4 - Math.round(z[3] * ZK) + (dy || 0), Math.round(z[0] * ZK), Math.round(z[1] * ZK), 255); }; // 足もとの線を、地図の上のずんだもんの足もとに合わせる
+  const INTRO_POSES = [[0, 'stand'], [350, 'hip'], [900, 'shout'], [1500, 'fists'], [1950, 'arms'], [2400, 'jump'], [3000, 'fists'], [3350, 'fist1']]; // [はじまり(ミリ秒), ポーズ]
+  const ARRIVE_POSES = [[0, 'fists'], [260, 'fist1'], [520, 'fists'], [780, 'fist1'], [1040, 'fists']]; // 昇段で 街に着いたとき: 「がんばるぞ!」のガッツポーズ(ミリ秒, ポーズ)
+  const ARRIVE_T = 1300; // ポーズを とる 長さ(ミリ秒)
+  const introSeen = () => { try { return localStorage.getItem('mj_mapintro') === '1'; } catch (e) { return true; } };
+  const introMark = () => { try { localStorage.setItem('mj_mapintro', '1'); } catch (e) { /* ignore */ } };
+  function startMap(rk, then) { // 昇段のあと、認定証のあとに 出す。 rk.from → rk.to を、1段ずつ 歩く(行き止まりの枝は、分かれ道まで 戻って 次へ)
+    const from = Math.max(0, Math.min(11, rk.from || 0)), to = Math.max(from, Math.min(11, rk.to || 0)), steps = [];
+    const ms = mapSetNo(), L = MAP2.sets[ms].legs;
+    for (let d = from + 1; d <= to; d++) { const pts = L[d - 1].map(mapPt); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d, pts, seg, len, dur: len < 4 ? 1500 : Math.max(2400, Math.min(9000, len / 38 * 1000)) }); }
+    const base = MAP_T.slide + MAP_T.hold; // 歩きはじめる時刻。 昇段で歩くときは、いま居る街(熊本など)のセリフは 読まない(もう聞いているので)。 着いた街のセリフだけ
+    let tt = base; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; tt += i < steps.length - 1 ? MAP_T.dwell : 0; return { a, b }; });
+    try { NSND.mapOn(); } catch (e) { /* ignore */ }
+    let intro = null;
+    if (rk.intro) { // 旅のはじまり: 熊本から江戸までの道(全部の区間をつなぐ)を、のばしていく
+      const pts = []; for (let d = 1; d <= 10; d++) L[d - 1].map(mapPt).forEach((q, i) => { if (d === 1 || i > 0) pts.push(q); });
+      let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); }
+      const G = Math.max(MAP_T.slide + 1800, Math.round(NSND.klen('m:肥後国') * 1000) + 700), vl = Math.max(3800, Math.round(NSND.klen('v:tenka') * 1000)); // 二つめの一言が はじまる時刻 / 声の長さ
+      intro = { path: { pts, seg, len }, G, end: G + vl + 1000, v: false }; tt = intro.end;
+    }
+    S.map = { intro, ms, L, vd: rk.intro ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: intro ? intro.end : steps.length ? tt : base, base, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
+  }
+  function mapAlong(st, u) { const dist = st.len * u; let i = 1; while (i < st.pts.length - 1 && st.seg[i] < dist) i++; const a = st.pts[i - 1], b = st.pts[i], sl = st.seg[i] - st.seg[i - 1] || 1, v = Math.max(0, Math.min(1, (dist - st.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v, b[0] - a[0]]; }
+  function drawWater(t) { // 水面: 横長の帯を、少しずつ ずらして 波うたせる(2枚 重ねて、きらめき)
+    gfx.clear(20, 40, 56);
+    for (let i = 0; i < 14; i++) { const y = Math.round(i * 33.4), x = -64 + Math.round(Math.sin(t / 1000 + i * 0.55) * 20 + Math.sin(t / 1700 + i * 1.3) * 10); gfx.image('img/map/wa' + i + '.webp', x, y, 960, 36, 255); }
+    for (let i = 0; i < 14; i++) { const y = Math.round(i * 33.4) + 5, x = -64 + Math.round(Math.sin(t / 820 + i * 0.9 + 2) * 18 + Math.sin(t / 1300 + i * 0.4) * 12); gfx.image('img/map/wa' + ((i + 5) % 14) + '.webp', x, y, 960, 36, 70); }
+  }
+  function mapGuide(M) { // 「◀ ▶ えらぶ  (A) そこへ あるく  (B) もどる」(あるいている間は「(A) スキップ」)。 ◀ ▶ は、動かせない側を うすくする
+    const Y = 382, Hh = 26, F = -16, gap = 8, W1 = (str) => gfx.measure(str, F);
+    const items = M.go != null ? [{ t: 'c', k: 'A', c: [230, 184, 48] }, { t: 'l', s: 'スキップ' }, { t: 'c', k: 'B', c: [201, 206, 210] }, { t: 'l', s: 'ここで 止める' }] : [{ t: 'k' }, { t: 'l', s: 'えらぶ' }, { t: 'c', k: 'A', c: [230, 184, 48] }, { t: 'l', s: 'そこへ あるく' }, { t: 'c', k: 'B', c: [201, 206, 210] }, { t: 'l', s: 'もどる' }];
+    const kw = W1('◀') + W1('▶') + 22, wd = (it) => it.t === 'k' ? kw : it.t === 'c' ? 24 : W1(it.s);
+    let tot = 0; items.forEach((it, i) => { tot += wd(it) + (i < items.length - 1 ? (it.t === 'l' && items[i + 1] && items[i + 1].t === 'c' ? gap + 10 : gap) : 0); });
+    const bw = tot + 40, bx = Math.round(SW / 2 - bw / 2); rrect(bx, Y, bw, Hh, 6, [10, 30, 22], 205);
+    let x = bx + 20;
+    items.forEach((it, i) => { const w = wd(it);
+      if (it.t === 'k') { rrect(x, Y + 3, w, 20, 4, [255, 236, 154]); const l = M.sel > 0, r = M.sel < M.maxd; text('◀', x + 8 + W1('◀') / 2, Y + 4, F, l ? [23, 48, 31] : [200, 190, 150], 1); text('▶', x + 14 + W1('◀') + W1('▶') / 2, Y + 4, F, r ? [23, 48, 31] : [200, 190, 150], 1); }
+      else if (it.t === 'c') { rrect(x, Y + 1, 24, 24, 12, [255, 255, 255]); rrect(x + 2, Y + 3, 20, 20, 10, it.c); text(it.k, x + 12, Y + 5, -14, [42, 26, 0], 1); }
+      else text(it.s, x + w / 2, Y + 4, F, [255, 236, 170], 1);
+      x += w + (i < items.length - 1 ? (it.t === 'l' && items[i + 1] && items[i + 1].t === 'c' ? gap + 10 : gap) : 0); });
+  }
+  function drawMap() {
+    const M = S.map; { const nw = __now(); if (!M.n) { M.n = 1; M.t0 = nw; M.f0 = nw; } else if (M.n === 1) { M.n = 2; if (nw - M.f0 > 400) M.t0 = nw - 150; } } /* 時計は、最初に描いたときから数える(最初の1コマが重くて止まっても、歩きだしてしまわないように) */
+    mapTick(M); const t = __now() - M.t0, arrived = t >= M.endT, ease = Math.min(1, t / MAP_T.slide), eo = 1 - Math.pow(1 - ease, 3), ox = Math.round((1 - eo) * (SW - MAP_V.x0 + 40)); // 巻物は 右から入ってくる
+    drawWater(__now());
+    gfx.image('img/map/scroll2.webp', MAP_V.x0 + ox, MAP_V.y0, Math.round(MAP_V.w), Math.round(MAP_V.h), 255);
+    const shift = (q) => [q[0] + ox, q[1]];
+    // いまの位置(歩いている途中か、段位に着いたあと)
+    let pos = mapStop(M.from, M.L), walking = false, curDan = M.from, stepIdx = -1, face = 1;
+    M.steps.forEach((st, i) => { const w = M.tl[i]; if (t >= w.b) { pos = st.pts[st.pts.length - 1]; curDan = st.d; } else if (t >= w.a) { pos = mapAlong(st, (t - w.a) / st.dur); walking = st.len > 3; stepIdx = i; if (pos[2] < 0) face = -1; } });
+    // 足あと(歩いたところ)
+    M.steps.forEach((st, i) => { const w = M.tl[i]; const u = t >= w.b ? 1 : t >= w.a ? (t - w.a) / st.dur : 0; for (let d = 11; d < st.len * u; d += 11) { const q = shift(mapAlong(st, d / st.len)); fill(Math.round(q[0]) - 1, Math.round(q[1]) - 1, 3, 3, [196, 52, 40], 210); } });
+    if (M.intro && t >= M.intro.G) { const I = M.intro, u = t - I.G, k = Math.min(1, u / 2600), ep = shift(mapStop(10, M.L)), pu = 0.5 + 0.5 * Math.sin(u / 110); // 江戸=ゴール: 金色に光り、道が のびる
+      for (let d = 11; d < I.path.len * k; d += 11) { const q = shift(mapAlong(I.path, d / I.path.len)); fill(Math.round(q[0]) - 2, Math.round(q[1]) - 2, 4, 4, [196, 52, 40], 235); }
+      rrect(Math.round(ep[0]) - 44, Math.round(ep[1]) - 56, 88, 64, 30, [255, 200, 40], Math.round(30 + 40 * pu)); rrect(Math.round(ep[0]) - 36, Math.round(ep[1]) - 49, 72, 50, 24, [255, 214, 70], Math.round(40 + 60 * pu));
+      const ty0 = Math.round(ep[1]) - 100 + Math.round((1 - Math.min(1, u / 350)) * -10); if (u > 0) { rrect(Math.round(ep[0]) - 88, ty0 + 2, 84, 30, 6, [90, 12, 8], 120); rrect(Math.round(ep[0]) - 90, ty0, 84, 30, 6, [200, 40, 30]); text('ゴール', Math.round(ep[0]) - 48, ty0 + 4, 22, WHITE, 1); } }
+    const p2 = shift(pos), sx = Math.round(p2[0]), sy = Math.round(p2[1]), fr = walking ? [1, 2, 3, 2][Math.floor(t / 130) % 4] : 0, bob = walking ? Math.round(Math.sin(t / 65) * 1.5) : 0;
+    // 昇段のあと、次の街に 着いたとき(1段ずつの 到着ごと): ガッツポーズ。 (地図を見る画面・旅のはじまりは なし)
+    let arrPose = null;
+    if (!M.view && !M.intro && M.to > M.from && !walking) { let at = -1; M.steps.forEach((st, i) => { if (st.len > 3 && t >= M.tl[i].b) at = i; }); if (at >= 0) { const u = t - M.tl[at].b; if (u < ARRIVE_T) { let n = 'fists'; ARRIVE_POSES.forEach((q) => { if (u >= q[0]) n = q[1]; }); arrPose = { n, hop: -Math.round(Math.abs(Math.sin(u / 130)) * 9 * (1 - u / ARRIVE_T)) }; } } }
+    if (walking && __now() - M.tapT > 260) { M.tapT = __now(); NSND.sfx('select', 0.16); }
+    fill(sx - 17, sy - 3, 34, 8, [0, 0, 0], 70); fill(sx - 13, sy - 2, 26, 6, [0, 0, 0], 120); fill(sx - 8, sy - 1, 16, 4, [0, 0, 0], 170); // 足もとの 丸い影
+    if (M.intro) { const I = M.intro, u = t - I.G; let pn = 'stand', hop = 0; if (u >= 0) { INTRO_POSES.forEach((q) => { if (u >= q[0]) pn = q[1]; }); if (pn === 'jump') hop = -Math.round(Math.abs(Math.sin((u - 2400) / 140)) * 10); }
+      zpDraw(pn, sx, sy, hop); }
+    else if (arrPose) zpDraw(arrPose.n, sx, sy, arrPose.hop);
+    else gfx.image('img/map/w' + fr + (face < 0 ? 'f' : '') + 'g.webp', sx - Math.round(46 * ZK / 2), sy + 8 - Math.round(78 * ZK) + bob, Math.round(46 * ZK), Math.round(78 * ZK), 255); /* 画面と同じ大きさで作った絵(拡大しない = ぼやけない)。 白+こげ茶のふち */ // 左へ歩くときは、左右反転
+    { const bob2 = Math.round(Math.abs(Math.sin(t / 180)) * 5); let mx = sx, my = sy;
+      if (M.view && !walking && M.go == null && ease >= 1) { const q = shift(mapStop(M.sel, M.L)), nw = __now(), k = M.ml ? Math.min(1, (nw - M.ml) / 90) : 1; M.ml = nw; if (M.mx == null) { M.mx = sx; M.my = sy; } M.mx += (q[0] - M.mx) * k; M.my += (q[1] - M.my) * k; mx = Math.round(M.mx); my = Math.round(M.my); } else { M.mx = sx; M.my = sy; M.ml = 0; } // 見る画面: ▼を 左右で動かして、行き先を えらぶ。 歩いている間は ずんだもんの頭の上
+      if (ease < 1) { /* 地図が右から入ってくる間は、矢印を出さない(おくれて ついてくるのが 変なので、着いてから ふわふわ) */ } else {
+      if (M.view && M.sel !== M.from && !walking) rrect(mx - 15, my - 5, 30, 11, 5, [255, 224, 60], 150);
+      const big = M.view && M.sel !== M.from && !walking ? 1 : 0, hw = 7 + big * 4, hh = 12 + big * 6, ty = big ? my - 46 - bob2 : my - 86 - bob2; gPoly([[mx - hw - 3, ty - 3], [mx + hw + 3, ty - 3], [mx, ty + hh + 4]], [70, 40, 10], 255); gPoly([[mx - hw, ty], [mx + hw, ty], [mx, ty + hh]], [255, 224, 60], 255); } } // 縁どり(こげ茶)つき。 行き先を えらんでいる間は、少し大きく // 頭の上の ▼(ずっと出して、どこにいるか分かるように)
+    // 左上の札: 朱印(段位)+短冊(地名)。 地図を見る画面では、短冊に「いま ここ」/「修行の街」も入る
+    { const dn = M.view ? (walking || M.go != null ? curDan : M.sel) : Math.max(curDan, M.to), dl = MAP_DAN[dn], sw = Math.max(46, gfx.measure(dl, -20) + 18), px = MAP_V.x0 + ox + 22, py = MAP_V.y0 + 12;
+      const raw = (MAP_SETS[M.ms].place[dn] || ''), pm = raw.match(/\((.*)\)/), place = dn >= 10 ? '江戸' : pm ? pm[1] : raw;
+      const lab = M.view && M.go == null ? (dn === M.cur ? ['いま ここ', [196, 40, 28]] : dn < M.cur ? ['修行の街', [36, 100, 160]] : null) : null;
+      const nw = gfx.measure(place, -20), lw2 = lab ? gfx.measure(lab[0], -13) + 8 : 0, stw = 14 + lw2 + nw + 14, sx0 = px + sw - 2;
+      fill(sx0 - 2, py + 2, stw + 4, 32, [0, 0, 0], 60); fill(sx0, py + 4, stw, 28, [246, 235, 205]); frame(sx0, py + 4, stw, 28, [120, 84, 40], 2); /* 短冊 */
+      if (lab) text(lab[0], sx0 + 14 + (lw2 - 8) / 2, py + 11, -13, lab[1], 1); text(place, sx0 + 14 + lw2 + nw / 2, py + 7, -20, [58, 36, 16], 1);
+      fill(px - 2, py + 1, sw + 4, 38, [0, 0, 0], 70); fill(px, py, sw, 36, [120, 84, 40]); fill(px + 2, py + 2, sw - 4, 32, [246, 235, 205]); fill(px + 4, py + 4, sw - 8, 28, [196, 40, 28]); text(dl, px + sw / 2, py + 7, -20, WHITE, 1); } /* 朱印: 段位(白い太字) */
+    if (M.congrats || (M.tenka && arrived)) { if (!M.vsaid) { M.vsaid = true; NSND.speak(['v:eisei']); } /* 永世名人の声 */ const tt2 = M.congrats ? t : t - M.endT, k = 1 + Math.sin(tt2 / 220) * 0.03, w = Math.round(600 * k), h = Math.round(w * 0.1404), cy = 190; fill(0, cy - 66, SW, 146, [10, 8, 14], 150); gfx.image('img/map/congrats.webp', Math.round(SW / 2 - w / 2), Math.round(cy - h / 2) - 18, w, h, 255); text('天下統一!', SW / 2, cy + 34, 32, [255, 224, 90], 1); for (let i = 0; i < 14; i++) { const a = tt2 / 600 + i * 1.7, qx = Math.round(SW / 2 + Math.cos(a * 1.3 + i) * 290), qy = Math.round(cy + Math.sin(a * 2.1 + i * 2) * 52), sz = 3 + (i % 3); if (Math.sin(tt2 / 130 + i * 2.3) > -0.2) { fill(qx - sz, qy, sz * 2 + 1, 1, [255, 240, 150], 230); fill(qx, qy - sz, 1, sz * 2 + 1, [255, 240, 150], 230); } } }
+    // 下の 帯: ずんだもんの ひとこと(1段ずつ)
+    panel(24, 408, 784, 54, 12, [252, 246, 228], [120, 84, 40], 3, 245);
+    gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]);
+    const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
+    let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < (M.base || MAP_T.slide + MAP_T.hold)) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? (M.capSay ? '修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。' : '他の街に戻って、修行し直すのだ！') : walkMsg(M.view && M.go != null ? M.go : M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
+    if (M.intro && t >= M.intro.G) { msg = '江戸で 名人を倒し、天下統一するのだ!'; if (!M.intro.v) { M.intro.v = true; try { NSND.speak(['v:tenka']); } catch (e) { /* ignore */ } } } // 旅のはじまり: 二つめの一言(声つき)
+    text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
+    if (!walking && M.go == null && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) { const wt = Math.max(0, (M.vUntil || 0) - __now()) + 150, tk = M; setTimeout(() => { if (S.map === tk && !tk.go) { const dd = NSND.speak([pk]) || 0; tk.vUntil = __now() + dd * 1000; } }, wt); } } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
+    if (M.view) { mapGuide(M); /* 操作の案内: 地図の下・画面の中央に、ボタンの絵つきで */ if (M.cur > 0 && !M.ask) { rrect(156, 1, 520, 21, 4, [10, 30, 22], 205); text('前の街に もどって、修行が できます(ポイントは 半分)', 416, 3, -14, [255, 236, 154], 1); } /* 地図の意味の説明: 上の帯(前の街があるときだけ) */ }
+    else if (arrived && t - M.endT > 600) contPill(SW / 2, 6); // 説明を読んだあと、決定ボタンで進む(自動では進まない)
+    if (M.ask) { const d = M.from, tr = d < M.cur, nm = MAP_SETS[M.ms].place[d], ai = M.ask.idx; fill(0, 0, SW, SH, [0, 0, 0], 110); panel(196, 96, 440, 232, 14, [252, 246, 228], [120, 84, 40], 4, 250); text(MAP_DAN[d] + '  ' + nm, 416, 106, fitSz(MAP_DAN[d] + '  ' + nm, 26, 400, 16), [150, 30, 20], 1); text(tr ? 'そのころの 相手と 戦います。' : 'いまの 段位の 相手と 戦います。', 416, 150, 20, [60, 40, 20], 1); text(tr ? 'ポイントは 半分。4位でも へりません。' : 'ポイントは ふつうに もらえます。', 416, 182, 18, [90, 66, 40], 1); if (tr) text('昇段は、いまの段位の街で。', 416, 208, 18, [90, 66, 40], 1); ['この街で ' + (tr ? '修行する' : '対戦する'), 'やめる'].forEach((l, i) => { const w = i ? 170 : 230, x2 = i ? 452 : 206, sel = ai === i; panel(x2, 252, w, 50, 10, sel ? YEL : [235, 235, 225], sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2, 255); text(l, x2 + w / 2, 264, 22, BLACK, 1); }); }
+    if (arrived && !M.fin) { M.fin = true; if (!M.view && !M.intro) NSND.sfx('start', 0.7); }
+    dirty();
+  }
+  function startMapView(d0) { // 成績の画面から: いま 地図のどこに居るか見る。 ◀ ▶ で、これまでに着いた場所(無段から)の セリフを 読み返せる
+    let mx = 0, cur = 0; try { const r = MJ.Rank.get(); mx = r.dan || 0; cur = r.dan || 0; /* 今の段位より先の街へは 行けない */ } catch (e) { /* ignore */ }
+    const d = Math.max(0, Math.min(mx, d0 == null ? cur : d0));
+    startMap({ from: d, to: d }, () => { dirty(); });
+    const M = S.map; M.view = true; M.vd = -1; M.maxd = mx; M.cur = cur; M.sel = d; M.go = null; M.ask = null; dirty();
+  }
+  function contPill(cx, y) { // 「Aボタン(決定)で つづける」: 金色の札に、赤い丸の「A」(目立つように)
+    const w = 336, h = 36, x = Math.round(cx - w / 2), d = h - 8, lab = '決定ボタンで つづける', lw = gfx.measure(lab, -22), lx = x + d + 8 + Math.round((w - d - 8 - lw) / 2);
+    rrect(x - 3, y - 3, w + 6, h + 6, h / 2 + 3, [255, 255, 255]); rrect(x, y, w, h, h / 2, [230, 184, 48]);
+    rrect(x + 4, y + 4, d, d, d / 2, [255, 255, 255]); rrect(x + 6, y + 6, d - 4, d - 4, (d - 4) / 2, [214, 70, 56]); text('A', x + 4 + d / 2, y + 7, -20, WHITE, 1);
+    text(lab, lx, y + 7, -22, [42, 26, 0], 0);
+  }
+  function mapTick(M) { /* 旅のはじまりは、声が終わっても、自動では次へ進まない(説明を読んだあと、決定ボタンで進む) */ if (M.view && M.go != null && __now() - M.t0 >= M.endT) { M.from = M.go; M.go = null; M.back = false; M.capSay = false; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = -1; M.ask = { idx: 0 }; } } // 着いたら、「この街で 対戦する?」
+  function mapGo(M, dest) { // ▼で えらんだ街へ、ずんだもんが 歩いて行く(戻るときは、道を 逆に歩く)
+    const steps = [], fwd = dest > M.from;
+    for (let k = M.from; k !== dest; k += fwd ? 1 : -1) { const d = fwd ? k + 1 : k, pts = M.L[d - 1].map(mapPt); if (!fwd) pts.reverse(); let len = 0; const seg = [0]; for (let i = 1; i < pts.length; i++) { len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(len); } steps.push({ d: fwd ? d : d - 1, pts, seg, len, dur: len < 4 ? (steps.length < 1 ? 1500 : 300) : (M.view ? Math.max(1300, Math.min(5000, len / 70 * 1000)) : Math.max(fwd ? 2400 : 1200, Math.min(fwd ? 9000 : 4500, len / (fwd ? 38 : 76) * 1000))) }); } // 自分で えらんだ移動(地図を見る画面)は、行きも戻りも同じ速さ(少し速め)。 昇段のあとの自動の移動は、ゆっくり
+    let tt = MAP_T.slide + MAP_T.hold; const tl = steps.map((st, i) => { const a = tt; tt += st.dur; const b = tt; return { a, b }; }); // 途中の街では 止まらず通りぬける(着いた街で だけ止まる)
+    M.steps = steps; M.tl = tl; M.endT = tt; M.t0 = __now() - (MAP_T.slide + MAP_T.hold); M.go = dest; M.ask = null; M.back = dest < M.from; M.capSay = false; NSND.sfx('select', 0.6);
+    if (M.back) { // 下の街(修行)へ歩き出すとき、声を出す。 歩きは そのまま続く。 修行のポイントが上限のときは、段位ごとに はじめての1回だけ「これ以上は成長しない」を話す
+      let capped = false, dk = 0; try { const r = MJ.Rank.get(), nx = MJ.Rank.DAN[r.dan + 1]; dk = r.dan; capped = !!nx && r.pt >= nx[1] - 1; } catch (e) { /* ignore */ }
+      let pl = []; try { pl = JSON.parse(localStorage.getItem('mj_capvoice') || '[]'); } catch (e) { pl = []; }
+      if (capped && !pl.includes(dk) && NSND.has('v:shugyo')) { pl.push(dk); try { localStorage.setItem('mj_capvoice', JSON.stringify(pl)); } catch (e) { /* ignore */ } M.capSay = true; M.vUntil = __now() + (NSND.speak(['v:shugyo']) || 3) * 1000; } else if (NSND.has('v:modoru')) M.vUntil = __now() + (NSND.speak(['v:modoru']) || 3) * 1000; // 話している途中で つぎの街に着いても、声が かさならない(終わるのを待つ)
+    } dirty();
+  }
+  function mapPlay(M) { const d = M.from; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } S.rankScr = null; S.mode = 'menu'; startGame(null, { town: d }); } // 地図から、その街で 対局(いまの段位の街=ふつう / 下の街=修行)
+  function mapKey(k) { const M = S.map; if (!M) return; const t = __now() - M.t0, arrived = t >= M.endT;
+    if (M.view) { // 地図を見る(成績の画面から): ▼を 左右で動かして、決定で そこへ 歩く
+      if (M.ask) { if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { M.ask.idx = 1 - M.ask.idx; NSND.sfx('select', 0.5); } else if (k === 'back') M.ask = null; else if (k === 'ok') { if (M.ask.idx === 1) M.ask = null; else { mapPlay(M); return; } } dirty(); return; }
+      if (M.go != null) {
+        if (k === 'ok') M.t0 = __now() - M.endT - 1; // スキップ: 行き先まで一気に
+        else if (k === 'back') { let at = M.from; M.steps.forEach((st, i) => { if (t >= M.tl[i].b) at = st.d; }); /* 通りすぎた いちばん近い街で止まる */ M.from = at; M.sel = at; M.go = null; M.back = false; M.capSay = false; M.steps = []; M.tl = []; M.endT = MAP_T.slide + MAP_T.hold; M.t0 = __now() - M.endT - 1; M.vd = at; M.ask = null; try { NSND.stopSpeak(); } catch (e) { /* ignore */ } NSND.sfx('select', 0.5); } // 間違えて歩き出したとき
+        dirty(); return;
+      }
+      if (k === 'left' || k === 'right') { const d = Math.max(0, Math.min(M.maxd, M.sel + (k === 'left' ? -1 : 1))); if (d !== M.sel) { NSND.sfx('select', 0.5); M.sel = d; } dirty(); return; }
+      if (k === 'ok') { if (M.sel !== M.from) mapGo(M, M.sel); else { M.ask = { idx: 0 }; NSND.sfx('select', 0.5); } dirty(); return; }
+      if (k === 'back') { S.map = null; try { NSND.mapOff(); NSND.home(); } catch (e) { /* ignore */ } M.then(); } // 成績の画面から 見ていた地図を とじる: ホームの曲にもどす
+      dirty(); return;
+    } if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
+  /* ---------- 昇段の演出テスト(隠しコマンドで開く): 認定証 → 地図 → 新しい雀士 を、いつでも見られる ---------- */
+  function drawPromo() {
+    const P = S.promo; gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
+    text('昇段の演出テスト', SW / 2, 10, 30, YEL, 1); text('記録には、のこりません', SW / 2, 48, 16, [205, 224, 212], 1);
+    const rows = [['昇段前の段位', MJ.DAN_NAME(P.from)], ['昇段後の段位(自動)', MJ.DAN_NAME(P.to)], ['道すじ', MAP2.sets[mapSetNo()].name], ['認定証から ながす', ''], ['天下統一の お祝いだけ', ''], ['旅のはじまり(最初の対局のあと)', ''], ['もどる', '']];
+    rows.forEach((r, i) => { const y = 72 + i * 48, sel = P.row === i; panel(140, y, 552, 43, 12, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2); text(r[0], i < 3 ? 170 : SW / 2, y + 9, 24, BLACK, i < 3 ? 0 : 1); if (i < 3 && i !== 1) text('◀', 440, y + 11, 20, [90, 90, 80], 1); if (i < 3) { text(r[1], i === 2 ? 565 : 570, y + 7, i === 2 ? 22 : 28, [190, 60, 40], 1); if (i !== 1) text('▶', 672, y + 11, 20, [90, 90, 80], 1); } });
+    text('▲▼ えらぶ   ◀▶ 段位・道すじ   決定: ながす   戻る: もどる', SW / 2, 444, 16, [210, 225, 205], 1);
+  }
+  function promoKey(k) {
+    const P = S.promo; if (!P) { S.mode = 'menu'; return; }
+    const back = () => { S.mode = 'promo'; dirty(); };
+    if (k === 'back') { S.mode = 'menu'; S.promo = null; NSND.home(); dirty(); return; }
+    if (k === 'up') P.row = wrap(P.row - 1, 7); else if (k === 'down') P.row = wrap(P.row + 1, 7);
+    else if ((k === 'left' || k === 'right') && P.row === 2) { S.mapSet = wrap(mapSetNo() + (k === 'left' ? -1 : 1), MAP2.sets.length); }
+    else if ((k === 'left' || k === 'right') && P.row < 2) { const d = k === 'left' ? -1 : 1; if (P.row === 0) { P.from = Math.max(0, Math.min(10, P.from + d)); P.to = P.from + 1; } }
+    else if (k === 'ok') {
+      if (P.row === 3) { S.mode = 'menu'; startCert({ dan: MJ.DAN_NAME(P.to), from: P.from, to: P.to, promoted: true }, back); }
+      else if (P.row === 4) { S.mode = 'menu'; startMap({ from: 11, to: 11, congrats: true }, back); }
+      else if (P.row === 5) { S.mode = 'menu'; startMap({ from: 0, to: 0, intro: true }, back); }
+      else if (P.row === 6) { S.mode = 'menu'; S.promo = null; NSND.home(); }
+    }
+    dirty();
+  }
+  function startCert(rk, then) { // 昇段したとき、認定証を出す。そのあと、新しく登場する雀士を、1人ずつ
+    const ids = (() => { try { return MJ.Rank.newIds(rk.from, rk.to); } catch (e) { return []; } })();
+    const toRank = () => then();
+    const toMap = () => { try { startMap(rk, toReveal); } catch (e) { toReveal(); } };
+    const toReveal = () => { if (ids.length) { S.reveal = { ids, i: 0, t0: __now(), then: () => { try { NSND.revealOff(); } catch (e) { /* ignore */ } toRank(); } }; try { NSND.revealOn(); } catch (e) { /* ignore */ } NSND.sfx('slam'); dirty(); } else toRank(); };
+    S.cert = { rk, t0: __now(), then: toMap, snd: false }; try { NSND.certOn(); } catch (e) { /* ignore */ } dirty();
+  }
+  function drawCert() {
+    const C = S.cert, nw = __now(); C.vt = (C.vt || 0) + Math.min(nw - (C.l || nw), 50); C.l = nw; const t = C.vt, CW = 334, CH = 468, cx = 40; // 画面が止まっても、アニメは 1コマずつ 最後まで見せる(時計は 1コマ最大50msだけ進める)
+    gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 175);
+    const TI = 1340; // ハンコが紙に当たる時刻(はじめは ゆっくり、そのあと 一気に)
+    const sh = (t > TI && t < TI + 440) ? Math.round(Math.sin((t - TI) / 20) * 18 * (1 - (t - TI) / 440)) : 0;
+    fill(cx + 6, 10, CW, CH - 8, [0, 0, 0], 120); gfx.image('img/cert.webp', cx + sh, 0, CW, CH, 255);
+    const K = CW / 809, px = (x) => cx + sh + Math.round(CW * x), py = (y) => Math.round(CH * y);
+    text(C.rk.dan || '', px(0.37), py(0.434) - 14 + ((C.rk.dan || '').length > 3 ? 3 : 0), (C.rk.dan || '').length > 3 ? 19 : 25, [17, 17, 17], 1); text('あなた', px(0.445), py(0.48) - 11, 21, [17, 17, 17], 1);
+    rrect(px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 2, [122, 163, 179]); if (!gfx.imageTop('img/certface/01.webp', px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139))) gfx.image(youSrc(), px(0.721), py(0.395), Math.round(CW * 0.163), Math.round(CH * 0.139), 255); // 証明写真: 背景を切りぬいた絵を、画面の本当の解像度で(くっきり)
+    { // ハンコ: はじめは ゆっくり(大きく、ふわっと 近づく) → 一気に加速して バンッ(慣性) → 当たったあと 少しめりこんで、はねかえって おさまる
+      const base = Math.round(CW * 0.15), cxs = px(0.645), cys = py(0.775), TS = 700, TF = TI - 150; // TS=見えはじめ TF=加速をはじめる時刻
+      if (t > TS && t < TI) {
+        let m, ang, a;
+        if (t < TF) { const k = (t - TS) / (TF - TS), e = k * k * (3 - 2 * k); m = 5.4 - 1.6 * e; ang = -48 + 14 * e; a = Math.round((60 + 70 * k) * Math.min(1, k * 4)); } // ゆっくり: 5.4倍 → 3.8倍。 半透明(うすい)で ただよう
+        else { const k = (t - TF) / (TI - TF), e = k * k * k * k; m = 3.8 - 2.8 * e; ang = -34 * (1 - e); a = Math.round(130 + 125 * Math.min(1, k * 1.6)); } // 一気に: 3.8倍 → 1倍(加速しながら ぶつかる)。 落ちるあいだに、うすい → こい
+        const z = Math.round(base * m); gfx.imageRotTop('img/cert_stamp.webp', cxs, cys, z, z, a, ang);
+      } else if (t >= TI) { const u = (t - TI) / 1000, sq = 1 - 0.14 * Math.exp(-7 * u) * Math.cos(u * 26), z = Math.round(base * sq); gfx.image('img/cert_stamp.webp', cxs - Math.round(z / 2), cys - Math.round(z / 2), z, z, 255); } // 慣性: ぶつかったあと めりこんで(小さく) → はねかえって → おさまる
+      if (t >= TI && t < TI + 140) fill(0, 0, SW, SH, [255, 255, 255], Math.round(150 * (1 - (t - TI) / 140))); // 白いフラッシュ
+    }
+    if (t >= TI && !C.snd) { C.snd = true; NSND.sfx('slam'); if (C.rk.to >= 1 && C.rk.to <= 11) setTimeout(() => { if (S.cert === C) NSND.speak(['d:0', 'd:' + C.rk.to]); }, 700); } // ハンコのあと「昇格したのだ。〇〇になりました。」
+    if (t > 300) { text('昇段 おめでとう!', 590, 120, 38, YEL, 1); text(C.rk.dan + 'に なりました', 590, 180, 28, WHITE, 1); }
+    if (t > TI + 380) nextBtn();
+    if (t < TI + 600) dirty();
+  }
+  function certKey(k) { const C = S.cert; if (!C || (C.vt || 0) < 1720) return; if (k === 'ok' || k === 'back') { S.cert = null; C.then(); } dirty(); }
+  function drawReveal() { // 新しい雀士: 黒いシルエット → 顔と名前
+    const V = S.reveal, t = __now() - V.t0, c = MJ.CHARS.find((x) => x.id === V.ids[V.i]);
+    gfx.clear(8, 16, 22); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], t < 900 ? 215 : 160);
+    if (!c) return;
+    if (V.said !== V.i + 1 && t >= (V.i === 0 ? 500 : 900)) { V.said = V.i + 1; const nk = NSND.has('nm:' + c.short) ? 'nm:' + c.short : 'nm:' + c.name; NSND.speak((V.i === 0 ? ['r:new'] : []).concat([nk]), null, 0.15); } // 「新しい雀士が登場」(最初の1人だけ)→ 名前
+    const z = 150, x = 120, y = 150; rrect(x - 6, y - 6, z + 12, z + 12, 10, WHITE); frame(x - 8, y - 8, z + 16, z + 16, [30, 30, 30], 2);
+    if (t < 900) gfx.image('img/sil/' + ('0' + c.id).slice(-2) + '.webp', x, y, z, z, 255); else gfx.image(skin(c.face), x, y, z, z, 255);
+    if (t >= 900 && !V.snd) { V.snd = true; NSND.sfx('slam'); }
+    text('新しい雀士が 登場!', 560, 50, 34, YEL, 1);
+    if (t >= 900) { text('NEW!', 450, 130, 40, RED); text(c.short || c.name, 560, 190, 36, WHITE, 1); text('強さ ' + MJ.starStr(c.level) + '(' + MJ.LEVEL_JP[c.level] + ')', 560, 250, 20, WHITE, 1); text('打ち方: ' + (MJ.styleLabel ? MJ.styleLabel(c) : (MJ.STYLE_JP[c.style] || '')), 560, 280, 20, WHITE, 1); const f = fitRich(c.desc || '', [18, 17, 16], 330, 100); richDraw(f.lines, 400, 322, f.sz, [230, 240, 225], 0); nextBtn((V.i + 1) + ' / ' + V.ids.length); }
+    else text('？？？？', 560, 190, 36, [200, 215, 230], 1);
+    if (t < 1000) dirty();
+  }
+  function nextBtn(extra) { // 「Aボタン(決定)ですすむ」: 画面の下に、うすい黒の帯(上に金のふち)をしき、赤い丸の「A」と金色の文字を出す(ほかの画面の下の案内と同じ形。下すれすれにしない)
+    const by = 412, bh = 44; fill(0, by, SW, bh, [10, 20, 16], 184); fill(0, by, SW, 2, [230, 184, 48]);
+    const lab = '決定ボタンで すすむ', lw = gfx.measure(lab, -25), xw = extra ? gfx.measure(extra, -20) + 24 : 0, d = 36, tot = d + 12 + lw + xw, x0 = Math.round((SW - tot) / 2);
+    rrect(x0, by + 4, d, d, d / 2, [255, 255, 255]); rrect(x0 + 2, by + 6, d - 4, d - 4, (d - 4) / 2, [214, 70, 56]); text('A', x0 + d / 2, by + 9, -24, WHITE, 1);
+    text(lab, x0 + d + 12, by + 9, -25, [255, 215, 90], 0); if (extra) text(extra, x0 + d + 12 + lw + 24, by + 12, -20, [210, 225, 205], 0);
+  }
+  function revealKey(k) { const V = S.reveal; if (!V || __now() - V.t0 < 1300) return; if (k === 'ok' || k === 'back') { if (V.i + 1 < V.ids.length) { V.i++; V.t0 = __now(); V.snd = false; NSND.sfx('slam'); } else { S.reveal = null; V.then(); } } dirty(); }
+  function drawRankScreen() {
+    const R = MJ.Rank, f = R.info(), K = SW / 1404, rk = S.rankScr.rk;
+    gfx.clear(10, 30, 22); gfx.view(0, 0); gfx.image('img/rank_bg.webp', 0, 6, SW, Math.round(768 * K), 255);
+    const at = (x, y, fs, s, c) => { const sz = Math.round(fs * K); text(s, Math.round(x * K), Math.round(y * K) + 6 - Math.round(sz / 2), sz, c, 1); };
+    const GOLD = [246, 220, 148], DK = [58, 34, 10], CR = [255, 243, 196];
+    at(355, 445, f.name.length > 2 ? 52 : 70, f.name, GOLD); at(705, 349, 40, f.name, DK);
+    if (f.next) { at(1068, 358, 28, f.next, GOLD); at(1093, 446, f.left >= 1000 ? 40 : 48, String(f.left), CR); } else if (f.tenka) { fill(562, 206, 144, 26, [66, 43, 32]); text('次は 永世名人', 634, 208, 21, GOLD, 1); fill(560, 252, 152, 36, [46, 31, 23]); text('天下分け目で 1位', 636, 259, 18, CR, 1); } // 点では なれない: 「あと ◯ 点」の行を、ことばに かえる else at(1090, 446, 34, 'いちばん上', GOLD);
+    { // 右下の巻物: 次の昇段で行ける街(地図とつながる)。 名人から先は ゴールの江戸
+      const pl = MAP_SETS[mapSetNo()].place, nd = f.next ? f.i + 1 : -1, raw = nd >= 0 ? pl[Math.min(nd, 11)] || '' : '', pm = raw.match(/\((.*)\)/), town = nd < 0 ? '江戸' : nd >= 10 ? '江戸' : pm ? pm[1] : raw.replace(/国$/, '');
+      text(nd < 0 ? 'ゴール' : '次の街', 615, 322, 12, [74, 50, 22], 1); text(town, 615, 335, -20, [122, 29, 18], 1);
+    }
+    const bx = Math.round(531 * K), by = Math.round(506 * K) + 6, bw = Math.round(350 * K), bh = Math.round(46 * K);
+    fill(bx, by, bw, bh, [26, 18, 10]); fill(bx, by, Math.round(bw * Math.max(f.prog > 0 ? 0.04 : 0, f.prog)), bh, [235, 200, 110]);
+    if (f.next) at(706, 529, 26, (f.s.pt - f.base) + ' / ' + (f.next_pt - f.base), DK);
+    { const bl = ['◀ もどる', '対戦成績', '対戦相手を見る', '地図を見る'], bwid = [130, 140, 190, 150]; /* もどるを いちばん左に(はじめから ここを選んでおく) */ let bx2 = Math.round(SW / 2 - (bwid.reduce((a, b) => a + b, 0) + 20 * (bwid.length - 1)) / 2); const idx = S.rankScr.idx || 0; bl.forEach((l, i) => { brownBtn(bx2, SH - 52, bwid[i], 38, l, idx === i, 18); bx2 += bwid[i] + 20; }); }
+    if (rk) at(702, 625, 28, (rk.delta > 0 ? '+' : '') + rk.delta + '点' + (rk.msg ? '  ' + rk.msg : ''), CR);
+    if (__auto && globalThis.__shotDir && !S._rkShot) { S._rkShot = 1; gfx.shot(__shotDir + '/rank.bmp'); }
+  }
+  function overlay(a) { gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], a == null ? 200 : a); gfx.view(S.vx, S.vy); }
+  function drawRankP(){ // 局のあとの、4人のじゅんい(点数と増減)
+    const r = S.rankP.r, g = S.game; stageC(); text('この局の結果', SW / 2, 14, 34, YEL, 1);
+    const win = new Set((r.wins || []).map((w) => w.winner.seat)), order = g.players.map((p, i) => i).sort((a, b) => (r.after[b] - r.after[a]) || (a - b));
+    order.forEach((i, k) => {
+      const p = g.players[i], y = 66 + k * 86, x = 96, w = 640, h = 78, d = r.delta[i], me = p.isHuman;
+      rrect(x - 3, y - 3, w + 6, h + 6, 6, [30, 70, 56]); rrect(x, y, w, h, 5, me ? [58, 100, 50] : [22, 56, 44]); // 1位の黄色い枠は、なし(「1位」の文字が黄色なので、それで分かる)
+      text((k + 1) + '位', x + 22, y + 20, 38, k === 0 ? YEL : WHITE);
+      face(p, x + 118, y + 7, 64, 64);
+      text(p.name, x + 202, y + 12, 28, WHITE);
+      if (win.has(i)) { rrect(x + 202, y + 46, 64, 24, 4, [214, 48, 40]); text('上がり', x + 234, y + 47, 19, WHITE, 1); }
+      text(String(r.after[i]), x + w - 150, y + 14, 36, YEL, 2); text((d > 0 ? '+' : '') + d, x + w - 18, y + 20, 26, d > 0 ? [120, 230, 140] : d < 0 ? [255, 120, 100] : GREY, 2);
+    });
+    text('決定ボタンで 次へ', SW / 2, 420, 20, [205, 224, 212], 1);
+  }
+  /* 流局の結果(Edge版と同じ流れ): 顔つきの4枚のカード。1人ずつ読み上げに合わせて見せる。テンパイの人は手牌と待ちを公開、ノーテンの人は選んで決定で見られる */
+  function windTag(g, p, x, y, sz) { const sw = g ? g.seatWindOf(p) : 0; rrect(x, y, sz, sz, 7, [255, 255, 255]); rrect(x + 2, y + 2, sz - 4, sz - 4, 5, WIND_BG[sw]); text(WIND[sw], x + sz / 2, y + Math.round(sz * 0.12), Math.round(sz * 0.62), WHITE, 1); } // 家(東南西北)の札
+  function drawDrawResult(r) {
+    const g = S.game, rd = r.rd, P = g.players, CW = 172, CG = 8, X0 = 60, CY = 82, CH = 166;
+    text('流局', SW / 2, 16, 40, YEL, 1); text(g.kyokuLabel().split(' ')[0] + ' ／ 山の牌がなくなりました', SW / 2, 58, 18, GREY, 1);
+    P.forEach((p, i) => {
+      const x = X0 + i * (CW + CG), sh = i < rd.shown, ten = r.tenpai[i], d = r.delta[i];
+      if (rd.sel === i && !rd.reading) rrect(x - 4, CY - 4, CW + 8, CH + 8, 10, YEL); else if (rd.now === i) rrect(x - 4, CY - 4, CW + 8, CH + 8, 10, [255, 211, 90]);
+      rrect(x, CY, CW, CH, 8, sh ? [30, 70, 56] : [22, 56, 44]);
+      if (rd.pop < 0) face(p, x + (CW - 64) / 2, CY + 6, 64, 64); windTag(g, p, x + 8, CY + 8, 36); if (!sh) fill(x + (CW - 64) / 2, CY + 6, 64, 64, [22, 56, 44], 150);
+      text(p.name, x + CW / 2, CY + 74, fitSz(p.name, 20, CW - 12, 14), sh ? WHITE : GREY, 1);
+      if (sh) {
+        text(ten ? 'テンパイ' : 'ノーテン', x + CW / 2, CY + 96, 26, ten ? YEL : GREY, 1);
+        text((d > 0 ? '+' : d < 0 ? '' : '±') + d, x + CW / 2, CY + 120, 20, d > 0 ? [120, 230, 140] : d < 0 ? RED : GREY, 1);
+        text(r.after[i] + '点', x + CW / 2, CY + 143, 16, WHITE, 1);
+      }
+    });
+    let y = CY + CH + 8; // テンパイの人: 手牌と待ち(読み上げのあとで出る)
+    P.forEach((p, i) => {
+      if (!r.tenpai[i] || i >= rd.shown) return;
+      rrect(52, y - 2, 740, 36, 6, [30, 70, 56], 150); text(p.name, 62, y + 5, fitSz(p.name, 18, 108, 12), WHITE);
+      let x = 180; const v = r.hands[i];
+      v.concealed.forEach((h) => { tile(h.t, x, y, 24, 32, h.red); x += 25; });
+      (v.melds || []).forEach((m) => { x += 8; m.tiles.forEach((h) => { tile(h.t, x, y, 24, 32, h.red); x += 25; }); });
+      const ws = rd.waits[i] || []; if (ws.length) { const wx = Math.max(560, x + 14), nmax = Math.max(1, Math.min(8, Math.floor((790 - (wx + 40)) / 24))); text('待ち', wx, y + 6, 18, YEL); ws.slice(0, nmax).forEach((t, k) => tile(t, wx + 40 + k * 24, y, 22, 30)); } // 手牌が長い(カンなど)ときも、「待ち」が牌に かさならないよう、手牌の終わりの すぐ右から
+      y += 36;
+    });
+    text('テンパイの人が、ノーテンの人から合計3000点を受け取ります', 60, 422, 15, GREY); if (!rd.reading) text('← → えらぶ    決定: 手牌を見る', 60, 440, 15, GREY);
+    if (!rd.reading) button(600, 414, 192, 38, '次へ', rd.sel === 4);
+    if (rd.pop >= 0) {
+      const p = P[rd.pop], v = r.hands[rd.pop], all = v.concealed.map((h) => h).concat((v.melds || []).reduce((a, m) => a.concat(m.tiles), [])), tw = 46;
+      overlay(170); panel(60, 130, 712, 210, 16, [14, 50, 38], [240, 210, 120], 3);
+      text(p.name + 'の手牌(' + (r.tenpai[rd.pop] ? 'テンパイ' : 'ノーテン') + ')', SW / 2, 142, 26, YEL, 1);
+      const x0 = Math.round((SW - all.length * tw) / 2); all.forEach((h, k) => tile(h.t, x0 + k * tw, 190, 42, 56, h.red));
+      const ws = rd.waits[rd.pop] || []; if (ws.length) { text('待ち', 300, 266, 22, YEL); ws.slice(0, 8).forEach((t, k) => tile(t, 350 + k * 30, 260, 26, 36)); }
+      text('決定・もどる で とじる', SW / 2, 312, 18, GREY, 1);
+    }
+  }
+  function drawResSay() { // 結果画面の上(見出しの右)に、上がった人・放銃した人のひとこと(小さな吹き出し)。 交代で出る
+    const R = S.resSay; if (!R || !R.lines.length) return; const t = __now() - R.t0;
+    for (let i = 0; i < R.lines.length; i++) {
+      const st = 700 + i * 3800; if (t < st || t >= st + 3500) continue; const l = R.lines[i], bx = 456, by = 14, bw = 330, bh = 62;
+      rrect(bx + 2, by + 3, bw, bh, 9, [0, 0, 0], 70); rrect(bx, by, bw, bh, 9, [240, 243, 238]);
+      face(l.p, bx + 6, by + 6, 50, 50); rframe(bx + 4, by + 4, 54, 54, 6, 2, [255, 255, 255]);
+      let sz = 20, ls = wrapText(l.text, sz, bw - 76); if (ls.length > 2) { sz = 17; ls = wrapText(l.text, sz, bw - 76); } if (ls.length > 2) { sz = 15; ls = wrapText(l.text, sz, bw - 76).slice(0, 2); }
+      text(l.p.name, bx + 64, by + 3, 14, [80, 90, 86]); ls.forEach((x, k) => text(x, bx + 64, by + 19 + k * (sz + 3), sz, [30, 34, 32]));
+      return;
+    }
+  }
+  function drawResult(r) {
+    const g = S.game; stageC(); rrect(40, 12, 752, 444, 8, [10, 38, 30]);
+    if (r.type === 'win') {
+      const w = r.wins[0], res = w.res, v = w.view;
+      face(w.winner, 58, 24, 48, 48);
+      text(w.winner.name, 120, 28, 30, WHITE); { const nw = gfx.measure(w.winner.name, 30); rrect(120 + nw + 14, 30, 84, 34, 10, w.tsumo ? [60, 130, 200] : [210, 60, 50]); text(w.tsumo ? 'ツモ' : 'ロン', 120 + nw + 56, 35, 22, WHITE, 1);
+        const sw = g ? g.seatWindOf(w.winner) : 0, lab = WIND[sw] + '家' + (sw === 0 ? '(親)' : ''), lx = 120 + nw + 112, lw = gfx.measure(lab, 22) + 24;
+        rrect(lx, 30, lw, 34, 10, [255, 255, 255]); rrect(lx + 2, 32, lw - 4, 30, 8, WIND_BG[sw]); text(lab, lx + lw / 2, 35, 22, WHITE, 1); }
+      { const di = g && g.doraInd ? g.doraInd.slice(0, 5) : [], ur = w.ura && w.ura.length ? w.ura.slice(0, 5) : null, tw2 = 20, th2 = 27, x0 = 778 - 5 * (tw2 + 2); // 右上に、ドラ表示牌と、(リーチして上がったときは)裏ドラ表示牌
+        const row = (lab, arr, yy) => { text(lab, x0 - 6, yy + 6, 14, GREY, 2); arr.forEach((h, i) => tile(h.t, x0 + i * (tw2 + 2), yy, tw2, th2, h.red)); };
+        if (di.length) row('ドラ表示', di, 14); if (ur) row('裏ドラ表示', ur, 44); }
+      if (res.limit) text(res.limit, 770, 100, 30, [255, 120, 90], 2);
+      // 手牌(大きく、中央ぞろえ)
+      const tw = 36, th = 48, gap = 14, melds = v.melds.reduce((a, m) => a + m.tiles.length * 30 + 10, 0), total = v.concealed.length * (tw + 1) + gap + (w.winTile ? tw : 0) + (melds ? 16 + melds : 0);
+      let x = Math.round((SW - total) / 2); const y0 = 78;
+      v.concealed.forEach((h) => { tile(h.t, x, y0, tw, th, h.red); x += tw + 1; });
+      x += gap; if (w.winTile) { tile(w.winTile.t, x, y0, tw, th, w.winTile.red); frame(x - 1, y0 - 1, tw + 2, th + 2, YEL, 3); x += tw + 16; }
+      v.melds.forEach((m) => { m.tiles.forEach((h) => { tile(h.t, x, y0 + 10, 28, 38, h.red); x += 30; }); x += 10; });
+      // 役
+      const ys = res.yaku; const col = ys.length > 6 ? 2 : 1, cw = col === 2 ? 340 : 480, x0 = col === 2 ? 70 : 160;
+      ys.slice(0, 12).forEach((yk, i) => { const cx = x0 + Math.floor(i / 6) * (cw + 20), cy = 148 + (i % 6) * 32; fill(cx, cy + 28, cw, 1, [60, 90, 80]); text(yk.n, cx + 6, cy, 22, WHITE); text((yk.h || yk.han || '') + (res.yakuman ? '' : '飜'), cx + cw - 6, cy, 22, YEL, 2); });
+      const pay = w.pay; const pts = pay.ron != null ? pay.ron + '点' : (pay.each != null ? pay.each + '点オール' : pay.fromOther + ' / ' + pay.fromDealer + '点');
+      rrect(70, 336, 692, 48, 12, [30, 70, 56]); text((res.yakuman ? '役満' : res.han + '飜 ' + res.fu + '符'), 90, 354, 28, YEL); text(pts, 742, 342, 32, WHITE, 2); if (r.total > 1) text((r.idx + 1) + ' / ' + r.total + ' 人目の上がり', 304, 351, 19, [210, 232, 218]); // ダブロンなど: 何人目かは、点数の帯の中に(牌と重ならないように)
+      scoreCards(r, 396);
+    } else if (r.rd) { drawDrawResult(r);
+    } else {
+      text('流局', SW / 2, 30, 42, YEL, 1);
+      if (r.abort) { text(r.abort + (r.abort === '三家和' ? '(3人が同時にロン)' : r.abort === '四家立直' ? '(4人全員がリーチ)' : ''), SW / 2, 110, 28, WHITE, 1); text('点数の動きは ありません。親は そのまま続けます。', SW / 2, 160, 20, GREY, 1); }
+      else r.tenpai.forEach((t, i) => { const p = g.players[i]; rrect(150 + (i % 2) * 280, 110 + Math.floor(i / 2) * 70, 250, 56, 12, [30, 70, 56]); text(p.name, 168 + (i % 2) * 280, 118 + Math.floor(i / 2) * 70, 22, WHITE); text(t ? 'テンパイ' : 'ノーテン', 380 + (i % 2) * 280, 120 + Math.floor(i / 2) * 70, 20, t ? YEL : GREY, 2); });
+      scoreCards(r, 330);
+    }
+  }
+  function scoreCards(r, y0) { // 4人の点数(前 → 後、増減)を、4枚のカードで
+    const g = S.game;
+    g.players.forEach((p, i) => {
+      const x = 62 + i * 178, d = r.delta[i];
+      const dt = (d > 0 ? '+' : '') + d, dw = gfx.measure(dt, 18); rrect(x, y0, 168, 54, 10, [24, 56, 46]); text(p.name, x + 10, y0 + 2, fitSz(p.name, 20, Math.max(56, 158 - dw - 20), 13), WHITE); // 名前は、右の増減の数字(+10000 など)に かさならない幅に入れる
+      { const bt = r.before[i] + ' → ' + r.after[i]; text(bt, x + 10, y0 + 29, fitSz(bt, 20, 150, 13), GREY); } text(dt, x + 158, y0 + 4, 18, d > 0 ? [120, 230, 140] : d < 0 ? RED : GREY, 2);
+    });
+  }
+  function drawEnd(f) {
+    gfx.clear(32, 74, 60); fill(0, 0, 720, 428, [36, 80, 64], 255); fill(0, 0, 720, 58, [10, 58, 38]); fill(0, 58, 720, 3, [230, 190, 70]);
+    text('対局終了', 360, 8, 40, YEL, 1);
+    const MED = [[236, 190, 52], [190, 196, 204], [205, 133, 72], [120, 140, 130]], RH = 58, GAP = 5, Y0 = 70;
+    f.results.forEach((o, i) => {
+      const y = Y0 + i * (RH + GAP), me = o.p.isHuman, mc = MED[Math.min(3, o.rank - 1)];
+      rrect(60, y, 600, RH, 8, [0, 0, 0], 70); rrect(58, y - 2, 600, RH, 8, me ? [255, 236, 130] : [244, 247, 240]);
+      if (o.rank !== 1) { rrect(58, y - 2, 12, RH, 6, mc); rrect(64, y - 2, 6, RH, 0, me ? [255, 236, 130] : [244, 247, 240]); } // 左の色の帯: 1位は、なし(「1位」の文字が金色なので、それで分かる)
+      text(o.rank + '位', 80, y + 8, 38, o.rank === 1 ? [190, 130, 0] : BLACK);
+      const yk = f.yaki ? f.yaki.delta[o.p.seat] : 0, isY = !!(f.yaki && f.yaki.seats.includes(o.p.seat)), YT = true; // 焼き鳥: 点数のすぐ左に、右の端をそろえた帯(YT=falseで、牌と数字だけの せまい帯)
+      const PR = 526, PW = isY ? (YT ? 150 : 104) : yk ? 86 : 0, nmW = PW ? PR - PW - 12 - 246 : 250;
+      if (PW) { const x0 = PR - PW, sg = (yk > 0 ? '+' : '−') + Math.abs(yk), col = yk > 0 ? [20, 130, 60] : [200, 40, 30]; rrect(x0, y + 13, PW, 32, 16, isY ? [200, 150, 60] : [120, 180, 140]); rrect(x0 + 2, y + 15, PW - 4, 28, 14, isY ? [255, 255, 255] : [225, 245, 230]);
+        if (isY) { gfx.image('img/yakitori.webp', x0 + 9, y + 16, 17, 24, 255); if (YT) text('やきとり', x0 + 33, y + 21, 15, [120, 60, 0]); text(sg, PR - 10, y + 19, 17, col, 2); } else text(sg, x0 + PW / 2, y + 19, 18, col, 1); }
+      face(o.p, 170, y + 1, RH - 6, RH - 6);
+      { const yk0 = f.yaki ? f.yaki.delta[o.p.seat] : 0, isY0 = !!(f.yaki && f.yaki.seats.includes(o.p.seat)), pw0 = isY0 ? 150 : yk0 ? 86 : 0, mw = pw0 ? 526 - pw0 - 12 - 246 : 250, nz = fitSz(o.p.name, 34, mw, 18); text(o.p.name, 246, y + 10 + Math.round((34 - nz) / 2), nz, BLACK); }
+      text(String(o.p.score), 640, y + 8, 42, BLACK, 2);
+    });
+    const rk = f.rk, yb = Y0 + 4 * (RH + GAP) + 2;
+    if (rk) {
+      rrect(60, yb, 600, rk.capped ? 92 : 64, 8, [10, 58, 38]);
+      const d = rk.delta, col = d > 0 ? [140, 240, 150] : d < 0 ? [255, 130, 120] : WHITE;
+      text('段位ポイント', 80, yb + 8, 24, WHITE); text((d > 0 ? '+' : '') + d + ' 点', 290, yb + 5, 32, col);
+      { const rt = rk.msg ? rk.msg.replace('🎉 ', '') : (rk.name + (rk.next ? '   あと ' + rk.left + ' 点で ' + rk.next : rk.tenka ? '   天下分け目で 永世名人' : '')); text(rt, 640, yb + 10, fitSz(rt, 22, 330, 12), YEL, 2); }
+      if (rk.capped) { text('修行でこれ以上は成長しないのだ。', 80, yb + 38, 19, YEL); text('段位を上げたいなら上位と対戦するのだ。', 80, yb + 64, 19, YEL); } else // 修行の上限(次の段位の1点手前)
+      if (rk.avg != null) text('相手の強さ ★' + rk.avg.toFixed(1) + (Math.abs(rk.mult - 1) >= 0.05 ? '  →  ポイント ×' + rk.mult.toFixed(2) + (rk.mult > 1 ? '(強い相手ボーナス)' : '(弱い相手)') : '(ふつう)'), 80, yb + 41, 16, [200, 225, 205]);
+    }
+    text('決定ボタンで ホームへ', 360, rk && rk.capped ? 424 : 398, 24, WHITE, 1);
+  }
+
+
+  function drawTeachQ() { // Edge版と同じ: 麻雀先生をつけますか?
+    overlay(150); const x = 132, y = 118, w = 456, h = 190;
+    rrect(x - 2, y - 2, w + 4, h + 4, 8, [240, 200, 60]); rrect(x, y, w, h, 6, [22, 64, 50]);
+    gfx.image('img/teacher/t14.webp', x + 24, y + 10, 98, 100, 255);
+    text('麻雀先生を', x + 140, y + 24, 30, WHITE); text('つけますか?', x + 140, y + 64, 30, WHITE);
+    const labs = ['つけない', '麻雀先生をつける', '◀ もどる'], bws = [120, 176, 112]; let bx = x + 12;
+    labs.forEach((l, i) => { const sel = S.teachQ.idx === i; if (sel) { rrect(bx - 3, y + 128, bws[i] + 6, 50, 8, [30, 30, 30]); rrect(bx - 1, y + 130, bws[i] + 2, 46, 6, [255, 255, 255]); } rrect(bx + 1, y + 132, bws[i] - 2, 42, 4, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : [245, 247, 244]); text(l, bx + bws[i] / 2, y + 143, 17, BLACK, 1); bx += bws[i] + 12; });
+    shotOnce('teach');
+  }
+  function tri(cx, cy, r, dir) { for (let i = -r; i <= r; i++) { const w = Math.round(r * 1.6 * (1 - Math.abs(i) / r)) + 1; fill(dir < 0 ? cx + r * 0.8 - w : cx - r * 0.8, cy + i, w, 1, [20, 20, 20]); } }
+  function drawSound() {
+    overlay(190); const x0 = 60, w = 600, h = 300, y0 = Math.round((H - h) / 2);
+    rrect(x0 - 3, y0 - 3, w + 6, h + 6, 8, [240, 210, 100]); rrect(x0, y0, w, h, 6, [36, 74, 58]);
+    text('音のせってい', 360, y0 + 12, 26, WHITE, 1); fill(236, y0 + 20, 5, 10, WHITE); fill(241, y0 + 17, 4, 16, WHITE); fill(245, y0 + 14, 4, 22, WHITE);
+    const sp = S.soundP, names = ['BGM', '効果音', '読み上げ'], K = ['bgm', 'sfx', 'voice'];
+    for (let i = 0; i < 3; i++) {
+      const ry = y0 + 58 + i * 52, sel = sp.idx === i; if (sel) rrect(x0 + 8, ry - 4, w - 16, 52, 6, [70, 120, 92]);
+      text(names[i] || 'CPU', x0 + 24, ry + 8, i === 2 ? 20 : 24, WHITE);
+      if (i < 3) {
+        const lv = NSND.getLevel(K[i]);
+        rrect(x0 + 130, ry, 52, 44, 5, [232, 238, 228]); tri(x0 + 156, ry + 22, 11, -1);
+        rrect(x0 + 192, ry + 10, 270, 24, 12, [24, 46, 36]); if (lv) rrect(x0 + 192, ry + 10, Math.max(24, Math.round(270 * lv / 10)), 24, 12, [240, 200, 80]);
+        rrect(x0 + 472, ry, 52, 44, 5, [232, 238, 228]); tri(x0 + 498, ry + 22, 11, 1);
+        text(String(lv), x0 + 560, ry + 4, 30, YEL, 1);
+      }
+    }
+    text('0にすると、その音が消えます。対局は、とじるまで止まります。', 360, y0 + 58 + 3 * 52, 19, [190, 205, 195], 1);
+    const cy = y0 + h - 56; if (sp.idx === 3) rrect(300, cy - 4, 120, 52, 7, [255, 255, 255]); rrect(304, cy, 112, 44, 6, [248, 208, 80]); text('とじる', 360, cy + 9, 22, BLACK, 1);
+  }
+  function drawSaveQ() { // 局のあとの保存: 左右の大きな2つ(左: ここまでを保存する / 右: 保存しない)。押すと、そのまま次へ進む
+    const q = S.saveP, g = S.game, ink = [26, 26, 20];
+    text('この局は 終わりました', 360, 52, 42, [0, 0, 0], 1); text('この局は 終わりました', 360, 49, 42, YEL, 1);
+    text(g ? g.kyokuLabel() : '', 360, 112, 26, WHITE, 1);
+    const B = [{ x: 36, l: 'ここまでを保存する', s: '続きから遊べます' }, { x: 384, l: '保存しない', s: 'そのまま次へ' }], y = 168, w = 300, h = 160;
+    B.forEach((b, i) => {
+      const sel = q.idx === i, bx = b.x;
+      if (sel) { rrect(bx - 7, y - 7, w + 14, h + 14, 10, [26, 26, 20]); rrect(bx - 4, y - 4, w + 8, h + 8, 8, [255, 255, 255]); }
+      rrect(bx + 2, y + 6, w, h, 6, [0, 0, 0], 90);
+      rrect(bx, y, w, h, 6, sel ? [196, 150, 20] : [150, 156, 150]); rrect(bx, y, w, h - 4, 6, sel ? (pressing() ? [255, 246, 170] : [253, 213, 63]) : [245, 247, 244]);
+      const cx = bx + w / 2, iy = y + 22;
+      if (i === 0) { rrect(cx - 17, iy, 34, 34, 4, ink); fill(cx - 10, iy + 3, 18, 11, [215, 218, 212]); fill(cx + 3, iy + 5, 4, 7, ink); fill(cx - 11, iy + 19, 22, 12, [245, 245, 238]); }
+      else { for (let k = 0; k < 30; k++) { fill(cx - 15 + k, iy + 2 + k, 5, 5, [90, 90, 84]); fill(cx + 11 - k, iy + 2 + k, 5, 5, [90, 90, 84]); } }
+      text(b.l, cx, y + 70, b.l.length > 6 ? 31 : 36, ink, 1); text(b.s, cx, y + 118, 18, [90, 90, 80], 1);
+    });
+    text('◀ ▶ で えらんで 決定ボタン', 360, 366, 20, [205, 224, 212], 1); text('えらんだあとは、自動で次へ進みます', 360, 394, 15, [150, 180, 160], 1);
+  }
+  function drawDialog(title, items, idx, note) {
+    overlay(190); const h = 70 + items.length * 50; const y0 = Math.round((H - h) / 2);
+    panel(150, y0, 420, h, 16, [20, 60, 42], [240, 210, 120], 3);
+    text(title, 360, y0 + 12 + Math.round((22 - fitSz(title, 22, 396, 15)) / 2), fitSz(title, 22, 396, 15), YEL, 1);
+    items.forEach((l, i) => button(190, y0 + 48 + i * 50, 340, 40, l, idx === i));
+    if (note) text(note, 360, y0 + h + 6, 19, WHITE, 1);
+  }
+
+  /* ---------- 麻雀クイズ と 点数計算の勉強(学習コーナー) ---------- */
+  /* 問題づくりは Edge版と同じ js/drill.js、学習の中身は native/app/learn.js */
+  const mark = (h) => htmlText(h).replace(/\u{1F947}/gu, '1位').replace(/\u{1F948}/gu, '2位').replace(/\u{1F949}/gu, '3位').replace(/[\u{1F000}-\u{1FFFF}\u2600-\u27BF\uFE0F]/gu, '').replace(/\s+\n/g, '\n').trim(); // Pi には絵文字のフォントがないので、絵文字は けす
+  const CREAM = [244, 241, 228], GREEN = [44, 90, 26], GREEN2 = [30, 66, 18], INK = [28, 28, 24], QRED = [226, 62, 42];
+  let rubyRE = null, rubyN = -1;
+  function rubyMatch() { const d = (MJ.Ruby && MJ.Ruby.dict) || {}, ks = Object.keys(d); if (ks.length !== rubyN) { rubyN = ks.length; ks.sort((a, b) => b.length - a.length); rubyRE = ks.length ? new RegExp(ks.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g') : null; } return rubyRE; }
+  const rsz = (sz) => Math.max(10, Math.round(sz * 0.5));
+  const tileK = () => (S.mode === 'quiz' ? [0.92, 1.26] : [0.8, 1.12]); // 文章の中の牌の絵の大きさ(文字の大きさ×): クイズでは 少しだけ 大きく(行の高さ 1.28 に おさまる)
+  function richWrap(str, sz, maxw) { // 文字・牌の絵(⟦番号⟧)・ふりがなつきの言葉を、幅に収まるように、行に分ける
+    const lines = []; const tw = Math.round(sz * tileK()[0]), dict = (MJ.Ruby && MJ.Ruby.dict) || {}, re = rubyMatch();
+    String(str).split('\n').forEach((para) => {
+      let cur = [], w = 0;
+      const push = (tk, ww) => { if (w + ww > maxw && cur.length && !(tk.s && tk.s.length === 1 && '。、,.」』)）!?!?…ー'.includes(tk.s))) { lines.push(cur); cur = []; w = 0; } cur.push(tk); w += ww; }; // 「。」などが、行の先頭に1つだけ残らないように
+      para.split(/(⟦\d+⟧)/).filter((x) => x !== '').forEach((seg) => {
+        const m = /^⟦(\d+)⟧$/.exec(seg); if (m) { push({ tile: +m[1] }, tw + 2); return; }
+        let last = 0; if (re) { re.lastIndex = 0; let mm; while ((mm = re.exec(seg))) { const nx = seg[mm.index + mm[0].length]; if (nx === '(' || nx === '(') continue; for (const ch of seg.slice(last, mm.index)) push({ s: ch }, gfx.measure(ch, sz)); const rd = dict[mm[0]]; push({ s: mm[0], r: rd }, Math.max(gfx.measure(mm[0], sz), gfx.measure(rd, rsz(sz)))); last = mm.index + mm[0].length; } }
+        for (const ch of seg.slice(last)) push({ s: ch }, gfx.measure(ch, sz));
+      });
+      lines.push(cur);
+    });
+    return lines;
+  }
+  const lineRu = (ln) => ln.some((tk) => tk.r);
+  const lineH = (sz, ru) => Math.round(sz * 1.28) + (ru ? rsz(sz) + 2 : 0);
+  const richH = (lines, sz) => lines.reduce((a, ln) => a + lineH(sz, lineRu(ln)), 0);
+  function fitRich(str, sizes, maxw, maxh) { // 入りきる いちばん大きな字で。入らなければ、いちばん小さな字(それでも入らないときだけ、はみ出す)
+    let last = null; for (const sz of sizes) { const ls = richWrap(str, sz, maxw); last = { sz, lines: ls, h: richH(ls, sz) }; if (last.h <= maxh) return last; } return last;
+  }
+  function richDraw(lines, x, y, sz, col, lh, center) { // 行の高さは、ふりがながある行だけ ふやす
+    const tw = Math.round(sz * tileK()[0]), th = Math.round(sz * tileK()[1]), rs = rsz(sz); let yy = y;
+    lines.forEach((ln) => {
+      const ru = lineRu(ln); let w = 0; ln.forEach((tk) => { w += tk.tile != null ? tw + 2 : tk.r ? Math.max(gfx.measure(tk.s, sz), gfx.measure(tk.r, rs)) : gfx.measure(tk.s, sz); });
+      const rx = center ? x - Math.round(w / 2) : x, ty = yy + (ru ? rs + 2 : 0);
+      let run = '', sx = rx; const flush = () => { if (run) { text(run, sx, ty, sz, col); sx += gfx.measure(run, sz); run = ''; } };
+      ln.forEach((tk) => {
+        if (tk.tile != null) { flush(); tile(tk.tile, sx, ty - 1, tw, th); sx += tw + 2; }
+        else if (tk.r) { flush(); const ww = Math.max(gfx.measure(tk.s, sz), gfx.measure(tk.r, rs)); text(tk.r, sx + ww / 2, ty - rs - 1, rs, col, 1); text(tk.s, sx + (ww - gfx.measure(tk.s, sz)) / 2, ty, sz, col); sx += ww; }
+        else run += tk.s;
+      });
+      flush(); yy += lineH(sz, ru);
+    });
+  }
+  const RCATS = ['eff', 'def', 'call', 'yaku', 'wait', 'push', 'riichi', 'keep'];
+  const catGen = (t) => { const D = MJ.Drill; return ({ eff: [D.genEff], def: [D.genDef], call: [D.genCall], yaku: [D.genYaku], wait: [D.genWait], push: [D.genPush], riichi: [D.genRiichi], keep: [D.genKeep] })[t] || (MJ.Learn && MJ.Learn.TAGGEN[t]); };
+  function weightedGens(tags, boost) { // 苦手な種類ほど、多く出す
+    const ws = MJ.Stats.weights(tags), out = [];
+    tags.forEach((t, i) => { const g = catGen(t); if (!g) return; const w = ws[i] + (boost && boost.includes(t) ? 6 : 0); for (let k = 0; k < w; k++) g.forEach((f) => out.push(f)); });
+    return out;
+  }
+  /* ---------- 麻雀クイズの級・分野の星(正解の累計。 時計は使わない) ---------- */
+  const QL_TH = [10, 30, 60, 100, 150, 220, 300, 400, 520, 650], QL_SH = 800, QL_STEP = 150, QCS = [10, 25, 50, 90, 150];
+  const QCAT_N = { eff: '牌効率', def: '守備', call: '鳴き', yaku: '役', wait: '待ち', push: '押し引き', riichi: 'リーチ', keep: '保留' };
+  let qlC = null;
+  function qlLoad() { if (qlC) return qlC; try { const v = JSON.parse(localStorage.getItem('mj_ql')); if (v && typeof v.c === 'number') qlC = v; } catch (e) { /* ignore */ } if (!qlC) qlC = { c: 0, t: {}, bs: 0 }; return qlC; }
+  function qlSave() { try { localStorage.setItem('mj_ql', JSON.stringify(qlC)); } catch (e) { /* ignore */ } }
+  function qlInfo(c) { // 級: はじめ → 10級〜1級 → 師範(星が ふえつづける)
+    let k = 0; QL_TH.forEach((t, i) => { if (c >= t) k = i + 1; }); const sh = c >= QL_SH, stars = sh ? Math.floor((c - QL_SH) / QL_STEP) : 0;
+    const prev = sh ? QL_SH + stars * QL_STEP : (k === 0 ? 0 : QL_TH[k - 1]), next = sh ? QL_SH + (stars + 1) * QL_STEP : (k < 10 ? QL_TH[k] : QL_SH);
+    return { k, sh, stars, name: sh ? '師範' : k === 0 ? 'はじめ' : (11 - k) + '級', left: next - c, prog: Math.max(0, Math.min(1, (c - prev) / (next - prev))), nextName: sh ? '星' + (stars + 1) + '個' : k < 10 ? (10 - k) + '級' : '師範' };
+  }
+  const qcStars = (n) => { let st = 0; QCS.forEach((t) => { if (n >= t) st++; }); const gold = n >= 150 ? Math.min(5, Math.floor((n - 150) / 100)) : 0; return { st, gold, tot: st + gold }; };
+  function qlAnswer(q, p, ok) { // 麻雀クイズ(級のあるもの)で 1問答えたとき
+    const D = qlLoad(); q.ev = q.ev || []; q.lvq = q.lvq || []; q.evNow = '';
+    if (!ok) { q.run = 0; return; }
+    q.run = (q.run || 0) + 1; if (q.run > (q.bestRun || 0)) q.bestRun = q.run;
+    const b = qlInfo(D.c); D.c++; const a = qlInfo(D.c); let xp = 0;
+    if (a.sh && !b.sh) { q.lvq.push({ t: 'sh' }); xp += 5; q.evNow = '師範に なったのだ！'; } else if (a.sh && a.stars > b.stars) { q.lvq.push({ t: 'ss', n: a.stars }); xp += 1; q.evNow = '師範の 星が ふえたのだ！'; } else if (!a.sh && a.k > b.k) { q.lvq.push({ t: 'lv', name: a.name }); xp += 3; q.evNow = a.name + ' に なったのだ！'; }
+    const tg = (typeof MJ.Stats.tag === 'function') ? MJ.Stats.tag(p) : ''; if (QCAT_N[tg]) { const n0 = D.t[tg] || 0, n1 = n0 + 1; D.t[tg] = n1; if (qcStars(n1).tot > qcStars(n0).tot) { q.ev.push({ tag: tg }); if (!q.evNow) q.evNow = QCAT_N[tg] + ' の 星が ふえたのだ！'; } }
+    if (q.run > (D.bs || 0)) D.bs = q.run; qlSave();
+    if (xp) { try { q.xp = (q.xp || 0) + MJ.Rank.addXp(xp); } catch (e) { /* ignore */ } }
+  }
+  const QL_TIER = { yaku: 0, eff: 0, def: 1, wait: 1, call: 1, keep: 1, push: 2, riichi: 2 }; // 問題の種類ごとの 難しさ: 0=易 1=中 2=難
+  function qlShare() { const i = qlInfo(qlLoad().c); return i.sh ? [30, 50, 20] : i.k <= 4 ? [80, 20, 0] : i.k <= 7 ? [50, 40, 10] : [35, 50, 15]; } // 級に合わせた 易/中/難 の割合(難は 最大2割)
+  function qlGens(tags, boost) { // 苦手な種類ほど多く出しつつ、級に合わせて 難しい種類の割合をおさえる
+    const ws = MJ.Stats.weights(tags), sh = qlShare(), out = [], tot = [0, 0, 0]; tags.forEach((t, i) => { const tr = QL_TIER[t]; if (tr != null) tot[tr] += ws[i] + (boost && boost.includes(t) ? 6 : 0); });
+    tags.forEach((t, i) => { const g = catGen(t); if (!g) return; const tr = QL_TIER[t], base = ws[i] + (boost && boost.includes(t) ? 6 : 0); const w = tr == null ? base : (tot[tr] > 0 ? Math.round(sh[tr] * base / tot[tr] * 0.4) : 0); for (let k = 0; k < w; k++) g.forEach((f) => out.push(f)); });
+    return out.length ? out : weightedGens(tags, boost);
+  }
+  function startPractice() { // 苦手な種類を、多めに出すクイズ
+    const weak = MJ.Stats.weakest(2, 3).filter((x) => { try { return !!catGen(x); } catch (e) { return false; } }), tags = weak.length ? weak : RCATS; // 苦手が見つかっていれば その種類だけ。 まだ なければ ふつうの問題
+    startQuiz({ title: weak.length ? '苦手をねらい撃ち' : '麻雀クイズ', gens: () => qlGens(tags, weak), n: 5, rank: true, direct: true });
+  }
+  function startQuiz(opts) { // opts: { title, gens, n, onEnd(ok, n) }
+    S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd, rank: !!opts.rank }); if (opts.rank && !opts.direct) { S.quiz.phase = 'intro'; dirty(); return; } quizNext(); dirty();
+  }
+  const qEndVoice = () => { try { if (NSND.has('v:otsukare')) NSND.speak(['v:otsukare']); } catch (e) { /* ignore */ } }; // クイズが終わって「おつかれさまでした」の画面になるとき、その声
+  const byeQuit = () => { try { if (NSND.has('v:shutdown')) { NSND.speak(['v:shutdown']); S.locked = true; setTimeout(() => __quit(), 2300); return; } } catch (e) { /* ignore */ } __quit(); }; // 終了を選んだら「ゲームを終了します」と言ってから終わる
+  function quizNext() {
+    const q = S.quiz; if (!q) return;
+    if (q.n >= q.total) { if (q.rank && q.lvq && q.lvq.length) { q.phase = 'lvup'; q.lvi = 0; NSND.sfx('slam'); } else { q.phase = 'end'; qEndVoice(); } dirty(); return; }
+    q.phase = 'gen'; q.p = null; q.res = null; q.scroll = 0; q.idx = 0; dirty();
+    setTimeout(() => {
+      if (S.mode !== 'quiz' || S.quiz !== q) return;
+      const gens = q.gens(); let p = null;
+      const seen = q.seen || (q.seen = new Set()); let dup = null; /* 同じクイズの中では、同じ問題(同じ文章+同じ答え)を二度出さない */
+      for (let i = 0; i < 60 && !p; i++) { try { const c = gens[Math.floor(Math.random() * gens.length)](); const key = String(c.prompt || '') + '|' + String(c.sit || ''); if (!seen.has(key)) { p = c; seen.add(key); } else dup = dup || c; } catch (e) { print('quiz gen err ' + (e && e.stack || e)); } }
+      if (!p && dup) p = dup; /* 問題が足りないときだけ、重なってもよい */
+      if (!p) { q.phase = 'fail'; dirty(); return; }
+      q.p = p; q.n++; q.phase = 'ask'; q.idx = 0;
+      q.disp = (p.hand || []).slice().sort((a, b) => a.t - b.t);
+      q.rv = qRiverInfo(p); { const hs = mark(p.sit || '') + (p.sit ? '\n' : '') + mark(String(p.prompt || '').replace(/<span class="cc-s">[\s\S]*?<\/span>/g, '').replace(/(<br\s*\/?>\s*)+$/, '')), f = q.rv ? (q.rv.cp ? fitRich(hs, [20, 18, 16], 770, 64) : fitRich(hs, [26, 24, 22, 20, 18], 770, 110)) : fitRich(hs, [30, 28, 26, 24, 22, 20, 18], 770, p.kind === 'choice' ? 140 : 262); q.hsz = f.sz; q.head = f.lines; q.hh = f.h; }
+      q.opts = (p.options || []).slice(0, 4).map((o) => { const f = fitRich(mark(o.html), [28, 26, 24, 22, 20, 18], 290, 50); return { id: o.id, lines: f.lines, sz: f.sz, h: f.h }; });
+      dirty();
+    }, 60);
+  }
+  const QSEAT = { 3: '上家', 2: '対面', 1: '下家' };
+  function qRiverInfo(p) { // 問題の中に、相手の河があるときは、画面に見せる(安全牌を選ぶには、河が見えないと、こたえられない)
+    const g = p && p.g; if (!g || !g.players || (p.kind !== 'tile' && p.cat !== 'push')) return null; const cp = p.cat === 'push'; // 押し引き(選択肢が下にある)は、河を小さく出す
+    const cols = [3, 2, 1].map((s) => ({ s, pl: g.players[s], ds: (g.players[s] && g.players[s].discards) || [] }));
+    if (!cols.some((c) => c.ds.length)) return null;
+    const rows = Math.max(1, ...cols.map((c) => Math.ceil(c.ds.length / 12)));
+    return { cols, rows: Math.min(cp ? 2 : 3, rows), cp };
+  }
+  function drawQRiver(q) {
+    const R = q.rv, TW = R.cp ? 16 : 20, TH = R.cp ? 21 : 27, h = 24 + R.rows * (TH + 2), y0 = (R.cp ? 200 : 322) - h, cw = 262;
+    if (y0 < 54 + (q.hh || 0)) return;
+    R.cols.forEach((c, i) => {
+      const x = 28 + i * cw, pl = c.pl; panel(x - 4, y0, cw - 6, h, 8, [6, 28, 18], [90, 140, 110], 2, 215);
+      text((pl.name || '') + '(' + QSEAT[c.s] + ')', x + 4, y0 + 2, 18, WHITE);
+      if (pl.riichi) { rrect(x + cw - 76, y0 + 3, 62, 18, 8, QRED); text('リーチ', x + cw - 45, y0 + 3, 14, WHITE, 1); }
+      c.ds.slice(0, R.cp ? 24 : 36).forEach((d, k) => { const tx = x + (k % 12) * (TW + 1), ty = y0 + 24 + Math.floor(k / 12) * (TH + 2); tile(d.tile.t, tx, ty, TW, TH, d.tile.red); if (d.riichi) frame(tx - 1, ty - 1, TW + 2, TH + 2, RED, 2); });
+    });
+  }
+  function quizAnswer(ans) {
+    const q = S.quiz, p = q.p; let r = null;
+    try { r = p.grade(ans); } catch (e) { print('quiz grade err ' + (e && e.stack || e)); r = { r: 'ng', html: '<p>採点できませんでした。</p>' }; }
+    try { MJ.Stats.quiz(p, r.r === 'ok'); } catch (e) { /* ignore */ }
+    q.res = r; q.phase = 'res'; q.scroll = 0; if (r.r === 'ok') q.ok++; try { if (q.rank) qlAnswer(q, p, r.r === 'ok'); } catch (e) { print('ql err ' + e); } NSND.sfx(r.r === 'ok' ? 'ok' : 'ng', 0.7); q.wrongRun = r.r === 'ng' ? (q.wrongRun || 0) + 1 : 0; r.alt = r.r === 'ng' && q.wrongRun % 2 === 0; // つづけて まちがえたとき、2回目は「ちがうよ」(同じ声ばかりにならないように)
+    setTimeout(() => { try { const kq = 'q:' + (r.r === 'ok' ? '正解' : r.r === 'near' ? 'おしい' : r.alt ? 'ちがうよ' : '不正解'), nk = Math.random() < 0.3 ? NSND.nd(r.r === 'ok' ? 'bright' : r.r === 'near' ? 'flat' : 'firm') : null; NSND.speak(nk ? [kq, '.', nk] : [kq]); } catch (e) { /* ignore */ } }, 500); // 答え合わせの声(「なのだ」は30%。正解は明るい2・おしいはフラット3・まちがいは言い切り1。声が終わってから)
+    { // 解説は、入りきる大きさの字で出す。長いときは、おまけの説明(小さな注)と、うしろの段落を はぶいて、スクロールさせない
+      const paras = mark(String(r.html).replace(/<div class="cc-s">[\s\S]*?<\/div>/g, '')).split('\n').filter((x) => x.trim() !== '');
+      let f = null; while (paras.length) { f = fitRich(paras.join('\n'), [28, 26, 24, 22, 20], 730, 236); if (f.h <= 236 || paras.length <= 1) break; paras.pop(); }
+      if (!f) f = fitRich('', [20], 730, 236); q.rsz = f.sz; q.rlines = f.lines; q.rh = f.h;
+    } dirty();
+  }
+  function quizClose() { const q = S.quiz; S.quiz = null; if (q && q.onEnd) q.onEnd(q.ok, q.total, true); else { S.mode = 'menu'; } dirty(); }
+  function quizKey(k) {
+    const q = S.quiz; if (!q) { S.mode = 'menu'; return; }
+    if (q.confirm) { // 「ホームにもどりますか?」(つづける / ホームにもどる)
+      if (k === 'left' || k === 'right' || k === 'up' || k === 'down') q.confirm.idx = 1 - q.confirm.idx;
+      else if (k === 'back') q.confirm = null;
+      else if (k === 'ok') { const go = q.confirm.idx === 1; q.confirm = null; if (go) { const o = q.onEnd; S.quiz = null; if (o) o(q.ok, q.total, false); else S.mode = 'menu'; } }
+      dirty(); return;
+    }
+    if (k === 'back') { if (q.phase === 'end' || q.phase === 'intro') { quizClose(); return; } q.confirm = { idx: 0 }; dirty(); return; }
+    if (q.phase === 'gen') return;
+    if (q.phase === 'intro') { if (k === 'ok') quizNext(); else if (k === 'back') quizClose(); dirty(); return; }
+    if (q.phase === 'lvup') { if (k === 'ok') { q.lvi++; if (q.lvi >= q.lvq.length) { q.phase = 'end'; qEndVoice(); } else NSND.sfx('slam'); } dirty(); return; }
+    if (q.phase === 'fail') { if (k === 'ok') quizNext(); return; }
+    if (q.phase === 'end') { if (k === 'ok') quizClose(); return; }
+    if (q.phase === 'ask') {
+      const p = q.p;
+      if (p.kind === 'tile') { const n = q.disp.length; if (k === 'left') q.idx = wrap(q.idx - 1, n); else if (k === 'right') q.idx = wrap(q.idx + 1, n); else if (k === 'up') q.idx = 0; else if (k === 'down') q.idx = n - 1; else if (k === 'ok') quizAnswer(q.disp[q.idx]); } // ▲ で 左はし、▼ で 右はし
+      else { const n = q.opts.length; if (k === 'left' || k === 'right') q.idx = wrap(q.idx + (k === 'left' ? -1 : 1), n); else if (k === 'up') q.idx = Math.max(0, q.idx - 2); else if (k === 'down') q.idx = Math.min(n - 1, q.idx + 2); else if (k === 'ok') quizAnswer(q.opts[q.idx].id); }
+      dirty(); return;
+    }
+    if (q.phase === 'res') {
+      const mx = Math.max(0, q.rlines.length - 1);
+      if (k === 'up') q.scroll = Math.max(0, q.scroll - 1); else if (k === 'down') q.scroll = q.rh > 236 ? Math.min(mx, q.scroll + 1) : 0; else if (k === 'ok') quizNext();
+      dirty();
+    }
+  }
+  function quizFrame(title, left, right, hint) { // 暗い背景(ホームと同じ絵を暗くしたもの)の上に、文字を出す
+    gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 165); fill(0, 48, SW, 2, [150, 190, 140], 160);
+    if (left) text(left, 24, 8, 28, WHITE); if (title) { const sz = gfx.measure(title, 28) > 440 ? 22 : 28; text(title, SW / 2, sz === 28 ? 8 : 12, sz, YEL, 1); } if (right) text(right, SW - 24, 14, 18, YEL, 2);
+    if (hint) { let hs = 20; while (hs > 15 && gfx.measure(hint, hs) > SW - 40) hs--; text(hint, SW / 2, SH - 29, hs, [210, 225, 205], 1); }
+  }
+  let QSEQ = 0;
+  function drawQuiz() {
+    const q = S.quiz; const p = q.p;
+    if (q.phase === 'gen') { quizFrame(q.title, '', '', ''); text('問題を作っています…', SW / 2, 200, 28, WHITE, 1); return; }
+    if (q.phase === 'intro') { // はじめる前: いまの級と、分野ごとの星
+      const D = qlLoad(), I = qlInfo(D.c); quizFrame(q.title, '', '', '決定ボタンで はじめる(5問)  /  戻るボタンで もどる');
+      panel(60, 62, SW - 120, 92, 14, [6, 36, 24], [150, 190, 140], 3, 235); text('あなたの級', 90, 70, 22, [210, 225, 205]); text(I.name, 90, 98, 44, YEL);
+      text(I.sh ? '次の星まで あと ' + I.left + '問' : I.nextName + ' まで あと ' + I.left + '問', SW - 90, 74, 22, WHITE, 2);
+      fill(280, 112, SW - 370, 22, [8, 24, 18]); frame(280, 112, SW - 370, 22, [150, 190, 140], 2); fill(282, 114, Math.max(0, Math.round((SW - 374) * I.prog)), 18, YEL);
+      if (I.sh) text('★ ' + I.stars, 190, 100, 30, YEL);
+      RCATS.forEach((t, i) => { const x = 60 + (i % 4) * ((SW - 120 + 12) / 4), y = 172 + Math.floor(i / 4) * 100, w = (SW - 120 + 12) / 4 - 12, cs = qcStars(D.t[t] || 0);
+        panel(x, y, w, 88, 12, [6, 36, 24], [150, 190, 140], 2, 235); text(QCAT_N[t], x + w / 2, y + 6, 24, WHITE, 1);
+        let line = ''; for (let j = 0; j < 5; j++) line += j < cs.st ? '★' : '☆'; text(line, x + w / 2, y + 40, 24, cs.st ? YEL : [110, 150, 130], 1); if (cs.gold) text('金の星 ' + cs.gold, x + w / 2, y + 64, 16, [255, 190, 60], 1); });
+      text('分野ごとの星は、その分野の正解が ふえると ふえます', SW / 2, 384, 18, [190, 215, 195], 1); return;
+    }
+    if (q.phase === 'lvup') { // 級・師範の認定
+      const e = q.lvq[q.lvi] || {}; quizFrame('級の認定', '', '', '決定ボタンで すすむ'); panel(150, 80, SW - 300, 270, 16, [10, 50, 36], [255, 220, 40], 5, 245);
+      text(e.t === 'lv' ? 'あなたは' : e.t === 'sh' ? 'おめでとう' : '師範の星', SW / 2, 110, 26, [210, 225, 205], 1); text(e.t === 'lv' ? e.name : e.t === 'sh' ? '師範' : '★ ' + e.n + ' 個', SW / 2, 160, 84, YEL, 1);
+      text(e.t === 'lv' ? 'に なりました' : e.t === 'sh' ? 'に なりました' : 'に なりました', SW / 2, 270, 26, WHITE, 1);
+      text('経験値 ' + (e.t === 'lv' ? '+3' : e.t === 'sh' ? '+5' : '+1') + ' 点', SW / 2, 308, 22, [255, 190, 150], 1); tFace('ok', 'lv' + q.lvi, SW - 230, 250, 150); return;
+    }
+    if (q.phase === 'fail') { quizFrame(q.title, '', '', ''); text('問題を作れませんでした', SW / 2, 180, 26, WHITE, 1); text('決定ボタンで もう一度', SW / 2, 230, 20, GREY, 1); return; }
+    if (q.phase === 'end') {
+      const pass = q.ok >= Math.ceil(q.total * 0.8);
+      quizFrame(q.title, '', '', '決定ボタンで すすむ'); text('おつかれさまでした', SW / 2, 80, 34, YEL, 1); text(q.total + '問中  ' + q.ok + '問  せいかい', SW / 2, 150, 44, WHITE, 1);
+      tFace(pass ? 'ok' : 'cheer', 'qe' + q.total + q.ok, SW - 240, 250, 170);
+      if (q.rank) { const I = qlInfo(qlLoad().c), ns = (q.ev || []).length; text('つづけて 正解  ' + (q.bestRun || 0) + '問' + ((q.bestRun || 0) >= (qlLoad().bs || 0) && (q.bestRun || 0) > 0 ? '  (自己ベスト)' : ''), 60, 296, 22, WHITE); text(I.name + (I.sh ? '(★' + I.stars + ')' : '') + '   ' + (I.sh ? '次の星' : I.nextName) + ' まで あと ' + I.left + '問', 60, 332, 22, [210, 225, 205]);
+        if (ns) text((q.ev || []).slice(0, 2).map((x) => QCAT_N[x.tag] + 'の星').join('・') + ' が ふえたのだ！', 60, 368, 22, YEL); if (q.xp) text('経験値 +' + q.xp + ' 点', 60, 400, 22, [255, 190, 150]); }
+      text(q.onEnd && q.learn ? (pass ? 'ごうかく! 「おぼえた」に しました' : 'もう一度 読んで、またチャレンジしましょう') : (q.ok >= q.total * 0.8 ? 'すばらしい! 本格派ですね' : q.ok >= q.total * 0.5 ? 'よくできました' : 'またチャレンジしましょう'), SW / 2, 240, 24, [255, 190, 150], 1); return;
+    }
+    if (q.phase === 'res') {
+      const r = q.res.r, col = r === 'ok' ? [255, 110, 90] : r === 'near' ? [255, 200, 70] : [200, 210, 200];
+      quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, '決定ボタンで 次の問題へ');
+      rrect(36, 62, 120, 44, 12, r === 'ok' ? QRED : r === 'near' ? [210, 140, 20] : [100, 110, 100]); text(r === 'ok' ? '正解' : r === 'near' ? 'おしい' : q.res.alt ? 'ちがうよ' : 'ハズレ', 96, 70, 28, WHITE, 1);
+      if (q.evNow) text(q.evNow, 176, 70, 26, YEL); else text(r === 'ok' ? 'よくできました!' : r === 'near' ? 'あと一歩です' : '解説を読んで、覚えましょう', 176, 70, 26, col);
+      tFace(r === 'ok' ? 'ok' : r === 'near' ? 'cheer' : 'pass', 'r' + q.n + (q.title || ''), SW - 118, 52, 78); // 麻雀先生
+      panel(24, 132, SW - 48, 258, 14, [6, 28, 18], [140, 190, 130], 3, 235); rrect(44, 118, 86, 30, 14, [60, 130, 60]); text('解説', 87, 120, 20, WHITE, 1);
+      gfx.clip(30, 138, SW - 60, 246); richDraw(q.rlines.slice(q.scroll), 48, 148, q.rsz, WHITE, 0); gfx.clip();
+      if (q.rh > 236) text((q.scroll > 0 ? '▲ ' : '') + '▼ つづき', SW - 30, 398, 18, GREY, 2);
+      return;
+    }
+    const stat = () => { // 動かない部分(枠・先生・問題文・河・上がり牌・鳴き牌)は 1枚の絵にしておき、カーソルが動いたときは 牌の列だけ 描きなおす(Pi では 全部描きなおすと 間に合わず、連打が 詰まって 加速していた)
+      quizFrame(p.title || q.title, '第 ' + q.n + ' 問', '正解 ' + q.ok, p.kind === 'tile' ? '◀ ▶ で牌をえらんで 決定ボタン(▲ 左はし ▼ 右はし)' : '◀ ▶ ▲ ▼ で えらんで 決定ボタン');
+    tFace('advice', 'q' + q.n + (q.title || ''), SW - 196, 3, 44);
+    richDraw(q.head, 30, 54, q.hsz, WHITE, 0);
+    if (q.rv) drawQRiver(q);
+      const n0 = q.disp.length, x00 = Math.round((SW - (n0 * 48 + (p.win ? 62 : 0))) / 2), HY0 = 342;
+      if (p.win) { const x = x00 + n0 * 48 + 14; text('上がり牌', x + 22, HY0 - 26, 18, YEL, 1); frame(x - 2, HY0 - 2, 48, 62, YEL, 2); tile(p.win.t, x, HY0, 44, 58, p.win.red); }
+      if (p.melds && p.melds.length) { let mx = 30; p.melds.forEach((m) => { (m.tiles || []).forEach((tl) => { tile(tl.t, mx, 402, 20, 26, tl.red); mx += 22; }); mx += 8; }); text('鳴いている牌', mx + 4, 404, 18, GREY); }
+    };
+    if (typeof gfx.layerBegin === 'function') cached(12, 'qz' + (p._id || (p._id = ++QSEQ)), stat); else stat();
+    if (p.kind === 'choice') q.opts.forEach((o, i) => {
+      const x = 30 + (i % 2) * 394, y = 202 + Math.floor(i / 2) * 62, sel = q.idx === i;
+      panel(x, y, 378, 54, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 3, 255); rrect(x + 10, y + 10, 34, 34, 17, sel ? [160, 110, 0] : GREEN); text('ABCD'[i], x + 27, y + 12, 24, WHITE, 1);
+      const sub = p.cat === 'push' ? ({ push: '手を進める牌を切って 勝負', mawashi: '安全寄りに 受けつつ 進める', fold: '手を崩して 安全牌だけ 切る' })[o.id] : null; // 押し引き: 3つの選びかたの意味を、小さく添える
+      richDraw(o.lines, x + 44 + 167, y + (sub ? 3 : Math.round((54 - o.h) / 2)), o.sz, INK, 0, true); if (sub) text(sub, x + 44 + 167, y + 32, 15, [90, 90, 80], 1);
+    });
+    const n = q.disp.length, x0 = Math.round((SW - (n * 48 + (p.win ? 62 : 0))) / 2), HYq = 342;
+    q.disp.forEach((h, i) => { const sel = p.kind === 'tile' && q.idx === i, x = x0 + i * 48, y = HYq - (sel ? 12 : 0); if (sel) { rrect(x - 5, y - 5, 54, 68, 7, [160, 110, 0]); rrect(x - 3, y - 3, 50, 64, 6, YEL); } tile(h.t, x, y, 44, 58, h.red); });
+  }
+  /* ---------- 麻雀用語じてん(勉強の中から開く。データは dictdata.js = Edge版の用語辞典) ---------- */
+  const DCAT = [['基本・牌', '牌の呼び方'], ['役', '役'], ['点数・符', '点数・符'], ['待ち・形', '待ちと形'], ['鳴き', '鳴き'], ['守備・押し引き', '守りと攻め'], ['局・ルール', '局とルール'], ['俗称・スラング', '俗称']];
+  const KROW = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ'], KSET = 'あいうえおぁぃぅぇぉ|かきくけこがぎぐげご|さしすせそざじずぜぞ|たちつてとだぢづでど|なにぬねの|はひふへほばびぶべぼぱぴぷぺぽ|まみむめも|やゆよゃゅょ|らりるれろ|わをん'.split('|');
+  const STAR = ['萬子', '筒子', '索子', '数牌', '字牌', '風牌', '三元牌', '么九牌', '順子', '刻子', '対子', '雀頭', '面子', 'ポン', 'チー', 'カン', 'リーチ', 'ロン', 'ツモ', '役牌', 'タンヤオ', 'ピンフ', '親', 'ドラ', 'テンパイ', '聴牌', '和了', '満貫', '門前', '副露', '鳴き', '赤ドラ', '一発', '場風', '自風'];
+  const hira = (s) => String(s).replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  const D_ = () => MJ.DictData, dRow = (e) => { const i = KSET.findIndex((t) => t.includes(hira(e.y)[0])); return i < 0 ? 0 : i; };
+  let dByName = null; const dFind = (nm) => { if (!dByName) { dByName = {}; D_().list.forEach((e, i) => [e.n].concat(e.a).forEach((t) => { if (t && dByName[t] == null) dByName[t] = i; })); } return dByName[nm]; };
+  const dStar = (e) => STAR.includes(e.n), DPER = 10, DM = DCAT.map((c) => c[1]).concat('五十音');
+  const dIdsOf = (m, row) => { const L = D_().list, all = L.map((e, i) => i); return m < 8 ? all.filter((i) => L[i].c === DCAT[m][0]) : all.filter((i) => dRow(L[i]) === row).sort((a, b) => hira(L[a].y).localeCompare(hira(L[b].y), 'ja')); };
+  const dItems = (d) => { const L = D_().list; if (d.m === 8 && d.kana == null) return KROW.map((k, i) => ({ n: k + ' の行', r: dIdsOf(8, i).length + '語', row: i })); return dIdsOf(d.m, d.kana).map((i) => ({ n: L[i].n, r: L[i].y, id: i, star: dStar(L[i]) })); };
+  function startDict() { try { petBump('vw'); } catch (e) { /* ignore */ } S.dict = { view: 'main', foc: 0, m: 0, kana: null, sel: 0, id: 0, rel: -1, hist: [], ids: [] }; S.mode = 'dict'; dirty(); }
+  function dTiles(str) { return String(str).split(' ').map((grp) => { const m = grp.match(/^(\d+)([mpsz])$/); if (!m) return { sep: grp }; const base = { m: 0, p: 9, s: 18, z: 27 }[m[2]]; return { tiles: m[1].split('').map((c) => ({ t: base + (c === '0' ? 4 : +c - 1), red: c === '0' })) }; }); }
+  function dTileRow(str, x, y, availW, maxTw) { // 幅に、きっちり入る大きさで、牌を1列に並べる
+    const gs = dTiles(str), width = (tw) => gs.reduce((a, g) => a + (g.sep != null ? 18 : g.tiles.length * (tw + 1)), 0) + (gs.length - 1) * 8;
+    let tw = maxTw || 44; while (tw > 12 && width(tw) > availW) tw--; const th = Math.round(tw * 1.32); let cx = x;
+    gs.forEach((g, gi) => { if (gi) cx += 8; if (g.sep != null) { text(g.sep, cx + 9, y + Math.round(th / 2) - 10, 18, GREY, 1); cx += 18; return; } g.tiles.forEach((h) => { tile(h.t, cx, y, tw, th, h.red); cx += tw + 1; }); });
+    return th;
+  }
+  function dChips(items, x, y, maxw, selK, right) { // ことばの札を、並べて、はしで折り返す。 戻り値: つぎの y
+    let cx = x, cy = y; items.forEach((s, k) => { const w = gfx.measure(s, 18) + 20; if (cx + w > x + maxw && cx > x) { cx = x; cy += 32; } const on = k === selK; rrect(cx, cy, w, 28, 12, on ? [255, 214, 58] : GREEN); text(s, cx + w / 2, cy + 3, 18, on ? INK : WHITE, 1); cx += w + 6; }); return cy + 34;
+  }
+  function dBtn(x, y, w, h, n, r, on, star) { // 名前+ふりがなだけのボタン(文字が上下に はみ出さない余白つき)
+    panel(x, y, w, h, 12, on ? YEL : WHITE, on ? [160, 110, 0] : GREEN, on ? 4 : 2, 255);
+    text(r, x + w / 2, y + 5, 15, [90, 90, 80], 1); const sz = fitSz(n, 28, w - (star ? 56 : 28), 16); text(n, x + w / 2 + (star ? 12 : 0), y + 23 + Math.round((28 - sz) / 2), sz, INK, 1);
+    if (star) text('★', x + w / 2 - gfx.measure(n, sz) / 2 - 10, y + 26, 20, [214, 150, 0], 1);
+    if (on) { rrect(x + w - 40, y + 14, 32, 36, 8, [160, 110, 0]); text('▶', x + w - 24, y + 21, 22, WHITE, 1); } // 選んでいるボタン: 「押すと ひらく」の目印
+  }
+  function drawDict() {
+    const d = S.dict, L = D_().list;
+    if (d.view === 'main') {
+      const items = dItems(d), np = Math.max(1, Math.ceil(items.length / DPER)), pg = Math.floor(d.sel / DPER);
+      quizFrame('麻雀用語じてん', '', d.foc === 1 && items.length ? (d.sel + 1) + ' / ' + items.length + ' 語' : '', '');
+      rrect(204, 410, 594, 38, 10, d.foc === 1 ? [160, 110, 0] : [40, 90, 60]); text(d.foc === 0 ? '▶ を押すと、右の 言葉を えらべます' : '決定ボタンを押すと、くわしい説明が ひらきます', 501, 416, 22, WHITE, 1); text(d.foc === 0 ? '▲▼ 分類  戻る: 勉強へ' : '◀(左はし)で分類へ', 100, 417, 15, [210, 225, 205], 1);
+      DM.forEach((c, i) => { const cur = d.m === i, f = d.foc === 0 && cur && !S.bbf; panel(14, 56 + i * 40, 176, 36, 10, f ? YEL : cur ? [60, 130, 60] : [50, 70, 60], f ? [160, 110, 0] : cur ? [150, 200, 140] : [74, 97, 84], f ? 4 : 2, 255); text(c, 102, 56 + i * 40 + (c.length > 6 ? 9 : 7), c.length > 6 ? 17 : 20, f ? INK : cur ? WHITE : [185, 201, 189], 1); });
+      { // 一覧は 1段ずつ動く(学習の一覧と同じ): カーソルは4段めで止まり、下の2段は うすく(まだ先があると分かる)
+        const VR = 6, rowsN = Math.ceil(items.length / 2), selRow = Math.floor(d.sel / 2), topRow = rowsN <= VR ? 0 : Math.max(0, Math.min(selRow - 3, rowsN - VR));
+        for (let r = 0; r < VR; r++) for (let c = 0; c < 2; c++) { const idx = (topRow + r) * 2 + c; if (idx >= items.length) break; const it = items[idx]; dBtn(204 + c * 302, 54 + r * 58, 292, 54, it.n, it.r, d.foc === 1 && !S.bbf && idx === d.sel, it.star); }
+        if (topRow + VR < rowsN) { fill(200, 54 + 4 * 58 - 2, 600, 58, [8, 24, 18], 90); fill(200, 54 + 5 * 58 - 2, 600, 58, [8, 24, 18], 150); }
+        if (topRow > 0) gPoly([[484, 56], [518, 56], [501, 41]], YEL, 235); if (topRow + VR < rowsN) gPoly([[484, 393], [518, 393], [501, 408]], YEL, 235); // 矢印は、大きめに
+      }
+      if (!items.length) text('この分類は、まだありません', 500, 200, 22, GREY, 1);
+      return;
+    }
+    const e = L[d.id], cat = DCAT.find((c) => c[0] === e.c); quizFrame(cat ? cat[1] : '', '', '', '◀ ▶ 前の語・次の語    ▲ ▼ 関連語    決定: 関連語へ    戻る');
+    panel(24, 54, 784, 356, 14, CREAM, GREEN, 3, 255);
+    text(e.y, 46, 58, 18, GREEN); text(e.n, 44, 80, fitSz(e.n, 46, 400, 26), INK);
+    if (dStar(e)) { rrect(46, 134, 150, 24, 10, [214, 150, 0]); text('★ 先に覚える言葉', 121, 136, 16, WHITE, 1); }
+    const al = e.a || []; if (al.length) { text('ほかの よびかた', 440, 62, 18, GREEN); dChips(al.slice(0, 6), 440, 86, 350, -1); }
+    const rl = (e.r || []).filter((nm) => dFind(nm) != null).slice(0, 6); d.rels = rl; const ex = e.x && e.x[0], bandH = ex ? 96 : 0, relH = rl.length ? 36 : 0;
+    const top = 166, limit = 404 - relH - bandH - (ex ? 6 : 0), f = fitRich(e.d, [24, 22, 20, 18], 736, limit - top); richDraw(f.lines, 44, top, f.sz, INK, 0);
+    if (ex) { const by = 404 - relH - bandH; rrect(40, by, 752, bandH, 10, [226, 222, 198]); text(ex[0], 54, by + 4, 17, [70, 70, 60]); dTileRow(ex[1], 54, by + 28, 724, 46); }
+    if (rl.length) { text('いっしょに 覚える', 46, 410 - relH + 2, 18, GREEN); dChips(rl, 220, 410 - relH - 1, 570, d.rel); }
+  }
+  function dictKey(k) {
+    const d = S.dict; dirty();
+    if (d.view === 'main') {
+      if (d.foc === 0) {
+        if (k === 'up') { if (d.m === 0) S.bbf = true; else { d.m--; d.kana = null; d.sel = 0; } } else if (k === 'down') { d.m = (d.m + 1) % DM.length; d.kana = null; d.sel = 0; }
+        else if (k === 'right' || k === 'ok') { if (dItems(d).length) { d.foc = 1; d.sel = 0; } } else if (k === 'back') { startStudy(1); S.dict = null; }
+        return;
+      }
+      const items = dItems(d), n = items.length;
+      if (k === 'left') { if (d.sel % 2 === 0) d.foc = 0; else d.sel--; } else if (k === 'right') { if (d.sel + 1 < n && d.sel % 2 === 0) d.sel++; }
+      else if (k === 'up') { if (d.sel - 2 >= 0) d.sel -= 2; } else if (k === 'down') { if (d.sel + 2 < n) d.sel += 2; else if (d.sel % 2 === 1 && d.sel + 1 < n) d.sel = n - 1; }
+      else if (k === 'back') { if (d.m === 8 && d.kana != null) { d.kana = null; d.sel = 0; } else d.foc = 0; }
+      else if (k === 'ok') { const it = items[d.sel]; if (!it) return; if (it.row != null) { d.kana = it.row; d.sel = 0; } else { d.ids = items.map((x) => x.id); d.id = it.id; d.rel = -1; d.hist = []; d.view = 'detail'; } }
+      return;
+    }
+    const n = d.ids.length, at = d.ids.indexOf(d.id), rels = d.rels || [];
+    if (k === 'left' || k === 'right') { if (at >= 0) { d.sel = (at + (k === 'left' ? n - 1 : 1)) % n; d.id = d.ids[d.sel]; d.rel = -1; d.hist = []; } }
+    else if (k === 'up') { if (rels.length) d.rel = d.rel <= 0 ? rels.length - 1 : d.rel - 1; } else if (k === 'down') { if (rels.length) d.rel = d.rel + 1 >= rels.length ? 0 : d.rel + 1; }
+    else if (k === 'ok') { if (d.rel >= 0 && rels[d.rel] != null) { d.hist.push(d.id); d.id = dFind(rels[d.rel]); d.rel = -1; } }
+    else if (k === 'back') { if (d.hist.length) { d.id = d.hist.pop(); d.rel = -1; } else { d.view = 'main'; d.sel = Math.max(0, at); } }
+  }
+  /* ---- 学習コーナー(地図 → 読み物 → クイズ。しおりと「おぼえた」を覚えておく) ---- */
+  const LKEY = 'mj_learn';
+  function learnLoad() { try { const v = JSON.parse(localStorage.getItem(LKEY)); if (v && v.done) return v; } catch (e) { /* ignore */ } return { bm: { step: 0, page: 0, read: false }, done: {} }; }
+  function learnSave() { try { localStorage.setItem(LKEY, JSON.stringify(S.learn.d)); } catch (e) { /* ignore */ } }
+  function startLearn() { try { petBump('st'); } catch (e) { /* ignore */ } const d = learnLoad(); S.mode = 'learn'; S.learn = { d, view: 'map', sel: Math.min(d.bm.step || 0, MJ.Learn.STEPS.length - 1), sub: 0, page: 0, scroll: 0 }; dirty(); }
+  const LEARN_OLD = globalThis.__learnEnv === 'old'; // MJ_LEARN=old で、前の(タブの)見た目に戻る
+  const learnPages = () => { const a = [], b = []; if (!LEARN_OLD) return [MJ.Learn.STEPS.map((_, i) => i)]; MJ.Learn.STEPS.forEach((st, i) => (st.lv === '入門' || st.lv === '初級' ? a : b).push(i)); return [a, b]; } // 3ページ目は「用語じてん」、4ページ目は「ビデオ」の入口
+  const pgOf = (pgi, sel) => Math.max(0, pgi.findIndex((p) => p.includes(sel))); // 1ページ目: 入門・初級 / 2ページ目: 中級・上級
+  function learnOpen(stepIdx, page) { // 読み物を開く(しおりも、ここに更新)
+    const L = S.learn, st = MJ.Learn.STEPS[stepIdx]; L.step = stepIdx; L.page = Math.max(0, Math.min(st.pages.length - 1, page || 0)); L.scroll = 0; L.view = 'read'; L.cache = null;
+    L.d.bm = { step: stepIdx, page: L.page, read: true }; learnSave(); dirty();
+  }
+  function learnQuiz(stepIdx) {
+    const st = MJ.Learn.STEPS[stepIdx];
+    startQuiz({ title: 'ステップ' + (stepIdx + 1) + ' クイズ', gens: () => st.gens, n: st.n, onEnd: (ok, n, finished) => {
+      S.mode = 'learn'; S.learn.view = 'map'; S.learn.sel = stepIdx;
+      if (finished && ok >= Math.ceil(n * 0.8)) { S.learn.d.done[st.id] = true; S.learn.sel = Math.min(stepIdx + 1, MJ.Learn.STEPS.length - 1); S.learn.d.bm = { step: S.learn.sel, page: 0, read: false, next: true }; learnSave(); }
+      dirty();
+    } });
+    S.quiz.learn = true;
+  }
+  const SUBS = ['読む', 'クイズに挑戦', '「おぼえた」にする', 'もどる'];
+  function learnKey(k) {
+    const L = S.learn, STEPS = MJ.Learn.STEPS;
+    if (L.confirm) { // 「ホームにもどりますか?」
+      if (k === 'left' || k === 'right' || k === 'up' || k === 'down') L.confirm.idx = 1 - L.confirm.idx;
+      else if (k === 'back') L.confirm = null;
+      else if (k === 'ok') { const go = L.confirm.idx === 1; L.confirm = null; if (go) { S.mode = 'menu'; S.learn = null; } }
+      dirty(); return;
+    }
+    if (L.view === 'map') {
+      if (k === 'back') { startStudy(0); S.learn = null; return; }
+      const pgi = learnPages(), pi = pgOf(pgi, L.sel), cur = pgi[pi], at = cur.indexOf(L.sel);
+      if (k === 'up') { if (at === 0) S.bbf = true; else L.sel = cur[at - 1]; } else if (k === 'down') L.sel = cur[Math.min(cur.length - 1, at + 1)];
+      else if (k === 'left' || k === 'right') { const o = pgi[wrap(pi + (k === 'left' ? -1 : 1), pgi.length)]; L.sel = o[Math.min(at, o.length - 1)]; }
+      else if (k === 'ok') { if (L.sel === STEPS.length) startDict(); else if (L.sel > STEPS.length) startVideo(); else { L.view = 'sub'; L.sub = 0; } }
+    } else if (L.view === 'sub') {
+      if (k === 'back') L.view = 'map'; else if (k === 'up') L.sub = wrap(L.sub - 1, 4); else if (k === 'down') L.sub = wrap(L.sub + 1, 4);
+      else if (k === 'ok') {
+        const st = STEPS[L.sel];
+        if (L.sub === 0) learnOpen(L.sel, L.d.bm.step === L.sel && L.d.bm.read ? L.d.bm.page : 0);
+        else if (L.sub === 1) learnQuiz(L.sel);
+        else if (L.sub === 2) { if (L.d.done[st.id]) delete L.d.done[st.id]; else L.d.done[st.id] = true; learnSave(); L.view = 'map'; }
+        else L.view = 'map';
+      }
+    } else if (L.view === 'read') {
+      const st = STEPS[L.step];
+      if (k === 'back') { L.view = 'map'; L.sel = L.step; }
+      else if (k === 'left') { if (L.page > 0) learnOpen(L.step, L.page - 1); }
+      else if (k === 'right' || k === 'ok') { if (L.page < st.pages.length - 1) learnOpen(L.step, L.page + 1); else if (k === 'ok') learnQuiz(L.step); }
+      else if (k === 'up') { if (L.scroll <= 0) S.bbf = true; else L.scroll = Math.max(0, L.scroll - 40); } else if (k === 'down') L.scroll += 40;
+    }
+    dirty();
+  }
+  function learnPage(L) { // 1ページぶんの、絵と文を並べた形(1度だけ作る)
+    if (L.cache && L.cache.key === L.step + ':' + L.page) return L.cache;
+    const pg = MJ.Learn.STEPS[L.step].pages[L.page]; let best = null;
+    for (const sz of [30, 28, 26, 24, 22, 20]) { // 入りきる いちばん大きな字を選ぶ(スクロールさせない)
+      const out = []; pg.items.forEach((it) => {
+        if (!it) { out.push({ gap: 8 }); return; }
+        if (typeof it === 'string') { const ls = richWrap(it, sz, 760); out.push({ lines: ls, h: richH(ls, sz) + 8 }); }
+        else if (it.hand) out.push({ hand: MJ.Learn.tiles(it.hand), h: 64 });
+      });
+      best = { key: L.step + ':' + L.page, sz, items: out, h: out.reduce((a2, o) => a2 + (o.h || o.gap || 0), 0) }; if (best.h <= 298) break;
+    }
+    return (L.cache = best);
+  }
+  function drawLearnB(L) { // B案: 左に ステップの一覧、右に えらんだステップの説明と進み具合(MJ_LEARN=old で、前の見た目に戻る)
+    const STEPS = MJ.Learn.STEPS, D = L.d, n = STEPS.length, nDone = STEPS.filter((s) => D.done[s.id]).length;
+    quizFrame('点数計算の勉強', '', 'おぼえた ' + nDone + ' / ' + n, L.view === 'sub' ? '' : '▲ ▼ でえらぶ    決定ボタンで ひらく    戻る: もどる');
+    L.top = n <= 8 ? 0 : Math.max(0, Math.min(L.sel - 5, n - 8)); // ビデオと同じ: カーソルは6番目で止まり、一覧のほうが動く
+    for (let r = 0; r < 8; r++) {
+      const i = L.top + r; if (i >= n) break; const st = STEPS[i], y = 58 + r * 44, on = L.sel === i && L.view === 'map' && !S.bbf, done = !!D.done[st.id];
+      panel(14, y, 366, 40, 10, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255);
+      rrect(24, y + 5, 36, 30, 6, done ? [60, 138, 60] : GREEN); text(done ? '合' : String(i + 1), 42, y + 8, 18, WHITE, 1);
+      text(st.t, 68, y + 8, fitSz(st.t, 21, 232, 14), INK);
+      rrect(316, y + 8, 52, 24, 11, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, 342, y + 10, 15, WHITE, 1);
+    }
+    if (L.top + 8 < n) { fill(10, 58 + 6 * 44 - 2, 374, 44, [8, 24, 18], 90); fill(10, 58 + 7 * 44 - 2, 374, 46, [8, 24, 18], 150); } // 下の2本を、うすく: まだ つづきが あると分かるように
+    if (L.top > 0) text('▲', 189, 46, 14, YEL, 1); if (L.top + 8 < n) text('▼', 189, 412, 14, YEL, 1);
+    const st = STEPS[L.sel], done = !!D.done[st.id], bm = D.bm.step === L.sel && D.bm.read;
+    rrect(396, 58, 420, 352, 8, [150, 190, 140]); rrect(399, 61, 414, 346, 6, [16, 56, 42]);
+    text('ステップ' + (L.sel + 1) + ' ・ ' + st.lv, 606, 74, 17, [200, 225, 200], 1);
+    const ts = fitSz(st.t, 32, 390, 20); text(st.t, 606, 104, ts, YEL, 1);
+    const ls = richWrap(st.sum, 22, 380); richDraw(ls, 416, 162, 22, WHITE, 0);
+    fill(416, 296, 380, 2, [150, 190, 140]);
+    text(done ? '合格! おぼえました' : 'まだ おぼえていません', 606, 312, 22, done ? [150, 240, 190] : [200, 225, 200], 1);
+    text(bm ? 'しおり: ここまで 読みました' : STEPS[L.sel].pages.length + 'ページの 読み物と、クイズが あります', 606, 350, 17, bm ? [255, 170, 150] : [255, 233, 160], 1);
+    drawLearnSub(L);
+  }
+  function drawLearnSub(L) {
+    const STEPS = MJ.Learn.STEPS, D = L.d;
+    if (L.view === 'sub') {
+      fill(0, 0, SW, SH, [0, 0, 0], 130); const st = STEPS[L.sel]; panel(190, 110, 452, 240, 14, WHITE, GREEN, 4, 255); text('ステップ' + (L.sel + 1) + '  ' + st.t, SW / 2, 124, 22, GREEN, 1);
+      SUBS.forEach((lb, i) => { const y = 164 + i * 44, sel = L.sub === i, lab = i === 2 && D.done[st.id] ? '「おぼえた」を はずす' : i === 0 && D.bm.step === L.sel && D.bm.read ? '読む(しおりの ところから)' : lb; panel(220, y, 392, 38, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [150, 160, 140], sel ? 4 : 2, 255); text(lab, SW / 2, y + 7, 21, INK, 1); });
+    }
+  }
+  function drawLearn() {
+    const L = S.learn, STEPS = MJ.Learn.STEPS, D = L.d;
+    if (L.view !== 'read' && !LEARN_OLD) { drawLearnB(L); return; }
+    if (L.view === 'read') {
+      const st = STEPS[L.step], pg = st.pages[L.page], c = learnPage(L);
+      quizFrame('ステップ' + (L.step + 1) + '  ' + st.t, '', (L.page + 1) + ' / ' + st.pages.length, L.page < st.pages.length - 1 ? '◀ ▶ でページをめくる    戻る: 地図へ' : '決定ボタンで クイズに進む    ◀ 前のページ    戻る: 地図へ');
+      tFace('advice', 'lr' + L.step + '_' + L.page, 10, 2, 44);
+      text(pg.h, 30, 58, 28, YEL); fill(30, 94, SW - 60, 3, [140, 190, 130]);
+      const my = Math.max(0, c.h - 298); L.scroll = Math.min(L.scroll, my); gfx.clip(0, 102, SW, 300);
+      let y = 104 - L.scroll;
+      c.items.forEach((o) => {
+        if (o.gap) { y += o.gap; return; }
+        if (o.lines) { richDraw(o.lines, 36, y, c.sz, WHITE, 0); y += o.h; }
+        else if (o.hand) { let x = 36; o.hand.forEach((t) => { if (t < 0) { x += 14; return; } tile(t, x, y + 4, 40, 53); x += 42; }); y += o.h; }
+      });
+      gfx.clip();
+      if (my > 0) text((L.scroll > 0 ? '▲ ' : '') + (L.scroll < my ? '▼ つづき' : ''), SW - 30, 404, 18, GREY, 2);
+      return;
+    }
+    quizFrame('点数計算の勉強', '', '', L.view === 'sub' ? '' : '▲ ▼ でえらんで 決定ボタン    ◀ ▶ でページを かえる    戻る: もどる');
+    const pgi = learnPages(), pi = pgOf(pgi, L.sel), nDone = STEPS.filter((s) => D.done[s.id]).length;
+    tFace('greet', 'lm', 10, 2, 44);
+    text('おぼえた ' + nDone + ' / ' + STEPS.length, SW - 24, 12, 18, WHITE, 2);
+    ['入門・初級', '中級・上級'].forEach((lb, i) => { const x = 24 + i * 200, on = i === pi; rrect(x, 58, 190, 34, 10, on ? [60, 130, 60] : [50, 70, 60]); text(lb, x + 95, 62, 22, on ? WHITE : [170, 190, 170], 1); });
+    text((pi + 1) + ' / 2 ページ', SW - 24, 62, 20, GREY, 2);
+    if (pi === 3) { // ビデオの入口
+      const sel = L.view === 'map'; panel(24, 112, SW - 48, 130, 16, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
+      text('ビデオ', 60, 126, 40, INK); text('麻雀の しくみを、動画で 見られます。', 62, 180, 22, [70, 70, 60]); text('とちゅうで止めても、つづきから 見られます。', 62, 208, 20, [140, 100, 0]);
+      text('決定ボタンで ひらく', SW / 2, 270, 24, WHITE, 1); return;
+    }
+    if (pi === 2) { // 用語じてんの入口
+      const sel = L.sel >= STEPS.length && L.view === 'map'; panel(24, 112, SW - 48, 130, 16, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
+      text('麻雀用語じてん', 60, 126, 40, INK); text('わからない言葉を しらべます。ふりがな・牌の絵つき。', 62, 180, 22, [70, 70, 60]); text('★ は、先に覚えたい言葉です。', 62, 208, 20, [140, 100, 0]);
+      text('決定ボタンで ひらく', SW / 2, 270, 24, WHITE, 1); return;
+    }
+    pgi[pi].forEach((i, r) => {
+      const st = STEPS[i], y = 100 + r * 64, sel = L.sel === i && L.view === 'map' && !S.bbf, done = !!D.done[st.id], bm = D.bm.step === i;
+      panel(24, y, SW - 48, 58, 14, sel ? YEL : WHITE, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255);
+      rrect(34, y + 9, 40, 40, 20, done ? GREEN : [160, 170, 150]); text(done ? '合' : String(i + 1), 54, y + 13, 28, WHITE, 1);
+      text(st.t, 90, y + 5, 26, INK); text(st.sum, 92, y + 36, 16, [80, 80, 70]);
+      rrect(SW - 150, y + 15, 58, 28, 9, st.lv === '上級' ? [190, 70, 60] : st.lv === '中級' ? [210, 150, 40] : st.lv === '初級' ? [80, 150, 70] : [90, 130, 190]); text(st.lv, SW - 121, y + 17, 18, WHITE, 1);
+      if (bm && (D.bm.read || D.bm.next)) { rrect(SW - 84, y + 14, 56, 28, 9, D.bm.read ? QRED : [80, 130, 190]); text(D.bm.read ? 'しおり' : 'つぎ', SW - 56, y + 17, 18, WHITE, 1); }
+    });
+    if (L.view === 'sub') {
+      fill(0, 0, SW, SH, [0, 0, 0], 130); const st = STEPS[L.sel]; panel(190, 110, 452, 240, 14, WHITE, GREEN, 4, 255); text('ステップ' + (L.sel + 1) + '  ' + st.t, SW / 2, 124, 22, GREEN, 1);
+      SUBS.forEach((lb, i) => { const y = 164 + i * 44, sel = L.sub === i, lab = i === 2 && D.done[st.id] ? '「おぼえた」を はずす' : i === 0 && D.bm.step === L.sel && D.bm.read ? '読む(しおりの ところから)' : lb; panel(220, y, 392, 38, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [150, 160, 140], sel ? 4 : 2, 255); text(lab, SW / 2, y + 7, 21, INK, 1); });
+    }
+  }
+
+  /* ---------- ビデオ(SDカードの ~/mjdata/video に入れた動画を、ゲームの中で見る) ---------- */
+  const VTITLES = {1: '10分で分かる麻雀ルール', 2: '30分で打てる麻雀ルール', 3: '麻雀役解説', 4: '役はこれだけ覚えればOK', 5: 'リーチされたら、この順番で切る', 6: 'ポンしていい?', 7: 'ポンしたらあがれない?', 8: 'スジ、習ったのに忘れる', 9: 'どれが通る?', 10: 'どれを捨てる?', 11: '捨てた順番で読む、3から5なら?', 12: '待ちがわからない?', 13: '役なしロン、防ぐ3つのコツ', 14: 'フリテン、そのロン待った', 15: '丸暗記、重要な形5選', 16: 'あがったのに点数が言えない', 17: '7つを整理', 18: '席決め親決め', 19: 'あと1枚であがれる?'};
+  const VSTEP = 10, VSTEP_HOLD = 30, VHOLD_MS = 600; // 押す: 10秒 / 長押し: 30秒(3倍)ずつ
+  const vfmt = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); };
+  function vLoad() {
+    try {
+      const v = JSON.parse(localStorage.getItem('mj_video'));
+      if (v && v.pos) {
+        /* 動画を追加するたびに、番号が1つずつ後ろにずれる。 見た記録も、ファイル名の番号を進めて引きつぐ(vs: 何回ずらしたか。 1回め=4番に追加 / 2回め=2番に追加) */
+        const sh = (from) => (k) => { const m = String(k).match(/^(\d+)(.*)$/); return !m || +m[1] < from ? k : ('0' + (+m[1] + 1)).slice(-2) + m[2]; };
+        const shift = (f) => { const g = sh(f); ['pos', 'done', 'dur'].forEach((fl) => { if (v[fl]) { const o = {}; Object.keys(v[fl]).forEach((k) => { o[g(k)] = v[fl][k]; }); v[fl] = o; } }); if (v.last) v.last = g(v.last); };
+        if (!v.vs) { shift(4); v.vs = 1; }
+        if (v.vs < 2) { shift(2); v.vs = 2; }
+        if (v.vs < 3) { /* 動画の名前が「番号.mp4」だけになった: 記録の名前を、番号+.mp4 に直す */ const nk = (k) => { const m = String(k).match(/^(\d+)[^.]*\.(?:mp4|m4v|mov|mkv|webm)$/i); return m ? ('0' + parseInt(m[1], 10)).slice(-2) + '.mp4' : k; }; ['pos', 'done', 'dur'].forEach((fl) => { if (v[fl]) { const o = {}; Object.keys(v[fl]).forEach((k) => { o[nk(k)] = v[fl][k]; }); v[fl] = o; } }); if (v.last) v.last = nk(v.last); v.vs = 3; }
+        return v;
+      }
+    } catch (e) { /* ignore */ }
+    return { pos: {}, done: {}, last: '', vs: 3 };
+  }
+  function vSave() { try { localStorage.setItem('mj_video', JSON.stringify(S.vid.d)); } catch (e) { /* ignore */ } }
+  function vScan() { // 動画は、SDカードの boot の mjdata/video に入れた「01.mp4〜18.mp4」(番号だけの名前)だけを読む。 ほかの場所・ほかの名前の動画は、読まない。 題名とサムネイルは、番号から、ゲームの中のものを使う
+    const dirs = globalThis.__videoDirs || [(globalThis.__dataDir || '.') + '/video'], files = [], have = {};
+    const rdir = (d) => (typeof __readdir === 'function' && __readdir(d)) || [];
+    const bootDirs = dirs.filter((d) => /^\/boot(\/firmware)?\/mjdata\/video$/.test(d)), num = (nm) => { const m = nm.match(/^(\d{1,2})\.mp4$/i); return m ? parseInt(m[1], 10) : 0; };
+    let src = bootDirs.filter((d) => rdir(d).some((nm) => num(nm) > 0)); // 番号だけの名前の動画が、ひとつでもある boot の置き場所
+    let strict = true; if (!src.length) { src = dirs; strict = false; } // boot に無いとき(パソコンでの試験用)は、これまでの探しかた
+    src.forEach((dd) => rdir(dd).forEach((nm) => {
+      let n, title;
+      if (strict) { n = num(nm); if (!n || !VTITLES[n]) return; }
+      else { const m = nm.match(/^(.*)\.(mp4|m4v|mov|mkv|webm)$/i); if (!m) return; const mm = m[1].match(/^(\d+)[_\-\s　]*(.*)$/); n = mm ? parseInt(mm[1], 10) : 999; if (n !== 999 && have[n]) return; }
+      if (have[n]) return; have[n] = 1;
+      const key = ('0' + n).slice(-2) + '.mp4'; // 記録(つづきから・見た印)は、番号だけの名前で持つ
+      files.push({ n, name: strict ? key : nm, title: VTITLES[n] || nm, path: dd + '/' + nm, png: VTITLES[n] ? 'img/video/' + ('0' + n).slice(-2) + '.webp' : null });
+    }));
+    Object.keys(VTITLES).forEach((k) => { if (!have[k]) files.push({ n: +k, name: 'v' + k, title: VTITLES[k], path: null, png: 'img/video/' + ('0' + k).slice(-2) + '.webp' }); }); // 動画ファイルが まだ無くても、一覧(サムネイル)には出す
+    files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
+  }
+  const vStatus = (f, d0) => { const d = d0 || S.vid.d; return (d.pos[f.name] || 0) >= 30 ? 'cont' : d.done[f.name] ? 'done' : 'new'; }; // 30秒より短い視聴は、見ていないことにする(少し見ただけで、印がつかないように)
+  window.__startMapView = (d) => { S.mode = 'menu'; startMapView(d); }; // 試験用
+  window.__newGame = (o) => { startGame(null, o || {}); }; // 試験用
+  window.__hintDemo = (say) => { const g = S.game; if (!g) return false; const p = g.players[0], t = p.hand[0].t; S.tmsg = null; S.self = { row: 0, idx: 0, p, opts: { riichi: [], forbid: [], tsumo: false }, st: {}, tiles: p.hand.slice(), btns: [], rm: false, back: 0, res() {} }; S.hint = { tile: p.hand[0], t, sh: 1, n: 12, label: '回す(降り)', why: '', say: say || '', riichi: false, minSh: 1 }; dirty(); return true; }; // 試験用: 麻雀先生の枠の見えかた
+  window.__uraDemo = (n) => { const g = S.game; if (!g || !g.doraInd || !g.uraAll) return false; n = n || 1; while (g.doraInd.length < n) g.doraInd.push(g.doraInd[0]); while (g.uraAll.length < n) g.uraAll.push(g.uraAll[0]); g.doraInd = g.doraInd.slice(0, n); g.uraAll = g.uraAll.slice(0, n); ui.uraReveal(g, []).then(() => print('URA done')); return true; }; // 試験用
+  window.__uraDemoStart = (n) => { if (S.game) return window.__uraDemo(n); startGame(null, {}); const iv = setInterval(() => { const g = S.game; if (g && g.doraInd && g.players && g.players[0].hand && g.live && g.live.length < 70 && !S.deal && S.mode === 'game' && !S.ura && !S.result) { clearInterval(iv); setTimeout(() => window.__uraDemo(n), 800); } }, 500); return true; }; // シミュレーターのボタン: 対局を始めて、配牌がおわったら、裏ドラの確認アニメを見せる
+  window.__openSettings = () => { if (S.game) return false; S.mode = 'settings'; S.setIdx = 0; S.rankScr = null; dirty(); return true; }; // 試験用
+  window.__openPromo = () => { if (S.game) return false; S.promo = S.promo || { from: 0, to: 1, row: 0 }; S.mode = 'promo'; S.rankScr = null; dirty(); return true; }; // シミュレーターのボタンから、昇段の演出テストを開く
+  window.__startDiag = () => startDiag(); // 試験用
+  window.__startMap = (a, b, c, ms) => { if (ms != null) S.mapSet = ms; S.mode = 'menu'; startMap({ from: a || 0, to: b || 3, congrats: !!c }, () => { S.mode = 'menu'; dirty(); }); }; window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
+  window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
+  globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, dice: !!S.dice, ros: S.ros ? [S.ros.sel, (S.ros.pick || []).length, S.ros.menu ? S.ros.menu.idx : -1] : null, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
+  window.__winRvDemo = (sd) => { const g = S.game; if (!g) return false; const p = g.players[sd == null ? 2 : sd], tl = p.hand.slice().sort((a, b) => a.t - b.t); S.bub = {}; S.winRv = { ws: [{ winner: p, view: { concealed: tl.slice(0, 13) }, winTile: tl[13] || tl[0] }], t0: __now(), res() {} }; NSND.sfx('hand_open'); dirty(); return true; }; // 試験用: CPUの手牌を倒して見せる
+  window.__riichiDemo = () => { const g = S.game; if (!g) return false; [1, 2, 3].forEach((i) => { g.players[i].riichi = true; }); dirty(); return true; }; // 試験用: 3人ともリーチの見えかた
+  window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
+  /* ---------- リセット(デバッグ用): ゲームを はじめから。 音量・ルール・麻雀先生などの「設定」は残し、成績・段位・雀士・ビデオ・勉強・途中のセーブを消す ---------- */
+  const KEEP_PREF = ['mj_vol_', 'mj_teacher', 'mj_dmark', 'mj_swapab', 'mj_cpuspeed', 'mj_rules', 'mj_padid', 'mj_orient', 'mj_perf', 'mj_winfx', 'mj_you', 'mj_think', 'mj_danger_', 'mj_banter'];
+  function resetAll() { // 設定のしるしは のこして、成績・段位などを けす。 アプリは 閉じない: メモリの中の記録も 初期化して、ホームにもどる
+    try { Object.keys(__ls).forEach((k) => { if (k.indexOf('mj_') === 0 && !KEEP_PREF.some((p) => k.indexOf(p) === 0)) delete __ls[k]; }); __lsDirty = true; } catch (e) { /* ignore */ }
+    try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ }
+    try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ }
+    try { if (MJ.Stats && MJ.Stats.reset) MJ.Stats.reset(); } catch (e) { /* ignore */ }   // 成績は、メモリにも おぼえているので、はじめにもどす
+    S.rankScr = null; S.vid = null; S.study = null; S.promo = null; S.ros = null; S.learn = null; S.map = null; S.cert = null; S.reveal = null; S.lay = []; S.statsPg = 0; S.setIdx = 0;
+    S.mode = 'menu'; S.homeBot = false; S.menuIdx = 0; S.toast = { text: 'リセットしました(はじめの状態です)', until: __now() + 1800 }; try { NSND.home(); } catch (e) { /* ignore */ }
+    dirty(); setTimeout(dirty, 1900);
+  }
+  function startVideo() {
+    const t00 = __now(); tl('video-list-start'); const sc = vScan(); tl('video-scan ' + Math.round(__now() - t00) + 'ms files=' + sc.files.length); const d = vLoad(), last = sc.files.findIndex((f) => f.name === d.last);
+    S.vid = { view: 'list', files: sc.files, dir: sc.dir, d, sel: Math.max(0, last), top: 0, hs: 0, last, ask: null }; S.mode = 'video'; vFit(); dirty(); tl('video-list-ready ' + Math.round(__now() - t00) + 'ms');
+  }
+  function vFit() { const V = S.vid, n = V.files.length; V.top = n <= 8 ? 0 : Math.max(0, Math.min(V.sel - 5, n - 8)); } // カーソルは6番目で止まり、そこからは一覧のほうが動く(最後の8本のところだけ、カーソルが下へ進む)
+  function vPlay(i, from) {
+    const V = S.vid, f = V.files[i];
+    if (!f.path || typeof __vopen !== 'function') { V.err = f.path ? 'この画面では 再生できません(実機で 見られます)' : 'この動画は まだ 入っていません(mjdata/video に入れてください)'; dirty(); return; }
+    try { NSND.music(''); snd.musicVol(vVol()); } catch (e) { /* ignore */ }
+    // 先に「よみこみ中…」の画面を出してから、動画を開く(開くあいだ、画面が止まるので、一覧のまま固まって見えないように)
+    const now0 = __now(); V.sel = i; V.view = 'play'; V.tFirst = 0; V.p = { f, i, dur: (V.d.dur && V.d.dur[f.name]) || 0, ui: now0 + 2500, paused: false, end: false, hk: '', hkT: 0, step: 0, toast: '', toastT: 0, save: now0, st: [from || 0, 0, 0, 0, 0], sig: '', loading: true }; dirty();
+    setTimeout(() => {
+      if (!S.vid || S.vid.p !== V.p || S.mode !== 'video') return; // 待っているあいだに、戻る を押していたら やめる
+      const tv0 = __now(); tl('vopen ' + f.path); try { petBump('vw'); } catch (e) { /* ignore */ } const r = __vopen(f.path, from || 0); tl('vopen-done ' + Math.round(__now() - tv0) + 'ms');
+      if (!r) { V.view = 'list'; V.p = null; V.err = 'ひらけませんでした(この機械では動画が使えないかもしれません)'; try { NSND.home(); } catch (e) { /* ignore */ } dirty(); return; }
+      const now = __now(), p = V.p; p.loading = false; p.dur = r.dur || 0; p.ui = now + 2500; p.save = now; p.st = [from || 0, r.dur || 0, 0, 0, 0];
+      V.d.last = f.name; (V.d.dur = V.d.dur || {})[f.name] = r.dur || 0; vSave(); dirty();
+    }, 120);
+  }
+  const vVol = () => { const v = S.vid && S.vid.d && S.vid.d.vol; return typeof v === 'number' ? v : 0.7; }; // 動画の音量(0〜1)。表示の目盛り1つ = 0.14(目盛り5 = 前の版の7、目盛り7 = 最大)。BGMとは別に、おぼえておく
+  function vStop(markEnd) { // 動画をとじて、一覧へ
+    const V = S.vid, p = V.p; if (!p) return;
+    const st = __vstate(); const pos = st ? st[0] : p.st[0];
+    if (markEnd || (p.dur > 20 && pos >= p.dur - 15)) { V.d.done[p.f.name] = true; delete V.d.pos[p.f.name]; } else V.d.pos[p.f.name] = Math.floor(pos);
+    vSave(); __vclose(); V.p = null; V.view = 'list'; V.last = V.files.findIndex((f) => f.name === V.d.last); vFit(); try { NSND.home(); } catch (e) { /* ignore */ } dirty();
+  }
+  function vTick(now) { // 動画を見ているあいだ、毎コマ呼ばれる
+    const V = S.vid; if (!V || V.view !== 'play' || !V.p) return;
+    const p = V.p, st = __vstate(); if (!st) return; if (!V.tFirst) { V.tFirst = 1; tl('vtick-first pos=' + st[0].toFixed(1) + ' dur=' + st[1]); } p.st = st; p.dur = st[1] || p.dur; p.paused = !!st[2];
+    if (st[3] && !p.end) { p.end = true; p.ui = now; V.d.done[p.f.name] = true; delete V.d.pos[p.f.name]; vSave(); __vpause(true); }
+    if (now - p.save > 8000) { p.save = now; V.d.pos[p.f.name] = Math.floor(st[0]); vSave(); }
+    const show = p.paused || p.end || now < p.ui + 3500, sig = (show ? 1 : 0) + '|' + Math.floor(st[0]) + '|' + (p.paused ? 1 : 0) + '|' + (now < p.toastT ? p.toast : '') + '|' + (st[4] ? 1 : 0);
+    if (sig !== p.sig) { p.sig = sig; dirty(); }
+  }
+  function vSeek(sign, now) { // ◀ ▶ : 押すと10秒、長押しで30秒ずつ
+    const p = S.vid.p, st = __vstate() || p.st; let step = 0;
+    if (p.hk === (sign < 0 ? 'left' : 'right') && now - p.hkT < 260) { if (now - p.step >= VHOLD_MS) { step = VSTEP_HOLD; p.step = now; } } else { step = VSTEP; p.step = now; }
+    p.hk = sign < 0 ? 'left' : 'right'; p.hkT = now; p.ui = now; if (!step) return;
+    const to = Math.max(0, Math.min((p.dur || 1e9) - 1, st[0] + sign * step)); __vseek(to);
+    if (p.end) { p.end = false; if (!p.userPaused) __vpause(false); }
+    p.toast = (sign < 0 ? '◀◀ ' : '▶▶ ') + step + '秒 ' + (sign < 0 ? 'もどる' : 'すすむ'); p.toastT = now + 1100;
+  }
+  function videoKey(k) {
+    const V = S.vid, now = __now(); dirty();
+    if (V.view === 'play') {
+      const p = V.p;
+      if (p.loading) { if (k === 'back') { V.view = 'list'; V.p = null; try { NSND.home(); } catch (e) { /* ignore */ } } return; } // 開いているあいだは、戻る だけ
+      if (k === 'back') { vStop(false); return; }
+      if (k === 'left') vSeek(-1, now); else if (k === 'right') vSeek(1, now);
+      else if (k === 'up' || k === 'down') { const L = Math.max(0, Math.min(7, Math.round(vVol() / 0.14) + (k === 'up' ? 1 : -1))); V.d.vol = Math.min(1, L * 0.14); try { snd.musicVol(V.d.vol); } catch (e) { /* ignore */ } vSave(); p.ui = now; p.toast = '音量 ' + L + ' / 7'; p.toastT = now + 1300; }
+      else if (k === 'ok') {
+        p.ui = now;
+        if (p.end) { p.end = false; p.userPaused = false; __vseek(0); __vpause(false); delete V.d.done[p.f.name]; return; }
+        p.userPaused = !p.paused; p.paused = !p.paused; __vpause(p.paused); if (!p.paused) p.ui = now - 2000;
+      } else p.ui = now;
+      return;
+    }
+    if (V.ask) { // 「つづきから / はじめから」
+      if (k === 'up' || k === 'down' || k === 'left' || k === 'right') V.ask.idx = 1 - V.ask.idx; else if (k === 'back') V.ask = null;
+      else if (k === 'ok') { const a = V.ask; V.ask = null; vPlay(a.i, a.idx === 0 ? (V.d.pos[V.files[a.i].name] || 0) : 0); }
+      return;
+    }
+    if (V.view === 'home') {
+      if (k === 'up') { if (V.hs === 0) S.bbf = true; else V.hs = 0; } else if (k === 'down') V.hs = 1; else if (k === 'back') { startStudy(2); S.vid = null; } else if (k === 'ok') { if (V.hs === 0) vPlay(V.last, V.d.pos[V.files[V.last].name] || 0); else V.view = 'list'; }
+      return;
+    }
+    const n = V.files.length; V.err = '';
+    if (k === 'back') { startStudy(2); S.vid = null; }
+    else if (!n) return;
+    else if (k === 'up') { if (V.sel === 0) S.bbf = true; else { V.sel--; vFit(); } } else if (k === 'down') { V.sel = (V.sel + 1) % n; vFit(); }
+    else if (k === 'left') { V.sel = Math.max(0, V.sel - 8); vFit(); } else if (k === 'right') { V.sel = Math.min(n - 1, V.sel + 8); vFit(); }
+    else if (k === 'ok') { const f = V.files[V.sel]; if (f.path && vStatus(f) === 'cont') V.ask = { i: V.sel, idx: 0 }; else vPlay(V.sel, 0); }
+  }
+  function vThumb(f, x, y, w, h) { // サムネイル(無ければ、暗い板)
+    rrect(x - 3, y - 3, w + 6, h + 6, 6, [150, 190, 140]);
+    if (f.png) { gfx.image(f.png, x, y, w, h, 255); } else { fill(x, y, w, h, [16, 56, 42]); text('(サムネイルなし)', x + w / 2, y + h / 2 - 12, 20, GREY, 1); }
+  }
+  function drawVideo() {
+    const V = S.vid;
+    if (V.view === 'play') { drawVideoPlay(V); return; }
+    if (typeof gfx.layerBegin === 'function') { const f0 = V.files[V.view === 'home' ? V.last : V.sel], vk = 'v' + V.view + ':' + V.files.length + ':' + V.top + ':' + V.sel + ':' + V.hs + ':' + (S.bbf ? 1 : 0) + ':' + V.last + ':' + (V.err || '') + ':' + (f0 ? (f0.png ? 1 : 0) + ':' + (V.d.pos[f0.name] || 0) + ':' + vStatus(f0) : ''); cached(27, vk, () => drawVideoBody(V)); return; } // 動かない画面は、1枚の絵にして貼る(カーソルを動かした時だけ描き直す)
+    drawVideoBody(V);
+  }
+  function drawVideoBody(V) {
+    quizFrame('ビデオ', '', '', V.view === 'home' ? '▲ ▼ でえらんで 決定ボタン    戻る: もどる' : '▲ ▼ でえらぶ   ◀ ▶ でページ   決定ボタンで 見る   戻る: もどる');
+    if (V.view === 'home') {
+      const f = V.files[V.last], pos = V.d.pos[f.name] || 0;
+      panel(40, 70, SW - 80, 190, 16, V.hs === 0 ? YEL : WHITE, V.hs === 0 ? [160, 110, 0] : GREEN, V.hs === 0 ? 4 : 2, 255);
+      vThumb(f, 64, 92, 240, 135); text('つづきから 見る', 330, 88, 32, INK); const sz = fitSz(f.title, 26, SW - 40 - 330 - 30, 16); text(f.title, 332, 140, sz, INK);
+      text(vfmt(pos) + ' の ところから', 332, 188, 24, [140, 100, 0]);
+      panel(40, 284, SW - 80, 96, 16, V.hs === 1 ? YEL : WHITE, V.hs === 1 ? [160, 110, 0] : GREEN, V.hs === 1 ? 4 : 2, 255); text('一覧から えらぶ', SW / 2, 312, 34, INK, 1);
+      return;
+    }
+    if (!V.files.length) {
+      panel(60, 90, SW - 120, 240, 16, WHITE, GREEN, 3, 255); text('ビデオが まだ ありません', SW / 2, 114, 32, INK, 1);
+      text('SDカードの「mjdata」フォルダの中の「video」に、', SW / 2, 180, 22, [70, 70, 60], 1); text('動画(.mp4)と サムネイル(.png)を 入れてください。', SW / 2, 214, 22, [70, 70, 60], 1);
+      text('(番号_題名.mp4 と 番号_題名.png)', SW / 2, 262, 19, [110, 110, 100], 1); return;
+    }
+    const n = V.files.length;
+    for (let r = 0; r < 8; r++) {
+      const i = V.top + r; if (i >= n) break; const f = V.files[i], y = 58 + r * 44, on = i === V.sel && !S.bbf, ss = vStatus(f);
+      panel(14, y, 350, 40, 10, on ? YEL : CREAM, on ? [160, 110, 0] : GREEN, on ? 3 : 2, 255);
+      rrect(24, y + 5, 36, 30, 6, GREEN); text(('0' + f.n).slice(-2), 42, y + 8, 18, WHITE, 1);
+      const isLast = i === V.last, ps = V.d.pos[f.name] || 0, dd = (V.d.dur && V.d.dur[f.name]) || Math.max(ps * 2, 600), bw = !f.path ? 60 : isLast ? 106 : ss === 'cont' ? 66 : 0; text(f.title, 68, y + 7 + 0, fitSz(f.title, 21, 286 - bw, 14), INK);
+      if (!f.path) { rrect(300, y + 8, 54, 24, 11, [140, 140, 130]); text('なし', 327, y + 10, 15, WHITE, 1); }
+      else if (isLast) { const lb = '前回' + (ss === 'cont' ? ' ' + vfmt(ps) : ''); rrect(248, y + 8, 106, 24, 11, QRED); text(lb, 301, y + 10, 15, WHITE, 1); } // 前回見た1本だけ、赤い札
+      else if (ss === 'cont') { rrect(300, y + 16, 54, 8, 4, [210, 205, 185]); rrect(300, y + 16, Math.max(8, Math.round(54 * Math.min(1, ps / dd))), 8, 4, [90, 150, 100]); } // 途中まで見たものは、進み棒
+      if (isLast) { fill(2, y + 10, 3, 20, YEL); fill(5, y + 12, 3, 16, YEL); fill(8, y + 14, 3, 12, YEL); } // 左の ▶ 印(前回の場所)
+    }
+    if (V.top > 0) text('▲', 189, 48, 14, YEL, 1); if (V.top + 8 < n) text('▼', 189, 412, 14, YEL, 1);
+    if (V.top + 8 < n) { fill(10, 58 + 6 * 44 - 2, 358, 44, [8, 24, 18], 90); fill(10, 58 + 7 * 44 - 2, 358, 46, [8, 24, 18], 150); } // 下の2本を、うすく: まだ つづきが あると分かるように
+    const f = V.files[V.sel], ss = vStatus(f);
+    panel(384, 58, 430, 244, 12, [16, 56, 42], [150, 190, 140], 3, 255); vThumb(f, 394, 68, 410, 230);
+    panel(384, 316, 430, 100, 12, CREAM, GREEN, 3, 255); text(f.title, 599, 326, fitSz(f.title, 26, 400, 16), INK, 1);
+    text(!f.path ? '(動画ファイルが まだ ありません)' : ss === 'done' ? 'もう一度 見られます' : ss === 'cont' ? 'つづき: ' + vfmt(V.d.pos[f.name]) + ' から' : 'まだ 見ていません', 599, 368, 21, ss === 'cont' ? [200, 60, 40] : [70, 100, 60], 1);
+    if (V.err) { fill(0, 200, SW, 60, [0, 0, 0], 200); text(V.err, SW / 2, 214, 22, YEL, 1); }
+  }
+  function drawVideoPlay(V) {
+    const p = V.p; gfx.clear(0, 0, 0);
+    if (!p.st[4]) { // 最初の絵が出るまで: サムネイルを、画面いっぱいに出して、その上に「よみこみ中…」(音も、絵が出るまで 鳴らさない)
+      if (p.f.png) gfx.image(p.f.png, 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], p.f.png ? 90 : 0);
+      rrect(SW / 2 - 140, SH / 2 - 36, 280, 72, 16, [0, 0, 0], 200); text('よみこみ中…', SW / 2, SH / 2 - 19, 34, WHITE, 1);
+      rrect(SW / 2 - 110, SH - 58, 220, 34, 10, [0, 0, 0], 170); text('戻る: やめる', SW / 2, SH - 54, 20, [220, 230, 220], 1); return;
+    }
+    const now = __now(), show = p.paused || p.end || now < p.ui + 3500, st = p.st, T = gfx.textTop, F = (x, y, w, h, c, a) => gfx.fillTop(x, y, w, h, c[0], c[1], c[2], a == null ? 255 : a), TT = (s, x, y, sz, c, al) => T(String(s), x, y, sz, c[0], c[1], c[2], al || 0);
+    if (now < p.toastT && !p.end) { F(SW / 2 - 150, 74, 300, 56, [0, 0, 0], 170); TT(p.toast, SW / 2, 84, 30, WHITE, 1); }
+    if (p.end) { F(150, 130, 532, 190, [0, 0, 0], 210); TT('見おわりました', SW / 2, 150, 40, YEL, 1); TT('決定ボタン: もう一度 見る', SW / 2, 226, 26, WHITE, 1); TT('戻る: 一覧へ もどる', SW / 2, 266, 26, WHITE, 1); }
+    if (!show) return;
+    F(0, 0, SW, 46, [0, 0, 0], 255); TT(p.f.title, 20, 8, fitSz(p.f.title, 26, 560, 16), WHITE);
+    if (p.paused && !p.end) { F(SW - 200, 6, 184, 34, [255, 220, 40], 255); TT('一時停止中', SW - 108, 9, 24, [30, 30, 20], 1); }
+    F(0, 384, SW, 84, [0, 0, 0], 255); // 下の帯(動画の字幕に重ならないよう、できるだけ低く)
+    const dur = p.dur || 0, fr = dur > 0 ? Math.max(0, Math.min(1, st[0] / dur)) : 0;
+    F(30, 394, SW - 60, 10, [90, 100, 95]); F(30, 394, Math.round((SW - 60) * fr), 10, [255, 220, 40]); F(30 + Math.round((SW - 60) * fr) - 4, 389, 8, 20, WHITE);
+    TT(vfmt(st[0]) + ' / ' + vfmt(dur), 30, 424, 26, WHITE);
+    const hot = now < p.toastT ? (p.toast.indexOf('◀') === 0 ? 1 : 2) : 0, ic = (x, w, on) => F(x, 414, w, 44, on ? [255, 220, 40] : [60, 70, 66]), ink = (on) => on ? [30, 30, 20] : WHITE; // 下の帯の、ボタンの印(◀◀ / 一時停止・再生 / ▶▶)
+    ic(250, 120, hot === 1); TT('◀◀', 296, 420, 28, ink(hot === 1), 1); TT('10', 346, 428, 18, ink(hot === 1), 1);
+    ic(386, 60, false); if (p.paused) TT('▶', 416, 420, 28, WHITE, 1); else { F(405, 424, 8, 24, WHITE); F(419, 424, 8, 24, WHITE); }
+    ic(462, 120, hot === 2); TT('10', 490, 428, 18, ink(hot === 2), 1); TT('▶▶', 538, 420, 28, ink(hot === 2), 1);
+    TT('戻る: やめる', SW - 30, 428, 20, [210, 225, 205], 2);
+  }
+
+  /* ---------- 麻雀の勉強(入口): 左に「点数計算 / 用語じてん / ビデオ」、右に、えらんだものの見本と進み具合 ---------- */
+  function startStudy(sel) { try { petBump('st'); } catch (e) { /* ignore */ }
+    const d = learnLoad(), ST = MJ.Learn.STEPS, nDone = ST.filter((s) => d.done[s.id]).length;
+    let nx = ST.findIndex((s) => !d.done[s.id]); if (nx < 0) nx = 0; if (d.bm && d.bm.read && !d.done[ST[d.bm.step] && ST[d.bm.step].id]) nx = d.bm.step;
+    const sc = vScan(), vd = vLoad(); let vi = sc.files.findIndex((f) => f.name === vd.last && (vd.pos[f.name] || 0) >= 30 && !vd.done[f.name]); const cont = vi >= 0; if (vi < 0) vi = Math.max(0, sc.files.findIndex((f) => f.path && !vd.done[f.name])); if (vi < 0 || !sc.files[vi]) vi = 0;
+    S.study = { sel: sel || 0, nDone, total: ST.length, nx, nxStep: ST[nx], vf: sc.files[vi], cont, vpos: cont ? vd.pos[sc.files[vi].name] : 0, vn: sc.files.length, vhave: sc.files.filter((f) => f.path).length }; S.mode = 'study'; dirty(); studyWarm();
+  }
+  function studyWarm() { // 入ったあと、ボタンを押していない間だけ、3つの項目を選んだときの画面を、画面に出さずに 先に描いておく(はじめて選んだときの重さを、なくすため)。 ボタンを押している間は、待つ(入力を止めない)
+    if (typeof gfx.layerBegin !== 'function') return;
+    const W = [1, 2, 0, -1], H0 = S.study;
+    const step = (k) => {
+      const H = S.study; if (H !== H0 || !H || S.mode !== 'study' || k >= W.length) return;
+      if (__now() - (S.lastKeyT || 0) < 2000) { setTimeout(() => step(k), 700); return; }
+      const w = W[k]; try { lay(6 + w + 1, studyKey_(H, w), () => drawStudyBody(w)); } catch (e) { /* ignore */ }
+      setTimeout(() => step(k + 1), 900);
+    };
+    setTimeout(() => step(0), 2500);
+  }
+  function studyKey(k) {
+    const H = S.study; dirty();
+    if (k === 'up') { if (H.sel === 0) S.bbf = true; else H.sel--; } else if (k === 'down') H.sel = Math.min(2, H.sel + 1);
+    else if (k === 'back') { S.mode = 'menu'; S.study = null; }
+    else if (k === 'ok') { const w = H.sel; later(() => { if (w === 0) startLearn(); else if (w === 1) startDict(); else startVideo(); }); } // ボタンが押し込まれてから、開く
+  }
+  function rframe(x, y, w, h, r, th, c) { // 角丸の枠(太さ th)。1行ずつ、外側と内側の角丸のあいだを塗る
+    const ex = (yy, rr, hh) => { const d = yy < rr ? rr - Math.sqrt(Math.max(0, rr * rr - (rr - yy - 0.5) * (rr - yy - 0.5))) : yy >= hh - rr ? rr - Math.sqrt(Math.max(0, rr * rr - (yy - (hh - rr) + 0.5) * (yy - (hh - rr) + 0.5))) : 0; return Math.round(d); };
+    for (let yy = 0; yy < h; yy++) {
+      const xo = ex(yy, r, h);
+      if (yy < th || yy >= h - th) { fill(x + xo, y + yy, w - 2 * xo, 1, c); continue; }
+      const yi = yy - th, hi = h - 2 * th, ri = Math.max(0, r - th), xi = th + ex(yi, ri, hi);
+      fill(x + xo, y + yy, Math.max(1, xi - xo), 1, c); fill(x + w - xi, y + yy, Math.max(1, xi - xo), 1, c);
+    }
+  }
+  const studyKey_ = (H, hs) => 'st' + hs + (hs < 0 ? 's' + H.sel : '') + ':' + H.nDone + ':' + H.total + ':' + H.vn + ':' + (H.cont ? 1 : 0) + ':' + (H.nxStep ? H.nxStep.id : '');
+  function drawStudy() { // 動かないページ: 選んでいる項目ごとの絵を、いちど描いたら 使い回す(押している間の動きだけ、そのつど描く)
+    const H = S.study, hs = S.bbf ? -1 : H.sel;
+    if (pressing() || typeof gfx.layerBegin !== 'function') { drawStudyBody(hs); return; }
+    cached(6 + hs + 1, studyKey_(H, hs), () => drawStudyBody(hs));
+  }
+  function drawStudyBody(hs0) { const H = S.study, keep = H.sel; try { drawStudyBody0(hs0); } finally { H.sel = keep; } }
+  function drawStudyBody0(hs0) { // 背景の絵(img/study_bg.webp)に、えらんだ枠と、進み具合の文字を重ねる
+    const H = S.study, hs = hs0 == null ? (S.bbf ? -1 : H.sel) : hs0, selSave = H.sel; if (hs >= 0) H.sel = hs; gfx.clear(14, 40, 30); gfx.image('img/study_bg.webp', 0, 0, SW, SH, 255); // 「もどる」に合わせているときは、3つのボタンの 枠も 拡大も 出さない
+    const BT = [[17, 63, 366, 94], [17, 163, 366, 107], [17, 278, 366, 91]], pr = pressing() ? 3 : 0, CX = 609; // ボタンの絵。選んでいるものは一回り大きく(押している間は、もとの大きさで、少し沈む)
+    const SC = 1.07, sc = pr ? 1 : SC, tx = (x, y, i) => { const b = BT[i]; return [Math.round(b[0] + b[2] / 2 + (x - (b[0] + b[2] / 2)) * (hs === i ? sc : 1)), Math.round(b[1] + b[3] / 2 + (y - (b[1] + b[3] / 2)) * (hs === i ? sc : 1)) + (hs === i ? pr : 0)]; };
+    const fr = (i) => { const b = BT[i], w = Math.round(b[2] * sc), h = Math.round(b[3] * sc); return [Math.round(b[0] + (b[2] - w) / 2), Math.round(b[1] + (b[3] - h) / 2) + pr, w, h]; };
+    const sel = hs, ord = [0, 1, 2].filter((i) => i !== sel).concat(sel >= 0 ? [sel] : []); // えらんだものを、いちばん上に描く
+    ord.forEach((i) => { const r = i === sel ? fr(i) : BT[i]; gfx.image('img/study_btn' + (i + 1) + '.webp', r[0], r[1], r[2], r[3], 255); });
+    if (sel >= 0) { const e = fr(sel); rframe(e[0] - 3, e[1] - 3, e[2] + 6, e[3] + 6, 8, 2, [40, 30, 10]); rframe(e[0] - 1, e[1] - 1, e[2] + 2, e[3] + 2, 7, 4, [255, 220, 40]); } // えらんでいる枠(黄色・小さな角丸)
+    { const p0 = tx(112, 122, 0), p2 = tx(112, 332, 2); text('おぼえた ' + H.nDone + ' / ' + H.total, p0[0], p0[1], Math.round(21 * (sel === 0 ? sc : 1)), [70, 44, 14]); text(H.vn + '本' + (H.cont ? ' ・ つづきあり' : ''), p2[0], p2[1], Math.round(21 * (sel === 2 ? sc : 1)), [244, 214, 176]); }
+    text('▲ ▼ でえらぶ    決定ボタンで ひらく    戻る: ホームへ', 420, 437, 20, [236, 222, 190], 1);
+    if (H.sel === 0) {
+      text('点数計算の勉強', CX, 92, 28, YEL, 1); text('役から点数まで、順番に学びます。', CX, 134, 19, WHITE, 1);
+      const bw = 340, bx = 439; fill(bx, 176, bw, 16, [20, 50, 36]); fill(bx, 176, Math.round(bw * H.nDone / H.total), 16, YEL); text('おぼえた ' + H.nDone + ' / ' + H.total, CX, 200, 24, WHITE, 1);
+      fill(437, 242, 344, 2, [150, 190, 140]); text(H.nDone >= H.total ? 'ぜんぶ おぼえました' : 'つぎは', CX, 252, 18, [200, 225, 200], 1);
+      if (H.nDone < H.total && H.nxStep) { const t = 'ステップ' + (H.nx + 1) + '  ' + H.nxStep.t; text(t, CX, 280, fitSz(t, 24, 350, 16), WHITE, 1); text(H.nxStep.sum, CX, 318, 17, [255, 233, 160], 1); }
+    } else if (H.sel === 1) {
+      text('麻雀用語じてん', CX, 92, 28, YEL, 1); panel(450, 130, 318, 106, 12, [255, 251, 230], [160, 110, 0], 3, 255);
+      text('たんやお', CX, 138, 15, [100, 100, 90], 1); text('★ タンヤオ', CX, 158, 38, INK, 1); text('1・9・字牌を 使わない役', CX, 205, 17, [90, 90, 80], 1);
+      text('わからない言葉を しらべます。', CX, 256, 20, WHITE, 1); text('ふりがな・牌の絵つき。', CX, 284, 20, WHITE, 1); text('★ は、先に覚えたい言葉です。', CX, 318, 17, [255, 233, 160], 1);
+    } else {
+      const f = H.vf; if (f && f.png) gfx.image(f.png, 439, 90, 340, 191, 255); else fill(439, 90, 340, 191, [16, 56, 42]);
+      const tt = f ? f.title : 'ビデオ'; text(tt, CX, 288, fitSz(tt, 24, 370, 15), WHITE, 1);
+      text(H.cont ? 'つづき: ' + vfmt(H.vpos) + ' から' : H.vhave ? '動画 ' + H.vhave + '本 入っています' : '動画ファイルは まだ ありません', CX, 322, 18, H.cont ? [255, 170, 150] : [200, 225, 200], 1);
+    }
+  }
+
+  /* ---------- あなたの診断(いいところ・のばせるところ・学習の記録) ---------- */
+  /* ---------- あなたの診断(強さのグラフ・ポイントのグラフ・アドバイス・学習の記録) ---------- */
+  function gLine(x1, y1, x2, y2, th, c, dash) { // 太さ th の線(四角をならべて描く)。 dash: 点線
+    const dx = x2 - x1, dy = y2 - y1, len = Math.max(Math.abs(dx), Math.abs(dy)), h = Math.floor(th / 2), step = Math.max(1, Math.floor(th * 0.7));
+    for (let i = 0; i <= len; i += step) { if (dash && Math.floor(i / 7) % 2) continue; fill(Math.round(x1 + dx * (len ? i / len : 0)) - h, Math.round(y1 + dy * (len ? i / len : 0)) - h, th, th, c); }
+  }
+  function gPoly(pts, c, a) { // 多角形を、横線でぬる
+    let y0 = 1e9, y1 = -1e9; pts.forEach((p) => { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+    for (let y = Math.ceil(y0); y <= Math.floor(y1); y++) { const xs = []; for (let i = 0; i < pts.length; i++) { const A = pts[i], B = pts[(i + 1) % pts.length]; if ((A[1] <= y + 0.5) !== (B[1] <= y + 0.5)) xs.push(A[0] + (y + 0.5 - A[1]) / (B[1] - A[1]) * (B[0] - A[0])); } xs.sort((m, n) => m - n); for (let k = 0; k + 1 < xs.length; k += 2) fill(Math.round(xs[k]), y, Math.max(1, Math.round(xs[k + 1]) - Math.round(xs[k])), 1, c, a); }
+  }
+  function recordDiscard(g, p, h) { if (g.practice) return; // 実戦の記録: 打った牌が 最善に近いか(牌効率) / ほかの人の当たり牌を 持っていて、切らずに すんだか(洞察力)
+    if (g.fast || p.riichi) return; const A = MJ.AI; let effOk = null;
+    try { const ob = MJ.AI_BUDGET; MJ.AI_BUDGET = 0.4; let an; try { an = A.analyze(g, p, { know: 2 }); } finally { MJ.AI_BUDGET = ob; } if (an.evals.length && !an.opps.length) { const me = an.evals.find((e) => e.t === h.t); if (me) { const mx = Math.max.apply(null, an.evals.filter((e) => e.sh === an.minSh).map((e) => e.ukeire.n)); effOk = me.sh === an.minSh && me.ukeire.n >= mx * 0.8; } } } catch (e) { /* ignore */ }
+    const safe = [];
+    try { const mine = new Set(p.hand.map((x) => x.t)); g.players.forEach((q) => { if (q === p || q.hand.length % 3 !== 1) return; const c = MJ.toCounts(q.hand); if (MJ.shanten(c, q.melds.length) !== 0) return; const ws = MJ.waits(c.slice(), q.melds.length); if (ws.length && ws.some((w) => mine.has(w))) safe.push(!ws.includes(h.t)); }); } catch (e) { /* ignore */ }
+    MJ.Stats.discard(effOk, safe);
+  }
+  function startDiag() { try { petBump('st'); } catch (e) { /* ignore */ } S.mode = 'diag'; for (let i = 10; i <= 19; i++) S.lay[i] = null; /* 前に開いたときの絵(古い数字)を、使い回さない */ let rk = { hist: [] }, info = null; try { rk = MJ.Rank.get(); info = MJ.Rank.info(); } catch (e) { /* ignore */ } S.diag = { pg: 0, d: MJ.Stats.diag(), sg: MJ.Stats.strength(), dd: MJ.Stats.detailDiag(), dc: 0, rk, info }; dirty(); }
+  function diagWarm() { // 入ったあと、「強さ」の各項目を選んだときの画面を、画面に出さずに 先に描いておく
+    if (typeof gfx.layerBegin !== 'function' || memLow()) return; // メモリが少ないときは、先に描いておかない
+    [0, 1, 2, 3, 4, 5, 6, -1].forEach((f, k) => setTimeout(() => { const D = S.diag; if (!D || S.mode !== 'diag' || D.pg !== 0) return; const keep = D.fi; try { D.fi = f; const kb = S.bbf; S.bbf = false; lay(diagSlot(D, f), 'dg0:' + f, drawDiagBody); S.bbf = kb; } catch (e) { /* ignore */ } D.fi = keep; }, 600 + k * 300));
+  }
+  function diagKey(k) {
+    const D = S.diag;
+    if (S.bbf) { if (k === 'down') { S.bbf = false; if (D.pg === 2 && !D.sub) D.fz = 'btn'; } else if (k === 'ok' || k === 'back') { S.bbf = false; S.mode = 'menu'; S.diag = null; } dirty(); return; } // 左上の「もどる」に合わせているとき
+    if (D.sub) { // アドバイスの中の「くわしく見る」: ▲▼ で 項目(役と点数・鳴き・振り込み)、戻るで アドバイスへ
+      if (k === 'back' || k === 'ok') D.sub = false; else if (k === 'up' || k === 'down') D.dc = Math.max(0, Math.min(2, (D.dc || 0) + (k === 'up' ? -1 : 1))); dirty(); return; }
+    if (k === 'back') { S.mode = 'menu'; S.diag = null; }
+    else if (D.pg === 2 && D.fz !== 'btn' && k === 'up') { D.fz = 'btn'; } // アドバイスの下の札から ▲ で、ページの中の ボタン(くわしく見る / 苦手を練習)へ
+    else if (D.pg === 2 && D.fz === 'btn') { // ボタンに 合わせているとき: ◀ ▶ で ボタンを切りかえ、決定で 開く、▼ で 札へ、▲ で もどる
+      if (k === 'left' || k === 'right') D.ab = 1 - (D.ab || 0); else if (k === 'down') D.fz = null; else if (k === 'up') { D.fz = null; S.bbf = true; }
+      else if (k === 'ok') { if (!(D.ab || 0)) { D.sub = true; D.dc = 0; } else { S.diag = null; startPractice(); return; } } }
+    else if (D.pg === 0 && (k === 'up' || k === 'down') && !(k === 'up' && D.fi === 0)) { // 「強さ」の画面: ▲ で、左の項目(総合・攻撃力…)へ。そこに合わせると、右に説明が出る / ▼ で、下の札へもどる
+      const fi = D.fi == null ? -1 : D.fi; D.fi = k === 'up' ? (fi < 0 ? 6 : fi - 1) : (fi >= 6 ? -1 : fi < 0 ? -1 : fi + 1); }
+    else if (k === 'up') { if (D.pg !== 0) D.fi = -1; S.bbf = true; } else if (k === 'left') { D.pg = Math.max(0, D.pg - 1); D.fi = -1; } else if (k === 'right') { D.pg = Math.min(3, D.pg + 1); D.fi = -1; } // 一番上の項目から ▲ で「もどる」へ: どの項目だったかは、おぼえておく(▼ で、そこへ もどる)
+    else if (k === 'ok' && D.pg >= 2) { S.diag = null; startPractice(); }
+    dirty();
+  }
+  function diagTabs(pg, hint) { // 下の、ページの札
+    const foc = !S.bbf && S.diag && diagFi(S.diag) < 0 && S.diag.fz !== 'btn'; // 下の札に カーソルがあるとき(上の項目や「もどる」に あるときは、いまのページを 目立たせない)
+    ['強さ', 'ポイント', 'アドバイス', '学習の記録'].forEach((t, i) => { const x = 14 + i * 130, on = i === pg; panel(x, 428, 122, 32, 9, on ? (foc ? [60, 130, 60] : [40, 84, 54]) : [50, 70, 60], on ? (foc ? [255, 222, 96] : [112, 150, 112]) : [74, 97, 84], on && foc ? 4 : 2, 255); text(t, x + 61, 428 + Math.round((32 - 18) / 2) - 1, 18, on ? WHITE : [185, 201, 189], 1); });
+    text(hint, 806, 428 + 8, 16, [210, 225, 205], 2);
+  }
+  const diagFi = (D) => (S.bbf ? -1 : D.fi == null ? -1 : D.fi); // 「もどる」に合わせているときは、項目の枠を出さない
+  const diagSlot = (D, f) => D.sub ? 17 : D.pg === 0 ? 10 + (f == null ? diagFi(D) : f) + 1 : D.pg === 1 ? 18 : D.pg === 2 ? 19 : 16; // ホームの絵(20〜27)と ぶつからないように 10〜19 だけ使う // 診断は、ページ(と、強さの画面では 選んだ項目)ごとに、絵を使い回す: 強さ 8通り + 3ページ
+  function drawAdviceBtns(D) { // アドバイスの ボタン: 左の見出しとは 見た目を 変えて(緑の ふくらんだ札)、「押せる」と 分かるように
+    const foc = D.fz === 'btn' && !S.bbf;
+    [['くわしく見る', 524, 160], ['苦手を練習', 692, 126]].forEach((b, bi) => {
+      const on = foc && (D.ab || 0) === bi; rrect(b[1] + 2, 58 + 5, b[2], 46, 14, [0, 0, 0], 120); // 影
+      panel(b[1], 58, b[2], 46, 14, on ? YEL : [52, 140, 84], on ? [120, 80, 0] : [205, 238, 205], on ? 5 : 3, 255); text(b[0] + (bi === 0 ? ' ▶' : ''), b[1] + b[2] / 2, 58 + 11, 20, on ? INK : WHITE, 1); });
+  }
+  function drawDiag() {
+    const D = S.diag; if (typeof gfx.layerBegin !== 'function') { drawDiagBody(); } else cached(diagSlot(D), 'dg' + D.pg + ':' + (D.pg === 0 ? diagFi(D) : D.pg === 2 ? (D.sub ? 's' + (D.dc || 0) : 'a') : 0) + (S.bbf && D.pg !== 2 ? 'b' : ''), drawDiagBody);
+    if (D.pg === 2) { diagTabs(2, D.sub ? '▲▼ 項目  戻る: アドバイスへ' : D.fz === 'btn' ? '◀ ▶ ボタン切替  決定' : '▲ ボタンへ  ◀ ▶ ページ'); if (!D.sub) drawAdviceBtns(D); } // 札と ボタンは、絵の使い回しの外で描く(カーソルを動かしても 全部は描きなおさない)
+  }
+  function drawDiagBody() {
+    const D = S.diag, d = D.d, pg = D.pg, sg = D.sg;
+    quizFrame('あなたの診断', '', '', '');
+    if (pg === 0) { // 強さ(レーダーチャート)
+      const ax = sg.ax, have = ax.filter((a) => a.v != null), cx0 = 440, cy0 = 256, R = 104, pt = (i, v, r) => { const an = -Math.PI / 2 + i * Math.PI / 3, rr = (r == null ? R : r) * v / 100; return [cx0 + Math.cos(an) * rr, cy0 + Math.sin(an) * rr]; };
+      const FI = diagFi(D); panel(22, 56, 196, 54, 12, FI === 0 ? YEL : CREAM, FI === 0 ? [120, 80, 0] : GREEN, FI === 0 ? 4 : 2, 255); text('総合', 36, 74, 17, INK);
+      if (sg.total != null) { text(String(sg.total), 120, 64, 34, sg.total < 60 ? [190, 60, 40] : INK, 1); text('点', 160, 74, 17, INK); } else text('--', 120, 64, 34, [120, 120, 110], 1);
+      ax.forEach((a, i) => { const y = 118 + i * 46; panel(22, y, 196, 38, 12, FI === i + 1 ? YEL : CREAM, FI === i + 1 ? [120, 80, 0] : GREEN, FI === i + 1 ? 4 : 2, 255); text(a.name, 38, y + 9, 20, a.v == null ? [130, 130, 120] : INK); text(a.v == null ? '--' : a.v + '点', 204, y + 9, 20, a.v == null ? [130, 130, 120] : a.v < 60 ? [190, 60, 40] : INK, 2); });
+      gPoly([0, 1, 2, 3, 4, 5].map((i) => pt(i, 100)), [13, 51, 38], 255);
+      [25, 50, 75, 100].forEach((lv) => { const P = [0, 1, 2, 3, 4, 5].map((i) => pt(i, lv)); for (let i = 0; i < 6; i++) gLine(P[i][0], P[i][1], P[(i + 1) % 6][0], P[(i + 1) % 6][1], 1, [102, 170, 136]); });
+      for (let i = 0; i < 6; i++) { const e = pt(i, 100); gLine(cx0, cy0, e[0], e[1], 1, [102, 170, 136]); }
+      { const P = [0, 1, 2, 3, 4, 5].map((i) => pt(i, 60)); for (let i = 0; i < 6; i++) gLine(P[i][0], P[i][1], P[(i + 1) % 6][0], P[(i + 1) % 6][1], 2, YEL, true); } // 60点の線(点線)
+      if (have.length >= 3) { const P = ax.map((a, i) => pt(i, a.v == null ? 0 : a.v)); gPoly(P, [255, 120, 90], 120); for (let i = 0; i < 6; i++) gLine(P[i][0], P[i][1], P[(i + 1) % 6][0], P[(i + 1) % 6][1], 3, [255, 122, 90]); P.forEach((q, i) => { if (ax[i].v != null) rrect(Math.round(q[0]) - 4, Math.round(q[1]) - 4, 9, 9, 4, [255, 122, 90]); }); }
+      else { fill(cx0 - 100, cy0 - 18, 200, 36, [0, 0, 0], 150); text('データを ためています', cx0, cy0 - 12, 21, WHITE, 1); }
+      ax.forEach((a, i) => { const q = pt(i, 100, R + 26); text(a.name, Math.round(q[0]), Math.round(q[1]) - 11, 19, a.v == null ? [150, 165, 155] : WHITE, 1); });
+      const best = have.slice().sort((x, y) => y.v - x.v)[0], worst = have.slice().sort((x, y) => x.v - y.v)[0], tip = { '攻撃力': '役づくりを 意識しましょう。', '守備力': '危ない牌を 見分けましょう。', '洞察力': '待ちや 押し引きの クイズが おすすめです。', '牌効率': '牌効率の クイズが おすすめです。', '計算力': 'クイズで 練習しましょう!', '打点力': 'ドラや 役を ねらってみましょう。' };
+      const say = have.length >= 3 ? (best.name + 'が 得意です。\nいちばん のばせるのは「' + worst.name + '」。' + tip[worst.name]) : 'まだ 記録が すくないです。麻雀を遊んだり、クイズを解くと、強さが 見えてきます。';
+      tFace(sg.total == null ? 'advice' : sg.total >= 80 ? 'cheer' : sg.total >= 60 ? 'ok' : 'advice', 'dg0' + (sg.total || 0), 716, 52, 72);
+      const DEX = ['総合: 下の6つの力の平均です。\n60点で「ふつうに打てる」、80点以上で「じょうず」です。', '攻撃力: 対局で、上がれた割合です。\n上がる局が多いほど、高くなります。', '守備力: 他の人に振り込まなかった割合です。\n振り込みが少ないほど、高くなります。', '洞察力: 危ない牌を避けられたか、と、待ちや押し引きのクイズの正解率です。\n相手の手を読む力です。', '牌効率: 上がりに近づく牌を切れたか、と、何を切るかのクイズの正解率です。\n手を早く完成させる力です。', '計算力: 点数計算のクイズの正解率です。\n飜と符から、点数を出す力です。', '打点力: 上がったときの、平均の点数です。\n大きな手で上がれるほど、高くなります。'];
+      const exp = FI >= 0 ? DEX[FI] + (FI >= 1 && ax[FI - 1].v == null ? '\n(まだ データが たりません)' : '') : null;
+      const ck = exp || say, f = (D.fc = D.fc || {})[ck] || (D.fc[ck] = fitRich(ck, [18, 17, 16], 186, 190)), bh = f.h + 26; panel(606, 132, 212, bh, 12, CREAM, GREEN, 3, 255); richDraw(f.lines, 618, 144, f.sz, INK, 0);
+      const ly = 132 + bh + 14; gLine(612, ly + 10, 636, ly + 10, 2, YEL, true); text('60点 = ふつう', 644, ly + 1, 15, [255, 233, 160]); text('80点 = じょうず(めざす線)', 612, ly + 24, 15, [255, 233, 160]);
+      diagTabs(0, '◀▶ ページ ▲ 説明 戻る'); return;
+    }
+    if (pg === 1) { // ポイントのうつりかわり
+      const hist = (D.rk && D.rk.hist) || [], info = D.info, n = hist.length;
+      text('ポイントのうつりかわり', 62, 58, 19, WHITE); text(n ? '(さいきん ' + n + '回)' : '', 270, 62, 14, [200, 220, 205]);
+      if (info) { // 段位
+        panel(612, 56, 206, 122, 12, CREAM, [160, 110, 0], 3, 255); text('いまの 段位', 626, 64, 15, [90, 90, 80]); text(info.name, 626, 82, 30, INK);
+        fill(626, 122, 178, 12, [210, 210, 200]); fill(626, 122, Math.round(178 * Math.max(0.03, Math.min(1, info.prog))), 12, [214, 150, 0]); text(info.next ? info.next + 'まで あと ' + info.left + ' pt' : info.tenka ? '天下分け目で 永世名人' : 'いちばん上です', 626, 142, 15, [90, 90, 80]);
+      }
+      if (!n) { text('まだ 記録が ありません。', 300, 190, 24, WHITE, 1); text('東風戦・東南戦を 最後まで 遊ぶと、ここに 出ます。', 300, 228, 18, [200, 220, 205], 1); diagTabs(1, '◀ ▶ ページ  戻る: ホーム'); return; }
+      const cum = []; let acc = 0; hist.forEach((h) => { acc += h.p; cum.push(acc); });
+      const X0 = 62, Y0 = 108, W = 520, Hh = 262, all = hist.map((h) => h.p).concat(cum, 0), ymin = Math.floor(Math.min.apply(null, all) / 40) * 40, ymax = Math.max(ymin + 80, Math.ceil(Math.max.apply(null, all) / 40) * 40), Y = (v) => Math.round(Y0 + (ymax - v) / (ymax - ymin) * Hh);
+      for (let v = ymin; v <= ymax; v += 40) { fill(X0, Y(v), W, v === 0 ? 2 : 1, v === 0 ? [150, 180, 170] : [58, 90, 74]); text(String(v), X0 - 6, Y(v) - 8, 13, [200, 220, 205], 2); }
+      const slot = W / Math.max(n, 12), bw = Math.max(4, Math.floor(slot * 0.7));
+      hist.forEach((h, i) => { const x = Math.round(X0 + i * slot + (slot - bw) / 2), y1 = Y(Math.max(h.p, 0)), y2 = Y(Math.min(h.p, 0)); fill(x, y1, bw, Math.max(1, y2 - y1), h.p >= 0 ? [72, 192, 140] : [224, 96, 94]); if (n <= 18 && h.o != null) text('★' + h.o, x + Math.round(bw / 2), h.p >= 0 ? y1 - 15 : y2 + 2, 12, [255, 233, 160], 1); });
+      cum.forEach((c, i) => { const x = Math.round(X0 + i * slot + slot / 2), y = Y(c); if (i) gLine(Math.round(X0 + (i - 1) * slot + slot / 2), Y(cum[i - 1]), x, y, 3, [255, 122, 160]); });
+      if (n <= 18) cum.forEach((c, i) => rrect(Math.round(X0 + i * slot + slot / 2) - 4, Y(c) - 4, 9, 9, 4, [255, 122, 160]));
+      [0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i).forEach((i) => text((i + 1) + '回目', Math.round(X0 + i * slot + slot / 2), Y0 + Hh + 8, 14, [200, 220, 205], 1));
+      fill(62, 84, 14, 10, [72, 192, 140]); text('その回の ポイント', 80, 80, 14, [200, 220, 205]); gLine(214, 89, 232, 89, 3, [255, 122, 160]); text('合計', 238, 80, 14, [200, 220, 205]); text('★ = その回の 相手の強さ', 290, 80, 14, [255, 233, 160]);
+      const avgR = (a) => a.length ? a.reduce((s, h) => s + h.r, 0) / a.length : 0, renda = (a) => a.length ? a.filter((h) => h.r <= 2).length / a.length : 0, prev = hist.slice(0, -1), sgn = (v, f) => (v >= 0 ? '+' : '') + f(v);
+      const blocks = [['ポイント合計', (acc >= 0 ? '+' : '') + acc, '前回より ' + sgn(hist[n - 1].p, String)], ['平均じゅんい', avgR(hist).toFixed(2) + '位', prev.length ? '前回より ' + sgn(avgR(hist) - avgR(prev), (v) => v.toFixed(2)) : ''], ['連対率(1・2位)', (renda(hist) * 100).toFixed(1) + ' %', prev.length ? '前回より ' + sgn((renda(hist) - renda(prev)) * 100, (v) => v.toFixed(1)) + '%' : '']];
+      blocks.forEach((b, i) => { const y = 186 + i * 80; text(b[0], 614, y, 15, [200, 220, 205]); text(b[1], 614, y + 20, 30, WHITE); text(b[2], 614, y + 58, 14, [150, 240, 190]); });
+      diagTabs(1, '◀ ▶ ページ  戻る: ホーム'); return;
+    }
+    if (pg === 2 && D.sub) { // アドバイスの中の「くわしく見る」: 左で 項目(役と点数・鳴き・振り込み)、右に 具体的な指摘
+      const dd = D.dd, dc = D.dc || 0;
+      dd.cats.forEach((c, i) => { const y = 60 + i * 86, sel = dc === i; panel(16, y, 210, 74, 12, sel ? YEL : CREAM, sel ? [160, 110, 0] : GREEN, sel ? 4 : 2, 255); text(c.name, 32, y + 10, 26, INK); text(c.warn ? '気になる ' + c.warn : c.items.length ? '問題なし' : dd.hands >= 10 ? '特になし' : 'まだ記録中', 32, y + 44, 18, c.warn ? [170, 60, 0] : [60, 110, 60]); });
+      text('集めた局: ' + dd.hands + '局', 18, 330, 16, [205, 225, 210]);
+      panel(240, 56, 576, 362, 12, [6, 44, 26], [140, 190, 130], 3, 240);
+      const c = dd.cats[dc];
+      if (!c.items.length) { const f = fitRich(dd.hands < 10 ? 'まだ 記録が すくないです。\nあと ' + (10 - dd.hands) + '局ほど 遊ぶと、くわしく お知らせします。' : 'いまのところ、目立つ点は ありません。\nこの調子で 遊んでみましょう。', [22, 20, 18], 520, 300); richDraw(f.lines, 262, 90, f.sz, WHITE, 0); }
+      else c.items.forEach((it, i, arr) => {
+        const pitch = Math.min(112, Math.floor(344 / arr.length)), y = 66 + i * pitch, col = it.lv === '!' ? [255, 190, 60] : it.lv === '○' ? [90, 210, 120] : [120, 200, 255];
+        rrect(254, y + 3, 24, 24, 12, col); text(it.lv, 266, y + 4, 17, [20, 20, 20], 1);
+        text(it.title, 290, y, 21, it.lv === '○' ? [150, 235, 170] : YEL);
+        const f = fitRich(it.l1 + (it.l2 ? '\n' + it.l2 : ''), [20, 19, 18, 17, 16, 15], 512, pitch - 40); richDraw(f.lines, 290, y + 30, f.sz, [225, 238, 225], 0);
+      });
+      diagTabs(2, ''); return;
+    }
+    if (pg === 2) { // アドバイス
+      const tot = sg.total; tFace(tot != null && tot >= 60 ? 'ok' : 'advice', 'dg2', 22, 56, 76);
+      panel(112, 58, 398, 46, 12, CREAM, GREEN, 3, 255); text('いいところと のばせるところ', 128, 58 + Math.round((46 - 21) / 2) - 1, 21, INK); // 左は 見出し、右は ボタン
+      const sec = (y, ttl, col, items, empty, avail) => { const f = fitRich(items.length ? items.slice(0, 3).map((t) => '・' + t).join('\n') : empty, [20, 19, 18, 17, 16], 668, avail - 62), h = f.h + 62; panel(112, y, 706, h, 12, CREAM, col, 3, 255); text(ttl, 130, y + 10, 21, col); richDraw(f.lines, 130, y + 42, f.sz, INK, 0); return h; };
+      const h1 = sec(112, '★ いいところ', [44, 90, 26], d.good, d.hands < 6 && d.quizN < 6 ? 'まだ、記録が すくないです。遊んだり、クイズを解くと、お知らせします。' : 'いまは、まだ 見つかっていません。', 150);
+      sec(112 + h1 + 10, '▲ のばせるところ', [160, 82, 26], d.weak, 'いまのところ、大きな 苦手は 見つかっていません。すばらしい!', 416 - (112 + h1 + 10));
+      diagTabs(2, ''); return;
+    }
+    // 学習の記録
+    {
+      const bars = d.bars.slice(0, 6); bars.forEach((b, i) => {
+        const y = 66 + i * 36, col = b.a >= 0.8 ? [90, 200, 120] : b.a >= 0.5 ? [240, 200, 70] : [240, 110, 90];
+        text(b.name, 26, y, 21, WHITE); fill(280, y + 4, 240, 22, [40, 60, 50]); fill(280, y + 4, Math.round(240 * b.a), 22, col); text(Math.round(b.a * 100) + '%  ' + b.n + '問', 534, y, 21, WHITE);
+      });
+      if (!bars.length) text('クイズの記録が まだ ありません。', 26, 76, 24, WHITE);
+      const L = learnLoad(), done = MJ.Learn.STEPS.filter((st) => L.done[st.id]).length, nx = MJ.Learn.STEPS.findIndex((st) => !L.done[st.id]);
+      const notes = d.notes.concat(['点数計算の勉強: ' + done + ' / ' + MJ.Learn.STEPS.length + ' おぼえた' + (nx >= 0 ? '。つぎは ステップ' + (nx + 1) + '「' + MJ.Learn.STEPS[nx].t + '」が おすすめです。' : '。すべて おぼえました!')]);
+      const f = fitRich(notes.join('\n'), [22, 20, 18, 16], 780, 124); richDraw(f.lines, 26, 292, f.sz, [220, 235, 215], 0);
+    }
+    diagTabs(3, '決定: 苦手を練習 戻る: ホーム');
+  }
+
+  /* ---------- クレジット(設定から) ---------- */
+  const CREDITS = [
+    ['開発', 'Akihito Abe'], ['SPECIAL THANKS', 'Mayumi'],
+    ['音声(あなたの掛け声など)', 'VOICEVOX:ずんだもん'],
+    ['音声(CPUの掛け声)', 'Open JTalk(pyopenjtalk)。音響モデル: Mei (MMDAgent Example Characters) CC BY 3.0'],
+    ['ビデオ', '「7人孫爺の健康麻雀教室」(麻雀の勉強の動画・サムネイル)'],
+    ['BGM・画像', '制作者が用意(生成)したものです。対戦相手は、歴史上の人物をモチーフにしています。'],
+    ['注意', '点数・符の計算や危険度は、学習用の目安です。実際のルール(店・地域・アプリ)によって異なる場合があります。'],
+  ];
+  /* ---------- 遊び方(ヘルプ): 設定の中。ボタンの使い方 / 麻雀の遊び方 / 勉強・クイズ・ビデオ ---------- */
+  const HOWP = [ // 実際の画面(img/help/pN.webp)に、矢印と番号を重ねた絵と、2行の説明
+    { t: 'ボタンの使い方' },
+    { t: '牌を えらんで 捨てる', img: 'img/help/p1.webp', c: ['① ◀ ▶ で、捨てる牌を えらびます', '② 決定ボタンで、えらんだ牌を 捨てます'] },
+    { t: 'ポン・チー・ロン', img: 'img/help/p2.webp', c: ['① 他の人の牌で できるときは、「ポン」などが 出ます', '② ◀ ▶ で えらんで 決定(しないときは「見送る」)'] },
+    { t: 'リーチ・ツモ', img: 'img/help/p3.webp', c: ['① 「リーチ」: あと1枚で あがれる ときに えらびます', '② 「ツモ」: あがる形に なったら えらびます'] },
+    { t: '麻雀先生に 聞く', img: 'img/help/p4.webp', c: ['① 右の「解説」で、くわしい 説明が 見られます', '② 麻雀先生「あり」だと、おすすめの牌に ★ が つきます'] },
+    { t: '勉強・クイズ・ビデオ', img: 'img/help/p5.webp', c: ['① 点数計算  ② 用語じてん  ③ ビデオ', '▲ ▼ で えらんで 決定ボタン'] },
+  ];
+  function startHow() { try { petBump('vw'); } catch (e) { /* ignore */ } S.how = { pg: 0 }; S.mode = 'howto'; dirty(); }
+  function howKey(k) {
+    const H = S.how; dirty();
+    if (k === 'back') { S.mode = 'settings'; S.how = null; } else if (k === 'up') S.bbf = true; else if (k === 'left') H.pg = Math.max(0, H.pg - 1); else if (k === 'right' || k === 'ok') { if (H.pg < HOWP.length - 1) H.pg++; else if (k === 'ok') { S.mode = 'settings'; S.how = null; } }
+  }
+  function howPad(x, y) { // ゲームパッドの絵(十字キー + 決定(A)・戻る(B))
+    rrect(x, y, 330, 176, 40, [52, 56, 60]); rrect(x + 3, y + 3, 324, 170, 38, [78, 84, 90]);
+    fill(x + 38, y + 74, 100, 30, [30, 32, 36]); fill(x + 73, y + 39, 30, 100, [30, 32, 36]); fill(x + 76, y + 77, 24, 24, [52, 56, 60]); // 十字キー
+    text('▲', x + 88, y + 40, 20, WHITE, 1); text('▼', x + 88, y + 114, 20, WHITE, 1); text('◀', x + 50, y + 77, 20, WHITE, 1); text('▶', x + 126, y + 77, 20, WHITE, 1);
+    rrect(x + 176, y + 88, 64, 64, 32, [32, 34, 38]); rrect(x + 180, y + 92, 56, 56, 28, [70, 130, 200]); text('B', x + 208, y + 104, 30, WHITE, 1); // 戻る(内側)
+    rrect(x + 250, y + 50, 64, 64, 32, [32, 34, 38]); rrect(x + 254, y + 54, 56, 56, 28, [214, 70, 56]); text('A', x + 282, y + 66, 30, WHITE, 1); // 決定(外側)
+  }
+  function drawHow() {
+    const H = S.how, pg = H.pg, P = HOWP[pg]; quizFrame('遊び方', '', (pg + 1) + ' / ' + HOWP.length, '');
+    text(P.t, SW / 2, 54, 28, [255, 233, 160], 1); fill(30, 90, SW - 60, 3, [140, 190, 130]);
+    if (pg === 0) {
+      howPad(24, 130);
+      text('決定ボタン (A)', 408, 112, 24, [255, 140, 120]); text('えらんだものを 決める・牌を 捨てる', 408, 142, 20, WHITE);
+      text('戻るボタン (B)', 408, 190, 24, [140, 190, 255]); text('ひとつ 戻る・やめる', 408, 220, 20, WHITE);
+      text('▲ ▼ ◀ ▶', 408, 268, 24, YEL); text('えらぶ・牌を えらぶ', 408, 298, 20, WHITE);
+      text('スタートとセレクトを 長押し', 408, 346, 22, YEL); text('メニュー(ゲーム終了など)が 出ます', 408, 376, 20, WHITE);
+      text('「設定」で、A と B を', 24, 322, 18, [200, 225, 200]); text('入れかえられます。', 24, 346, 18, [200, 225, 200]);
+      text('◀ ▶ でページを かえる    戻る: 設定へ', SW / 2, 439, 20, [210, 225, 205], 1);
+      return;
+    }
+    rrect(164, 94, 504, 287, 6, [150, 190, 140]); gfx.image(P.img, 168, 98, 496, 279, 255); // 実際の画面(矢印つき)
+    P.c.forEach((l, i) => text(l, SW / 2, 382 + i * 30, 23, i ? [255, 233, 160] : WHITE, 1));
+    text('◀ ▶ ページ    戻る: 設定へ', SW / 2, 446, 15, [210, 225, 205], 1);
+  }
+  function creditLayout() { // 組みかたは、1回だけ計算して 使いまわす(毎回 計算すると 実機で数秒かかる)。ホームが出てしばらくしたら、先に計算しておく
+    if (S._credBest) return S._credBest; let best = null;
+    for (const sz of [32, 30, 28, 26, 24, 22, 20, 18]) { // 入りきる いちばん大きな字で
+      const items = CREDITS.map((c) => ({ h: c[0], lines: richWrap(c[1], sz, 770) })); const hh = items.reduce((a, it) => a + Math.round((sz - 4) * 1.4) + richH(it.lines, sz) + 6, 0); best = { sz, items }; if (hh <= 352) break;
+    }
+    return (S._credBest = best);
+  }
+  function drawCredits() {
+    if (!globalThis.__creditsLive && gfx.image('img/credits.webp', 0, 0, SW, SH, 255)) return; // 内容は 決まっていて 変わらないので、できあがった絵を そのまま出す(計算なし)。作りなおし: tools/make_credits_img.sh
+    quizFrame('クレジット', '', '', '決定ボタン・戻る で もどる');
+    const best = creditLayout();
+    let y = 56; best.items.forEach((it) => { text(it.h, 30, y, best.sz - 4, YEL); y += Math.round((best.sz - 4) * 1.4); richDraw(it.lines, 30, y, best.sz, WHITE, 0); y += richH(it.lines, best.sz) + 6; });
+  }
+  function drawSlots() {
+    gfx.clear(32, 74, 60); text('セーブデータをえらぶ', 360, 18, 28, YEL, 1);
+    if (!S.slots.length) text('セーブデータがありません', 360, 180, 20, WHITE, 1);
+    S.slots.forEach((q, i) => { const sn = q.v.snap, y = 62 + i * 56; panel(80, y, 560, 48, 10, S.slotIdx === i ? YEL : WHITE, [120, 120, 120], 1, 235);
+      text((i === 0 ? '最新  ' : (i + 1) + '番目  ') + kyokuText(sn), 94, y + 3, 22, BLACK); text('持ち点 ' + sn.scores.join(' / '), 94, y + 29, 17, [60, 60, 60]); });
+    text('↑↓ えらぶ   決定 ロード   もどる でタイトルへ', 360, 398, 20, WHITE, 1);
+  }
+
+  /* ---------- 入力 ---------- */
+  window.__key = function (k) {
+    if (S.heatStop) { dirty(); return; } /* 熱すぎ・電源不足のあいだは、ボタンを受けつけない(危険の画面) */
+    if (S.mode === 'boot') return; /* 準備のあいだは ボタンを受けつけない */
+    if (__now() - (S.tlKey || 0) > 700) { S.tlKey = __now(); tl('key ' + k); } S.lastKeyT = __now(); // 最後にボタンを押した時刻(先に絵を描いておく処理は、ボタンを押しているあいだは しない)
+    if (S.cutin) { if ((k === 'ok' || k === 'back') && __now() - S.cutin.t0 > 500) cutinEnd(); dirty(); return; } // カットインの最中(決定で すぐ消せる)
+    if (S.winRv) { if ((k === 'ok' || k === 'back') && __now() - S.winRv.t0 > 600) winRvDone(); dirty(); return; } // CPUの手牌を見せているあいだ(決定で すぐ 次へ)
+    if (S.ura) { if (k === 'ok' || k === 'back') uraSkip(); dirty(); return; } // 裏ドラ確認のアニメ中
+    S.dirty = true; if (S.locked) return;
+    if (S.guardUntil && __now() < S.guardUntil) return; // 保存のあと、次の画面に変わった直後の押しまちがいを無視する
+    NSND.sfx(k === 'ok' ? 'ok' : k === 'back' ? 'click' : 'select', 0.5);
+    if (S.map) { mapKey(k); return; }
+    if (S.cert) { certKey(k); return; }
+    if (S.reveal) { revealKey(k); return; }
+    if (S.rankScr && S.mode !== 'stats') { const r = S.rankScr; if (k === 'left' || k === 'right') r.idx = wrap((r.idx || 0) + (k === 'left' ? -1 : 1), 4); else if (k === 'back' || (k === 'ok' && (r.idx || 0) === 0)) { S.rankScr = null; r.done(); } else if (k === 'ok' && (r.idx || 0) === 3) { startMapView(); } else if (k === 'ok') { S.statsPrev = S.mode; S.mode = 'stats'; S.statsPg = 0; if ((r.idx || 0) === 2) { S.ros = { sel: 0, pick: [] }; S.rosFrom = 'rank'; } } return; }
+    if (k === 'menu' && !S.menuP) { openMenu(); return; } // スタート+セレクト長押し
+    if (S.menuP) {
+      const items = menuItems();
+      if (k === 'up' || k === 'down') S.menuP.idx = wrap(S.menuP.idx + (k === 'up' ? -1 : 1), items.length);
+      else if (k === 'back') { S.menuP = null; MJ.paused = false; menuHold(false); }
+      else if (S.menuP.idx === 1 && (k === 'left' || k === 'right' || k === 'ok')) { MJ.cycleCpuSpeed(); NSND.sfx('select', 0.4); }
+      else if (k === 'ok') { const it = items[S.menuP.idx]; S.menuP = null; MJ.paused = false; menuHold(false); if (it === 'ホームにもどる') stopGame(); }
+      return;
+    }
+    if (S.soundP) { // 音のせってい
+      const sp = S.soundP, K = ['bgm', 'sfx', 'voice'];
+      if (k === 'up' || k === 'down') sp.idx = wrap(sp.idx + (k === 'up' ? -1 : 1), 4);
+      else if (k === 'left' || k === 'right') { const d = k === 'left' ? -1 : 1; if (sp.idx < 3) { NSND.setLevel(K[sp.idx], NSND.getLevel(K[sp.idx]) + d); if (sp.idx === 1) NSND.sfx('discard'); } }
+      else if (k === 'back' || (k === 'ok' && sp.idx === 3)) { S.soundP = null; MJ.paused = false; }
+      return;
+    }
+    if (S.saveP) {
+      if (k === 'up' || k === 'down' || k === 'left' || k === 'right') S.saveP.idx = 1 - S.saveP.idx;
+      else if (k === 'ok') {
+        const p = S.saveP; S.saveP = null;
+        if (p.idx !== 0) { S.guardUntil = __now() + 1500; p.res(); return; }
+        S.locked = true; S.toast = { text: 'セーブ中です…  電源を切らないでください', until: __now() + 60000 }; dirty();
+        setTimeout(() => { const ok = slotWrite(p.snap); S.toast = { text: ok ? 'セーブしました  自動で次へ進みます' : 'セーブできませんでした', until: __now() + 1400 }; dirty(); setTimeout(() => { S.toast = null; S.locked = false; S.guardUntil = __now() + 1500; dirty(); p.res(); }, 1600); }, 700);
+      }
+      return;
+    }
+    if (S.intro) { if (k === 'ok' && !__auto) S.intro.t0 -= 3000; return; }
+    if (S.dice) {
+      const d = S.dice;
+      if (k === 'ok') { const now = __now(), total = d.a + d.b; if (!d.revealT) { d.started = true; d.rolling = false; d.settled = true; d.t1 = now - 700 - (total - 1) * 380 - 1; } else if (now - d.revealT > 700 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); } } // Aボタン: サイコロを飛ばして、親が決まった画面へ。そこでもう一度で、先へ
+      return;
+    }
+    if (S.mode === 'stats') {
+      if (S.ros) { rosKey(k); return; } // 雀士列伝
+      if (k === 'down') { S.ros = { sel: 0, pick: [] }; dirty(); return; }
+      if (k === 'back' || k === 'ok') S.mode = S.statsPrev || 'menu'; else if (k === 'up') S.bbf = true; else if (k === 'left' || k === 'right') { const o = Object.keys(MJ.Rank.get().opp).length, pages = Math.max(1, Math.ceil(o / 3)); S.statsPg = wrap(S.statsPg + (k === 'right' ? 1 : -1), pages); }
+      return;
+    }
+    if (S.teachQ) { // 麻雀先生をつけますか?  つけない / つける / もどる
+      const q = S.teachQ;
+      if (k === 'left') q.idx = wrap(q.idx - 1, 3); else if (k === 'right' || k === 'up' || k === 'down') q.idx = wrap(q.idx + 1, 3);
+      else if (k === 'back') S.teachQ = null;
+      else if (k === 'ok') { if (q.idx === 2) { S.teachQ = null; return; } later(() => { S.teachQ = null; try { localStorage.setItem('mj_teacher', q.idx === 1 ? '1' : '0'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; startGame(q.snap); }); }
+      return;
+    }
+    if (S.playQ) { // 麻雀をはじめる: つづきから / はじめから
+      if (k === 'up' || k === 'down') S.playQ.idx = 1 - S.playQ.idx; else if (k === 'back') S.playQ = null;
+      else if (k === 'ok') { const q = S.playQ; S.playQ = null; later(() => askTeach(q.idx === 0 ? q.snap : null)); }
+      return;
+    }
+    if (S.resetQ) { // リセットの確認(はじめは「やめる」)
+      if (k === 'left' || k === 'right' || k === 'up' || k === 'down') S.resetQ.idx = 1 - S.resetQ.idx;
+      else if (k === 'back') S.resetQ = null; else if (k === 'ok') { const i = S.resetQ.idx; S.resetQ = null; if (i === 0) resetAll(); }
+      dirty(); return;
+    }
+    if (S.confirmQ) {
+      if (k === 'left' || k === 'right' || k === 'up' || k === 'down') S.confirmQ.idx = 1 - S.confirmQ.idx;
+      else if (k === 'back') S.confirmQ = null; else if (k === 'ok') { const i = S.confirmQ.idx; S.confirmQ = null; if (i === 0) byeQuit(); }
+      return;
+    }
+    if (!BACKM.has(S.mode)) S.bbf = false;
+    else if (S.bbf) { if (k === 'ok' || k === 'back') { S.bbf = false; k = 'back'; } else { if (k === 'down') { S.bbf = false; if (S.mode === 'diag' && S.diag && S.diag.pg === 2 && !S.diag.sub) S.diag.fz = 'btn'; } dirty(); return; } } // 診断のアドバイス: 「もどる」から ▼ で、さっきの ボタンへ // 「もどる」ボタンに合わせているとき
+    if (S.mode === 'quiz') { quizKey(k); return; }
+    if (S.mode === 'dict') { dictKey(k); return; }
+    if (S.mode === 'study') { studyKey(k); return; }
+    if (S.mode === 'video') { videoKey(k); return; }
+    if (S.mode === 'learn') { learnKey(k); return; }
+    if (S.mode === 'diag') { diagKey(k); return; }
+    if (S.mode === 'howto') { howKey(k); return; }
+    if (S.mode === 'credits') { if (k === 'ok' || k === 'back') { S.mode = 'settings'; dirty(); } return; }
+    if (S.mode === 'slots') {
+      if (k === 'up') { if (!S.slots.length || S.slotIdx === 0) S.bbf = true; else S.slotIdx--; } else if (k === 'down') { if (S.slots.length) S.slotIdx = Math.min(S.slots.length - 1, S.slotIdx + 1); }
+      else if (k === 'back') { S.mode = 'menu'; S.slots = []; }
+      else if (k === 'ok' && S.slots.length) { const q = S.slots[S.slotIdx]; S.slots = []; startGame(q.v.snap); } // ロードしたら、この一覧は、また見えなくなる
+      return;
+    }
+    if (S.mode === 'title') { // タイトル: はじめる / BGM / 終了
+      if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { S.titleIdx = 1 - S.titleIdx; }
+      else if (k === 'ok') { if (S.titleIdx === 0) later(() => { S.mode = 'menu'; S.homeBot = false; S.menuIdx = firstOn(homeItems(), 0, 1); }, 50); else later(() => { S.confirmQ = { idx: 0 }; }, 50); }
+      return;
+    }
+    if (S.mode === 'promo') { promoKey(k); return; }
+    if (S.mode === 'rules') { // 麻雀のルール(下書き → 決定する → 確認 → 保存)
+      const n = RULE_ROWS.length + 2, i = S.ruleIdx || 0, any = ruleAnyChanged();
+      if (S.ruleToast && __now() < S.ruleToast) { S.ruleToast = 0; S.mode = 'settings'; S.ruleDraft = null; dirty(); return; } // 「設定しました」の表示中は、どのボタンでも すぐ もどる
+      if (S.ruleDlg) { // 確認の窓: ◀ ▶(↑↓も)で えらんで、A で決める。 B は「いいえ・つづける」
+        const D = S.ruleDlg;
+        if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { D.idx = 1 - D.idx; NSND.sfx('select', 0.5); }
+        else if (k === 'ok' && D.idx === 0) {
+          if (D.type === 'confirm') { RULE_ROWS.forEach((r) => { if (S.ruleDraft && r.k in S.ruleDraft) MJ.RULES[r.k] = S.ruleDraft[r.k]; }); MJ.saveRules(); S.ruleDraft = null; S.ruleDlg = null; NSND.sfx('start', 0.5); S.ruleToast = __now() + 1800; setTimeout(() => { if (S.mode === 'rules' && S.ruleToast) { S.ruleToast = 0; S.mode = 'settings'; dirty(); } }, 1850); }
+          else { S.ruleDraft = null; S.ruleDlg = null; S.mode = 'settings'; }
+        } else if (k === 'back' || k === 'ok') S.ruleDlg = null;
+        dirty(); return;
+      }
+      if (k === 'up' || k === 'down') S.ruleIdx = wrap(i + (k === 'up' ? -1 : 1), n);
+      else if (k === 'back') { if (any) S.ruleDlg = { type: 'discard', idx: 1 }; else { S.mode = 'settings'; S.ruleDraft = null; } }
+      else if (i < RULE_ROWS.length && (k === 'left' || k === 'right')) {
+        const row = RULE_ROWS[i], ev = ruleEff(row.k), cur = row.vals.findIndex((v) => String(v[0]) === String(ev)), nx = row.vals[wrap(cur + (k === 'left' ? -1 : 1), row.vals.length)];
+        (S.ruleDraft || (S.ruleDraft = {}))[row.k] = nx[0]; NSND.sfx('select', 0.5);
+      }
+      else if (k === 'ok' && i === RULE_ROWS.length) { S.ruleDraft = S.ruleDraft || {}; RULE_ROWS.forEach((r) => { S.ruleDraft[r.k] = (r.k in COMMON_RULES) ? COMMON_RULES[r.k] : MJ.RULE_DEFAULTS[r.k]; }); NSND.sfx('select', 0.5); }
+      else if (k === 'ok' && i === RULE_ROWS.length + 1) { if (any) S.ruleDlg = { type: 'confirm', idx: 0 }; else { S.mode = 'settings'; S.ruleDraft = null; } }
+      else if (k === 'ok' && i < RULE_ROWS.length && any) S.ruleDlg = { type: 'confirm', idx: 0 }; // 値を変えたあと、どの行でも A で「この変更で よろしいですか?」
+      dirty(); return;
+    }
+    if (S.mode === 'dbg') { dbgKey(k); dirty(); return; } // DEBUG
+    if (S.mode === 'settings') {
+      const it = SETS[S.setIdx];
+      if (S.volP) { // 音量ボリュームの窓
+        const K = ['bgm', 'sfx', 'voice'];
+        if (k === 'up' || k === 'down') S.volP.idx = wrap(S.volP.idx + (k === 'up' ? -1 : 1), 3);
+        else if (k === 'left' || k === 'right') { NSND.setLevel(K[S.volP.idx], NSND.getLevel(K[S.volP.idx]) + (k === 'left' ? -1 : 1)); if (S.volP.idx === 1) NSND.sfx('discard'); }
+        else if (k === 'back' || k === 'ok') S.volP = null;
+        dirty(); return;
+      }
+      if (k === 'up' || k === 'down') S.setIdx = wrap(S.setIdx + (k === 'up' ? -1 : 1), SETS.length);
+      else if (k === 'back') { S.mode = 'menu'; }
+      else if (k === 'left' || k === 'right' || k === 'ok') {
+        const d = k === 'left' ? -1 : 1;
+        if (it.k === 'vol') { if (k !== 'left') { S.volP = { idx: 0 }; dirty(); } }
+        else if (it.k === 'speed') MJ.cycleCpuSpeed();
+        else if (it.k === 'cpulv') setCpuLv(k === 'left' ? cpuLv() - 1 : k === 'right' ? cpuLv() + 1 : (cpuLv() + 1) % 4); // ◀ ▶ で ひとつずつ(はしでは とまる)。 決定は ぐるっと
+        else if (it.k === 'teacher') { // なし → あり(印つき) → あり(印なし) → なし
+          const t = teacherOn(), d = dmarkOn(); const nx = !t ? [1, 1] : d ? [1, 0] : [0, 1]; try { localStorage.setItem('mj_teacher', nx[0] ? '1' : '0'); localStorage.setItem('mj_dmark', nx[1] ? '1' : '0'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; S._dm = null; }
+        else if (it.k === 'swap') { try { localStorage.setItem('mj_swapab', swapOn() ? '0' : '1'); } catch (e) { /* ignore */ } __swapab(swapOn() ? 1 : 0); }
+        else if (it.k === 'vsharp') { const v1 = (vsharpLv() + (k === 'left' ? -1 : 1) + 3) % 3; try { localStorage.setItem('mj_vsharp', String(v1)); } catch (e) { /* ignore */ } try { __vsharp(v1); } catch (e) { /* ignore */ } } // ◀ ▶ 決定で、なし → ふつう → つよい(いま見ている動画にも すぐ効く)
+        else if (it.k === 'buzz') { const v1 = (buzzLv() + (k === 'left' ? -1 : 1) + 4) % 4; try { localStorage.setItem('mj_buzz', String(v1)); } catch (e) { /* ignore */ } try { if (typeof gfx.status === 'function') gfx.status(oledState()); } catch (e) { /* ignore */ } } // ◀ ▶ 決定で、なし → 小 → 中 → 大(すぐ ブザーに 反映)
+        else if (it.k === 'oledcos') { const i0 = OLED_CO.indexOf(oledCos()), i1 = (i0 + (k === 'left' ? -1 : 1) + 4) % 4; try { localStorage.setItem('mj_oledcos', OLED_CO[i1]); } catch (e) { /* ignore */ } try { if (typeof gfx.status === 'function') gfx.status(oledState()); } catch (e) { /* ignore */ } }
+        else if (it.k === 'perf') { try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } }
+        else if (it.k === 'rules' && k !== 'left') { S.mode = 'rules'; S.ruleIdx = 0; S.ruleDraft = null; S.ruleDlg = null; S.ruleToast = 0; }
+        else if (it.k === 'credits' && k !== 'left') { S.mode = 'credits'; }
+        else if (it.k === 'help' && k !== 'left') startHow();
+        else if (it.k === 'reset' && k === 'ok') S.resetQ = { idx: 1 };
+        else if (it.k === 'dbg' && k !== 'left') { S.mode = 'dbg'; S.dbgIdx = 0; } // DEBUG
+        else if (it.k === 'back' && k === 'ok') S.mode = 'menu';
+      }
+      return;
+    }
+    if (S.mode === 'menu') { // ホーム
+      const items = homeItems();
+      if (DEV_CMDS) { // 隠しコマンド(↑↑↓↓←→←→ BA): 順番どおり、しかも続けて入れたときだけ(ガチャガチャでは開かない)
+        const nw = __now(); if (!S.hidN || nw - (S.hidT || 0) > 2500) S.hidN = 0; S.hidT = nw;
+        if (k === HIDDEN[S.hidN]) S.hidN++; else S.hidN = k === HIDDEN[0] ? 1 : 0;
+        if (S.hidN >= HIDDEN.length) { S.hidN = 0; S.slots = slotRead(); S.slotIdx = 0; S.mode = 'slots'; return; }
+        if (S.hidN === HIDDEN.length - 1) return; // 最後の1つ手前の「戻る」は、何も起こさない
+        if (!S.hidP || nw - (S.hidT2 || 0) > 2500) S.hidP = 0; S.hidT2 = nw; if (k === PERFSEQ[S.hidP]) S.hidP++; else S.hidP = k === PERFSEQ[0] ? 1 : 0;
+        if (S.hidP >= PERFSEQ.length) { S.hidP = 0; try { localStorage.setItem('mj_perf', perfOn() ? '0' : '1'); } catch (e) { /* ignore */ } perf.flash = __now() + 3000; dirty(); return; }
+        if (!S.hidQ || nw - (S.hidT3 || 0) > 2500) S.hidQ = 0; S.hidT3 = nw; if (k === PROMOSEQ[S.hidQ]) S.hidQ++; else S.hidQ = k === PROMOSEQ[0] ? 1 : 0;
+        if (S.hidQ >= PROMOSEQ.length) { S.hidQ = 0; S.promo = S.promo || { from: 0, to: 1, row: 0 }; S.mode = 'promo'; dirty(); return; }
+        if (S.hidQ === PROMOSEQ.length - 1) return;
+        if (S.hidP === PERFSEQ.length - 1) return;
+      }
+      if (S.menuIdx >= items.length) S.menuIdx = 0;
+      if (S.homeBot) { // 下の段: ゲーム終了 / 成績 / 対戦成績 / 麻雀先生
+        const bi = S.homeBotIdx; // 0: 終了 1: 成績(上の段) 2: 診断(下の段)
+        if (k === 'left') S.homeBotIdx = bi === 1 ? 0 : bi; else if (k === 'right') { if (bi === 0) S.homeBotIdx = 1; else S.homeBot = false; } // 右はし: もとの項目へ(menuIdx は覚えている)
+        else if (k === 'down') { if (bi < 2) S.homeBotIdx = 2; else { S.homeBot = false; S.menuIdx = firstOn(items, 0, 1); } } // 下: 診断へ。いちばん下から下: 「麻雀をはじめる」へ
+        else if (k === 'up') { if (bi === 2) S.homeBotIdx = 0; else { S.homeBot = false; S.menuIdx = firstOn(items, 0, 1); } }
+        else if (k === 'back') { /* ホームでBボタンは、何もしない(まちがって 終了しないように) */ }
+        else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; later(() => { if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else if (b === 'diag') startDiag(); else toggleTeacher(); }); }
+        return;
+      }
+      if (k === 'up') { const j = firstOn(items, S.menuIdx - 1, -1); S.menuIdx = j < S.menuIdx ? j : firstOn(items, items.length - 1, -1); } // いちばん上から上: いちばん下(設定)へ
+      else if (k === 'down') { const j = firstOn(items, S.menuIdx + 1, 1); S.menuIdx = j > S.menuIdx ? j : firstOn(items, 0, 1); } // いちばん下から下: いちばん上へ
+      else if (k === 'left') { S.homeBot = true; S.homeBotIdx = 1; }
+      else if (k === 'back') { /* ホームでBボタンは、何もしない */ }
+      else if (k === 'ok') {
+        const it = items[S.menuIdx]; if (!it || it.off) return;
+        if (it.act === 'play') { try { if (NSND.has('v:hajimeru')) NSND.speak(['v:hajimeru']); } catch (e) { /* ignore */ } } // 「麻雀をはじめる」を押したとき、「この麻雀をはじめるのだ」の声
+        if (it.act === 'play') later(() => { tl('play-pressed'); const l = slotRead(); tl('slots-read'); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else askTeach(null); });
+        else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => qlGens(RCATS), n: 5, rank: true }));
+        else if (it.act === 'study') later(() => startStudy());
+        else if (it.act === 'settings') later(() => { S.mode = 'settings'; S.setIdx = 0; });
+      }
+      return;
+    }
+    if (S.result && S.result.rd) { // 流局の結果: 読み上げ中は、決定で全部見せる / そのあとは ← → で人を選んで 決定=手牌 / 「次へ」で つぎの画面
+      const r = S.result, rd = r.rd;
+      if (rd.reading) { if (k === 'ok') { rd.token++; rd.reading = false; rd.shown = 4; rd.now = -1; NSND.stopSpeak(true); dirty(); } return; }
+      if (rd.pop >= 0) { if (k === 'ok' || k === 'back') { rd.pop = -1; dirty(); } return; }
+      if (k === 'left') rd.sel = Math.max(0, rd.sel - 1); else if (k === 'right') rd.sel = Math.min(4, rd.sel + 1);
+      else if (k === 'up') { if (rd.sel === 4) rd.sel = 3; } else if (k === 'down') { if (rd.sel < 4) rd.sel = 4; } // 「次へ」から上 = 右はしの人 / 4人のどれからでも、下 = 「次へ」
+      else if (k === 'ok') { if (rd.sel < 4) rd.pop = rd.sel; else { S.result = null; r.done(); } }
+      dirty(); return;
+    }
+    if (S.result) { if (k === 'ok') { const r = S.result; S.result = null; r.done(); } return; }
+    if (S.rankP) { if (k === 'ok') { const q = S.rankP; q.done(); dirty(); } return; }
+    if (S.end) { if (k === 'ok') { const r = S.end; S.end = null; r.done(); } return; }
+    if (S.coach) { // 解説の窓
+      const c = S.coach, cs = c.cards || [];
+      if (k === 'left' || k === 'right') { if (cs.length) { c.tab = (c.tab + (k === 'right' ? 1 : cs.length - 1)) % cs.length; c.scroll = 0; } }
+      else if (k === 'up' || k === 'down') { const cd = cs[c.tab]; if (cd && cd.fit && cd.fit.hh > 322) c.scroll = Math.max(0, Math.min(Math.max(0, cd.fit.lines.length - 3), (c.scroll || 0) + (k === 'down' ? 2 : -2))); }
+      else if (k === 'ok' || k === 'back') S.coach = null;
+      return;
+    }
+    if (S.side) { // 右の操作の列
+      if ((k === 'up' || k === 'down') && S.game && S.game.practice) { const cyc = [0, 1, 2, 4], at = Math.max(0, cyc.indexOf(S.side.idx === 3 ? 0 : S.side.idx)); S.side.idx = cyc[wrap(at + (k === 'down' ? 1 : -1), cyc.length)]; } // 練習・観戦は 4つ(全員の手牌ボタンが ふえる)
+      else if (k === 'up' || k === 'down') S.side.idx = (k === 'up' ? { 0: 2, 3: 2, 1: 0, 2: 1 } : { 0: 1, 3: 1, 1: 2, 2: 0 })[S.side.idx]; // 上: 解説→MENU / MENU・音→麻雀先生 / 麻雀先生→解説。下: MENU・音→解説 / 解説→麻雀先生 / 麻雀先生→MENU
+      else if (k === 'left' && S.side.idx === 3) S.side.idx = 0; // スピーカーから左: MENUへ
+      else if (k === 'right' && S.side.idx === 0) S.side.idx = 3; // MENUから右: スピーカーへ
+      else if (k === 'left' || k === 'back') { S.side = null; if (S.game && S.game.watching) { /* 観戦: 牌にカーソルは出さない */ } else if (S.self && k === 'left' && S.self.row === 0) S.self.idx = S.self.tiles.length - 1; else if (!S.self && k === 'left' && S.game) S.curIdx = Math.max(0, myTiles(S.game.players[0]).length - 1); } // 左: いちばん右の牌へ
+      else if (k === 'right' && S.react) { S.side = null; S.react.idx = 0; S.dirty = true; S.full = true; } // 鳴きのボタンが出ているとき: 解説から右 → 最初のボタンへ(牌のカーソルは出さない)
+      else if (k === 'right') { S.side = null; S.curIdx = S.game && S.game.watching ? null : 0; if (S.self) { S.self.row = 0; S.self.idx = 0; } } // 右: いちばん左の牌へもどる
+      else if (k === 'ok') {
+        const i = S.side.idx;
+        if (i === 0) openMenu();
+        else if (i === 3) { S.soundP = { idx: 0 }; MJ.paused = true; }
+        else if (i === 4 && S.game) { S.game.openHands = !S.game.openHands; S.dirty = true; S.full = true; }
+        else if (i === 1 && S.game && S.game.watching) { if (S.wnote) S.wnote.until = __now() + 14000; else S.toast = { text: 'CPUが 打つと、ここに 解説が 出ます', until: __now() + 2200 }; dirty(); setTimeout(dirty, 2300); } // 観戦: 解説を、もう少し長く出す
+        else if (i === 1) S.coach = { tab: 0, scroll: 0, cards: teacherOn() ? buildCoach() : [] };
+        else { toggleTeacher(); if (teacherOn() && S.self && !S.self.p.riichi && !S.game.fast) { try { S.hint = teacherAdvice(S.game, S.self.p, S.self.opts); } catch (e) { /* ignore */ } } else S.hint = null; }
+      }
+      return;
+    }
+    const s = S.self, r = S.react;
+    if (r && __now() - r.t0 < 600) return; // 確認が出た直後は、キーを受け付けない(連打で押してしまうのを防ぐ。Edge版と同じ)
+    if (r && k === 'back' && !r.pick) return; // 確認の間は、戻るは何もしない(誤操作防止)
+    if (S.mode === 'game' && !s && !r && S.game && k === 'back') { openMenu(); return; } // 戻るボタン: メニュー(対局を止める)
+    if (S.mode === 'game' && !s && !r && S.game && (k === 'left' || k === 'right' || k === 'up' || k === 'down')) { // 相手の番でも、牌をなぞれる
+      S.curIdx = null; if (S.game.watching) { S.side = { idx: 1 }; S.dirty = true; } return; // 相手の番のあいだは、牌にカーソルを出さず、方向キーも受け付けない(自分の番の はじめに、ずれて選んでしまうのを防ぐ)。観戦中だけ、右の「解説」などへは動かせる
+      const n = myTiles(S.game.players[0]).length; if (!n) return; if (S.curIdx == null) { S.curIdx = (k === 'right' || k === 'up') ? 0 : n - 1; S.dirty = true; S.partialKey = true; return; } const slot = S.curIdx >= n && n % 3 === 1, c = Math.min(S.curIdx, n - 1); // slot: 14枚目の場所にカーソルがある
+      if (k === 'left') { if (slot) S.curIdx = n - 1; else if (c === 0) S.side = { idx: 2 }; else S.curIdx = c - 1; }
+      else if (k === 'right') { if (slot || c >= n - 1) S.side = { idx: 1 }; else S.curIdx = c + 1; }
+      else S.curIdx = k === 'up' ? 0 : n - 1;
+      S.dirty = true; S.partialKey = !S.side; return;
+    }
+    if (k === 'left' && S.mode === 'game' && s && s.row === 0 && s.idx === 0) { S.side = { idx: 2 }; return; } // いちばん左から、さらに左へ: 麻雀先生のボタン
+    if (k === 'right' && S.mode === 'game' && ((!s && !r) || (s && s.row === 0 && s.idx === s.tiles.length - 1) || (s && s.row === 1 && s.idx === s.btns.length - 1) )) { S.side = { idx: 1 }; return; } // いちばん右から、さらに右へ: 操作の列へ
+    if (s) {
+      const tiles = s.tiles;
+      if (k === 'left' || k === 'right') {
+        const n = s.row === 0 ? tiles.length : s.btns.length; if (!n) return; s.idx = wrap(s.idx + (k === 'left' ? -1 : 1), n); if (s.row === 0) S.partialKey = true;
+      } else if (k === 'up') { // ボタンがあるとき: どの牌からでも、上でボタン(リーチなど)へ。ないとき: 1枚目の牌へ
+        if (s.row === 0 && s.btns.length) { s.back = s.idx; s.row = 1; const ri = s.btns.findIndex((b) => b.act === 'riichi'); s.idx = ri >= 0 ? ri : 0; }
+        else if (s.row === 0) { s.idx = 0; S.partialKey = true; }
+      }
+      else if (k === 'down') { if (s.row === 1) { s.row = 0; s.idx = Math.min(s.back != null ? s.back : tiles.length - 1, tiles.length - 1); } else { s.idx = tiles.length - 1; S.partialKey = true; } } // 下: ボタンからは、もといた牌へ。牌の上では、いちばん右の牌(14枚目。まだ引いていなければ13枚目)へ
+      else if (k === 'back' && s.row === 1) { s.row = 0; s.idx = Math.min(s.back != null ? s.back : tiles.length - 1, tiles.length - 1); } // 戻る: もといた牌へ
+      else if (k === 'back' && s.rm) { s.rm = false; }
+      else if (k === 'back' && s.row === 0) { openMenu(); }
+      else if (k === 'ok') {
+        if (s.row === 0) { const live = myTiles(s.p), h = live[s.idx] || tiles[s.idx]; if (h && allowed(s, h)) { const gp = s.p.drawn ? tiles.length - 1 : -1; S.curIdx = null; S.pick = [handX(s.idx, s.idx === gp), HY - 8]; S.self = null; try { recordDiscard(S.game, s.p, h); } catch (e) { /* ignore */ } s.res({ act: s.rm ? 'riichi' : 'discard', tile: h }); } }
+        else {
+          const b = s.btns[s.idx];
+          if (b.act === 'riichi') { s.rm = !s.rm; s.row = 0; const okI = tiles.findIndex((h) => allowed(s, h)); if (s.rm) { const d = tiles.indexOf(s.p.drawn); s.idx = d >= 0 && allowed(s, tiles[d]) ? d : Math.max(0, okI); } else s.idx = tiles.length - 1; }
+          else { S.self = null; s.res(b.act === 'tsumo' ? { act: 'tsumo' } : { act: b.act, t: b.t }); }
+        }
+      }
+    } else if (r) {
+      if (r.pick) { // チーの組み合わせをえらぶ
+        if (k === 'left' || k === 'right') r.pick.idx = wrap(r.pick.idx + (k === 'left' ? -1 : 1), r.chis.length);
+        else if (k === 'back' || k === 'up') r.pick = null;
+        else if (k === 'ok') { const c = r.chis[r.pick.idx]; S.react = null; r.res({ act: 'chi', use: c.use }); }
+      }
+      else if (k === 'right' && r.idx === r.btns.length - 1) { S.side = { idx: 1 }; S.dirty = true; S.full = true; } // いちばん右のボタン(見送る)から、さらに右: 「解説」へ(このポンをどうしたらいいか、先生に聞ける)
+      else if (k === 'left' || k === 'right') r.idx = Math.max(0, Math.min(r.btns.length - 1, r.idx + (k === 'left' ? -1 : 1)));
+      else if (k === 'down') { if (r.btns[r.idx].pick) r.pick = { idx: 0 }; } // ▼ で、チーの牌えらびへ
+      else if (k === 'ok') { const b = r.btns[r.idx]; if (b.pick) r.pick = { idx: 0 }; else { S.react = null; r.res(b.d); } }
+    }
+  };
+
+  /* ---------- ゲームの頭脳から呼ばれる「ui」 ---------- */
+  const ui = {
+    render(g) { S.game = g; const ld = g.lastDiscard; if (!ld) S.lastD = null; else if (ld.d !== S.lastD) { S.lastD = ld.d; tl('discard seat' + ld.by); try { startFly(g, ld); } catch (e) { S.fly = null; } } dirty(); },
+    sfx(name) { NSND.sfx(name); },
+    bgmTrack() { try { return NSND.track(); } catch (e) { return undefined; } }, // セーブに入れる(つづきから 同じ曲を流す)
+    preWin(g, p, tsumo, res, cb) { // 上がった人が「ロン!」「ツモ!」と言うより先に、決めゼリフのカットイン(逆転の上がり=cb は、自分でも出る)。 逆転のカットインを出したら true
+      const ci = (() => { try { return MJ.CutIn ? ((cb && MJ.CutIn.gyaku(g, { winner: p, tsumo, res })) || (!p.isHuman ? MJ.CutIn.pick(g, { winner: p, tsumo, res }) : null)) : null; } catch (e) { return null; } })();
+      return ci ? cutinShow(g, ci).then(() => !!ci.gyaku) : Promise.resolve(false);
+    },
+    winReveal(g, wins) { // CPUが上がったとき: 手牌を「ダッ」と倒して見せる → 少し間 → (裏ドラ →) 結果の画面
+      return Promise.resolve().then(() => new Promise((res) => {
+        const ws = wins.filter((w) => !w.winner.isHuman && w.view && w.view.concealed); if (!ws.length) { res(); return; }
+        S.bub = {}; S.sayQ = []; S.winRvHold = null; S.winRv = { ws, t0: __now(), res }; NSND.sfx('hand_open'); dirty(); setTimeout(() => { if (S.winRv && S.winRv.res === res) winRvDone(); }, 2400);
+      }));
+    },
+    speak(g, p, t, ms) { // セリフは、ポン・チー・リーチなどの宣言や、ほかの人のセリフが終わるまで待ってから、1人ずつ出す(かぶらないように)
+      ms = ms || Math.max(2800, Math.min(4800, 1300 + String(t).length * 110)); tl('say-queue ' + (p && p.name)); (S.sayQ || (S.sayQ = [])).push({ g, p, t, ms, t0: __now() }); pumpSay();
+    },
+    banner(g, p, t, opt) { tl('banner ' + t + ' ' + (p && p.name)); if (opt && opt.quiet) { if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 350); } S.banner = { text: t, t0: __now(), p, call: true }; if (p && p.isHuman) setMood({ 'リーチ': 'fight', 'ポン': 'call', 'チー': 'call', 'カン': 'call', 'ロン': 'point', 'ツモ': 'happy' }[t] || 'normal', 4000); dirty(); if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
+    handStart(g) {
+      tl('handStart');
+      try { const me = g.players[0]; S.prevRank = 1 + g.players.filter((q) => q.score > me.score).length; } catch (e) { S.prevRank = 0; } // この局のはじめの、あなたの順位(対局が終わったとき、「逆転」の声に使う)
+      S.curIdx = null; if (teacherOn() && !S.tmsgShown && !g.watching && (g.handCount || 0) === 0 && !g.resumed) { S.tmsgShown = 1; S.tmsg = { text: 'おまかせください。おすすめの牌に ★ をつけます', until: __now() + 6000 }; setTimeout(dirty, 6100); }
+      S.game = g; NSND.game(g); NSND.sfx('slam'); /* BGMは、サイコロのあと雀卓が出たときから、すぐに流す(配牌のあいだも止めない。 前は、Zero Wで曲の読み込みが配牌のアニメを止めたので、配牌のあいだ曲を止めていた) */
+      { // あなたの表情: 最終局はドキドキ。前の局で振り込んだらむすっ・上がったらくすくす。トップなら余裕・最下位ならやる気
+        const me = g.players[0], rk = 1 + g.players.filter((q) => q.score > me.score).length, even = g.players.every((q) => q.score === me.score);
+        setMood((g.isOras && g.isOras()) ? 'dokidoki' : S.carryMood || (even ? 'normal' : rk === 1 ? 'smug' : rk === 4 ? 'fight' : 'focus')); S.carryMood = null;
+      }
+      let vlen = 0; if (S.skipKyokuVoice) S.skipKyokuVoice = false; else { try { vlen = NSND.readKyoku(g) || 0; } catch (e) { /* ignore */ } }
+      const sb = S.skipBanner; S.skipBanner = false;
+      if (!sb) S.banner = { text: g.kyokuLabel(), t0: __now() };
+      if (g.fast) { S.deal = null; NSND.release(); dirty(); return sleep(300).then(() => { S.banner = null; dirty(); }); }
+      const bms = sb ? 300 : vlen ? Math.max(2200, Math.round(vlen * 1000) + 700) : 900; // 読み上げが終わって、少し画面を見せてから、配牌
+      S.winRvHold = null; S.deal = { t0: __now() + bms, step: 0, perm: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].sort(() => Math.random() - 0.5), flip: (() => { const f = {}; for (let n = 0; n < 4; n++) f[Math.floor(Math.random() * 13)] = 1; return f; })() };
+      setTimeout(() => { S.banner = null; dirty(); }, bms); dirty();
+      return sleep(bms + DEAL_END + 80);
+    },
+    padHand() {},
+    dice(g, first) { if (g.fast) return Promise.resolve(null); tl('dice-start'); if (g.tenka && first) setTimeout(() => { try { if (NSND.has('v:tenkawake')) NSND.speak(['v:tenkawake']); } catch (e) { /* ignore */ } }, 500); /* 天下分け目: サイコロの画面で「天下分け目の決戦なのだ!」 */ return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { id: (S.diceSeq = (S.diceSeq || 0) + 1), a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done: (tg) => { g.dealer = tg; S.skipBanner = true; S.skipKyokuVoice = true; done(tg); } }; dirty(); }); },
+    askSelf(g, p, opts, st) {
+      (S.thT || []).forEach(clearTimeout); S.thT = []; // 悩んでいるとき: 30秒・60秒・120秒、それ以降は3分ごとに、CPUがひとこと(Edge版と同じ)
+      if (!p.riichi && !g.fast && MJ.Banter) { const say = (i) => { if (S.self && S.self.p === p && S.game === g) { try { MJ.Banter.think(g, i); } catch (e) { /* ignore */ } } }; S.thT = [30, 60, 120].map((sec, i) => setTimeout(() => say(i), sec * 1000)); const loop = () => { say(3); S.thT.push(setTimeout(loop, 180000)); }; S.thT.push(setTimeout(loop, 180000)); }
+      return new Promise((res) => {
+        const tiles = myTiles(p); const btns = [];
+        if (opts.tsumo) btns.push({ label: 'ツモ', act: 'tsumo' });
+        if (opts.riichi.length && !p.riichi) { // リーチの札に、フリテンになるときは 先に知らせる(かけたあとで「フリテンです」と言われないように)
+          let nfu = 0; try { const c0 = MJ.toCounts(p.hand); opts.riichi.forEach((t) => { c0[t]--; const ws = MJ.waits(c0.slice(), p.melds.length); c0[t]++; if (p.tempFuriten || p.riichiFuriten || ws.some((w) => p.discardTypes.has(w) || w === t)) nfu++; }); } catch (e) { nfu = 0; }
+          btns.push({ label: 'リーチ', act: 'riichi', sub: nfu === 0 ? '' : nfu === opts.riichi.length ? 'フリテンになるよ' : 'フリテン注意', subCol: [196, 40, 28] });
+        }
+        opts.ankan.forEach((t) => btns.push({ label: 'カン ' + MJ.tileName(t), act: 'ankan', t }));
+        opts.kakan.forEach((t) => btns.push({ label: '加カン ' + MJ.tileName(t), act: 'kakan', t }));
+        S.side = null; S.coach = null;
+        tl('self-start'); S.hint = null; if (teacherOn() && !p.riichi && !g.fast) { const ta = __now(); try { S.hint = teacherAdvice(g, p, opts); } catch (e) { print('teacher err ' + e); } tl('advice ' + Math.round(__now() - ta) + 'ms'); }
+        S.self = { p, opts, st: st || {}, res, tiles, btns, rm: false, back: (S.curIdx != null && !p.riichi ? Math.min(S.curIdx, tiles.length - 1) : tiles.length - 1), row: (opts.tsumo || btns.some((b) => b.act === 'riichi')) ? 1 : 0, idx: opts.tsumo ? 0 : btns.some((b) => b.act === 'riichi') ? btns.findIndex((b) => b.act === 'riichi') : (S.curIdx != null && !p.riichi ? Math.min(S.curIdx, tiles.length - 1) : tiles.length - 1) };
+        dirty();
+      });
+    },
+    askReact(g, q, o) {
+      tl('react-start'); S.reactArgs = { q, o };
+      return new Promise((res) => {
+        const btns = [];
+        if (o.ron) btns.push({ label: 'ロン', d: { act: 'ron' } });
+        if (o.kan) btns.push({ label: 'カン', d: { act: 'kan' } });
+        if (o.pon) btns.push({ label: 'ポン', d: { act: 'pon' } });
+        if (o.chi.length === 1) btns.push({ label: 'チー', d: { act: 'chi', use: o.chi[0].use } });
+        else if (o.chi.length > 1) btns.push({ label: 'チー', sub: '▼ 牌をえらぶ', pick: true, d: { act: 'chi' } });
+        btns.push({ label: '見送る', pass: true, d: { act: 'pass' } });
+        S.side = null;
+        S.react = { t0: __now(), res, btns, chis: o.chi, pick: null, idx: o.ron ? 0 : btns.length - 1, note: o.ronBlock ? 'フリテンです(ロンできません)' : '' };
+        dirty();
+      });
+    },
+    uraReveal(g, wins) { // 裏ドラを見せる: ドラ表示牌が上へ出る → 下の牌が少し浮いて → トンッと置かれて表になる(左の列から順に)
+      return new Promise((res) => {
+        const n = Math.min(5, (g.doraInd || []).length, (g.uraAll || []).length); if (!n) { res(); return; }
+        S.bub = {}; S.sayQ = []; // 裏ドラを見せるあいだは、セリフ(吹き出し)を出さない(重なって読めない・欠けて見える、をなくす)
+        const cols = []; for (let k = 0; k < n; k++) cols.push(4 - k); cols.sort((x, y) => x - y); // 左の列から
+        const items = []; let t = URA_T.start;
+        cols.forEach((col, i) => { const k = 4 - col, s0 = t, s1 = s0 + URA_T.slide, l0 = s1 + (i === 0 ? URA_T.hold1 : URA_T.hold2), l1 = l0 + URA_T.lift, d1 = l1 + URA_T.drop; items.push({ col, ind: g.doraInd[k], ura: g.uraAll[k], s0, s1, l0, l1, d1, sp: 0, tp: 0 }); t = d1 + URA_T.gap; });
+        S.ura = { items, vt: 0, l: 0, res, endT: items[items.length - 1].d1 + URA_T.end, lastD: items[items.length - 1].d1 }; dirty();
+      });
+    },
+    showResult(g, r) {
+      S.bub = {}; S.sayQ = []; S.banner = null; try { if (!g.practice) MJ.Stats.hand(g, r); } catch (e) { /* ignore */ }
+      try { if (MJ.Banter && MJ.Banter.noteResult) MJ.Banter.noteResult(g, r); } catch (e) { /* ignore */ } // 直前の局のことを、覚えておく
+      S.resSay = { lines: [], t0: __now() }; try { if (MJ.Banter && MJ.Banter.afterWin && !g.fast) { S.resSay.lines = MJ.Banter.afterWin(g, r); if (r.comeback && r.comeback.p && r.comeback.text && MJ.Banter.on !== false) S.resSay.lines.unshift({ p: r.comeback.p, text: r.comeback.text }); S.resSay.lines.forEach((l, i) => { const st = 700 + i * 3800; setTimeout(dirty, st); setTimeout(dirty, st + 3500); }); } } catch (e) { /* ignore */ } // 上がったあとの、煽り・悔しがり
+      NSND.result(r.type === 'draw' ? 'draw' : r.wins.some((w) => w.winner.isHuman) ? 'win' : r.delta[0] < 0 ? 'lose' : 'calm');
+      if (r.type === 'win' && !r.wins.some((w) => w.winner.isHuman) && !(r.delta[0] < 0) && r.wins.some((w) => !w.tsumo)) NSND.resultCpuRon(); // CPUが、別のCPUからロン(自分は関係ない)
+      const iWon = r.type === 'win' && r.wins.some((w) => w.winner.isHuman), iLost = r.type === 'win' && !iWon && r.delta && r.delta[0] < 0;
+      setMood(r.type !== 'win' ? 'relief' : iWon ? 'win' : iLost ? 'shock' : 'focus'); S.carryMood = iLost ? 'grumpy' : iWon ? 'laugh' : null;
+      if (r.type !== 'win') {
+        return (async () => {
+          if (!g.fast && !r.abort) { await sleep(900); if (g.stopped) return; S.bub = {}; S.sayQ = []; S.ryu = { t0: __now() }; NSND.sfx('slam'); /* 流局のテロップが出るときは、出ているセリフ・待っているセリフを、先に消す(顔だけ消える・声だけ残る、をなくす) */ setTimeout(() => { try { NSND.speak(['x:りゅうきょく']); } catch (e) { /* ignore */ } }, 450); dirty(); await sleep(1950); S.ryu = null; dirty(); if (g.stopped) return; } // 最後の牌のあと、ひと呼吸 → 「流局」が左から流れてきて止まる(Edge版と同じ)
+          NSND.sfx('drawgame');
+          await new Promise((done) => {
+            const rd = r.abort || g.fast ? null : { shown: 0, now: -1, sel: 4, pop: -1, reading: true, token: 0, waits: [] };
+            if (rd) r.hands.forEach((v, i) => { try { rd.waits[i] = r.tenpai[i] ? MJ.waits(MJ.toCounts(v.concealed), (v.melds || []).length) : []; } catch (e) { rd.waits[i] = []; } });
+            if (rd && g.fast) { rd.shown = 4; rd.reading = false; }
+            S.result = Object.assign({ done }, r, { rd, done: () => { NSND.stopSpeak(true); done(); } }); dirty();
+            if (rd) (async () => { // 「りゅうきょく」→ 1人ずつ「テンパイ」「ノーテン」
+              const tk = ++rd.token, alive = () => S.result && S.result.rd === rd && rd.token === tk && !g.stopped;
+              await sleep(700); if (!alive()) return;
+              let d = 0.8;
+              for (let i = 0; i < 4; i++) { if (!alive()) return; rd.now = i; rd.shown = i + 1; dirty(); d = 0.9; try { d = NSND.speak([r.tenpai[i] ? 'x:テンパイ' : 'x:ノーテン']) || 0.9; } catch (e) { /* ignore */ } await sleep(d * 1000 + 450); }
+              if (!alive()) return; rd.now = -1; rd.reading = false; dirty();
+            })();
+          });
+          if (g.stopped || g.fast || r.abort) return;
+          await new Promise((done) => { S.rankP = { r, done: () => { S.rankP = null; done(); } }; dirty(); }); // 流局のあとも、じゅんいの画面を見せる
+        })();
+      }
+      return (async () => { // 上がった人ごとに、役と点数の画面(読み上げつき)。そのあと、4人のじゅんいの画面
+        const n = r.wins.length;
+        for (let i = 0; i < n; i++) {
+          if (g.stopped) return;
+          try { NSND.readWin(g, { wins: [r.wins[i]] }); } catch (e) { /* ignore */ }
+          await new Promise((done) => { S.result = Object.assign({}, r, { wins: [r.wins[i]], idx: i, total: n, done: () => { NSND.stopSpeak(true); done(); } }); dirty(); });
+        }
+        if (g.stopped) return;
+        setMood(iWon ? 'win' : iLost ? 'lose' : 'normal');
+        await new Promise((done) => { S.rankP = { r, done: () => { S.rankP = null; done(); } }; dirty(); });
+      })();
+    },
+    clearSaves() { try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } },
+    watchNote(g, p, act) { // 観戦中: 下の席のCPUが、なぜその牌を切ったか(牌効率・守り)を、麻雀先生が 説明する
+      try {
+        if (!act || !act.tile) return; const A = MJ.AI, ob = MJ.AI_BUDGET; MJ.AI_BUDGET = 1; let an; try { an = A.analyze(g, p, { know: 2, deep: true, deepN: 6, budget: 60 }); } finally { MJ.AI_BUDGET = ob; }
+        const me = an.evals.find((e) => e.t === act.tile.t), best = A.byEff(an.evals)[0], nm = MJ.tileName(act.tile.t);
+        const stc = an.opps.length ? A.stance(g, p, an, 'balance') : null;
+        const shT = (e) => (e.sh === 0 ? 'テンパイ' : e.sh + 'シャンテン');
+        let a = p.name + ' は ' + nm + ' を切りました' + (act.act === 'riichi' ? '(リーチ)' : '') + '。', b = '';
+        if (stc && stc.kind !== 'push') b = (stc.label || '守り') + ': ' + (stc.why || '相手のリーチに 注意して 安全な牌を選びました') + '。';
+        else if (me) b = '切ったあと ' + shT(me) + '、' + (me.ukeire ? '有効牌 ' + me.ukeire.n + '枚' : '') + (best && best.t !== me.t ? '(牌効率だけなら ' + MJ.tileName(best.t) + ' が最善)' : '(牌効率で いちばん よい選択)') + '。';
+        S.wnote = { a, b, until: __now() + 3400 }; dirty(); setTimeout(dirty, 3500);
+      } catch (e) { /* ignore */ }
+    },
+    askSave(g) { if (g.practice) return Promise.resolve(); // 練習対局は、セーブしない
+ // 局が終わるたびに、質問なしで、自動で保存する(次の局の画面が出ている間に、すみっこに小さく知らせる)
+      let ok = false; try { ok = slotWrite(g.snapshot()); } catch (e) { /* ignore */ }
+      S.saveNote = { text: ok ? 'セーブしました' : 'セーブできませんでした', t0: __now(), until: __now() + 4200 }; dirty(); setTimeout(dirty, 4300);
+      return Promise.resolve();
+    },
+    gameEnd(g, f) { if (g.practice) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({}, f, { rk: null, done }); }); } // 練習対局: 記録・順位・認定証なし
+ try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { if (g.length !== 'single' && (g.handCount || 0) >= 4) metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } /* 列伝に出るのは、4局以上 最後まで対局した相手だけ */ try { const mine0 = f.results.find((x) => x.p.isHuman); if (mine0) { const ks = mine0.rank === 1 ? ['v:end_win1', '.', 'v:end_win2'] : (mine0.rank === 3 && S.prevRank === 4) ? ['v:end_close1', '.', 'v:end_close2'] : mine0.rank === 4 ? ['v:end_lose1', '.', 'v:end_lose2'] : null; if (ks && ks.every((k) => k === '.' || NSND.has(k))) setTimeout(() => { try { NSND.speak(ks); } catch (e) { /* ignore */ } }, 900); } } catch (e) { /* ignore */ } /* 対局終了の声: 1位=勝った!やったね! / 4位から3位に逆転=ふぅ、あぶない / 4位=負けた、ざんねん */ NSND.sfx('end'); try { const mk = f.results.find((x) => x.p.isHuman); const rk0 = mk ? mk.rank : 2; setTimeout(() => { try { NSND.endBgm(rk0); } catch (e) { /* ignore */ } }, 700); } catch (e) { /* ignore */ } /* 順位の画面の曲(最後の局で 曲が切りかわっていなければ ここで切りかえる) */ // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
+ try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go0 = () => { try { NSND.home(); } catch (e) { /* ignore */ } S.rankScr = { rk, done }; dirty(); }; /* はじめて 対局を 最後まで終えたら(無段のあいだ)、一度だけ、旅のはじまり(熊本の地図)を出す */ const go = (g.length !== 'single' && !introSeen() && (!rk || (rk.from || 0) === 0) && !(rk && rk.promoted && (introMark() || true))) ? () => { introMark(); S.mode = 'menu'; try { startMap({ from: 0, to: 0, intro: true }, go0); } catch (e) { go0(); } } : go0; /* 結果の曲のまま あなたの段位の画面に来ない(ホームの曲に) */ if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
+  };
+
+  const AI_T = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]; // js/chars.js の mk() と同じ
+  /* CPUの強さ(設定): 0=超やさしい 1=やさしい 2=ふつう(=段位で決まる、ふだんの強さ) 3=つよい。 段位・ポイントは かわらない(ポイントは「ふつう」の強さで計算) */
+  const CPU_LV = ['超やさしい', 'やさしい', 'ふつう', 'つよい'];
+  const cpuLv = () => { let v = 2; try { const t = localStorage.getItem('mj_cpulv'); if (t != null && t !== '') v = +t; } catch (e) { /* ignore */ } return v >= 0 && v <= 3 ? v | 0 : 2; };
+  const setCpuLv = (v) => { v = Math.max(0, Math.min(3, v)); try { localStorage.setItem('mj_cpulv', String(v)); } catch (e) { /* ignore */ } };
+  function cpuAdjust(chars) { // 3人のCPUの強さ(★)を、設定にあわせて 上限/下限で そろえる。 天下分け目(家康+黄門)は いつも ほんらいの強さ
+    const lv = cpuLv(); if (lv === 2) return chars;
+    let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ }
+    if (dn === 10 && chars.some((c) => c.id === 1) && chars.some((c) => c.id === 7)) return chars;
+    const top = lv === 3 ? Math.floor(Math.random() * chars.length) : -1;
+    return chars.map((c, i) => { const L = lv === 0 ? Math.min(c.level, 2) : lv === 1 ? Math.min(c.level, 4) : Math.max(c.level, i === top ? 9 : 7); return L === c.level ? c : Object.assign({}, c, { level: L, ai: AI_T[Math.min(10, L)] }); });
+  }
+  function liftChars(chars, town, realFirst) { // 段位が上がると、★の低いキャラも、最低でも その段位の「★の最低値」まで強くなる
+    let dan = 0; try { dan = MJ.Rank.get().dan; } catch (e) { /* ignore */ } if (town != null) dan = town; // 修行の街では、その段位のときの強さ
+    let real = dan; try { real = MJ.Rank.get().dan; } catch (e) { /* ignore */ }
+    return chars.map((c, i) => { const L = MJ.effLevel ? MJ.effLevel(c.level, realFirst && i === 0 ? real : dan) : c.level; /* やさしい対局でも、1人目(新顔)は ほんらいの強さ */ return L === c.level ? c : Object.assign({}, c, { level: L, ai: AI_T[Math.min(10, L)] }); });
+  }
+  function pickChars(town, easy) { // 3人: 新顔1(まだ出会っていない人を優先)+おなじみ2(昔の人)。前の対局と同じ顔ぶれが続きにくい
+    let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (town != null ? MJ.unlockDan(c.id) <= town : (!ok || !ok.length || ok.includes(c.id)))); const out = [], real = easy ? MJ.CHARS.filter((c) => c.id !== 0 && (!ok || !ok.length || ok.includes(c.id))) : pool; // easy: 新顔は ほんらいの段位の人から、のこり2人だけ やさしく
+    let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ } if (town != null) dn = -1; // 修行の街: その時代までの人だけ
+    if (dn === 10 && Math.random() < 0.2) { const a = pool.find((c) => c.id === 7), b = pool.find((c) => c.id === 1); if (a && b) { out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); } } // 名人のあと 5回に1回: 徳川家康と水戸黄門が そろう「天下分け目」
+    let met = []; try { met = metLoad(); } catch (e) { /* ignore */ } const last = S.lastOpp || [], tier = (c) => MJ.unlockDan(c.id), mx = pool.reduce((m, c) => Math.max(m, tier(c)), 0);
+    const wpick = (list, wf) => { // 重みつき抽選(同じ時代が重ならないように、前の対局に出た人は出にくく)
+      const w = list.map((c) => Math.max(0.01, wf(c) * (last.includes(c.id) ? 0.3 : 1) * (out.some((o) => MJ.eraOf(o.id) === MJ.eraOf(c.id)) ? 0.25 : 1))); let r = Math.random() * w.reduce((a, b) => a + b, 0), i = 0; while (i < list.length - 1 && (r -= w[i]) > 0) i++; const c = list[i]; { const k = pool.indexOf(c); if (k >= 0) pool.splice(k, 1); } out.push(c); };
+    if (out.length < 3 && real.length) { const mxr = real.reduce((m, c) => Math.max(m, tier(c)), 0), un = real.filter((c) => !met.includes(c.id)); const nw = un.length ? un : real.filter((c) => tier(c) >= mxr - 1); wpick(nw.length ? nw : real, (c) => 1 + tier(c)); } // 新顔枠
+    while (out.length < 3 && pool.length) { const old = pool.filter((c) => tier(c) < mx - 1); wpick(old.length ? old : pool, () => 1); } // おなじみ枠
+    S.lastOpp = out.map((c) => c.id);
+    return out;
+  }
+  function stopGame() { // ゲームを途中でやめて、ホームへ
+    const g = S.game; if (!g) { S.mode = 'menu'; dirty(); return; }
+    if (g.cp && !g.practice && !S.result && !S.end && !S.rankP && !S.rankScr) { try { slotWrite(Object.assign({}, g.cp.snap, { mid: g.cp })); } catch (e) { /* ignore */ } } // 局の途中でホームへ戻るときは、いまの局の途中をセーブ(つづきから、同じ牌・同じ番で再開できる)
+    S.ura = null; if (S.winRv) { const W = S.winRv; S.winRv = null; try { W.res(); } catch (e) { /* ignore */ } } g.stopped = true; S.winRvHold = null; if (S.cutin) { const C = S.cutin; S.cutin = null; try { C.res(); } catch (e) { /* ignore */ } } MJ.paused = false; if (globalThis.__menuHold) menuHold(false); S.tmsgShown = 0; S.side = S.coach = null;
+    const s = S.self, r = S.react, rs = S.result, en = S.end, sp = S.saveP; if (S.rankP) { const q = S.rankP; S.rankP = null; q.done(); } if (S.map) { const q = S.map; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } q.then(); } if (S.cert) { const q = S.cert; S.cert = null; q.then(); } if (S.reveal) { const q = S.reveal; S.reveal = null; q.then(); } if (S.rankScr) { const q = S.rankScr; S.rankScr = null; q.done(); }
+    S.self = S.react = S.result = S.end = S.saveP = null;
+    if (s) s.res({ act: 'discard', tile: s.p.hand[0] }); if (r) r.res({ act: 'pass' }); if (rs) rs.done(); if (en) en.done(); if (sp) sp.res();
+    dirty();
+  }
+  /* 親が決まったあと: 「東一局!」「勝負!」(顔・文字・声)。そのあと、すぐ配牌へ */
+  const startIntro = (g) => new Promise((res) => { if (g.resumed || g.fast) { res(); return; } S.intro = { t0: __now(), done: () => { S.skipBanner = true; res(); } }; NSND.sfx('slam'); dirty(); });
+  async function startGame(sn, opt) {
+    tl('startGame'); S.ura = null; S.mode = 'game'; S.tmsgShown = 0; dirty(); opt = opt || {}; let town = opt.town != null ? opt.town : sn && sn.town; try { if (opt.practice || town == null || town >= (MJ.Rank.get().dan || 0)) town = null; } catch (e) { town = null; }
+    let ease = 0, ctown = town; if (!opt.practice && town == null) { try { ease = sn && sn.ease != null ? sn.ease : MJ.Rank.ease(); const dn0 = MJ.Rank.get().dan || 0, ct = Math.max(0, dn0 - ease); if (ease > 0 && ct < dn0) ctown = ct; else ease = 0; } catch (e) { ease = 0; } } // 不調のときは、2段(ひどいときは4段)ぶん やさしい相手(ポイントは そのまま)。 画面には 出さない // 修行: 地図で、いまの段位より下の街を選んだとき
+    const chars = opt.practice ? opt.chars : sn && sn.chars ? sn.chars.map((id) => MJ.CHARS.find((c) => c.id === id)).filter(Boolean) : [];
+    let baseChars = null; // 「ふつう」の強さの3人(ポイントの計算は、設定に関係なく これで行う)
+    const useChars = opt.practice ? (opt.watch ? chars.slice(1) : chars) : cpuAdjust(baseChars = liftChars(chars.length === 3 ? chars : pickChars(ctown, ease > 0), ctown, ease > 0));
+    const g = new MJ.Game({ chars: useChars, mode: 'free', length: sn && sn.length || MJ.RULES.length || 'east', ui, cpuDelay: __auto ? 40 : undefined, allCpu: !!opt.watch });
+    if (baseChars) g.baseLevels = baseChars.map((c) => c.level);
+    g.town = town == null ? undefined : town; g.ease = ease || undefined; if (ease) print('ease ' + ease + '段下(' + MJ.DAN_NAME(ctown) + 'ぶん): ' + g.players.slice(1).map((p) => p.char.short + '★' + p.char.level).join(' ')); try { g.tenka = town == null && !opt.practice && (MJ.Rank.get().dan === 10) && g.players.some((p) => p.char && p.char.id === 1) && g.players.some((p) => p.char && p.char.id === 7); } catch (e) { g.tenka = false; } // 天下分け目(名人 + 徳川家康 + 水戸黄門)
+    if (opt.practice) { g.practice = true; g.watching = !!opt.watch; if (opt.watch) { const c0 = chars[0]; g.players[0].char = c0; g.players[0].name = c0.short; } } // 練習対局: 記録しない。観戦: 1人めの席(下)の手牌を見る
+    if (sn && chars.length === 3) { ['dealer', 'kyoku', 'honba', 'kyotaku', 'roundWind', 'handCount'].forEach((k) => { if (sn[k] != null) g[k] = sn[k]; }); if (sn.wc) g.winCnt = sn.wc.slice(); sn.scores.forEach((sc, i) => { if (g.players[i]) g.players[i].score = sc; }); g.resumed = true; g.bgmResume = sn.bgm; if (sn.mid) g.resumeMid = sn.mid; }
+    if (opt.dice) g.resumed = false; // デバッグ: 途中からの開始でも、サイコロの画面(と、その声)を出す
+    if (!opt.watch) g.players[0].coachType = 'balance'; // 麻雀先生は、バランス型
+    S.game = g; tl('game-built');
+    try { if (typeof gfx.dry === 'function' && MJ.CutIn && !g.fast) { /* カットインの文字(セリフ・名前・札)の字の大きさと、カットインの絵を、対局のはじめのうちに、すこしずつ下ごしらえ(はじめて出すとき、画面が止まらないように。 CPUの番のあいだだけ進める) */
+      const L = []; const WH = [[255, 255, 255], [0, 0, 0]];
+      g.players.forEach((q) => { const ts = q.isHuman ? MJ.CutIn.gyakuTexts(null, true) : MJ.CutIn.allTexts(q.char).concat(MJ.CutIn.gyakuTexts(q.char)); ts.forEach((t) => L.push({ t, sz: ciSize(t), cols: WH })); L.push({ t: q.name, sz: 19, cols: [CI_COL.ron.edge, CI_COL.tsumo.edge] }); });
+      L.push({ t: 'ロン', sz: 26, cols: [[255, 255, 255]] }, { t: 'ツモ', sz: 26, cols: [[255, 255, 255]] }, { img: 'img/cutin_ron.webp' }, { img: 'img/cutin_tsumo.webp' });
+      let i = 0; const st = () => { if (i >= L.length || g.stopped || S.game !== g) return; if (S.mode !== 'game' || S.cutin || S.self || S.react || S.menuP || (S.lastKeyT && __now() - S.lastKeyT < 1500)) { setTimeout(st, 300); return; }
+        const it = L[i]; if (it.img) { try { if (typeof gfx.preload === 'function') gfx.preload(it.img); } catch (e) { /* ignore */ } } else { gfx.dry(1); try { it.cols.forEach((c) => gfx.text(it.t, 0, 0, -it.sz, c[0], c[1], c[2], 0)); } catch (e) { /* ignore */ } gfx.dry(0); }
+        i++; setTimeout(st, 220); }; setTimeout(st, 7000); } } catch (e) { /* ignore */ }
+    try { if (typeof gfx.dry === 'function' && gfx.bold && !g.fast) { /* 「ポン」「ロン」などの大きな文字(影3枚+白ぶち+色)を、対局のはじめのうちに下ごしらえ(はじめて出すとき止まらないように) */ const Lw = []; [['リーチ', [225, 36, 28]], ['ロン', [230, 0, 18]], ['ツモ', [230, 0, 18]], ['ポン', [196, 139, 255]], ['チー', [196, 139, 255]], ['カン', [196, 139, 255]]].forEach((w) => { [[30, 56, 46], [14, 30, 24], [0, 0, 0], [255, 255, 255], w[1]].forEach((c) => Lw.push([w[0], c])); }); let j = 0; const sw = () => { if (j >= Lw.length || g.stopped || S.game !== g) return; if (S.mode !== 'game' || S.cutin || S.banner || S.self || S.react || S.menuP || (S.lastKeyT && __now() - S.lastKeyT < 1500)) { setTimeout(sw, 300); return; } gfx.dry(1); try { gfx.text(Lw[j][0], 0, 0, -76, Lw[j][1][0], Lw[j][1][1], Lw[j][1][2], 0); } catch (e) { /* ignore */ } gfx.dry(0); j++; setTimeout(sw, 200); }; setTimeout(sw, 9000); } } catch (e) { /* ignore */ }
+    try { await g.run(); } catch (e) { print('GAME ERR ' + (e && e.stack || e)); }
+    S.game = null; S.mode = 'menu'; S.side = S.coach = null; S.menuIdx = 0; S.homeBot = false; NSND.home(); S.self = S.react = S.result = S.end = S.saveP = null; dirty();
+    if (__auto) __quit();
+  }
+  const menuItems = () => ['つづける', 'CPUの速さ: ' + MJ.CPU_SPEED_JP[MJ.cpuSpeed()] + '  ◀▶', 'ホームにもどる']; // CPUの速さは、ここで変える(左右・決定で切りかえ。メニューは閉じない)
+
+  /* ---------- メインループから ---------- */
+  let nextAuto = 0, lastSave = 0, nextSide = 0, coachShots = 0;
+  window.__frame = function (now) {
+    __runTimers(now);
+    { const fdt = S.lastFr ? Math.min(now - S.lastFr, 200) : 0; S.lastFr = now; if (S.menuP && fdt > 0) Object.keys(S.bub || {}).forEach((k) => { S.bub[k].until += fdt; }); } // メニューが開いている間は、吹き出しの表示時間も 止める
+    if (S.tlDirty && now - (S.tlLast || 0) > 4000) { S.tlLast = now; S.tlDirty = false; try { localStorage.setItem('mj_tl', S.tl.join('|')); } catch (e) { /* ignore */ } }
+    while (postQ.length) { const f = postQ.shift(); try { f(); } catch (e) { /* ignore */ } }
+    if (S.mode === 'video') vTick(now);
+    if (__auto && globalThis.__teacherEnv && S.self && !S.side && !S.coach && now > nextSide) { nextSide = now + 3300; window.__key('right'); window.__key('ok'); setTimeout(() => window.__key('ok'), 1500); } // 試験用: 解説の窓を、ときどき開く
+    if (__auto && now > nextAuto && !S.coach && !S.side) { nextAuto = now + 90; window.__key('ok'); }
+    if (__lsDirty && now - lastSave > 1500) { lastSave = now; __lsDirty = false; try { __save(JSON.stringify(__ls)); } catch (e) { /* ignore */ } }
+    /* 画面の入れかえ(ダブル/トリプルバッファ)で、古い絵が交互に出て点滅しないよう、変化のあとは3回続けて描く */
+    if (pressing() || S.intro || S.dice || S.cutin || S.fly || (S.deal && now >= S.deal.t0 - 50) || S.ryu || (S.banner && now - (S.banner.t0 || 0) < 260)) S.dirty = true; // 動いている間は、描き続ける
+    if (!S.dirty) return false;
+    S.dirty = false; return true;
+  };
+  const perf = { t0: 0, n: 0, ms: 0, shown: '' };
+  function pumpSay() {
+    if (S.sayT) return;
+    const q = S.sayQ || []; const now = __now();
+    while (q.length && (now - q[0].t0 > 4000 || q[0].g !== S.game)) q.shift(); // 古くなったセリフは出さない
+    if (!q.length) return;
+    const busy = !!S.menuP || !!S.cutin || !!S.ryu || (S.banner && S.banner.call) || S.ura || S.winRv || Object.keys(S.bub).some((k) => S.bub[k].until > now) || S.react || (S.fly && S.fly.t0 + 600 > now);
+    if (busy) { S.sayT = setTimeout(() => { S.sayT = null; pumpSay(); }, 250); return; }
+    const x = q.shift(); tl('say-show ' + x.p.name + ' ' + x.ms + 'ms'); S.bub[x.p.seat] = { name: x.p.name, text: x.t, p: x.p, until: __now() + x.ms }; dirty();
+    S.sayT = setTimeout(() => { S.sayT = null; dirty(); pumpSay(); }, x.ms + 120);
+  }
+  const drawBody = function () {
+    if (S.mode === 'boot') { drawBoot(); return true; }
+    // カーソルだけが動いたとき: 画面ぜんたいは描きなおさず、手牌のあたりだけ描く(キビキビ動かすため)
+    if (S.partialKey && !S.cutin && !(S.self && S.self.rm) && !S.full && S.mode === 'game' && S.game && S.fullDrawn && !S.result && !S.rankP && !S.end && !S.intro && !S.dice && !S.menuP && !S.soundP && !S.saveP && !(S.toast && S.toast.until > __now()) && !S.coach && !S.rankScr && !S.react && !S.banner && !S.ryu && !Object.keys(S.bub).length && !S.fly && !S.deal && !pressing() && !S.side) {
+      S.vx = 0; S.vy = 0; gfx.view(0, 0); gfx.clip(0, 360, 720, 108); fill(0, 360, 720, 108, [32, 74, 60]); gfx.layer(1 - 1); drawHand(S.game); gfx.clip(); S.partialKey = false; return true;
+    }
+    S.partialKey = false; S.full = false; S.fullDrawn = true;
+    if (S.mode === 'stats') { gfx.view(0, 0); drawStats(); drawBack(S.ros ? 12 : 38, S.ros && S.ros.mode ? 'やめる' : undefined); return true; }
+    if (S.mode === 'quiz') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawQuiz(); if (S.quiz && S.quiz.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog(S.quiz.learn ? 'クイズを やめますか?' : 'ホームに もどりますか?', ['つづける', S.quiz.learn ? 'やめる' : 'ホームにもどる'], S.quiz.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
+    if (S.mode === 'dict') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDict(); if (S.dict && S.dict.view === 'main') drawBack(14); return true; }
+    if (S.mode === 'study') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawStudy(); drawBack(9); return true; }
+    if (S.mode === 'video') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawVideo(); if (S.vid && S.vid.view !== 'play' && !S.vid.ask) drawBack(); if (S.vid && S.vid.ask) { const a = S.vid.ask; S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('つづきから 見ますか?', ['つづきから(' + vfmt(S.vid.d.pos[S.vid.files[a.i].name]) + ')', 'はじめから'], a.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
+    if (S.mode === 'learn') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawLearn(); if (S.learn && !S.learn.confirm && S.learn.view !== 'sub') drawBack(16); if (S.learn && S.learn.confirm) { S.vx = 56; S.vy = 20; gfx.view(56, 20); drawDialog('ホームに もどりますか?', ['つづける', 'ホームにもどる'], S.learn.confirm.idx, ''); gfx.view(0, 0); S.vx = 0; S.vy = 0; } return true; }
+    if (S.mode === 'diag') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawDiag(); drawBack(22); return true; }
+    if (S.mode === 'howto') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawHow(); drawBack(24); return true; }
+    if (S.mode === 'credits') { gfx.view(0, 0); S.vx = 0; S.vy = 0; drawCredits(); return true; }
+    const full = S.mode === 'title' || S.mode === 'menu' || S.mode === 'dbg' || S.mode === 'settings' || S.mode === 'rules' || S.mode === 'promo';
+    const inGame = !full && S.mode !== 'slots' && S.game && !S.result && !S.end && !S.rankP;
+    if (full || inGame || S.result || S.rankP) { S.vx = 0; S.vy = 0; } else { S.vx = 56; S.vy = 20; }
+    gfx.view(S.vx, S.vy);
+    if (S.mode === 'title') drawTitle(); else if (S.mode === 'menu') drawHome(); else if (S.mode === 'dbg') drawDbg(); else if (S.mode === 'settings') drawSettings(); else if (S.mode === 'promo') drawPromo(); else if (S.mode === 'rules') drawRules(); else if (S.mode === 'slots') { gfx.clear(32, 74, 60); drawSlots(); drawBack(80); }
+    else if (S.game && S.cutin && S.ciSnap === S.cutin && typeof gfx.grab === 'function') { gfx.clear(32, 74, 60); gfx.layer(27); } // カットインの間は、卓の絵を 1枚にして貼るだけ(毎コマ 卓ぜんぶを描かない)
+    else if (S.game) { gfx.clear(32, 74, 60); drawTable(S.game); drawUra(); if (inGame) { fill(720, 0, 112, 468, [28, 32, 34]); gfx.view(0, 20); drawSide(S.game); if (S.coach) drawCoach(); gfx.view(0, 0); } }
+    if (S.rankP) drawRankP();
+    if (S.result) { drawResult(S.result); drawResSay(); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/res' + (++S.shotN) + '.bmp'); }
+    if (__auto && globalThis.__shotDir && (S.react || (S.self && S.self.btns.length)) && S.shotR < 6) { gfx.shot(__shotDir + '/act' + (++S.shotR) + '.bmp'); }
+    if (S.end) { drawEnd(S.end); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/end.bmp'); }
+    if (S.coach && __auto && globalThis.__shotDir && coachShots < 6 && S.coach.cards && S.coach.cards.length) { gfx.view(0, 0); gfx.shot(__shotDir + '/coach' + (++coachShots) + '.bmp'); }
+    if (S.map) { gfx.view(0, 0); drawMap(); return true; }
+    if (S.cert) { gfx.view(0, 0); drawCert(); return true; }
+    if (S.reveal) { gfx.view(0, 0); drawReveal(); return true; }
+    if (S.rankScr) { drawRankScreen(); gfx.view(0, 0); return true; }
+    if (S.intro && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawIntro(); return true; }
+    if (S.dice && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawDice(); return true; }
+    S.vx = 56; S.vy = 20; gfx.view(56, 20); // 以降の板(メニューなど)は、画面の中央に
+    if (S.saveNote && S.saveNote.until > __now() && !S.saveP) { // 自動セーブの知らせ: 画面の左下に、小さく
+      gfx.view(0, 0); const w = 170, x = 8, y = SH - 26; rrect(x, y, w, 22, 5, [0, 0, 0], 170); text(S.saveNote.text, x + w / 2, y + 1, 16, S.saveNote.text === 'セーブしました' ? [190, 235, 200] : [255, 160, 140], 1); gfx.view(S.vx, S.vy);
+    }
+    const toastOn = S.toast && S.toast.until > __now();
+    if (S.saveP || toastOn) { // 保存の質問・セーブ中は、画面全体を黒で覆って卓を見せず、画面の中心に出す
+      gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], 165);
+      gfx.view(56, 20);
+      if (S.saveP) drawSaveQ();
+      if (toastOn) { rrect(110, 187, 500, 54, 8, [0, 0, 0], 225); text(S.toast.text, 360, 200, 24, YEL, 1); }
+    }
+    gfx.view(S.vx, S.vy);
+    if (S.cutin && S.ciSnap !== S.cutin && typeof gfx.grab === 'function' && S.game && !S.result && !S.rankP && !S.end && !S.intro && !S.dice) { gfx.view(0, 0); gfx.grab(27); S.lay[27] = { key: 'grab' }; S.ciSnap = S.cutin; gfx.view(S.vx, S.vy); } // 最初の1コマだけ、いまの卓の絵を写しておく
+    if (S.cutin) drawCutin(); // 決めゼリフのカットイン(いちばん手前)
+    if (S.menuP) drawDialog('メニュー', menuItems(), S.menuP.idx, '');
+    if (S.soundP) drawSound();
+    if (S.teachQ) drawTeachQ();
+    if (S.playQ) drawDialog('麻雀をはじめます', ['つづきから(' + kyokuText(S.playQ.snap) + ')', 'はじめから'], S.playQ.idx, '');
+    if (S.confirmQ) drawDialog('このまま ゲームが 終了しますが よろしいですか?', ['終了', 'もどる'], S.confirmQ.idx, '');
+    if (S.resetQ) drawDialog('ゲームを はじめから にしますか?', ['リセットする', 'やめる'], S.resetQ.idx, '成績・段位・雀士・ビデオ・勉強の進みが 消えます');
+    gfx.view(0, 0);
+    return true;
+  };
+  /* ---------- OLED(別の小さな画面)用の状態: 場面に合わせて 麻雀先生のポーズを選び、フレームレートなどと一緒に /tmp/mj_oled.txt へ(native/pi/mjoled.py が読む) ---------- */
+  /* OLED-JP-BEGIN */
+  const OLED_JP = { BOOT: '起動中', TITLE: 'タイトル', HOME: 'ホーム', GAME: '対局', RESULT: '結果', QUIZ: 'クイズ', STUDY: '勉強', VIDEO: 'ビデオ', STATS: '成績', SETUP: '設定', MAP: '地図', RANK: '昇段', NEW: '新雀士', END: '対局終了',
+    'リーチ': 'リーチ!', 'ポン': 'ポン!', 'チー': 'チー!', 'カン': 'カン!', 'ロン': 'ロン!', 'ツモ': 'ツモ!', DRAW: '流局', WIN: '勝ち!', LOSE: '負け', COMEBACK: '逆転!', CUTIN: '必殺!', RANKUP: '昇段!', RIICHI: 'リーチ中', WARN: '警戒!', QOK: '正解!', QNEAR: 'おしい', QNG: 'ちがう', LVUP: '昇級!' };
+  /* OLED-JP-END */
+  /* ---------- ずんだもんの進化(OLED用): 遊び方を、回数で数えて 姿をきめる。 数は「累計」のまま消さず、周(350回ごと)の はじめの数との差で 周ごとの遊び方を見る ---------- */
+  let petC = null;
+  function petLoad() { if (petC) return petC; try { const v = JSON.parse(localStorage.getItem('mj_pet2')); if (v && v.base) petC = v; } catch (e) { /* ignore */ } if (!petC) petC = { cyc: 0, base: { g: 0, sr: 0, h: 0, ri: 0, ron: 0, win: 0, ts: 0, ca: 0, de: 0, q: 0, st: 0, vw: 0 }, f1: '', f2: -1, st: 0, vw: 0 }; return petC; }
+  function petSave() { try { localStorage.setItem('mj_pet2', JSON.stringify(petC)); } catch (e) { /* ignore */ } }
+  function petBump(k) { const P = petLoad(); P[k] = (P[k] || 0) + 1; petSave(); } // st=勉強・診断を開いた回数 vw=ビデオ・用語集・遊び方を開いた回数(累計)
+  function petSnap() { // いまの累計
+    const P = petLoad(), rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0], d = MJ.Stats.load(), pl = d.play || {}; let q = 0; Object.keys(d.quiz || {}).forEach((t) => { q += (d.quiz[t].n || 0); });
+    return { g: rs.games || 0, sr: rk[0] + rk[1] * 2 + rk[2] * 3 + rk[3] * 4, h: pl.hands || 0, ri: pl.riichi || 0, ron: pl.ron || 0, win: pl.win || 0, ts: pl.tsumo || 0, ca: pl.calls || 0, de: pl.deal || 0, q, st: P.st || 0, vw: P.vw || 0 };
+  }
+  const PET_AX = ['riichi', 'ron', 'tsumo', 'naki', 'mamori', 'study', 'view']; // 目安(仮): リーチ30% ロン50% ツモ40% なき35% ふりこみ12% 勉強0.5/局 ものしり0.3/局
+  function petScores(n, b) { // 周のあいだの 差で、8つの得点(1.0=ふつう。 1.25以上で 目立つ)
+    const h = n.h - b.h, g = Math.max(1, n.g - b.g), win = n.win - b.win, sc = {};
+    sc.riichi = h >= 10 ? ((n.ri - b.ri) / h) / 0.30 : 0; sc.ron = win >= 5 ? ((n.ron - b.ron) / win) / 0.50 : 0; sc.tsumo = win >= 5 ? ((n.ts - b.ts) / win) / 0.40 : 0;
+    sc.naki = h >= 10 ? ((n.ca - b.ca) / h) / 0.35 : 0; sc.mamori = h >= 10 ? 0.12 / Math.max(0.03, (n.de - b.de) / h) : 0; sc.study = ((n.q - b.q) + (n.st - b.st)) / g / 0.5; sc.view = (n.vw - b.vw) / g / 0.3;
+    return sc;
+  }
+  function petBest(sc) { let best = 'round', v = 1.25; PET_AX.forEach((k) => { if (sc[k] > v) { v = sc[k]; best = k; } }); return best; }
+  function petStep() { // 進化の判定(遊んだ回数がふえたときだけ 動く)。 戻り値: OLEDへ送る 文字列
+    const P = petLoad(), n = petSnap(), b = P.base, cp = n.g - b.g;
+    if (cp >= 350) { P.cyc++; P.base = n; P.f1 = ''; P.f2 = -1; petSave(); return petStep(); } // 350回めで、たまごにもどる(累計は そのまま)
+    if (cp >= 100 && !P.f1) { P.f1 = petBest(petScores(n, b)); petSave(); }
+    if (cp >= 300 && P.f1 && P.f2 < 0) { const g = Math.max(1, n.g - b.g); P.f2 = ((n.sr - b.sr) / g) <= 2.5 ? 0 : 1; petSave(); } // かちぐせ(平均順位 2.5位より上) / まけぐせ
+    let lean = ''; if (!P.f1 && cp >= 80) lean = petBest(petScores(n, b)); else if (P.f1 && P.f2 < 0 && cp >= 250) lean = ((n.sr - b.sr) / Math.max(1, n.g - b.g)) <= 2.5 ? 'win' : 'lose'; // 分かれ道の前の ヒント
+    let ql = ''; try { const qi = qlInfo(qlLoad().c); ql = 'ql=' + (qi.sh ? 11 : qi.k) + '\nqs=' + qi.stars + '\n'; } catch (e) { /* ignore */ }
+    return ql + 'cp=' + cp + '\ncyc=' + P.cyc + '\nf1=' + P.f1 + '\nf2=' + P.f2 + '\nlean=' + lean + '\n';
+  }
+  let bootN = 0; try { bootN = (parseInt(localStorage.getItem('mj_boots'), 10) || 0) + 1; localStorage.setItem('mj_boots', String(bootN)); } catch (e) { /* ignore */ } // 電源を入れた回数(時計がないので、季節やペットは、回数で決める)
+  function oledState() {
+    const m = S.mode, g = S.game; let scene = 'HOME', pose = 'home', msg = '';
+    if (m === 'boot') { scene = 'BOOT'; pose = 'hello'; } else if (m === 'title') { scene = 'TITLE'; pose = 'hello'; } else if (m === 'menu') { scene = 'HOME'; pose = 'home'; }
+    else if (m === 'quiz' || m === 'learn' || m === 'study' || m === 'dict' || m === 'howto' || m === 'diag') { scene = m === 'quiz' ? 'QUIZ' : 'STUDY'; pose = 'teach'; }
+    else if (m === 'video') { scene = 'VIDEO'; pose = 'watch'; } else if (m === 'stats') { scene = 'STATS'; pose = 'think'; }
+    else if (m === 'settings' || m === 'dbg' || m === 'rules' || m === 'promo' || m === 'slots' || m === 'credits') { scene = 'SETUP'; pose = 'think'; }
+    if (m === 'quiz' && S.quiz) { const q = S.quiz; try { if (q.phase === 'lvup') { pose = 'celebrate'; msg = 'LVUP'; } else if (q.phase === 'res' && q.res) { if (q.res.r === 'ok') { pose = 'celebrate'; msg = 'QOK'; } else if (q.res.r === 'near') { pose = 'think2'; msg = 'QNEAR'; } else { pose = 'sad'; msg = 'QNG'; } } else if (q.phase === 'end') { pose = (q.total ? q.ok / q.total : 0) >= 0.6 ? 'celebrate' : 'calm'; msg = pose === 'celebrate' ? 'WIN' : ''; } } catch (e) { /* ignore */ } } // クイズ: 正解で喜ぶ / おしい / ちがう で表情
+    if (g && (m === 'game' || S.result || S.end || S.rankP)) {
+      scene = 'GAME'; pose = 'watch';
+      if (S.self) pose = 'think';
+      if (S.react) pose = 'think2';
+      if (S.dice || S.intro || S.deal) pose = 'hello';
+      if (!S.result && !S.end && !S.rankP) { try { const me = g.players[0]; if (me && me.riichi) { pose = 'power'; msg = 'RIICHI'; } else if (g.players.slice(1).some((q) => q.riichi)) { pose = 'think2'; msg = 'WARN'; } } catch (e) { /* ignore */ } } // リーチしているあいだ: 自分=ぐっと力が入る / 相手=けいかい
+      if (S.ryu) { pose = 'calm'; msg = 'DRAW'; }
+      if (S.banner && S.banner.call) { pose = (S.banner.text === 'ロン' || S.banner.text === 'ツモ' || S.banner.text === 'リーチ') ? 'power' : 'call'; msg = S.banner.text; }
+      if (S.cutin) { pose = 'power'; msg = S.cutin.ci && S.cutin.ci.gyaku ? 'COMEBACK' : 'CUTIN'; }
+      if (S.result) { const r = S.result; scene = 'RESULT'; if (r.type === 'draw') { pose = 'calm'; msg = 'DRAW'; } else if (r.wins && r.wins.some((w) => w.winner.isHuman)) { pose = 'win'; msg = 'WIN'; } else if (r.delta && r.delta[0] < 0) { pose = 'sad'; msg = 'LOSE'; } else pose = 'calm'; }
+      if (S.rankP) { scene = 'RANK'; pose = 'celebrate'; }
+      if (S.end) { scene = 'END'; const mine = S.end.results && S.end.results.find((x) => x.p && x.p.isHuman), rk = mine ? mine.rank : 2; pose = rk === 1 ? 'celebrate' : rk === 4 ? 'sad' : rk === 3 ? 'calm' : 'win'; msg = rk === 1 ? 'WIN' : rk === 4 ? 'LOSE' : ''; }
+    }
+    if (S.map) { scene = 'MAP'; pose = 'celebrate'; msg = ''; }
+    if (S.reveal) { scene = 'NEW'; pose = 'celebrate'; }
+    if (S.cert) { scene = 'RANK'; pose = 'pray'; msg = 'RANKUP'; }
+    let audio = 'ok'; try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi && mi[0] === 0) audio = 'BGM STOP'; } catch (e) { /* ignore */ }
+    let mm = ['', '', '', '']; try { if (typeof gfx.mem === 'function') mm = gfx.mem().map((v) => Math.round(v)); } catch (e) { /* ignore */ }
+    let petStr = ''; try { petStr = petStep(); } catch (e) { petStr = ''; }
+    let pet = ''; try { const rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0]; pet = 'plays=' + (rs.games || 0) + '\nwins=' + (rk[0] || 0) + '\nboots=' + bootN + '\nqc=' + (rs.qc || 0) + '\npt=' + (rs.pt || 0) + '\ndan=' + (rs.dan || 0) + '\nteacher=' + (teacherOn() ? 1 : 0) + '\nbuzz=' + buzzLv() + '\ncos=' + oledCos() + '\n' + petStr + 'idle=' + Math.floor((__now() - Math.max(S.lastKeyT || 0, S.readyT || 0)) / 1000) + '\n'; } catch (e) { /* ignore */ } // ペット用: 遊んだ回数・1位の数・電源を入れた回数・クイズの数・経験値・段位
+    const o = perf.o || {}, jp = (k) => (k ? (OLED_JP[k] || k) : '');
+    return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\n' + pet;
+  }
+  let oledT = 0; setInterval(() => { try { if (typeof gfx.status === 'function') { gfx.status(oledState()); } } catch (e) { /* ignore */ } }, 400);
+  const perfCtx = () => { // いま どの画面で なにをしていたか(遅れの記録に添える)
+    let t = S.mode || '?'; const g = S.game;
+    if (S.mode === 'game' && g) t += ' 番' + g.turn + (S.self ? ' 自分' : '') + (S.react ? ' 鳴き' : '') + (S.banner ? ' 演出' : '') + (S.result ? ' 結果' : '') + (S.intro ? ' 開始' : '') + (S.dice ? ' サイコロ' : '') + (S.deal ? ' 配牌' : '') + (S.coach ? ' 解説' : '');
+    else if (S.mode === 'diag' && S.diag) t += ' p' + S.diag.pg + ' f' + S.diag.fi; else if (S.mode === 'study' && S.study) t += ' sel' + S.study.sel;
+    else if (S.mode === 'learn' && S.learn) t += ' ' + S.learn.view + ' sel' + S.learn.sel; else if (S.mode === 'video' && S.vid) t += ' ' + S.vid.view + ' sel' + S.vid.sel; else if (S.mode === 'dict' && S.dict) t += ' ' + S.dict.view + ' foc' + S.dict.foc;
+    else if (S.mode === 'stats') t += S.ros ? ' 対戦相手' : ' 成績'; else if (S.mode === 'quiz' && S.quiz) t += ' ' + S.quiz.phase;
+    if (S.rankScr) t += ' 段位'; if (S.map) t += ' 地図'; if (S.cert) t += ' 認定証'; if (S.reveal) t += ' 登場'; if (S.rankP) t += ' 順位'; if (S.end) t += ' 終局'; if (S.menuP) t += ' メニュー';
+    return t;
+  };
+  /* ---------- 熱・電源の警告(本体の温度と「電圧低下」の印を見はる。 OLEDと同じ しきい値: 75C 注意 / 82C 危険) ---------- */
+  S.hl = { lv: 0 };
+  setInterval(() => {
+    try {
+      if (typeof gfx.health !== 'function') return;
+      const h = gfx.health(), lv = h[0], prev = S.hl.lv; S.hl = { lv, temp: Math.round(h[1]), why: h[2], volt: h[3], amp: h[4] };
+      if (lv >= 2) { S.heatCool = 0; if (!S.heatStop) { S.heatStop = true; S.heatMine = !MJ.paused; MJ.paused = true; } } // 危険: ゲームを止める
+      else if (S.heatStop) { if (!S.heatCool) S.heatCool = __now(); if (__now() - S.heatCool > 10000) { S.heatStop = false; if (S.heatMine) MJ.paused = false; } } // 10秒 ふつうにもどったら、自動でつづける
+      if (lv !== prev || lv >= 1) dirty();
+    } catch (e) { /* ignore */ }
+  }, 1000);
+  /* ---------- 大きな絵の先読みと片づけ: 起動のときには読まず、使う場面の少し前(ホームで待っているとき・対局の終わり)に、1枚ずつ読む。 使い終わって20秒たったら、メモリから捨てる ---------- */
+  const PF = {
+    video: { pre: 'img/video/', files: () => gfx.ls('img/video', '.webp'), need: () => S.mode === 'video', soon: () => S.mode === 'menu' },
+    credits: { pre: 'img/credits.webp', files: () => ['img/credits.webp'], need: () => S.mode === 'credits', soon: () => S.mode === 'menu' },
+    map: { pre: 'img/map/', files: () => gfx.ls('img/map', '.webp'), need: () => !!S.map, soon: () => !!(S.end || S.rankScr || S.cert || S.reveal) },
+    cert: { pre: 'img/cert', files: () => ['img/cert_stamp.webp', 'img/certface/01.webp', 'img/cert.webp'], need: () => !!S.cert, soon: () => !!(S.end || S.rankScr || S.map) },
+  };
+  setInterval(() => {
+    try {
+      if (typeof gfx.ls !== 'function' || S.heatStop) return; const now = __now(); let loadedOne = false;
+      const idle = now - (S.lastKeyT || 0) > 700 && !(S.mode === 'game' && (S.self || S.react || S.menuP)) && S.mode !== 'boot';
+      let av = 999; try { av = gfx.mem()[1]; } catch (e) { /* ignore */ }
+      Object.keys(PF).forEach((k) => {
+        const g = PF[k], want = g.need() || g.soon();
+        if (g.need()) g.used = now;
+        if (want && !g.done) { g.used = g.used || now; if (idle && av >= 70 && !loadedOne) { if (!g.q) g.q = g.files().slice(); const f = g.q.shift(); if (f) { gfx.preload(f); loadedOne = true; } if (!g.q.length) { g.done = true; g.q = null; } } }
+        else if (g.done && !want && now - (g.used || 0) > 20000) { gfx.unload(g.pre); g.done = false; g.q = null; g.used = 0; } // 使い終わった絵は、メモリから捨てる
+      });
+    } catch (e) { /* ignore */ }
+  }, 90);
+  /* ---------- メモリ不足の見はり: 空きが少なくなったら、画面のキャッシュ(層)→文字の絵、の順に捨てる(足りなくなると、本体ごと固まる) ---------- */
+  const memLow = () => { try { if (typeof gfx.mem === 'function') { const m = gfx.mem(); return m[1] < 60; } } catch (e) { /* ignore */ } return false; };
+  setInterval(() => {
+    try {
+      if (typeof gfx.free !== 'function' || typeof gfx.mem !== 'function') return;
+      const av = gfx.mem()[1], now = __now(); if (av >= 60 || av <= 0 || now - (S.memFreeAt || 0) < 15000) return;
+      S.memFreeAt = now;
+      const k = gfx.free(1); S.lay = []; if (av < 40) gfx.free(2); // 層を捨てたら、JS側の「描きずみ」の記録も消す(また描きなおす)
+      S.memFreed = (S.memFreed || 0) + 1; tl('mem-free avail=' + Math.round(av) + ' 層' + k); dirty();
+    } catch (e) { /* ignore */ }
+  }, 2000);
+  function drawHealth() {
+    const h = S.hl; if (!h || h.lv < 1) return; gfx.view(0, 0);
+    const volt = h.why === 2, deg = h.temp + '度', ex = h.volt ? '  ' + h.volt.toFixed(1) + 'V ' + h.amp.toFixed(2) + 'A' : '';
+    if (h.lv === 1) {
+      fill(0, 0, SW, 34, [196, 108, 0], 238); fill(0, 34, SW, 3, [255, 214, 120], 255);
+      text(volt ? '電源が 弱っています。 電源アダプターと ケーブルを 確認してください' + ex : '本体が 熱くなっています(' + deg + ')。 しばらく 休ませると 安心です' + ex, SW / 2, 6, 21, WHITE, 1);
+      return;
+    }
+    const pulse = 0.5 + 0.5 * Math.sin(__now() / 260);
+    fill(0, 0, SW, SH, [150 + Math.round(70 * pulse), 0, 0], 244);
+    text('危険!', SW / 2, 40, 76, WHITE, 1);
+    text(volt ? '電源の 電圧が たりません' + ex : '本体が 熱すぎます(' + deg + ')' + ex, SW / 2, 150, 34, [255, 236, 200], 1);
+    tFace('advice', 'heat', SW / 2 - 330, 212, 170);
+    text('電源を 切って、', SW / 2 + 70, 226, 40, WHITE, 1); text('本体を 休ませてください', SW / 2 + 70, 276, 40, WHITE, 1);
+    text('ゲームは 止めてあります。 冷えると 自動で もどります', SW / 2, 400, 22, [255, 214, 190], 1);
+  }
+  window.__draw = function () {
+    S.drawSeq = (S.drawSeq || 0) + 1;
+    const t0 = __now(); const r = drawBody(); try { drawHealth(); } catch (e) { /* ignore */ } const dt = __now() - t0; perf.n++; perf.ms += dt; if (dt > (perf.mx || 0)) perf.mx = dt;
+    if (dt >= 300) tl('slow-draw ' + Math.round(dt) + 'ms ' + perfCtx()); // 0.3秒以上かかった描きは、出来事の記録(mj_tl)にも残す
+    if (dt >= 80) { (perf.slow = perf.slow || []).unshift(Math.round(dt) + 'ms  ' + perfCtx()); perf.slow.length = Math.min(perf.slow.length, 4); }
+    if (t0 - perf.t0 >= 1000) { if (perf.n > 0) { const av = perf.ms / perf.n; perf.o = { spd: Math.round(1000 / Math.max(1, av + 4)), draw: Math.round(av), max: Math.round(perf.mx || 0), key: perf.o ? perf.o.key : '' }; } else if (!perf.o) perf.o = {}; /* 描いた回数は、画面が動かないと減るので、「描ける速さ」(1コマの時間から出す)を出す。 描かなかった秒は、前の値のまま */ perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; try { const kl = typeof gfx.keyLat === 'function' ? gfx.keyLat() : null; if (kl && kl[2]) perf.key = '押してから画面 平均' + Math.round(kl[0]) + 'ms 最大' + Math.round(kl[1]) + 'ms(' + kl[2] + '回)'; if (kl && kl[2] && perf.o) perf.o.key = Math.round(kl[0]); } catch (e) { /* ignore */ } }
+    if (perfOn() || (perf.flash || 0) > t0) { // 遅れの診断(写真に とれるように、左上に 大きめに)
+      gfx.view(0, 0); const sl = perf.slow || [], h = 24 + 18 * (3 + sl.length);
+      fill(0, 0, 520, h, [0, 0, 0], 200); text('遅れの診断: ' + (perfOn() ? 'オン' : 'オフ'), 6, 3, 16, YEL); if (perfOn()) text('消すには ホームで ▼▼▲▲▶◀▶◀ 戻る 決定 / 設定の「遅れの診断」', 190, 3, 13, [200, 220, 205]); text(perf.shown || '(計測中)', 6, 22, 16, [120, 255, 160]);
+      text(perf.key || '押してから画面: (ボタンを押すと出ます)', 6, 40, 16, [130, 200, 255]);
+      sl.forEach((x, i) => text('遅れ ' + x, 6, 58 + i * 18, 15, [255, 170, 150]));
+      try { const mi = typeof snd.musicInfo === 'function' ? snd.musicInfo() : null; if (mi) { const ok = mi[0] !== 0; text('BGM ' + (mi[0] < 0 ? '(なし)' : ok ? '再生中' : '止まっている!') + (mi[4] >= 0 ? '  先読み ' + mi[4] + 'ms ぶん / 足りなかった ' + mi[3] + '回' : '') + '  曲の読み込み 最大' + mi[2] + 'ms', 6, 58 + sl.length * 18, 15, ok ? [150, 220, 255] : [255, 120, 120]); } } catch (e) { /* ignore */ }
+    }
+    return r;
+  };
+
+  /* 初回(新しくはじめた最初の対局)で、文字をはじめて作る重さが 出ないように、よく出る文字を 先に作っておく(画面には出さない)。 タイトルのあいだに、少しずつ */
+  function warmTextJobs() { /* 文字の下ごしらえ(画面には出さない)を、3つずつの仕事に分ける */
+    if (typeof gfx.dry !== 'function') return [];
+    const W = [255, 255, 255], Y = [255, 220, 40], L = [];
+    const add = (s, sz, c) => L.push([s, sz, c[0], c[1], c[2]]);
+    [['東一局', 96, Y], ['東一局', 78, Y], ['東一局', 28, W], ['東一局', 24, W], ['勝負!', 110, W], ['勝負!', 110, [225, 40, 30]], ['勝負!', 90, W], ['勝負!', 90, [225, 40, 30]], ['東風戦', 16, [200, 215, 200]], ['東南戦', 16, [200, 215, 200]], ['解説', 22, W], ['麻雀先生', 19, W], ['なし', 19, W], ['あり', 19, W], ['親', 24, W],
+      ['サイコロを振ります  (Aボタンで スキップ)', 20, Y], ['…', 22, W], ['あなた が 親です', 24, Y], ['25,000', 22, Y], ['25,000', 22, [120, 60, 0]], ['供託 0', 17, [200, 215, 200]], ['残り', 18, W], ['枚', 18, W], ['MENU', 15, W]].forEach((e) => add(e[0], e[1], e[2]));
+    { // 局の名前(東二局〜北四局)と、ポン・チー・リーチ・ロン・ツモの大きな文字: はじめて作ると 0.2秒ほど止まり、そのあいだ 声が切れる/飛ぶ。 先に作っておく
+      const KY = ['一', '二', '三', '四'], WD = ['東', '南', '西', '北'], BS = (typeof CALL_V !== 'undefined' && CALL_V === 4 && gfx.bold) ? -76 : 76;
+      WD.forEach((w) => KY.forEach((k) => { add(w + k + '局', 96, Y); add(w + k + '局', 78, Y); add(w + k + '局', 28, W); }));
+      ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'].forEach((n) => { if (n) add(n + '本場', 17, [200, 215, 200]); });
+      ['リーチ', 'ポン', 'チー', 'カン', 'ロン', 'ツモ'].forEach((t) => [[30, 56, 46], [14, 30, 24], [0, 0, 0], [255, 255, 255], [225, 36, 28], [230, 0, 18], [196, 139, 255]].forEach((c) => add(t, BS, c)));
+    }
+    ['東', '南', '西', '北'].forEach((w) => { add(w, 28, W); add(w, 18, W); });
+    for (let n = 0; n <= 70; n++) add(String(n), 34, Y); // 山の残り枚数
+    for (let n = 1; n <= 12; n++) add(String(n), CD_SZ, CD_COL); // 親決めのカウントダウン(サイコロの合計 2〜12)
+    add('あなた', 21, W); add('あなた', 21, [35, 26, 0]); add('あなた', 20, W); add('あなた', 20, [27, 27, 18]);
+    try { MJ.CHARS.forEach((c) => { const nm = c.short || c.name; add(nm, 21, W); add(nm, 20, W); add(nm, 20, [27, 27, 18]); add(nm, 17, [80, 90, 86]); }); } catch (e) { /* ignore */ }
+    const jobs = []; for (let k = 0; k < L.length; k += 3) { const part = L.slice(k, k + 3); jobs.push(() => { gfx.dry(1); try { part.forEach((e) => gfx.text(e[0], 0, 0, e[1], e[2], e[3], e[4], 0)); } catch (e) { /* ignore */ } finally { gfx.dry(0); } }); }
+    return jobs;
+  }
+  function drawBoot() { /* C側の起動画面(img/boot.webp + 棒)と同じ見た目で、棒の70%から続けて100%まで */
+    gfx.view(0, 0); gfx.clear(14, 60, 44); gfx.image('img/boot.webp', 0, 0, SW, SH, 255); const bx = Math.round((SW - 360) / 2);
+    fill(bx - 3, 293, 366, 26, [196, 160, 84]); fill(bx, 296, 360, 20, [6, 20, 14]); fill(bx, 296, Math.round(360 * (0.7 + 0.3 * (S.bootP || 0))), 20, [222, 184, 96]); // 棒の溝: 金色のふち + 暗い地(C側の起動画面と同じ)
+  }
+  function bootRun() { /* 最初の対局で要る準備を、起動の画面(進み具合の棒)のあいだに すべて済ませる */
+    const jobs = warmTextJobs().concat(homeWarmJobs()), total = jobs.length || 1, t0 = __now(); let done = 0;
+    S.mode = 'boot'; S.bootP = 0; tl('boot-start ' + total); dirty();
+    const run = () => {
+      const t1 = __now(); while (jobs.length && __now() - t1 < 80) { jobs.shift()(); done++; }
+      S.bootP = done / total; dirty();
+      if (jobs.length) setTimeout(run, 0); else { S.mode = 'title'; S.readyT = __now(); NSND.home(); tl('boot-done ' + Math.round(__now() - t0) + 'ms'); print('boot-js ' + total + ' jobs ' + Math.round(__now() - t0) + 'ms'); dirty(); }
+    };
+    setTimeout(run, 30);
+  }
+  bootRun();
+  print('ネイティブ版 準備できました');
+})();

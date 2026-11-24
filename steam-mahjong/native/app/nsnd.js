@@ -1,0 +1,136 @@
+/* ネイティブ版の音: BGM(SDL_mixer)・効果音(audio/sfx/*.wav)・掛け声・役と点数の読み上げ(audio/yk の録音をつなぐ) */
+(function () {
+  const MJ = window.MJ;
+  const GAME = ['game1', 'game2', 'game3', 'game4', 'game5', 'game6', 'game7', 'game10', 'game11'].map((n) => 'audio/' + n + '.mp3');
+  const LATE = ['audio/game8.mp3', 'audio/game9.mp3'], BLADE = 'audio/blade_of_the_setting_sun.mp3', FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3', 'audio/game15.mp3', BLADE, 'audio/warlord_s_final_move.mp3', 'audio/the_master_s_final_hand.mp3'], HOME = 'audio/home.mp3', TENKA_ORAS = 'audio/fields_of_fallen_banners.mp3'; // 天下分け目(名人+家康+黄門)のオーラスだけの曲
+  const SFX = ['click', 'select', 'draw', 'deal4', 'deal1', 'sort1', 'sort2', 'deal', 'discard', 'call', 'kan', 'riichi', 'ron', 'tsumo', 'win', 'lose', 'drawgame', 'slam', 'start', 'end', 'ok', 'ng', 'error', 'dice_hit', 'dice_clack', 'ura_slide', 'ura_tap', 'hand_open'];
+  const D = { bgm: 0.22 * 6 / 5 * 6 / 5 * 6 / 5, sfx: 0.7 * 8 / 5, voice: 0.85, read: 0.6 }; // 初期値(音量の目盛り5のとき)。 目盛り5 = 前の版の「BGM6・効果音8・読み上げ5」のバランス。 さらに BGMは、ほかの音とのバランスで、もう1段(×1.2)大きく
+  try { const vv = localStorage.getItem('mj_vol_v'); if (vv === '3') { try { const b = localStorage.getItem('mj_vol_bgm'); if (b !== null) localStorage.setItem('mj_vol_bgm', String(Math.max(0, parseInt(b, 10) - 1))); } catch (e) { /* ignore */ } localStorage.setItem('mj_vol_v', '4'); } else if (vv !== '4') { (vv === '2' ? ['bgm'] : ['bgm', 'sfx', 'voice']).forEach((k) => localStorage.removeItem('mj_vol_' + k)); localStorage.setItem('mj_vol_v', '4'); } } catch (e) { /* ignore */ } // 前の版の目盛りで保存された音量は、1回だけ 5 にもどす
+  const V = { bgm: D.bgm, sfx: D.sfx, voice: D.voice, read: D.read };
+  const lvlOf = (k) => { let v = 5; try { const s = localStorage.getItem('mj_vol_' + k); if (s !== null) v = Math.max(0, Math.min(10, parseInt(s, 10))); } catch (e) { /* ignore */ } return isNaN(v) ? 5 : v; };
+  const applyLvl = (k) => { const l = lvlOf(k); V[k] = Math.min(1, D[k] * l / 5); if (k === 'voice') V.read = Math.min(1, D.read * l / 5); };
+  ['bgm', 'sfx', 'voice'].forEach(applyLvl);
+  let yk = null, token = 0, last = null, cur = '', duckT = 0;
+  try { const t = __readtext('audio/yk/manifest.json'); yk = t ? JSON.parse(t) : {}; } catch (e) { yk = {}; }
+  /* 段位・地図・雀士登場の声は、はじめて鳴らすときに読みこむと、出だしが切れる。 先に全部 読みこんでおく */
+  try { Object.keys(yk).forEach((k) => { if (/^(d|m|r|v|nm):/.test(k)) snd.len('audio/yk/' + yk[k]); }); } catch (e) { /* ignore */ }
+  const A = (window.NSND = {
+    on: true,
+    scale: 1, bv() { return V.bgm * A.scale; }, /* 画面ごとのBGMの大きさ(結果の画面は、はじめから少し小さく。声のたびに上げ下げしない) */
+    music(p) { if (!A.on) { snd.music(''); cur = ''; return; } if (cur === p) return; if (A.holding) { A._pend = p; return; } /* 配牌のアニメーション中は、曲の読み込みを待つ(コマ落ちさせない) */ cur = p; snd.musicVol(A.bv(), 0); snd.music(p, true); },
+    getLevel(k) { return lvlOf(k); },
+    setLevel(k, l) { l = Math.max(0, Math.min(10, l)); try { localStorage.setItem('mj_vol_' + k, String(l)); } catch (e) { /* ignore */ } applyLvl(k); if (k === 'bgm') snd.musicVol(A.bv(), 200); },
+    hold() { A.holding = true; A._hid = (A._hid || 0) + 1; const id = A._hid; try { snd.musicVol(0, 700); setTimeout(() => { if (A.holding && A._hid === id) { snd.music(''); cur = ''; } }, 800); } catch (e) { /* ignore */ } /* 前の曲(ホームの曲など)は、すっと小さくして止める。配牌は、曲なしで(効果音だけ) */ setTimeout(() => { if (A._hid === id) A.release(); }, 12000); }, // 配牌のあいだ、曲の切りかえを待たせる(12秒たったら、かならず はじめる)
+    release() { if (!A.holding) return; A.holding = false; const p = A._pend; A._pend = null; if (p) setTimeout(() => A.music(p), 300); },
+    mapOn() { A._pcur = cur; A.scale = 1; A.music('audio/map.mp3'); }, // 昇段の地図の曲(終わったら、前の曲にもどす)
+    revealOn() { A._rcur = cur; A.scale = 1; cur = ''; A.music(BLADE); }, // 新しい雀士が登場する画面: ノリが良く、わくわくする曲(blade_of_the_setting_sun)
+    revealOff() { const q = A._rcur; A._rcur = null; if (q) { cur = ''; A.music(q); } },
+    mapOff() { const q = A._pcur; A._pcur = null; if (q) { cur = ''; A.music(q); } },
+    home() { A._tenkaOras = false; A.holding = false; A._pend = null; A.scale = 1; A.music(HOME); },
+    track() { return A.gtrack; }, // いま(または さいごに)流している対局の曲(セーブに入れて、つづきから再開したとき 同じ曲を 頭から流す)
+    game(g) {
+      if (g && g.bgmResume) { const q = g.bgmResume; g.bgmResume = null; if (GAME.concat(LATE, FINAL, [TENKA_ORAS]).indexOf(q) >= 0) { last = q; A.gtrack = q; A.scale = 1; A._tenkaOras = q === TENKA_ORAS; cur = ''; A.music(q); return; } }
+      if (g && g.tenka && typeof g.isOras === 'function' && g.isOras()) { // 天下分け目のオーラス: ずっと この曲(ほかの曲は えらばない。 局ごとの結果の曲にも 切りかえない)
+        A._tenkaOras = true; A.scale = 1; if (cur === TENKA_ORAS) return; last = TENKA_ORAS; A.gtrack = TENKA_ORAS; cur = ''; A.music(TENKA_ORAS); return; }
+      A._tenkaOras = false; // つづきから: そのときの曲を、頭から
+      // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」から選ぶ
+      const isGameTrack = GAME.indexOf(cur) >= 0 || LATE.indexOf(cur) >= 0 || FINAL.indexOf(cur) >= 0;
+      const finalHand = !!g && g.kyoku % 4 === 3;
+      if (isGameTrack && !A._chg && !(finalHand && FINAL.indexOf(cur) < 0 && !A._finalDone)) return; A._chg = false; // 流局・CPU同士の上がりのあとは 結果の曲に切りかえなかったので、次の局で 曲を替える // いま対局の曲が流れているなら、局ごとに曲を替えない(曲の読み込みで、音が途切れるため)
+      A.scale = 1; if (!finalHand) A._finalDone = false;
+      if (finalHand) A._finalDone = true;
+      const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []).filter((x) => x !== last);
+      const fin = FINAL.filter((x) => x !== last);
+      const pool = finalHand && Math.random() < 0.6 && fin.length ? fin : cand;
+      last = pool[Math.floor(Math.random() * pool.length)]; A.gtrack = last; cur = ''; A.music(last);
+    },
+    resultCpuRon() { if (A._tenkaOras) return; A.scale = 0.65; cur = ''; A.music(BLADE); }, /* CPU同士の「ロン」(人は関係ない): ノリの良い曲に切りかえる(前は 地図の曲と同じ曲だった。 地図の曲は 地図だけ) */
+    result(kind) { if (A._tenkaOras) return; /* 天下分け目のオーラスは 結果の曲に 切りかえない */ const n = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : 'result_' + kind; if (kind === 'calm' || kind === 'draw') { A._chg = true; return; } /* 流局・CPU同士の上がり: 曲を切りかえず、対局のBGMをそのまま流す(切りかえの一瞬、音が消えるため) */ /* CPU同士の上がり: 対局のBGMを、そのまま流す(明るい曲にも、負けた曲にもしない) */ A.scale = 0.65; cur = ''; A.music('audio/' + n + '.mp3'); },
+    endBgm(rank) { // 対局が終わったとき(順位の画面): 最後の局が 流局・CPU同士の上がりで、対局の曲が鳴りっぱなしにならないよう、順位に合わせた曲にする(すでに同じ種類の結果の曲なら そのまま)
+      const fam = rank <= 2 ? 'win' : rank === 3 ? 'draw' : 'lose', m = /result_(win|draw|lose)/.exec(cur || ''); if (m && m[1] === fam) return;
+      A.holding = false; A.scale = 0.65; cur = ''; A.music('audio/result_' + fam + '.mp3');
+    },
+    certOn() { A.scale = 0.65; const p = 'audio/the_balcony_at_first_light.mp3'; if (cur !== p) { cur = ''; A.music(p); } }, // 認定証(昇段): ハンコを押すページの曲
+    toggle() { A.on = !A.on; if (!A.on) { snd.music(''); cur = ''; } return A.on; },
+    sfx(name, v) { if (SFX.indexOf(name) >= 0) snd.play('audio/sfx/' + name + '.wav', (v == null ? V.sfx : v)); },
+    call(p, text) {
+      const K = { 'リーチ': 'riichi', 'ポン': 'pon', 'チー': 'chi', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[text]; if (!K) return;
+      const id = p && p.char && p.char.voice != null ? p.char.voice : 0; const path = 'audio/voice/' + id + '_' + K + '.mp3'; const nw = __now(); if (A._lc && A._lc.path === path && nw - A._lc.t < 5000) return; A._lc = { path, t: nw }; /* 同じ掛け声は、5秒以内に2回言わない */ snd.play(path, V.voice); A.callEnd = __now() + Math.round((snd.len(path) || 0.8) * 1000); /* 掛け声が終わる時刻(結果の読み上げを、これが終わってから始めるため) */
+      if (id === 0 && yk && yk['x:なのだ'] && Math.random() < 0.3) { const L = snd.len(path) || 0.6, nk = A.nd(K === 'riichi' ? 'firm' : K === 'ron' || K === 'tsumo' ? 'bright' : 'flat'); if (nk) setTimeout(() => A.speak([nk]), Math.round((L - 0.1) * 1000)); } // あなた(ずんだもん)の掛け声のあと、ときどき「なのだ」
+    },
+    /* 語尾「なのだ」を、たまに(確率 p)つけた並びにする */
+    /* 「なのだ」は3種類: firm=少し暗い・言い切る(x:なのだ) / bright=明るい(x:なのだ2) / flat=フラット(x:なのだ3)。場面に合うものを選ぶ */
+    nd(mood) { const M = { firm: 'x:なのだ', bright: 'x:なのだ2', flat: 'x:なのだ3' }; if (!yk) return null; if (M[mood] && yk[M[mood]]) return M[mood]; const ks = Object.keys(M).map((m) => M[m]).filter((k) => yk[k]); return ks.length ? ks[Math.floor(Math.random() * ks.length)] : null; },
+    nanoda(keys, p, mood) { const k = Math.random() < (p == null ? 0.3 : p) ? A.nd(mood) : null; return k ? keys.concat('+', k) : keys; },
+    stopSpeak(now) { token++; if (typeof snd.cancelAt === 'function') snd.cancelAt(); if (now && typeof snd.stopAll === 'function') snd.stopAll(); }, // now=true: いま鳴っている声も 止める(ボタンで 先へ飛ばしたとき、前の局の読み上げが 次の画面に かぶらないように)
+    klen(k) { return yk && yk[k] ? snd.len('audio/yk/' + yk[k]) || 0 : 0; }, // 録音(キー)の長さ(秒)
+    /* 'y:ツモ' などの並び(null は短い間)を、録音をつなげて鳴らす。 BGMは読み上げの間だけ小さくする */
+    speak(keys, cb, lead) {
+      const id = ++token, lead0 = lead == null ? 0.05 : lead, known = keys.filter((k) => !k || k === '+' || k === '.' || yk[k]);
+      const segs = []; let extra = 0, plus = false;
+      known.forEach((k) => {
+        if (k === '+') { plus = true; return; } // 「+」: 前の声に、ほとんど間をあけずに つなげる(じゅう + いっぽんば)
+        if (k === '.') { extra += 0.18; return; } // 「.」: ほんの少しの間(トン・二局)
+        if (!k) { extra += 0.4; return; } // 間(null)は、少し長め: 声が重なって聞こえないように
+        const p = 'audio/yk/' + yk[k]; const len = snd.len(p); if (!len) return;
+        const prev = segs.length ? segs[segs.length - 1] : null;
+        segs.push({ p, len, wait: prev ? prev.len + (plus ? 0.01 : 0.07) + extra : lead0 + extra }); extra = 0; plus = false;
+      });
+      /* 声のあいだの間は、「前の声が実際に鳴りはじめた時刻」から数える。 画面が一瞬止まって、タイマーがおくれても、声と声が重ならない(トン→二局) */
+      const run = (i) => {
+        if (i >= segs.length) { if (cb) setTimeout(cb, 0); return; }
+        const sg = segs[i];
+        const go = () => { if (id !== token) return; if (globalThis.__menuHold) { setTimeout(go, 100); return; } /* メニューが開いている間は、次の声を鳴らさない */ snd.play(sg.p, V.read); if (i + 1 < segs.length) run(i + 1); else if (cb) setTimeout(cb, (sg.len + 0.07) * 1000); };
+        setTimeout(go, sg.wait * 1000);
+      };
+      if (typeof snd.playAt === 'function') { // 実機版: 声の時刻を、音の側(別スレッドの時計)に 予約する。 画面の描きが重くて JSのタイマーが おくれても、声の間が あかない
+        snd.cancelAt(); let tt = 0; segs.forEach((sg) => { tt += sg.wait; snd.playAt(sg.p, V.read, Math.round(tt * 1000)); });
+        if (segs.length) { if (cb) setTimeout(cb, (tt + segs[segs.length - 1].len + 0.07) * 1000); } else if (cb) setTimeout(cb, lead0 * 1000);
+      } else if (segs.length) run(0); else if (cb) setTimeout(cb, lead0 * 1000);
+      /* 声のたびに、BGMの音量を 上げ下げしない(新しい声は はっきり聞こえる。音量の切りかえで、BGMがガサガサするのを防ぐ) */
+      return segs.reduce((t, sg) => t + sg.wait, 0) + (segs.length ? segs[segs.length - 1].len + 0.07 : 0); // 読み上げにかかる秒数
+    },
+    has(k) { return !!yk[k]; },
+    /* 上がったときの、役と点数の読み上げ(ブラウザ版 ui.js と同じ組み立て) */
+    readWin(game, res) {
+      const READ = { '門前清自摸和': 'ツモ', '断么九': 'タンヤオ', '平和': 'ピンフ', '一盃口': 'イーペーコー', '二盃口': 'リャンペーコー', '七対子': 'チートイツ', '対々和': 'トイトイ', '三暗刻': 'サンアンコー', '三色同順': 'サンショク', '三色同刻': 'サンショクドウコー', '一気通貫': 'イッツー', '混全帯么九': 'チャンタ', '純全帯么九': 'ジュンチャン', '混一色': 'ホンイツ', '清一色': 'チンイツ', '小三元': 'ショウサンゲン', '大三元': 'ダイサンゲン', '国士無双': 'コクシムソウ', '四暗刻': 'スーアンコー', '嶺上開花': 'リンシャンカイホー', '海底摸月': 'ハイテイ', '河底撈魚': 'ホーテイ', '混老頭': 'ホンロートー', '清老頭': 'チンロートー', '四槓子': 'スーカンツ', '三槓子': 'サンカンツ', '緑一色': 'リューイーソー', '字一色': 'ツーイーソー', '小四喜': 'ショウスーシー', '大四喜': 'ダイスーシー', '九蓮宝燈': 'チューレンポートー', '天和': 'テンホー', '地和': 'チーホー', 'ダブルリーチ': 'ダブルリーチ', 'ダブル立直': 'ダブルリーチ', '立直': 'リーチ', 'リーチ': 'リーチ', '一発': 'イッパツ', '槍槓': 'チャンカン' };
+      const yh = { '白': 'ハク', '發': 'ハツ', '中': 'チュン', '東': 'トン', '南': 'ナン', '西': 'シャー', '北': 'ペー' };
+      const keys = [];
+      const num = (n) => { const k = [], man = Math.floor(n / 10000), th = Math.floor((n % 10000) / 1000), hu = Math.floor((n % 1000) / 100); if (man) k.push('m:' + man); if (th) k.push('k:' + th); if (hu) k.push('h:' + hu); return k; };
+      res.wins.forEach((w) => {
+        const r = w.res;
+        // 「桃太郎 ツモ!」: 上がった人の名前 + ツモ/ロン(あなたも)。「の」は入れない(声が、つなぎ言葉として合わないため)
+        if (yk['nm:' + w.winner.name]) keys.push('nm:' + w.winner.name, null); // 「〇〇 ロン」: 上がった人の名前と、ツモ/ロン(CPUのときも読む。ただし、その人自身の掛け声が終わってから)
+        keys.push(w.tsumo ? 'w:ツモ' : 'w:ロン', null, null);
+        r.yaku.forEach((y) => {
+          if (y.n === 'ドラ' || y.n === '赤ドラ' || y.n === '裏ドラ') keys.push('y:' + (y.n === 'ドラ' ? 'ドラ' : y.n === '赤ドラ' ? 'アカドラ' : 'ウラドラ'), 'n:' + Math.min(13, y.h));
+          else {
+            const m = /^役牌[ \s　]*(.*)$/.exec(y.n);
+            if (m) keys.push('y:ヤクハイ', 'y:' + (yh[m[1]] || m[1]));
+            else if (/場風|自風/.test(y.n)) { const k = y.n.replace(/[^東南西北]/g, '').slice(-1); keys.push(/場風/.test(y.n) ? 'y:バフウ' : 'y:ジフウ', 'y:' + (yh[k] || '')); }
+            else keys.push('y:' + (READ[y.n] || y.n));
+          }
+          keys.push(null);
+        });
+        const p = w.pay;
+        if (r.limit) keys.push('l:' + r.limit, null);
+        if (!w.tsumo) keys.push(...num(p.ron), 'pt');
+        else if (game.dealer === w.winner.seat) keys.push(...num(p.each), 'pt_all');
+        else keys.push(...num(p.fromOther), null, ...num(p.fromDealer), 'pt');
+        if (Math.random() < 0.3) { const nk = A.nd(w.winner.isHuman || r.limit ? 'bright' : w.loser && w.loser.isHuman ? 'firm' : 'flat'); if (nk) keys.push('+', nk); } // ときどき、ずんだもんの語尾「なのだ」(自分の上がり・満貫以上は明るく / 放銃したときは言い切り / ほかはフラット)
+        keys.push(null);
+      });
+      const wait = Math.max(1100, (A.callEnd || 0) - __now() + 500); setTimeout(() => A.speak(keys), wait); // 掛け声と重ならないように
+    },
+    /* 局のはじまり: 「トン、イッキョク!」など */
+    readKyoku(game, cb) { // cb: 読み上げが 実際に 終わったときに 呼ぶ(つぎの「勝負!」の声を、それまで 待たせる)
+      const W = ['トン', 'ナン', 'シャー', 'ペー'], KY = ['イッキョク', 'ニキョク', 'サンキョク', 'ヨンキョク'];
+      const keys = ['x:' + W[game.roundWind % 4], '.', 'x:' + (KY[game.kyoku % 4] || 'イッキョク')]; // 「トン」「二局」: ほんの少し間をあけて、重ならないように
+      const HB = { 1: 'イッポンバ', 2: 'ニホンバ', 3: 'サンボンバ', 4: 'ヨンホンバ', 5: 'ゴホンバ', 6: 'ロッポンバ', 7: 'ナナホンバ', 8: 'ハッポンバ', 9: 'キュウホンバ', 10: 'ジュッポンバ' };
+      const hb = Math.min(19, game.honba || 0); // 10本場までは、そのまま。11本場からは「じゅう」+「1〜9本場」(19本場まで)
+      if (hb >= 1 && hb <= 10) keys.push(null, 'x:' + HB[hb]); else if (hb > 10) keys.push(null, 'x:ジュウ', '+', 'x:' + HB[hb - 10]);
+      if (game.isOras && game.isOras()) keys.push(null, 'x:オーラス'); // 最終局
+      return A.speak(keys, cb);
+    },
+  });
+})();

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>操作シンプル 本格麻雀</title>
+<link rel="stylesheet" href="style.css?v=325">
+<link rel="stylesheet" href="simple.css?v=325">
+<link rel="preload" as="image" href="img/title_art.webp">
+<link rel="preload" as="image" href="img/btn_start.webp">
+<link rel="preload" as="image" href="img/menu_bg.webp">
+</head>
+<body>
+<div id="menu-bg"></div>
+<div id="ld" aria-live="polite"><div class="ld-box"><div class="ld-t">読み込み中<span class="ld-d"><i>.</i><i>.</i><i>.</i></span></div><div class="ld-p" id="ld-p">0%</div></div></div>
+<div id="app">
+
+  <!-- タイトル -->
+  <section id="screen-title" class="screen">
+    <div class="tt-petals" id="tt-petals" aria-hidden="true"></div>
+    <div id="tt">
+      <button id="bell" class="bell tt-bgm" type="button" aria-pressed="true" aria-label="BGM"><img id="bell-img" src="img/bgm_on.webp" alt="BGM ON" draggable="false"></button>
+      <button id="btn-exit" class="tt-exit" type="button" aria-label="ゲーム終了"><img src="img/btn_exit.webp" alt="ゲーム終了" draggable="false"></button>
+      <button id="btn-start" class="tt-go" type="button" aria-label="Aボタンではじめる"><img src="img/btn_start.webp" alt="はじめる" draggable="false"></button>
+    </div>
+  </section>
+
+  <!-- ホーム(4ボタン) -->
+  <section id="screen-menu" class="screen hidden">
+   <div id="mn">
+    <div class="mk-col"><img class="mk-logo" src="img/logo.webp" alt="操作シンプル 本格麻雀" draggable="false"><div class="mk-head">メニューを<br><b>選択</b>して<br>ください。</div></div>
+    <button class="hm-btn" id="hm-play" type="button">麻雀をはじめる</button>
+    <button class="hm-btn" id="hm-quiz" type="button">麻雀クイズ</button>
+    <button class="hm-btn" id="hm-study" type="button">点数計算の勉強</button>
+    <button class="hm-btn" id="hm-set" type="button">設定</button>
+    <button class="mk-back" id="hm-title" type="button">ゲーム終了</button>
+    <button class="mk-rec" id="hm-rec" type="button"><span>🏅</span> 成績・<b>初段</b></button>
+    <div id="menu-stats" class="hm-stats"></div>
+    <div class="hm-hint"><span><i>▲▼</i> えらぶ</span><span><i>A</i> きめる</span></div>
+   </div>
+  </section>
+
+  <!-- 対戦相手選択 -->
+  <section id="screen-select" class="screen hidden">
+    <div class="sel-head">
+      <button class="btn ghost sm" id="sel-back">◀ もどる</button>
+      <div class="sel-ttl"><h2 id="sel-title"></h2><p class="sub" id="sel-desc"></p></div>
+    </div>
+    <div class="sel-panel">
+      <div class="sel-vs">
+        <div class="sel-cnt">対戦相手 <b id="sel-n">0</b>/3</div>
+        <div class="sel-bar" id="sel-bar"></div>
+      </div>
+      <div class="sel-act">
+        <button class="btn pri big" id="sel-reco"><span>★</span>おすすめの相手</button>
+        <button class="btn big" id="sel-rand"><span>🎲</span>ランダム</button>
+      </div>
+      <div class="sel-rl">
+        <label>対局 <select id="sel-length"><option value="east">東風戦(東1〜4局)</option><option value="south">東南戦(東・南 計8局)</option><option value="single">一局だけ(練習向き)</option></select></label>
+        <button class="btn sm" id="sel-rules">⚙ ルール設定</button>
+        <span class="sel-rsum" id="sel-rule-sum"></span>
+      </div>
+    </div>
+    <div class="char-detail" id="char-detail">3人選ぶと、対局開始の確認が出ます(タップで選択/解除)。</div>
+    <div class="chars" id="chars"></div>
+  </section>
+
+  <!-- 練習問題 -->
+  <section id="screen-drill" class="screen hidden">
+    <!-- 1画面に収める(スクロールなし): 832×428 の設計座標を画面に合わせて拡大縮小する -->
+    <div id="dr">
+      <div class="dr-top"><button class="btn ghost sm" id="drill-back">◀ もどる</button><h2 id="drill-title">📝 練習問題</h2><span id="drill-score" class="dscore"></span><button class="btn sm" data-open-gloss title="用語辞典">📚 用語</button></div>
+      <div id="drill-home"></div>
+      <div id="drill-quiz" class="hidden dq">
+        <div id="dq-sit" class="dq-sit"></div>
+        <div id="dq-prompt" class="dq-prompt"></div>
+        <div id="dq-board"></div>
+        <div id="dq-opts" class="dq-opts"></div>
+        <div id="dq-hand"></div>
+        <div id="dq-actions" class="dq-actions hidden"><button class="btn pri" id="dq-ok" disabled>この牌を切る</button></div>
+        <div id="dq-fb" class="hidden"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 点数計算の勉強 -->
+  <section id="screen-study" class="screen hidden">
+    <div id="sy"></div>
+  </section>
+
+  <!-- ノート -->
+  <section id="screen-notes" class="screen hidden">
+    <div class="back-row"><button class="btn ghost sm" id="notes-back">◀ もどる</button><h2 style="margin:0">📖 麻雀参考書</h2></div>
+    <div class="tabs" id="notes-tabs"></div>
+    <div class="note" id="notes-body"></div>
+  </section>
+
+  <!-- 対局 -->
+  <section id="screen-game" class="screen hidden">
+    <!-- 本物の卓のような盤面: 720×428 の設計座標を、画面に合わせて拡大縮小して置く -->
+    <div id="sc"><div id="table"></div><div id="mine"></div><div id="says"></div></div>
+    <!-- 右端の縦ボタン列(112×428 の設計座標) -->
+    <div id="side"><div id="side-in">
+      <button class="btn sb sm-menu" id="btn-quit">☰ MENU</button>
+      <button class="btn sb sm-vol" id="btn-vol" type="button" aria-label="音量">🔊</button>
+      <div id="sd-info" class="sd-info"></div>
+      <div id="sd-act" class="sd-act"></div>
+      <button class="btn sb sm-sub" id="btn-coach"><img class="cb-ico" src="img/teacher/t12.webp" alt="" draggable="false"><span>解説</span></button>
+      <button class="btn sb sm-sub" id="btn-tools">🧰 ツール</button>
+      <button class="btn sb sm-sub" id="btn-teach" type="button">麻雀先生</button>
+      <div id="sd-tools" class="sd-tools hidden">
+        <span class="gt" id="g-title"></span>
+        <button class="btn sm" id="btn-hint">💡 ヒント</button>
+        <button class="btn sm" id="btn-danger" title="危険度の表示ON/OFF">⚠ 危険度</button>
+        <button class="btn sm" id="btn-tl" title="切り牌ログ(危険度のタイムライン)">📈 切り牌</button>
+        <button class="btn sm" id="btn-peek" title="CPUの手牌を大きく表示">👁 相手の手牌</button>
+        <button class="btn sm" data-open-yaku title="役の一覧">📖 役一覧</button>
+        <button class="btn sm" data-open-gloss title="用語辞典">📚 用語辞典</button>
+        <details class="gset"><summary class="btn sm">⚙ 設定</summary>
+          <div class="gsetp">
+            <label><input type="checkbox" id="opt-reveal"> CPUの手牌を見る</label>
+            <label><input type="checkbox" id="opt-one"> ワンクリック打牌</label>
+            <label><input type="checkbox" id="opt-dsym"> 危険度を記号(◎○△✕)で表示</label>
+            <label><input type="checkbox" class="ac" data-audio="danger"> 危険度の表示(◎○△✕・★)</label>
+            <div class="audioset">
+              <label><input type="checkbox" class="ac" data-audio="bgm"> BGM</label>
+              <label class="vol">BGM音量 <input type="range" class="ac" data-audio="vol" min="0" max="0.3" step="0.01"></label>
+              <label><input type="checkbox" class="ac" data-audio="sfx"> 効果音</label>
+              <label class="vol">効果音の音量 <input type="range" class="ac" data-audio="svol" min="0" max="1" step="0.05"></label>
+              <label><input type="checkbox" class="ac" data-audio="voice"> 掛け声(ロン・ポン等)</label>
+        <label><input type="checkbox" class="ac" data-audio="banter"> キャラのセリフ(吹き出し)</label>
+        <label><input type="checkbox" class="ac" data-audio="yakuread"> 上がったとき役を自動で読み上げ</label>
+        
+        <label class="vol">掛け声の音量 <input type="range" class="ac" data-audio="cvol" min="0.05" max="1" step="0.05"></label>
+        <label class="vol">読み上げの音量 <input type="range" class="ac" data-audio="rvol" min="0.1" max="1" step="0.05"></label>
+        <label class="vol">読み上げの速さ <input type="range" class="ac" data-audio="rrate" min="0.6" max="1.6" step="0.05"></label>
+        <div class="vpick"><div class="vp-t">読み上げの声</div><div class="vp-list"></div></div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div></div>
+    <aside id="coach"></aside>
+    <div id="fx"></div>
+  </section>
+</div>
+<div id="overlay" class="hidden"></div>
+
+<script src="js/sdsave.js?v=325"></script>
+<script>try{if(!localStorage.getItem('mj_volmig1')){localStorage.setItem('mj_volmig1','1');localStorage.setItem('mj_bgmvol','0.15');localStorage.setItem('mj_sfxvol2','0.5');localStorage.setItem('mj_readvol','0.5');localStorage.setItem('mj_callvol','0.2');}}catch(e){}</script>
+<script src="js/cursor.js?v=325"></script>
+<script src="js/tiles.js?v=325"></script>
+<script src="js/rules.js?v=325"></script>
+<script src="js/forms.js?v=325"></script>
+<script src="js/chars.js?v=325"></script>
+<script src="js/ai.js?v=325"></script>
+<script src="js/coach.js?v=325"></script>
+<script src="js/lessons.js?v=325"></script>
+<script src="js/game.js?v=325"></script>
+<script src="js/audio.js?v=325"></script>
+<script src="js/yomi.js?v=325"></script>
+<script src="js/sfx.js?v=325"></script>
+<script src="js/banter.js?v=325"></script>
+<script src="js/banter2.js?v=325"></script>
+<script src="js/chars2.js?v=325"></script>
+<script src="js/glossary.js?v=325"></script>
+<script src="js/ruby.js?v=325"></script>
+<script src="js/ui.js?v=325"></script>
+<script src="js/drill.js?v=325"></script>
+<script src="js/drillui.js?v=325"></script>
+<script src="js/study.js?v=325"></script>
+<script src="js/learn.js?v=325"></script>
+<script src="js/intro.js?v=325"></script>
+<script src="js/dice.js?v=325"></script>
+<script src="js/roster.js?v=325"></script>
+<script src="js/rank.js?v=325"></script>
+<script src="js/oni.js?v=325"></script>
+<script src="js/pad.js?v=325"></script>
+<script src="js/fx.js?v=325"></script>
+<script src="js/main.js?v=325"></script>
+</body>
+</html>

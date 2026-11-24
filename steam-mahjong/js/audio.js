@@ -1,0 +1,150 @@
+/* BGM: ホーム画面は1曲をループ、対局中は3曲からランダムに選んで順に再生。
+   iPhone は audio.volume が効かないため WebAudio の GainNode で音量を調整する */
+(function (G) {
+  const MJ = (G.MJ = G.MJ || {});
+  const load = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } };
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignore */ } };
+  const HOME = 'audio/home.mp3';
+  const STUDY = 'audio/study.mp3'; // 点数計算の勉強の画面だけ流れる曲(the_temple_s_breath)
+  const QUIZ = 'audio/quiz.mp3'; // 麻雀クイズの画面だけ流れる曲(thirteen_gates_to_glory)
+  const LATE = ['audio/game8.mp3', 'audio/game9.mp3']; // 東二局以降だけ流れる曲(game9 = sovereign_hand)
+  const GAME = ['audio/game1.mp3', 'audio/game2.mp3', 'audio/game3.mp3', 'audio/game4.mp3', 'audio/game5.mp3', 'audio/game6.mp3', 'audio/game7.mp3', 'audio/game10.mp3', 'audio/game11.mp3']; // game10 = paper_lanterns_at_dawn / game11 = jade_winds_rising
+  const FINAL = ['audio/game12.mp3', 'audio/game13.mp3', 'audio/game14.mp3']; // 4局目(東4局・南4局)だけ、ほかの曲にまざって、ランダムで流れる曲(one_tile_remaining)
+  let el = null, gain = null, wired = false, last = null;
+
+  /* 曲を先に取り寄せておく(押してから数秒待たされないように)。順番: ホーム → 対局曲 → 結果曲 */
+  /* 取り寄せた曲は Blob(端末内のデータ)にして、再生はそこから行う。ネットを通さないので、押した瞬間に鳴る */
+  const warmed = new Set(), blobs = {}, pending = {};
+  const warm = (src) => {
+    if (MJ.isFile || blobs[src] || typeof fetch === 'undefined' || typeof URL === 'undefined') return Promise.resolve(); // ファイルとして開いたときは、ディスクから直接読めるので、先読みしない
+    if (pending[src]) return pending[src];
+    pending[src] = fetch(src, { priority: 'low' }).then((r) => { if (!r.ok) throw new Error('x'); return r.blob(); })
+      .then((b) => { blobs[src] = URL.createObjectURL(b); warmed.add(src); })
+      .catch(() => { /* 取り寄せに失敗したら、通常どおりネットから再生する */ })
+      .then(() => { delete pending[src]; });
+    return pending[src];
+  };
+  MJ.warmAudio = (list) => list.reduce((p, s) => p.then(() => warm(s)), Promise.resolve());
+  /* 先読みは、画面が落ち着いてから、1曲ずつ間をあけて行う(取り寄せと変換が、操作とぶつからないように) */
+  let laterT = null;
+  MJ.warmAudioLater = (list, delay = 5000, gap = 2500) => {
+    clearTimeout(laterT);
+    laterT = setTimeout(() => { list.reduce((p, s) => p.then(() => (blobs[s] ? null : warm(s).then(() => new Promise((r) => setTimeout(r, gap))))), Promise.resolve()); }, delay);
+  };
+
+  const A = (MJ.Audio = {
+    on: load('mj_bgm', true),
+    volume: (() => { const v = load('mj_bgmvol', 0.1); return Math.min(0.3, typeof v === 'number' && isFinite(v) ? v : 0.1); })(), // 音量の最大を小さくした(以前の約2段階ぶんが標準)
+    scene: 'title',
+
+    _el() {
+      if (!el && typeof Audio !== 'undefined') {
+        el = new Audio();
+        el.preload = 'auto';
+        el.addEventListener('ended', () => { if (A.scene === 'game' && !A.resultOn) A._playGame(); });
+      }
+      return el;
+    },
+    _wire() {
+      if (wired || !el) return;
+      const ctx = MJ.SFX && MJ.SFX.getCtx && MJ.SFX.getCtx();
+      if (!ctx) return;
+      try {
+        const src = ctx.createMediaElementSource(el);
+        gain = ctx.createGain();
+        gain.gain.value = A.volume;
+        src.connect(gain); gain.connect((MJ.SFX.getBus && MJ.SFX.getBus()) || ctx.destination);
+        wired = true;
+        el.volume = 1;
+      } catch (e) { /* 失敗したら element.volume を使う */ }
+    },
+    _apply() { const v = A.volume * 0.8 * (A.ducked ? 0.18 : 1); if (gain) { try { gain.gain.setTargetAtTime(v, gain.context.currentTime, 0.06); } catch (e) { gain.gain.value = v; } } else if (el) el.volume = v; }, // 読み上げ中は、BGMをしっかり下げる(声が割れないように)。急に変えず、なめらかに
+    /* 曲を先に読み込んでおく(まだ鳴らさない)。読み込み中の最後に、すぐ鳴らせるように */
+    prime(src) {
+      return new Promise((done) => {
+        try {
+          const a = A._el(); if (!a) return done();
+          if (a.dataset.track !== src) { a.src = blobs[src] || src; a.dataset.track = src; }
+          a.preload = 'auto';
+          let ok = false; const fin = () => { if (ok) return; ok = true; done(); };
+          a.addEventListener('canplaythrough', fin, { once: true }); a.addEventListener('error', fin, { once: true });
+          setTimeout(fin, 7000);
+          try { a.load(); } catch (e) { fin(); }
+          if (a.readyState >= 4) fin();
+        } catch (e) { done(); }
+      });
+    },
+    duck(on) { A.ducked = !!on; A._apply(); },
+    _load(src, loop) {
+      const a = A._el();
+      if (!a) return;
+      a.loop = loop;
+      if (a.dataset.track !== src) { a.src = blobs[src] || src; a.dataset.track = src; }
+      // 取り寄せ中なら、終わった時点で端末内のデータに切り替える(再生位置はそのまま)
+      if (!blobs[src] && pending[src]) pending[src].then(() => { if (blobs[src] && a.dataset.track === src && a.src.indexOf('blob:') !== 0 && a.currentTime < 1) { const t = a.currentTime, ps = !a.paused; a.src = blobs[src]; a.currentTime = t; if (ps) a.play().catch(() => {}); } });
+      A._wire();
+      A._apply();
+      const p = a.play();
+      if (p && p.catch) p.catch(() => { /* 操作前は再生できない。次の操作で resume() */ });
+    },
+    _playGame() {
+      // 取り寄せ済みの曲を優先して選ぶ(なければ通常どおり)
+      // game8 は、東二局以降だけ選ばれる
+      const g = MJ.App && MJ.App.game;
+      // 最終局(東風戦=東四局 / 南風戦=東四局と南四局)は、60%の確率で「勝負後半の曲」(FINAL)から選ぶ。残りは、ふつうの曲から
+      const finalHand = !!g && g.kyoku % 4 === 3;
+      const cand = GAME.concat(g && g.kyoku >= 1 ? LATE : []);
+      const fin = FINAL.filter((s) => s !== last);
+      const base = finalHand && Math.random() < 0.6 && fin.length ? fin : cand.filter((s) => s !== last);
+      const ready = base.filter((s) => warmed.has(s));
+      const pool = ready.length ? ready : base;
+      last = pool[Math.floor(Math.random() * pool.length)];
+      A._load(last, true); // 1局のあいだは、同じ曲をくり返す。局が終わって結果画面を閉じたら、新しい曲に変わる
+      MJ.warmAudioLater([...GAME, ...LATE, ...FINAL, 'audio/result_win.mp3', 'audio/result_win2.mp3', 'audio/result_lose.mp3', 'audio/result_draw.mp3'], 8000, 3000);
+    },
+    /* 結果画面の専用BGM: 'win'(自分の和了) / 'lose'(マイナス) / 'draw'(流局)。閉じると対局BGMに戻る */
+    playResult(kind) {
+      if (!A.on || !['win', 'lose', 'draw', 'calm'].includes(kind)) return;
+      A.resultOn = true;
+      // 自分が上がったときの曲は、2曲からランダムに選ぶ
+      if (kind === 'calm') { A._load(STUDY, true); return; } // 自分以外の和了: 落ち着いた曲(点数の勉強と同じ静かな曲)
+      const name = kind === 'win' && Math.random() < 0.5 ? 'result_win2' : `result_${kind}`;
+      A._load(`audio/${name}.mp3`, true);
+    },
+    endResult() {
+      if (!A.resultOn) return;
+      A.resultOn = false;
+      if (A.scene === 'game') A._playGame();
+    },
+    /* シーン切替: 'home' | 'game' */
+    /* 押さなくてもBGMを鳴らせる環境(Windows版のstart.batなど)か */
+    autoOK() { try { return !!(MJ.isFile || (navigator.getAutoplayPolicy && navigator.getAutoplayPolicy('mediaelement') === 'allowed')); } catch (e) { return false; } },
+    setScene(scene0) {
+      // 押さなくても鳴らせる環境では、タイトルが出たあと、ホームの曲を流す(タイトルの間も無音にしない)
+      const wantTitle = scene0 === 'title' && A.on && MJ.titleBgmOK && A.autoOK();
+      const scene = wantTitle ? 'home' : scene0;
+      const changed = A.scene !== scene0 || !el || el.paused;
+      A.scene = scene0;
+      if (scene0 === 'title') { if (A.autoOK()) MJ.warmAudio([HOME]); else MJ.warmAudioLater([HOME], 1500, 0); } // タイトルの間は、ホームの曲だけ(勉強・クイズの曲は、ホームに入ってから)。回線が遅くても、タイトルの絵・スクリプトの読み込みをじゃましない // タイトルの間に、ホーム・勉強・クイズの曲を取り寄せ始める(画面が変わってすぐ鳴らせるように)
+      if ((scene0 === 'title' && !wantTitle) || !A.on) { A.stop(); return; }
+      if (scene === 'home') MJ.warmAudioLater([STUDY, QUIZ, ...GAME], 5000, 2500); // ホームが落ち着いてから、勉強の曲と対局曲を、1曲ずつ取り寄せる
+      if (scene === 'home' || scene === 'study' || scene === 'quiz') { const tr = scene === 'study' ? STUDY : scene === 'quiz' ? QUIZ : HOME; if ((changed && !(el && !el.paused && el.dataset.track === tr)) || (el && el.dataset.track !== tr)) A._load(tr, true); }
+      else if (changed && !(el && el.dataset.track && (GAME.includes(el.dataset.track) || LATE.includes(el.dataset.track) || FINAL.includes(el.dataset.track)) && !el.paused)) A._playGame();
+    },
+    resume() {
+      if (!A.on || (A.scene === 'title' && !(MJ.titleBgmOK && A.autoOK()))) return;
+      const c = MJ.SFX && MJ.SFX.getCtx && MJ.SFX.getCtx();
+      if (c && c.state !== 'running') { try { c.resume(); } catch (e) { /* ignore */ } }
+      A.setScene(A.scene);
+      if (el && el.paused) { const p = el.play(); if (p && p.catch) p.catch(() => {}); }
+    },
+    /* 実際に音が出ている状態か(自動再生が止められていないか) */
+    isPlaying() {
+      const c = MJ.SFX && MJ.SFX.getCtx && MJ.SFX.getCtx();
+      return !!el && !el.paused && el.currentTime > 0 && (!wired || (c && c.state === 'running'));
+    },
+    stop() { if (el) el.pause(); },
+    setOn(v) { A.on = v; save('mj_bgm', v); if (v) A.setScene(A.scene); else A.stop(); },
+    setVolume(v) { A.volume = v; save('mj_bgmvol', v); A._apply(); },
+  });
+})(typeof window !== 'undefined' ? window : globalThis);
