@@ -2019,6 +2019,12 @@
       const key = ('0' + n).slice(-2) + '.mp4'; // 記録(つづきから・見た印)は、番号だけの名前で持つ
       files.push({ n, name: strict ? key : nm, title: VTITLES[n] || nm, path: dd + '/' + nm, png: VTITLES[n] ? 'img/video/' + ('0' + n).slice(-2) + '.webp' : null });
     }));
+    if (strict) { // git pull で届く動画(リポジトリの video/ の「番号_名前.mp4」)も読む。 SDカードの「番号.mp4」が同じ番号にあれば、そちらが先
+      dirs.filter((d) => !bootDirs.includes(d)).forEach((dd) => rdir(dd).forEach((nm) => {
+        const m = nm.match(/^(\d{1,2})[_\-].+\.mp4$/i), n = m ? parseInt(m[1], 10) : 0; if (!n || !VTITLES[n] || have[n]) return; have[n] = 1;
+        files.push({ n, name: ('0' + n).slice(-2) + '.mp4', title: VTITLES[n], path: dd + '/' + nm, png: 'img/video/' + ('0' + n).slice(-2) + '.webp' });
+      }));
+    }
     Object.keys(VTITLES).forEach((k) => { if (!have[k]) files.push({ n: +k, name: 'v' + k, title: VTITLES[k], path: null, png: 'img/video/' + ('0' + k).slice(-2) + '.webp' }); }); // 動画ファイルが まだ無くても、一覧(サムネイル)には出す
     files.sort((a, b) => a.n - b.n || (a.name < b.name ? -1 : 1)); return { dir: dirs[0], files };
   }
