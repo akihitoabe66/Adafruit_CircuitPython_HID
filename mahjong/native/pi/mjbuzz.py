@@ -90,6 +90,11 @@ def play(pwm, name):
     pwm.off()
 
 
+def up_now():
+    try: return float(open('/proc/uptime').read().split()[0])
+    except Exception: return 0
+
+
 def appliance():
     """「コンセントを入れるだけで遊べる」設定(ゲーム自動起動)か。 手で起動する使い方のときは 起動しっぱいの音を 鳴らさない"""
     import glob
@@ -114,7 +119,7 @@ def main():
         try: open(flag, 'w').close()
         except OSError: pass
         play(pwm, 'poweron')
-    boot_check = up < 150 and appliance(); t_boot = time.time(); pad_seen = None; t_pad = 0; dseq_seen = None; off_at = None
+    boot_check = up < 150 and appliance(); t_boot = time.time(); t_pad = 0; down_at = None; had_pad = False; off_done = False
     while True:
         d, age = read_status(STATUS); now = time.time()
         if boot_check:   # 電源ON から 150秒たっても ゲームが 状態を 出さない = 起動しっぱい
@@ -132,16 +137,14 @@ def main():
         try:
             pd = read_status('/dev/shm/mj_pad.txt')[0]; sq = pd.get('seq') if pd else None; dq = pd.get('dseq') if pd else None; st = pd.get('state') if pd else None
         except Exception: sq = dq = st = None
-        if pad_seen is None: pad_seen = sq
-        elif sq is not None and sq != pad_seen:
-            pad_seen = sq
-            if now - t_pad > 5: t_pad = now; play(pwm, 'padon')
-        # コントローラーが ぬけた(dseq が ふえた): 2秒たっても ぬけたままなら「ピロ↘」(一瞬の接触不良では 鳴らさない)
-        if dseq_seen is None: dseq_seen = dq
-        elif dq is not None and dq != dseq_seen: dseq_seen = dq; off_at = now
-        if off_at is not None:
-            if st == 'up': off_at = None
-            elif now - off_at >= 2.0: off_at = None; play(pwm, 'padoff')
+        booting = scene == '起動中'   # ゲームの「起動中」の画面のあいだは、コントローラーの 音を 鳴らさない(重くて 読みそこなう ことがある。 もともと さしてある コントローラーに 鳴らす 意味は ない)
+        if st == 'down' and down_at is None: down_at = now
+        if st == 'up':
+            if down_at is not None and now - down_at >= 2.0 and not booting and (had_pad or up_now() > 90) and now - t_pad > 5:   # 2秒以上 ぬけていて、つながった(一瞬の接触不良は 鳴らさない)
+                t_pad = now; play(pwm, 'padon')
+            down_at = None; had_pad = True; off_done = False
+        elif st == 'down' and had_pad and not off_done and now - down_at >= 2.0 and not booting:   # つながっていたのが 2秒以上 ぬけたまま: 「ピロ↘」
+            off_done = True; play(pwm, 'padoff')
         h = health()
         # 鳴らすのは「温度が高すぎる(82C〜)」「電力が足りない(電圧が下がりっぱなし)」の 危険のときだけ。 注意(75C〜 など)は 画面の表示だけで 鳴らさない。 くり返しは 20秒に1回
         if h['level'] >= 2 and now - t_danger > 20: t_danger = now; play(pwm, 'lowv' if h.get('why') == 'LOWV' else 'danger')
