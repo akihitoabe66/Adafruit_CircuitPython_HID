@@ -518,7 +518,7 @@ int main(int argc, char **argv){
   SDL_RenderSetLogicalSize(ren, W, H); SDL_ShowCursor(SDL_DISABLE);
   SDL_RendererInfo ri; SDL_GetRendererInfo(ren, &ri); printf("renderer: %s\n", ri.name);
   for (int i = 0; i < SDL_NumJoysticks(); i++) { SDL_JoystickOpen(i); }
-  initdata(); crash_dir = datadir; signal(SIGSEGV, crash_h); signal(SIGABRT, crash_h); signal(SIGBUS, crash_h); signal(SIGILL, crash_h); signal(SIGFPE, crash_h); preload();
+  initdata(); crash_dir = datadir; bgm_log("start", 0, ""); /* 記録(MJ_LOG=1 のとき)に 起動の印を 入れる(log_summary.sh が いちばん あたらしい起動から あとだけ 見せるため) */ signal(SIGSEGV, crash_h); signal(SIGABRT, crash_h); signal(SIGBUS, crash_h); signal(SIGILL, crash_h); signal(SIGFPE, crash_h); preload();
   rt = JS_NewRuntime(); JS_SetMemoryLimit(rt, 192 * 1024 * 1024); JS_SetMaxStackSize(rt, 2 * 1024 * 1024); JS_SetHostPromiseRejectionTracker(rt, rejected, NULL);
   ctx = JS_NewContext(rt); JSValue g = JS_GetGlobalObject(ctx);
   JSValue gfx = JS_NewObject(ctx);
