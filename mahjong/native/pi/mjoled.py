@@ -644,7 +644,8 @@ def compose(scr, d, age, tick, ever_alive=False):
 def exit_plug(scr, tick):
     """終了の画面(2秒ごとに 顔の画面と かわりばんこ): 電源プラグが コンセントから 抜けたり 刺さったりする絵 + 「抜いて!」(パタパタ)"""
     pulled = tick % 2 == 1
-    scr.text16('抜いて!', 0, 0, inv=(tick % 2 == 0))
+    scr.zface('laugh' if tick % 2 == 0 else 'smile', 0, 19 - (tick % 2) * 2, 1)   # ずんだもん(小さく): コードを持って「抜いて!」と ぴょんぴょん
+    scr.text16('抜いて!', 38, 0, inv=(tick % 2 == 0))
     # コンセント(右): 白い四角に、プラグの刃を うけるみぞ
     scr.box(98, 22, 30, 24, 1)
     for yy in (28, 38): scr.box(98, yy, 8, 3, 0)
@@ -653,8 +654,8 @@ def exit_plug(scr, tick):
     scr.box(px, 26, 24, 16, 1); scr.box(px + 3, 29, 18, 10, 0); scr.box(px + 6, 32, 12, 4, 1)   # 本体(中は くりぬいた かざり)
     for yy in (28, 38): scr.box(px + 24, yy, 14, 3, 1)   # 刃(さしこむとき みぞに入る)
     # コード: 左から 本体まで。 すこし うねる
-    for x in range(0, px):
-        y = 33 + (1 if ((x // 4) + tick) % 2 else 0) - (0 if x > 6 else 0)
+    for x in range(32, px):
+        y = 33 + (1 if ((x // 4) + tick) % 2 else 0)
         scr.box(x, y - 1, 1, 3, 1)
     # 抜けているときは、「<」の形の矢印が 2つ(字の「<」は 小さい字に ないので 点で描く)
     if pulled:
