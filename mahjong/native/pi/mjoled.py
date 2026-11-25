@@ -363,6 +363,13 @@ def zpwr(h):
     return t + (' LOW-V' if h['low'] else ' OK')
 
 ZST = {'scene': None, 't': 0}
+def boot_screen(scr, tick, X, up):
+    """起動中: ずんだもんが「もうすぐ はじまるよ！」と パタパタ(口を あけしめ・左右に ゆれる・見出しが 白黒反転・ことばが 流れる)"""
+    scr.zface('laugh' if tick % 2 == 0 else 'smile', 2 if tick % 2 else 0, 3)
+    scr.text16('起動中', X, 0, inv=(tick % 2 == 0))
+    scr.marquee('もうすぐ はじまるよ！ ちょっと まってね', X, 17, 60, tick); scr.text('WAIT %dS' % int(up), X, 39)
+    return scr
+
 def compose_zunda(scr, d, age, tick, ever_alive):
     """ずんだもんの画面: 左に大きな顔(64x58)、右に 見出しと数字5行。 危険のときは ちかちか白黒"""
     h = health(); scr.clear(); X = 68
@@ -398,6 +405,7 @@ def compose_zunda(scr, d, age, tick, ever_alive):
     if (booting or (alive and not final and scene in ('ホーム', 'タイトル', '起動中') and h['level'] == 0)):
         r = compose_pet(scr, d, age, tick, ever_alive, h)
         if r is not None: return r
+    if booting or (alive and scene == '起動中'): return boot_screen(scr, tick, X, up)   # 起動中は「もうすぐ はじまるよ！」
     if alive and final and scene == 'EXIT': scr.zface('laugh' if tick % 2 == 0 else 'smile', 2 if tick % 2 else 0, 3)   # 抜いてね: ずんだもんが ひょこひょこ(口を あけたり とじたり、左右に ゆれる)
     else: scr.zface(expr, 0, 3)
     if booting: scr.text16('起動中' + '.' * (tick % 4), X, 0); rows(24, ['WAIT %dS' % int(up)])
@@ -560,9 +568,8 @@ def compose_pet(scr, d, age, tick, ever_alive, h):
     if not PSTAGE or not (d is None or d.get('scene') == '起動中' or 'plays' in d): return None
     scr.clear(); plays = pet_int(d, 'plays') if d else 0
     X = 66
-    if d is None or d.get('scene') == '起動中':   # 起動中: ずんだもんが 目をこすって おきる(目を閉じた顔と、ひらいた顔が かわりばんこ)
-        scr.zface('content' if tick % 12 in (0, 1) else 'smile', 0, 3)   # ふだんは 目をひらいて、ときどき まばたき
-        scr.marquee('おはよう！ じゅんびちゅうなのだ…', X, 14, 60, tick); scr.text('WAIT %dS' % int(uptime()), X, 36); return scr
+    if d is None or d.get('scene') == '起動中':   # 起動中: ずんだもんが「もうすぐ はじまるよ！」と パタパタ(口を あけしめ・左右に ゆれる・見出しが 白黒反転)
+        return boot_screen(scr, tick, X, uptime())
     stg = pet_stage(pet_cp(d)); frm = pet_form(d)
     sleepy = pet_int(d, 'idle') >= 180
     by = 1 if (not sleepy and tick % 2) else 0   # ぴょこぴょこ(ねむいときは 動かない)
