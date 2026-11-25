@@ -371,6 +371,15 @@
       <button class="btn big" id="st-reset"${sh('st-reset')}>🗑 セーブのリセット</button>
     </div>${g ? '' : '<p class="st-note" id="st-oni-note"></p>'}<div class="res-foot"><button class="btn big" id="st-close">◀ もどる</button></div>`, { plain: true });
     const o = document.querySelector('#overlay');
+    { /* Pi版と同じ見た目: 白い横長の行(ラベルは左・いまの値は右)、えらんでいる行は黄色、下にまんなかの「もどる」。
+         ボタンの文字を「ラベル: 値」で入れ替える既存の処理はそのまま使い、入れ替わった文字を左右に分けて見せる */
+      const m = o.querySelector('.modal'); if (m) m.classList.add('stpi');
+      o.querySelectorAll('.st-list .btn').forEach((b) => {
+        const fmt = (v) => { const t = String(v).replace(/^[^\wぁ-んァ-ヶ一-龠]+\s*/, ''), i = t.search(/[:：]\s/); return i > 0 ? `<span class="l">${t.slice(0, i)}</span><span class="v">${t.slice(i + 1).trim()}</span>` : `<span class="l">${t.replace(/\s*▶$/, '')}</span>${/▶$/.test(t) ? '<span class="v">▶</span>' : ''}`; };
+        if (b.textContent) b.innerHTML = fmt(b.textContent);
+        Object.defineProperty(b, 'textContent', { configurable: true, get() { return b.innerText; }, set(v) { b.innerHTML = fmt(v); } });
+      });
+    }
     o.querySelector('#st-close').addEventListener('click', () => { if (g) showSettings(null); else MJ.UI.closeOverlay(); });
     o.querySelectorAll('[data-sgrp]').forEach((b) => b.addEventListener('click', () => showSettings(b.dataset.sgrp)));
     { // 対局モード(ふつう / 雀鬼モード / 覚醒): いつでも切り替えられる

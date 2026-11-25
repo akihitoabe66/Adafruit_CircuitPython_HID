@@ -43,14 +43,12 @@ body.pad-on #side-in .pf, #side-in .dk.pf { background-clip: border-box; outline
 /* 「せってい」の中身(旧ツール)は、列の左に開く */
 #side-in .sd-tools { left: -200px; top: 4px; }
 
-/* 裏ドラの確認(Pi版と同じ動き)。 山の絵の上に、ドラ表示牌(上段)と裏ドラ表示牌(下段)を重ねる */
-.urav { position: absolute; inset: 0; z-index: 60; background: #000b; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: pointer; }
-.urap { position: relative; width: 470px; aspect-ratio: 219 / 88; }
-.urap .wb { position: absolute; inset: 0; width: 100%; height: 100%; }
-.urap .wo { position: absolute; display: block; box-sizing: border-box; background: #f3ecd4; border: 1px solid #8a96a8; border-radius: 3px; overflow: hidden; box-shadow: 0 2px 4px #0008; }
+/* 裏ドラの確認(Pi版と同じ): 卓の中央の王牌と同じ場所・同じ大きさの絵の上で動く。 画面は暗くしない */
+.urav { position: absolute; inset: 0; z-index: 60; cursor: pointer; }
+.urap { position: absolute; }
+.urap .wb { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.urap .wo { position: absolute; display: block; box-sizing: border-box; background: #f3ecd4; border: 1px solid #8a96a8; border-radius: 2px; overflow: hidden; }
 .urap .wo img { display: block; width: 100%; height: 100%; object-fit: fill; }
-.uratx { position: absolute; left: 0; right: 0; top: -96px; text-align: center; color: #ffd23f; font-size: 26px; font-weight: 900; text-shadow: 0 2px 4px #000; }
-.uraskip { color: #d8ccf0; font-size: 16px; font-weight: 700; }
 
 /* 結果の画面(Pi版と同じ配置)。 箱は 752×444(--u=箱の1px)。 --u は、ページの文字の大きさ(1em=16px のとき 1px)で決まり、まとめて拡大・縮小する */
 @property --u { syntax: '<length>'; inherits: true; initial-value: 1px; }
@@ -66,3 +64,16 @@ body.pad-on #side-in .pf, #side-in .dk.pf { background-clip: border-box; outline
 /* 結果の上の「この役で学ぶ」「他家の牌を見る」は、見出しの行の右に並べる(ドラ表示と重ならないように) */
 #overlay .pm-top .ln-open { position: static !important; margin: 0 0 0 10px !important; flex: none; }
 #overlay .pm-top #pm-learn { margin-left: auto !important; }
+
+/* 設定の画面(Pi版と同じ): 暗い menu_bg、まんなかに黄色の「設定」、白い横長の行(左=ラベル・右=値)、えらんだ行は黄色、下にまんなかの「もどる」 */
+#overlay .modal.stpi { position: absolute; inset: 0; width: auto; max-width: none; max-height: none; margin: 0; padding: 6px 0 0; border: 0; border-radius: 0; display: flex; flex-direction: column; align-items: center; background: linear-gradient(#0007, #0007), url(img/menu_bg.webp) center / cover no-repeat; box-shadow: none; overflow: hidden; }
+.stpi h2 { color: #ffdc28; font-size: 28px; margin: 0 0 8px; text-align: center; font-weight: 900; }
+.stpi .st-list { display: flex !important; flex-direction: column; gap: 7px; width: 420px; max-width: 92%; margin: 0; }
+.stpi .st-list .btn { display: flex !important; align-items: center; justify-content: space-between; width: 100%; min-height: 0 !important; padding: 5px 16px !important; font-size: 22px !important; line-height: 1.2; font-weight: 700; color: #000; background: #fff; border: 2px solid #6e6e6e; border-radius: 9px; box-shadow: none; text-align: left; }
+.stpi .st-list .btn.pf, .stpi .st-list .btn:hover, .stpi .st-list .btn:focus-visible { background: #ffdc28; border: 3px solid #a06e00; outline: 0; }
+.stpi .st-list .btn .v { text-align: right; margin-left: 12px; }
+.stpi .st-list .btn[hidden], .stpi .st-list .btn.hidden { display: none !important; }
+.stpi .st-note { color: #d2e1d4; font-size: 15px; margin: 4px 0 0; min-height: 18px; }
+.stpi .res-foot { background: none !important; border: 0 !important; box-shadow: none !important; position: static !important; margin-top: 8px; display: flex; justify-content: center; }
+.stpi .res-foot .btn { width: 200px; padding: 3px 0 !important; font-size: 22px !important; font-weight: 800; color: #fff; background: #285a46; border: 3px solid #d2e1d4; border-radius: 18px; }
+.stpi .res-foot .btn.pf, .stpi .res-foot .btn:hover { background: #3c8264; border-color: #ffdc28; }

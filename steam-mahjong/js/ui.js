@@ -1850,37 +1850,52 @@
       return { show };
     },
 
-    /* 裏ドラを見せる(Pi版と同じ動き): ドラ表示牌が上へ出る → 下の牌が少し浮いて → トンッと置かれて表になる(左の列から順に)。 クリックか Enter でとばせる */
+    /* 裏ドラを見せる(Pi版 nui.js の uraReveal / drawUra と同じ): 画面は暗くしない。卓の中央の王牌の上で、そのまま動く。
+       ドラ表示牌が上へ出る(0.28秒) → 下の牌が少し浮いて(0.12秒) → トンッと置かれて表になる(0.11秒)。 左の列から順に。 最後のあと2.2秒で終わる。
+       決定(Enter・クリック): 1回目=「トンッ」と置かれたところまで すぐ進む / もう一度=結果の画面へ */
     uraReveal(game) {
       return new Promise((res) => {
         const n = Math.min(5, (game.doraInd || []).length, (game.uraAll || []).length);
-        const sc = $('#sc');
-        if (!n || !sc) { res(); return; }
+        const sc = $('#sc'), wall = document.querySelector('.ctr .dr.wall.wimg');
+        if (!n || !sc || !wall) { res(); return; }
         const W = 219, H = 88, X0 = 3.4, PX = 30.1, CW = 29.2, Y0 = 4.4, Y1 = 45.5, CH = 39.4; // 山の絵(img/wall.webp)の中の位置。 上段=ドラ表示牌、下段=裏ドラ表示牌
+        const T = { start: 0.5, slide: 0.28, hold1: 0.6, hold2: 0.5, lift: 0.12, drop: 0.11, gap: 0.45, end: 2.2 }; // 秒(Pi版と同じ)
+        const sr = sc.getBoundingClientRect(), wr = wall.getBoundingClientRect(), S = (sc.offsetWidth ? sr.width / sc.offsetWidth : 0) || 1; // 画面の拡大率(実際の表示の大きさから)
         const cols = []; for (let k = 0; k < n; k++) cols.push(4 - k); cols.sort((a, b) => a - b); // 左の列から
         const root = document.createElement('div');
         root.className = 'urav';
-        root.innerHTML = '<div class="urap"><img class="wb" src="img/wall.webp" alt="" draggable="false"><div class="uratx">裏ドラ</div></div><div class="uraskip">クリックか Enter でとばす</div>';
+        root.innerHTML = `<div class="urap" style="left:${((wr.left - sr.left) / S).toFixed(2)}px;top:${((wr.top - sr.top) / S).toFixed(2)}px;width:${(wr.width / S).toFixed(2)}px;height:${(wr.height / S).toFixed(2)}px"><img class="wb" src="img/wall.webp" alt="" draggable="false"></div>`;
         const pane = root.querySelector('.urap');
         const mk = (d, left, top, cls) => { const e = document.createElement('span'); e.className = 'wo ' + cls; e.style.cssText = `left:${(left / W * 100).toFixed(2)}%;top:${(top / H * 100).toFixed(2)}%;width:${(CW / W * 100).toFixed(2)}%;height:${(CH / H * 100).toFixed(2)}%`; e.innerHTML = MJ.tileSVG(d.t, d.red); pane.appendChild(e); return e; };
+        // 絵の上に、ドラ表示牌(上段)を重ねる。 下段の裏ドラ表示牌は、置かれるまで見えない
         const items = cols.map((col) => { const k = 4 - col, left = X0 + col * PX, ura = mk(game.uraAll[k], left, Y1, 'ura'); ura.style.opacity = '0'; return { ind: mk(game.doraInd[k], left, Y0, 'ind'), ura }; });
         sc.appendChild(root);
-        let done = false;
+        let done = false, fast = false, lastD = 0;
         const timers = [];
-        const onKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); finish(); } };
+        const sfx = (nm) => { try { MJ.SFX.play(nm); } catch (e) { /* ignore */ } };
         const finish = () => { if (done) return; done = true; timers.forEach(clearTimeout); window.removeEventListener('keydown', onKey, true); root.remove(); res(); };
+        const skip = () => { // 1回目: 置かれたところまで一気に進む。 2回目: 結果へ
+          if (done) return;
+          if (!fast && performance.now() - t0 < lastD * 1000 + 50) {
+            fast = true; timers.forEach(clearTimeout); timers.length = 0;
+            items.forEach((it) => { it.ind.getAnimations().forEach((a) => a.cancel()); it.ura.getAnimations().forEach((a) => a.cancel()); it.ind.style.transform = 'translateY(-105%)'; it.ura.style.opacity = '1'; it.ura.style.transform = 'none'; });
+            t0 = performance.now() - lastD * 1000 - 60; timers.push(setTimeout(finish, T.end * 1000));
+          } else finish();
+        };
+        const onKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); skip(); } };
         window.addEventListener('keydown', onKey, true);
-        root.addEventListener('click', finish);
-        const at = (ms, fn) => timers.push(setTimeout(() => { if (!done && !game.stopped) fn(); }, ms));
-        let t = 500;
+        root.addEventListener('click', skip);
+        const at = (sec, fn) => timers.push(setTimeout(() => { if (!done && !game.stopped) fn(); }, sec * 1000));
+        let t = T.start, t0 = performance.now();
         items.forEach((it, i) => {
-          const lift = t + 280 + (i === 0 ? 600 : 500);
-          at(t, () => it.ind.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-70%)' }], { duration: 280, fill: 'forwards', easing: 'ease-out' }));
-          at(lift, () => { it.ura.style.opacity = '1'; it.ura.animate([{ transform: 'translateY(-26%) scale(1.1)' }], { duration: 120, fill: 'forwards' }); });
-          at(lift + 120, () => { it.ura.animate([{ transform: 'translateY(-26%) scale(1.1)' }, { transform: 'translateY(0) scale(1)' }], { duration: 110, fill: 'forwards', easing: 'ease-in' }); try { MJ.SFX.play('discard'); } catch (e) { /* ignore */ } });
-          t = lift + 120 + 110 + 450;
+          const s0 = t, s1 = s0 + T.slide, l0 = s1 + (i === 0 ? T.hold1 : T.hold2), l1 = l0 + T.lift, d1 = l1 + T.drop;
+          at(s0, () => { sfx('select'); it.ind.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-105%)' }], { duration: T.slide * 1000, fill: 'forwards', easing: 'cubic-bezier(.2,.7,.3,1)' }); }); // ドラ表示牌が、上へ出る
+          at(l0, () => { it.ura.style.opacity = '1'; it.ura.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-14%)' }], { duration: T.lift * 1000, fill: 'forwards', easing: 'ease-in-out' }); }); // 下の牌が、少し浮く
+          at(l1, () => { sfx('discard'); it.ura.animate([{ transform: 'translateY(-14%)' }, { transform: 'translateY(0)' }], { duration: T.drop * 1000, fill: 'forwards', easing: 'ease-in' }); }); // トンッと置かれて、表になる
+          lastD = d1; t = d1 + T.gap;
         });
-        at(t + 1800, finish);
+        at(lastD + T.end, finish);
+        t0 = performance.now();
       });
     },
 
