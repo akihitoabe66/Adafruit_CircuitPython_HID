@@ -584,6 +584,9 @@ int main(int argc, char **argv){
     if (perf && nowms() - perf_t0 > 3000) { printf("fonts=%d\n", nfonts); printf("perf: 描く %.1fms(%d回) / 画面に出す %.1fms(%d回)\n", perf_n ? perf_draw / perf_n : 0, perf_n, perf_p ? perf_pres / perf_p : 0, perf_p); { long rss = 0; FILE *sf = fopen("/proc/self/statm", "r"); if (sf) { long a; if (fscanf(sf, "%ld %ld", &a, &rss) < 2) rss = 0; fclose(sf); } JSMemoryUsage mu; JS_ComputeMemoryUsage(rt, &mu); printf("perf2: 思考・進行 合計%.0fms 最大%.0fms / JS %ldMB / 全体 %ldMB / 絵%d 文字%d\n", perf_logic, perf_logicmax, (long)(mu.malloc_size / 1048576), rss * 4 / 1024, nimg, ntxt); } fflush(stdout); perf_t0 = nowms(); perf_draw = perf_pres = perf_logic = perf_logicmax = 0; perf_n = perf_p = 0; }
   }
   save_wait(); save2_wait(); /* 書きかけのセーブがあれば、終わるのを待つ */
-  { const char *fp = getenv("MJ_OLED_FILE") ? getenv("MJ_OLED_FILE") : "/dev/shm/mj_oled.txt"; FILE *f = getenv("MJ_KIOSK") && !quit_dev ? NULL : fopen(fp, "w"); if (f) { fprintf(f, quit_dev ? "scene=MAINT\npose=think\nmsg=MAINTENANCE\n" : "scene=EXIT\npose=calm\nmsg=UNPLUG OK\n"); fclose(f); } } /* 終わったことを、OLED(mjoled)に知らせる */
+  { /* 終わったことを、OLED(mjoled)に知らせる。 まず「保存中(まだ抜かないで)」、 SDカードへの書きこみ(sync)が終わってから「抜いてよい」。 自動起動(kiosk.sh)のときは、そのあとの書きこみ禁止(boot の remount)まで 済んでから kiosk.sh が「抜いてよい」を出す */
+    const char *fp = getenv("MJ_OLED_FILE") ? getenv("MJ_OLED_FILE") : "/dev/shm/mj_oled.txt";
+    { FILE *f = fopen(fp, "w"); if (f) { fprintf(f, quit_dev ? "scene=MAINT\npose=think\nmsg=MAINTENANCE\n" : "scene=SAVING\npose=think\nmsg=SAVING\n"); fclose(f); } }
+    if (!quit_dev) { sync(); if (!getenv("MJ_KIOSK")) { FILE *f = fopen(fp, "w"); if (f) { fprintf(f, "scene=EXIT\npose=calm\nmsg=UNPLUG OK\n"); fclose(f); } } } }
   return quit_dev ? 10 : 0;
 }

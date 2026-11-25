@@ -375,7 +375,7 @@ def boot_screen(scr, tick, X, up):
 def compose_zunda(scr, d, age, tick, ever_alive):
     """ずんだもんの画面: 左に大きな顔(64x58)、右に 見出しと数字5行。 危険のときは ちかちか白黒"""
     h = health(); scr.clear(); X = 68
-    final = d is not None and d.get('scene') in ('EXIT', 'MAINT')
+    final = d is not None and d.get('scene') in ('EXIT', 'MAINT', 'SAVING')
     alive = d is not None and (age < 4.0 or final or (d.get('scene') == '起動中' and age < 20))
     up = uptime(); booting = (not alive) and (not ever_alive) and up < 150
     scene = d.get('scene', '') if d else ''; msg = d.get('msg', '') if d else ''
@@ -643,6 +643,15 @@ def compose(scr, d, age, tick, ever_alive=False):
     scr = compose0(scr, d, age, tick, ever_alive)
     if '--nodecor' not in sys.argv and os.environ.get('MJOLED_DECOR', '1') != '0': decor(scr, tick * SUB, bg_kind(d, age))
     return scr
+def saving_screen(scr, tick):
+    """終了のあと、SDカードへ 書きこんでいる最中(まだ 抜かないで): ずんだもんが 目を閉じて まっている。 「終了中」が 反転でゆっくり点滅、下に 英語の注意"""
+    t2 = tick // 2
+    scr.zface('content' if t2 % 2 == 0 else 'worry', 0, 3)
+    scr.text16('終了中', 66, 0, inv=(t2 % 2 == 0))
+    scr.text('SAVING' + '.' * (t2 % 4), 66, 20)
+    scr.text('DO NOT', 66, 30); scr.text('UNPLUG!', 66, 39)
+    return scr
+
 def exit_plug(scr, tick):
     """終了の画面(これだけを出す): 電源プラグが コンセントから 抜き差しされる絵。 コンセントは 白い板に 黒い窓と2つの穴。
     刺さっているとき: にこ顔 / 抜けているとき: ウインク(+ 文字が 白黒反転、矢印)。 2コマの動きは ゆっくり(0.67秒ごと)"""
@@ -676,13 +685,14 @@ def exit_plug(scr, tick):
 def compose0(scr, d, age, tick, ever_alive=False):
     """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
     起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてね」を出す"""
+    if d is not None and d.get('scene') == 'SAVING': scr.clear(); return saving_screen(scr, tick)   # 保存中: まだ 抜かない
     if d is not None and d.get('scene') == 'EXIT': scr.clear(); return exit_plug(scr, tick)   # 終了: プラグが抜き差しされる絵だけを出す
     if ZU and not sensei_now(d, age): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだ(麻雀先生がオンなら)と 勉強の階層は 先生。 ほかは ずんだもんのペット
     h = health()
     if h['level'] >= 2: return compose_danger(scr, h, tick)
     scr.clear()
     scene = d.get('scene', '') if d else ''
-    final = d is not None and d.get('scene') in ('EXIT', 'MAINT')   # ゲームが 終わった印(時間がたっても そのまま出す)
+    final = d is not None and d.get('scene') in ('EXIT', 'MAINT', 'SAVING')   # ゲームが 終わった印(時間がたっても そのまま出す)
     alive = d is not None and (age < 4.0 or final or (d.get('scene') == '起動中' and age < 20))
     up = uptime()
     booting = (not alive) and (not ever_alive) and up < 150
@@ -806,7 +816,7 @@ def main():
             d, age = {'scene': sc, 'pose': p, 'spd': '30', 'draw': '33', 'max': '57', 'key': '12', 'msg': sub}, 0
         else:
             d, age = read_status(STATUS)
-        alive_now = d is not None and age < 4.0 and d.get('scene') not in ('EXIT', 'MAINT')
+        alive_now = d is not None and age < 4.0 and d.get('scene') not in ('EXIT', 'MAINT', 'SAVING')
         if '--zunda' in sys.argv: WHO['v'] = 'zunda'
         was_alive = alive_now
         if alive_now: ever_alive = True
