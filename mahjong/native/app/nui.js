@@ -1216,9 +1216,9 @@
     const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
     let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < (M.base || MAP_T.slide + MAP_T.hold)) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? (M.capSay ? '修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。' : '他の街に戻って、修行し直すのだ！') : walkMsg(M.view && M.go != null ? M.go : M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
     if (M.here) { try { const f = MJ.Rank.info(), tn = townName(M.from); msg = 'いまは ' + f.name + '、' + tn + 'に いるのだ。'; if (M.from === 0 && !(f.s && f.s.games > 0)) msg = 'ここから 旅が はじまるのだ。熊本から 江戸を めざすのだ!';
-      if (f.next || f.tenka) { const x0 = 470, y0 = 322, w0 = 346, h0 = 92; panel(x0, y0, w0, h0, 14, [14, 44, 30], [255, 214, 70], 4, 242);
-        if (f.next) { text('つぎの 街まで', x0 + 18, y0 + 8, 18, [255, 236, 170]); text(townName(M.from + 1) + '(' + f.next + ')', x0 + w0 - 16, y0 + 8, 18, WHITE, 2); text('あと', x0 + 18, y0 + 40, 22, WHITE); text(String(f.left), x0 + 150, y0 + 22, 54, [255, 214, 70], 1); text('点', x0 + 214, y0 + 40, 26, WHITE); rrect(x0 + 18, y0 + 76, w0 - 36, 8, 4, [10, 28, 20]); rrect(x0 + 18, y0 + 76, Math.max(8, Math.round((w0 - 36) * f.prog)), 8, 4, [255, 214, 70]); }
-        else { text('天下分け目に 勝てば', x0 + w0 / 2, y0 + 14, 24, WHITE, 1); text('永世名人!', x0 + w0 / 2, y0 + 44, 36, [255, 214, 70], 1); } } } catch (e) { /* ignore */ } } // 対局の前の「いまここ」: 場所と、つぎの街までの点(大きく)
+      if (f.next || f.tenka) { const w0 = 300, h0 = 78, x0 = SW - w0 - 16, y0 = 326; panel(x0, y0, w0, h0, 12, [14, 44, 30], [255, 214, 70], 3, 242); // 下の ひとこと枠(y=418〜)には かぶせない
+        if (f.next) { text('つぎの 街まで', x0 + 14, y0 + 6, 15, [255, 236, 170]); text(townName(M.from + 1) + '(' + f.next + ')', x0 + w0 - 14, y0 + 6, 15, WHITE, 2); text('あと', x0 + 14, y0 + 32, 20, WHITE); text(String(f.left), x0 + 136, y0 + 18, 42, [255, 214, 70], 1); text('点', x0 + 196, y0 + 32, 22, WHITE); rrect(x0 + 14, y0 + 66, w0 - 28, 6, 3, [10, 28, 20]); rrect(x0 + 14, y0 + 66, Math.max(6, Math.round((w0 - 28) * f.prog)), 6, 3, [255, 214, 70]); }
+        else { text('天下分け目に 勝てば', x0 + w0 / 2, y0 + 8, 20, WHITE, 1); text('永世名人!', x0 + w0 / 2, y0 + 34, 34, [255, 214, 70], 1); } } } catch (e) { /* ignore */ } } // 対局の前の「いまここ」: 場所と、つぎの街までの点(大きく)
     if (M.intro && t >= M.intro.G) { msg = '江戸で 名人を倒し、天下統一するのだ!'; if (!M.intro.v) { M.intro.v = true; try { NSND.speak(['v:tenka']); } catch (e) { /* ignore */ } } } // 旅のはじまり: 二つめの一言(声つき)
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && M.go == null && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) { const wt = Math.max(0, (M.vUntil || 0) - __now()) + 150, tk = M; setTimeout(() => { if (S.map === tk && !tk.go) { const dd = NSND.speak([pk]) || 0; tk.vUntil = __now() + dd * 1000; } }, wt); } } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
@@ -2920,12 +2920,18 @@
   function pickChars(town, easy) { // 3人: 新顔1(まだ出会っていない人を優先)+おなじみ2(昔の人)。前の対局と同じ顔ぶれが続きにくい
     let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (town != null ? MJ.unlockDan(c.id) <= town : (!ok || !ok.length || ok.includes(c.id)))); const out = [], real = easy ? MJ.CHARS.filter((c) => c.id !== 0 && (!ok || !ok.length || ok.includes(c.id))) : pool; // easy: 新顔は ほんらいの段位の人から、のこり2人だけ やさしく
     let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ } if (town != null) dn = -1; // 修行の街: その時代までの人だけ
-    if (dn === 10 && Math.random() < 0.2) { const a = pool.find((c) => c.id === 7), b = pool.find((c) => c.id === 1); if (a && b) { out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); } } // 名人のあと 5回に1回: 徳川家康と水戸黄門が そろう「天下分け目」
+    let wantTenka = false; // 名人のあと: 徳川家康と水戸黄門が そろう「天下分け目」は、経験値を ためるほど 出やすく(はじめは出ない)。 ふだんは、どちらか1人が 出やすい(はじめは 7割)
+    if (dn === 10) { const a = pool.find((c) => c.id === 7), b = pool.find((c) => c.id === 1); if (a && b) { let ex = 0; try { ex = (MJ.Rank.get().pt || 0) - 1845; } catch (e) { ex = 0; } let mt = []; try { mt = metLoad(); } catch (e) { mt = []; }
+      const pT = ex < 80 ? 0 : Math.min(0.3, 0.05 + (ex - 80) / 2000), both = mt.includes(1) && mt.includes(7), r = Math.random();
+      if (r < pT) { wantTenka = true; out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); }
+      else if (r < pT + (1 - pT) * (both ? 0.3 : 0.7)) { const un = [a, b].filter((c) => !mt.includes(c.id)), cand = un.length ? un : [a, b], c = cand[Math.floor(Math.random() * cand.length)]; out.push(c); pool.splice(pool.indexOf(c), 1); } } }
     let met = []; try { met = metLoad(); } catch (e) { /* ignore */ } const last = S.lastOpp || [], tier = (c) => MJ.unlockDan(c.id), mx = pool.reduce((m, c) => Math.max(m, tier(c)), 0);
     const wpick = (list, wf) => { // 重みつき抽選(同じ時代が重ならないように、前の対局に出た人は出にくく)
       const w = list.map((c) => Math.max(0.01, wf(c) * (last.includes(c.id) ? 0.3 : 1) * (out.some((o) => MJ.eraOf(o.id) === MJ.eraOf(c.id)) ? 0.25 : 1))); let r = Math.random() * w.reduce((a, b) => a + b, 0), i = 0; while (i < list.length - 1 && (r -= w[i]) > 0) i++; const c = list[i]; { const k = pool.indexOf(c); if (k >= 0) pool.splice(k, 1); } out.push(c); };
     if (out.length < 3 && real.length) { const mxr = real.reduce((m, c) => Math.max(m, tier(c)), 0), un = real.filter((c) => !met.includes(c.id)); const nw = un.length ? un : real.filter((c) => tier(c) >= mxr - 1); wpick(nw.length ? nw : real, (c) => 1 + tier(c)); } // 新顔枠
     while (out.length < 3 && pool.length) { const old = pool.filter((c) => tier(c) < mx - 1); wpick(old.length ? old : pool, () => 1); } // おなじみ枠
+    if (dn === 10 && !wantTenka && out.some((c) => c.id === 1) && out.some((c) => c.id === 7)) { // たまたま 2人そろってしまったときは、天下分け目に ならないよう 1人を ほかの人に かえる
+      const keepId = Math.random() < 0.5 ? 1 : 7, alt = MJ.CHARS.filter((c) => c.id !== 0 && c.id !== 1 && c.id !== 7 && !out.includes(c) && (!ok || !ok.length || ok.includes(c.id))); if (alt.length) out[out.findIndex((c) => c.id === (keepId === 1 ? 7 : 1))] = alt[Math.floor(Math.random() * alt.length)]; }
     S.lastOpp = out.map((c) => c.id);
     return out;
   }
