@@ -88,7 +88,7 @@ F = {
 POSE = {
     'hello': (7, 1), 'home': (6, 7), 'teach': (0, 3), 'think': (4, 5), 'think2': (2, 4), 'watch': (1, 7),
     'call': (8, 14), 'win': (12, 13), 'power': (16, 12), 'sad': (10, 4), 'angry': (9, 15), 'calm': (7, 17),
-    'celebrate': (16, 13), 'pray': (11, 17), 'sleep': (7, 17), 'err': (10, 0),
+    'celebrate': (16, 13), 'pray': (11, 17), 'sleep': (7, 17), 'err': (10, 0), 'unplug': (3, 6),   # unplug: 左右の手を かわりばんこに ふる(「抜いてね」)
 }
 TEXT_X = SW_ + 4
 
@@ -398,10 +398,11 @@ def compose_zunda(scr, d, age, tick, ever_alive):
     if (booting or (alive and not final and scene in ('ホーム', 'タイトル', '起動中') and h['level'] == 0)):
         r = compose_pet(scr, d, age, tick, ever_alive, h)
         if r is not None: return r
-    scr.zface(expr, 0, 3)
+    if alive and final and scene == 'EXIT': scr.zface('laugh' if tick % 2 == 0 else 'smile', 2 if tick % 2 else 0, 3)   # 抜いてね: ずんだもんが ひょこひょこ(口を あけたり とじたり、左右に ゆれる)
+    else: scr.zface(expr, 0, 3)
     if booting: scr.text16('起動中' + '.' * (tick % 4), X, 0); rows(24, ['WAIT %dS' % int(up)])
     elif alive and final:
-        if scene == 'EXIT': scr.text16('終了', X, 0, inv=True); scr.text16('電源を', X, 16); scr.text16('抜いて', X, 32)
+        if scene == 'EXIT': scr.text16('終了', X, 0, inv=True); scr.text16('電源を', X, 16, inv=(tick % 2 == 0)); scr.text16('抜いて', X, 32, inv=(tick % 2 == 1))   # 白黒を かわりばんこに 反転(パタパタ): 目立つように
         else: scr.text16('保守', X, 0, inv=True); rows(20, ['CTRL+Q', 'READY', zpwr(h)])
     elif alive:
         if h['level'] == 1 and tick % 2 == 0: scr.text16('高温' if h['why'] == 'HOT' else '電圧', X, 0, inv=True)
@@ -645,7 +646,7 @@ def compose0(scr, d, age, tick, ever_alive=False):
     alive = d is not None and (age < 4.0 or final or (d.get('scene') == '起動中' and age < 20))
     up = uptime()
     booting = (not alive) and (not ever_alive) and up < 150
-    if alive: pose = d.get('pose', 'watch')
+    if alive: pose = 'unplug' if d.get('scene') == 'EXIT' else d.get('pose', 'watch')   # 終了: 手を ふって 「抜いてね」
     elif booting: pose = 'hello'
     elif ever_alive: pose = 'err'
     else: pose = 'sleep'
@@ -659,7 +660,7 @@ def compose0(scr, d, age, tick, ever_alive=False):
     if booting:
         scr.text16('麻雀先生', TEXT_X, 0); scr.text16('ゲーム', TEXT_X, 16); scr.text16('起動中' + '.' * (tick % 4), TEXT_X, 32)
     elif alive and final:
-        if d.get('scene') == 'EXIT': scr.text16('終了', TEXT_X, 0, inv=True); scr.text16('電源を', TEXT_X, 16); scr.text16('抜いてね', TEXT_X, 32)
+        if d.get('scene') == 'EXIT': scr.text16('終了', TEXT_X, 0, inv=True); scr.text16('電源を', TEXT_X, 16, inv=(tick % 2 == 0)); scr.text16('抜いてね', TEXT_X, 32, inv=(tick % 2 == 1))
         else: scr.text16('保守', TEXT_X, 0, inv=True); rows_at(20, ['CTRL+Q', 'READY', pwr_row(h)])
     elif alive:
         msg = d.get('msg', '')
