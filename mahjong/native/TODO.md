@@ -1,5 +1,6 @@
 # 自宅の実機(Raspberry Pi Zero W)でやること(出先ではできないので、メモ)
 - [x] 無線パッド: 下/上を連打すると押しっぱなしになる件 → Holder を修正(連打の間に すきまを つくる)。 実機で 直ったことを確認済み
+- [ ] ブザー: コントローラーを抜いたとき「ピロ↘」(低くなる音)。 2秒たっても抜けたままのときだけ鳴る。 sh native/pi/install_pad.sh と install_buzz.sh の両方をやりなおす
 - [ ] フォントを入れる(宣言の太字を、きれいな本物の太字にするため): `sudo apt update && sudo apt install -y fonts-noto-cjk` → ゲームを起動して、文字の見た目(字の太さ・大きさ)を確認する。変えるかどうかは、確認してから決める。
 - [ ] `git pull origin claude/vibrant-gates-hmjh7h` → `cd mahjong/native/app && sh build.sh`(FFmpeg の開発ファイルが要る。`sudo apt update` のあとに `sudo apt install -y libavcodec-dev libavformat-dev libswscale-dev libswresample-dev libavutil-dev`)
 - [ ] 動画を軽い形に作り直して(AviUtl など。README の「動画を、ラズパイで らくに再生できる形に作り直す」)、boot の `mjdata/video` に入れる → `./mj ../.. --vtest /boot/firmware/mjdata/video/01.mp4` で、2〜3倍以上を確認する。

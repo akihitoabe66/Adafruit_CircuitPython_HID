@@ -368,7 +368,7 @@ def main():
         pad.close(); return
     try: os.nice(-5)   # ゲームより 少し 優先(ゲームが CPU を使っていても、読む間隔が くずれないように)
     except OSError: pass
-    bus = None; bad = 0; bad_t0 = 0.0; ok_once = False; was_down = False; pad_seq = 0; deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ
+    bus = None; bad = 0; bad_t0 = 0.0; ok_once = False; was_down = False; pad_seq = 0; dseq = 0; cur_id = ''; cur_kind = 'wired'; deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ
     while True:
         try:
             if bus is None:
@@ -378,7 +378,8 @@ def main():
                 bus.prefer = None if wl else (0x00, 6, 0.008)   # 有線の互換品: 番地0・6バイト・返事を8ms待つ が 実機で いちばん 安定した
                 print('mjpad: controller ready id=%s profile=%s hz=%d debounce=%d hold=%.0fms' % (bus.ident.hex(), 'wireless' if wl else 'wired', hz, dn, hd * 1000), flush=True); bad = 0; ok_once = True
                 if was_down: pad_seq += 1   # つながっていなかったのが、つながった: ブザー(mjbuzz)に 知らせて「ピッピッ」と 鳴らす(seq が かわったら 鳴る)
-                try: open('/dev/shm/mj_pad.txt', 'w').write('seq=%d\nid=%s\nkind=%s\n' % (pad_seq, bus.ident.hex(), 'wireless' if wl else 'wired'))   # kind: ゲームの「遊び方」で 有線/無線の絵を えらぶのに 使う
+                cur_id = bus.ident.hex(); cur_kind = 'wireless' if wl else 'wired'
+                try: open('/dev/shm/mj_pad.txt', 'w').write('seq=%d\ndseq=%d\nstate=up\nid=%s\nkind=%s\n' % (pad_seq, dseq, cur_id, cur_kind))   # kind: ゲームの「遊び方」で 有線/無線の絵を えらぶのに 使う。 seq: つながった合図 / dseq: ぬけた合図(mjbuzz が 鳴らす)
                 except OSError: pass
                 was_down = False
             try: w = bus.read()
@@ -397,6 +398,10 @@ def main():
                     if out is not None: pad.send(out)
         except OSError as e:
             if ok_once or bad: print('mjpad: %s' % e, flush=True)
+            if ok_once:   # つながっていたのが ぬけた: ブザー(mjbuzz)に 知らせて「ピロ↘」(低くなる音)
+                dseq += 1
+                try: open('/dev/shm/mj_pad.txt', 'w').write('seq=%d\ndseq=%d\nstate=down\nid=%s\nkind=%s\n' % (pad_seq, dseq, cur_id, cur_kind))
+                except OSError: pass
             ok_once = False; was_down = True
             if bus is not None:
                 try: os.close(bus.fd)

@@ -39,6 +39,7 @@ if TYPE == 'piezo':   # 圧電: 高い音ほど 大きい
         'danger': [(4400, 90), (0, 40), (3600, 90), (0, 40), (4400, 90), (0, 40), (3600, 90)],   # 危険: 高く 速く(ゆれる音)
         'lowv': [(3600, 380), (0, 120), (3600, 380)],                                    # 電圧が弱い: ピー・ピー(長い音)
         'padon': [(2637, 60), (0, 40), (3951, 90)],                                       # コントローラーを 認識した: ピッ↗(短く 高く)
+        'padoff': [(3136, 70), (0, 40), (2093, 130)],                                     # コントローラーが ぬけた: ピロ↘(低くなる)
         'bootfail': [(2093, 600), (0, 150), (2093, 600), (0, 150), (2093, 900)],         # 起動しっぱい: ひくい ピー・ピー・ピーー(ゲームが 立ち上がらない)
     }
 else:             # 電磁式: ひくめの 音
@@ -49,6 +50,7 @@ else:             # 電磁式: ひくめの 音
         'danger': [(1319, 100), (0, 50), (1568, 100), (0, 50), (1319, 100), (0, 50), (1568, 100)],
         'lowv': [(660, 380), (0, 120), (660, 380)],
         'padon': [(784, 60), (0, 40), (1568, 90)],
+        'padoff': [(1568, 60), (0, 40), (784, 110)],
         'bootfail': [(523, 600), (0, 150), (523, 600), (0, 150), (523, 900)],
     }
 
@@ -112,7 +114,7 @@ def main():
         try: open(flag, 'w').close()
         except OSError: pass
         play(pwm, 'poweron')
-    boot_check = up < 150 and appliance(); t_boot = time.time(); pad_seen = None; t_pad = 0
+    boot_check = up < 150 and appliance(); t_boot = time.time(); pad_seen = None; t_pad = 0; dseq_seen = None; off_at = None
     while True:
         d, age = read_status(STATUS); now = time.time()
         if boot_check:   # 電源ON から 150秒たっても ゲームが 状態を 出さない = 起動しっぱい
@@ -128,12 +130,18 @@ def main():
         last_scene = scene
         # コントローラーが つながった(mjpad が /dev/shm/mj_pad.txt を 書く): 認識の「ピッ↗」。 接点の ちらつきで 鳴りつづけないよう、5秒に1回まで
         try:
-            pd = read_status('/dev/shm/mj_pad.txt')[0]; sq = pd.get('seq') if pd else None
-        except Exception: sq = None
+            pd = read_status('/dev/shm/mj_pad.txt')[0]; sq = pd.get('seq') if pd else None; dq = pd.get('dseq') if pd else None; st = pd.get('state') if pd else None
+        except Exception: sq = dq = st = None
         if pad_seen is None: pad_seen = sq
         elif sq is not None and sq != pad_seen:
             pad_seen = sq
             if now - t_pad > 5: t_pad = now; play(pwm, 'padon')
+        # コントローラーが ぬけた(dseq が ふえた): 2秒たっても ぬけたままなら「ピロ↘」(一瞬の接触不良では 鳴らさない)
+        if dseq_seen is None: dseq_seen = dq
+        elif dq is not None and dq != dseq_seen: dseq_seen = dq; off_at = now
+        if off_at is not None:
+            if st == 'up': off_at = None
+            elif now - off_at >= 2.0: off_at = None; play(pwm, 'padoff')
         h = health()
         # 鳴らすのは「温度が高すぎる(82C〜)」「電力が足りない(電圧が下がりっぱなし)」の 危険のときだけ。 注意(75C〜 など)は 画面の表示だけで 鳴らさない。 くり返しは 20秒に1回
         if h['level'] >= 2 and now - t_danger > 20: t_danger = now; play(pwm, 'lowv' if h.get('why') == 'LOWV' else 'danger')
