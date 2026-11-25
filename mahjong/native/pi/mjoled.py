@@ -7,6 +7,7 @@
  環境変数: MJOLED_BUS(i2cの番号。 なければ自動) MJOLED_ADDR(0x3C) MJOLED_H(64 か 32) MJOLED_DRV(ssd1306 か sh1106)
            MJOLED_FLIP=1(上下左右を逆に) MJOLED_FPS(3) MJOLED_FILE(/dev/shm/mj_oled.txt)
  試験用: python3 mjoled.py --selftest(画面の絵を文字で出す) / --demo(ゲームなしで、場面を順に見せる) / --dry(I2Cなし)"""
+import math
 import fcntl, glob, os, subprocess, sys, time
 
 try:
@@ -643,25 +644,32 @@ def compose(scr, d, age, tick, ever_alive=False):
     if '--nodecor' not in sys.argv and os.environ.get('MJOLED_DECOR', '1') != '0': decor(scr, tick * SUB, bg_kind(d, age))
     return scr
 def exit_plug(scr, tick):
-    """終了の画面(これだけを出す): 電源プラグが コンセントから 抜けたり 刺さったりする絵 + 「抜いて!」(パタパタ)"""
-    t2 = tick // 2   # 2コマの動きは ゆっくり(0.67秒ごと)
+    """終了の画面(これだけを出す): 電源プラグが コンセントから 抜き差しされる絵。 コンセントは 白い板に 黒い窓と2つの穴。
+    刺さっているとき: にこ顔 / 抜けているとき: ウインク(+ 文字が 白黒反転、矢印)。 2コマの動きは ゆっくり(0.67秒ごと)"""
+    t2 = tick // 2
     pulled = t2 % 2 == 1
-    scr.zface('laugh' if t2 % 2 == 0 else 'smile', 0, 19 - (t2 % 2) * 2, 1)   # ずんだもん(小さく): コードを持って「抜いて!」と ぴょんぴょん
-    scr.text16('電源を抜いて!', 0, 0, inv=pulled)   # 1行 全体を 白黒反転で パタパタ
-    # コンセント(右): 白い四角に、プラグの刃を うけるみぞ
-    scr.box(98, 22, 30, 24, 1)
-    for yy in (28, 38): scr.box(98, yy, 8, 3, 0)
-    # プラグ: 本体と、2本の刃。 抜けているときは 16ドット はなれる
-    px = 52 if pulled else 66
-    scr.box(px, 26, 24, 16, 1); scr.box(px + 3, 29, 18, 10, 0); scr.box(px + 6, 32, 12, 4, 1)   # 本体(中は くりぬいた かざり)
-    for yy in (28, 38): scr.box(px + 24, yy, 14, 3, 1)   # 刃(さしこむとき みぞに入る)
-    # コード: 左から 本体まで。 すこし うねる
+    scr.zface('tongue' if pulled else 'smile', 0, 19 - (t2 % 2) * 2, 1)   # ずんだもん(小さく): 抜けたとき ウインク(oled_zunda の 'tongue' は ウインクの顔)
+    scr.text16('電源を抜いて!', 0, 0, inv=pulled)   # 1行 全体を 白黒反転でパタパタ
+    # コンセント(右): 白い板(角を丸く) + 黒い窓 + 縦長の穴2つ
+    x0, y0, w, h = 100, 17, 28, 30
+    scr.box(x0, y0, w, h, 1)
+    for cx, cy in ((x0, y0), (x0 + w - 1, y0), (x0, y0 + h - 1), (x0 + w - 1, y0 + h - 1)): scr._set(cx, cy, 0)
+    scr.box(x0 + 6, y0 + 8, 16, 12, 0)
+    for sx in (x0 + 10, x0 + 16): scr.box(sx, y0 + 11, 2, 6, 1)
+    # プラグ: D形の本体 + 横向きの2本の刃。 抜けているときは 16ドット はなれる
+    px = 62 if pulled else 78
+    scr.box(px, 26, 14, 15, 1)
+    for cx, cy in ((px, 26), (px, 40)): scr._set(cx, cy, 0)
+    scr.box(px - 1, 28, 1, 11, 1)
+    for yy in (28, 36): scr.box(px + 14, yy, 8, 3, 1)
+    # コード: ずんだもんから プラグまで S字に うねる
+    L = max(1, px - 32)
     for x in range(32, px):
-        y = 33 + (1 if ((x // 4) + t2) % 2 else 0)
-        scr.box(x, y - 1, 1, 3, 1)
-    # 抜けているときは、「<」の形の矢印が 2つ(字の「<」は 小さい字に ないので 点で描く)
+        y = 33 + int(round(4 * math.sin((x - 32) / L * 2 * math.pi + t2 * 0.8)))
+        scr.box(x, y, 1, 2, 1)
+    # 抜けているときは 左向きの矢印(字の「<」は 小さい字に ないので 点で描く)
     if pulled:
-        for ax in (px + 6, px + 16):
+        for ax in (px + 4, px + 14):
             for k in range(4): scr._set(ax + 3 - k, 17 + k, 1); scr._set(ax + 3 - k, 23 - k, 1)
     return scr
 
