@@ -3164,19 +3164,19 @@
       Object.keys(PF).forEach((k) => {
         const g = PF[k], want = g.need() || g.soon();
         if (g.need()) g.used = now;
-        if (want && !g.done) { g.used = g.used || now; if (idle && av >= 70 && !loadedOne) { if (!g.q) g.q = g.files().slice(); const f = g.q.shift(); if (f) { gfx.preload(f); loadedOne = true; } if (!g.q.length) { g.done = true; g.q = null; } } }
+        if (want && !g.done) { g.used = g.used || now; if (idle && av >= 55 && !loadedOne) { if (!g.q) g.q = g.files().slice(); const f = g.q.shift(); if (f) { gfx.preload(f); loadedOne = true; } if (!g.q.length) { g.done = true; g.q = null; } } }
         else if (g.done && !want && now - (g.used || 0) > 20000) { gfx.unload(g.pre); g.done = false; g.q = null; g.used = 0; } // 使い終わった絵は、メモリから捨てる
       });
     } catch (e) { /* ignore */ }
   }, 90);
   /* ---------- メモリ不足の見はり: 空きが少なくなったら、画面のキャッシュ(層)→文字の絵、の順に捨てる(足りなくなると、本体ごと固まる) ---------- */
-  const memLow = () => { try { if (typeof gfx.mem === 'function') { const m = gfx.mem(); return m[1] < 60; } } catch (e) { /* ignore */ } return false; };
+  const memLow = () => { try { if (typeof gfx.mem === 'function') { const m = gfx.mem(); return m[1] < 45; } } catch (e) { /* ignore */ } return false; };
   setInterval(() => {
     try {
       if (typeof gfx.free !== 'function' || typeof gfx.mem !== 'function') return;
-      const av = gfx.mem()[1], now = __now(); if (av >= 60 || av <= 0 || now - (S.memFreeAt || 0) < 15000) return;
+      const av = gfx.mem()[1], now = __now(); if (av >= 45 || av <= 0 || now - (S.memFreeAt || 0) < 15000) return;
       S.memFreeAt = now;
-      const k = gfx.free(1); S.lay = []; if (av < 40) gfx.free(2); // 層を捨てたら、JS側の「描きずみ」の記録も消す(また描きなおす)
+      const k = gfx.free(1); S.lay = []; if (av < 30) gfx.free(2); // 層を捨てたら、JS側の「描きずみ」の記録も消す(また描きなおす)
       S.memFreed = (S.memFreed || 0) + 1; tl('mem-free avail=' + Math.round(av) + ' 層' + k); dirty();
     } catch (e) { /* ignore */ }
   }, 2000);
