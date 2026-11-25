@@ -19,6 +19,7 @@ def main(out=None, preview=None):
         t = im.crop((x0 + INSET, y0 + INSET, x0 + SIZE - INSET, y0 + SIZE - INSET)); tiles.append(t)
         t.resize((256, 256), Image.LANCZOS).save(os.path.join(out, '%02d.webp' % (n + 1)), 'WEBP', quality=88)
         t.resize((128, 128), Image.LANCZOS).save(os.path.join(out, 'face', '%02d.webp' % (n + 1)), 'WEBP', quality=88)
+        t.resize((128, 128), Image.LANCZOS).transpose(Image.FLIP_LEFT_RIGHT).save(os.path.join(out, 'face', '%02d_f.webp' % (n + 1)), 'WEBP', quality=88)  # 左右反転(先読み用。いまは席ごとの反転はしない)
     if preview:
         S = 96; sheet = Image.new('RGB', (6 * (S + 4), 6 * (S + 4)), (30, 30, 30))
         for n, t in enumerate(tiles): sheet.paste(t.resize((S, S)), ((n % 6) * (S + 4), (n // 6) * (S + 4)))

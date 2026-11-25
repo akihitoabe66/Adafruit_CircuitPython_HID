@@ -40,4 +40,14 @@ n += bg('title_art.webp', '(タイトルの絵・仮)'); n += bg('menu_bg.webp',
 n += btn('btn_start.webp', 'はじめる'); n += btn('btn_exit.webp', 'ゲーム終了', col=(200, 200, 200)); n += btn('bgm_on.webp', 'BGM ON', (260, 90), (120, 200, 140)); n += btn('bgm_off.webp', 'BGM OFF', (260, 90), (180, 180, 180))
 im = Image.new('RGBA', (900, 300), (0, 0, 0, 0)); d = ImageDraw.Draw(im); text_c(d, (450, 150), '(ロゴ・仮)', 110, (255, 255, 255)); n += save(im, 'logo.webp')
 n += bg('cert.webp', '(認定証・仮)', (1280, 900)); im = Image.new('RGBA', (300, 300), (0, 0, 0, 0)); d = ImageDraw.Draw(im); d.ellipse((10, 10, 290, 290), outline=(200, 30, 30), width=12); text_c(d, (150, 150), '認', 120, (200, 30, 30)); n += save(im, 'cert_stamp.webp')
+# 点棒(リーチ棒など)。 100/1000/5000/10000 と、卓の中央に置く向き違い(c0 / c90 / c180)
+def stick(name, label, col, vertical=False):
+    w, h = (240, 36) if not vertical else (36, 240); im = Image.new('RGBA', (w, h), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    d.rounded_rectangle((1, 1, w - 2, h - 2), 8, fill=(250, 250, 245), outline=(120, 120, 110), width=3)
+    r = 9
+    for cx, cy in ([(w // 2, h // 2)] if label == '1000' else [(w // 2 - 40, h // 2), (w // 2 + 40, h // 2)] if not vertical else [(w // 2, h // 2 - 40), (w // 2, h // 2 + 40)]):
+        d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=col)
+    return save(im, name)
+n += stick('tenbo_100.webp', '100', (40, 40, 40)); n += stick('tenbo_1000.webp', '1000', (200, 30, 30)); n += stick('tenbo_5000.webp', '5000', (200, 130, 20)); n += stick('tenbo_10000.webp', '10000', (30, 90, 200))
+n += stick('tenbo_c0.webp', '1000', (200, 30, 30)); n += stick('tenbo_c180.webp', '1000', (200, 30, 30)); n += stick('tenbo_c90.webp', '1000', (200, 30, 30), True)
 print('作った仮の画像:', n, '枚')
