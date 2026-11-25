@@ -1,0 +1,44 @@
+/* UIデザイン案D(見本は tools/ui_mock/mock.html?v=d): 右の列は画面の高さいっぱい・幅は設計座標で144。
+   Fキーの札は同じ位置・同じ大きさ。文字は白の太字、色は用途ごとに濃く。simple.css のあとに読み込む。 */
+#side { background: linear-gradient(180deg, #241a33, #150f20); border-left: 6px solid #b57a0b; }
+#side-in { width: 144px; }
+
+/* 局の表示(左)と、音量(右上) */
+#side-in .sd-info { left: 8px; top: 3px; width: 96px; text-align: left; line-height: 1.05; }
+#side-in .sd-info b { font-size: 25px; color: #fff; display: block; font-weight: 900; }
+#side-in .sd-info span { font-size: 16px; color: #d8ccf0; font-weight: 700; }
+#side-in .sm-vol { left: 106px; top: 6px; width: 32px; height: 32px; }
+
+/* 5つのボタン(F1〜F5): 左にFキーの札、右に文字と状態 */
+#side-in #btn-quit, #side-in #btn-teach, #side-in #btn-pass, #side-in #btn-coach, #side-in #btn-tools {
+  position: absolute; left: 6px; width: 132px; height: 58px; margin: 0; padding: 0 4px 0 6px;
+  display: grid; grid-template-columns: 40px 1fr; grid-template-rows: 1fr 1fr; column-gap: 6px; align-items: center;
+  border: 3px solid #fff; border-radius: 11px; color: #fff; text-align: left; line-height: 1.05;
+  box-shadow: 0 3px 0 #0007; font-weight: 900; cursor: pointer;
+}
+#side-in #btn-quit { top: 52px; background: #1d4ea8; }
+#side-in #btn-teach { top: 115px; background: #1b7a3a; }
+#side-in #btn-pass { top: 178px; background: #c25a00; }
+#side-in #btn-coach { top: 241px; background: #6a2fb0; }
+#side-in #btn-tools { top: 304px; background: #505050; display: grid !important; }
+#side-in .dk .fk { grid-row: 1 / span 2; grid-column: 1; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: #fff; color: #111; border-radius: 8px; font-style: normal; font-size: 21px; font-weight: 900; }
+#side-in .dk .lb { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 17px; text-shadow: 0 2px 0 #0008; white-space: nowrap; }
+#side-in .dk .st + .lb, #side-in .dk .lb:has(+ .st) { grid-row: 1; align-self: end; }
+#side-in .dk .st { grid-column: 2; grid-row: 2; align-self: start; justify-self: start; background: #fff; color: #111; border-radius: 7px; padding: 0 6px; font-size: 13px; font-weight: 900; text-shadow: none; white-space: nowrap; }
+#side-in #btn-teach.on .st, #side-in #btn-pass.on .st { background: #c9f7d6; }
+body.coach-open #side-in #btn-coach { background: #d4560f; box-shadow: 0 3px 0 #0007, 0 0 0 3px #ffd23f; }
+body.pad-on #side-in .pf, #side-in .dk.pf { background-clip: border-box; outline: 4px solid #ffd23f; outline-offset: 2px; z-index: 12; }
+
+/* あたり牌の欄は、ボタンの下の、残りのすきまへ */
+#side-in .sd-act { top: 368px; left: 6px; width: 132px; gap: 2px; }
+#side-in .sd-act .act-empty { display: none; }
+.sd-act .wait { width: 132px; padding: 2px 3px 3px; margin-top: 0; }
+.sd-act .wait h5 { font-size: 12px; margin: 0 0 2px; }
+.sd-act .wt { gap: 2px 3px; }
+.sd-act .wt > div { font-size: 9px; width: 28px; }
+.sd-act .wt .tile, .sd-act .wait.many .wt .tile { width: 22px !important; height: 30px !important; }
+.sd-act .fu { font-size: 11px; margin-top: 2px; }
+.sd-act .wt-hint { font-size: 11px; padding: 2px 0; }
+
+/* 「せってい」の中身(旧ツール)は、列の左に開く */
+#side-in .sd-tools { left: -200px; top: 4px; }

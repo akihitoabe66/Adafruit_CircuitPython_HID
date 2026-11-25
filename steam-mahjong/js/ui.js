@@ -115,7 +115,10 @@
       // 解説ボタンの文字は、窓がどの方法で開閉されても(外をタッチ・✕・ボタン)、実際の状態に合わせる
       new MutationObserver(() => { const b = $('#btn-coach'); const op = document.body.classList.contains('coach-open'); if (op && this._coachDirty && this.game) { try { this.refreshCoach(); } catch (e) { /* ignore */ } } if (b) b.innerHTML = this.coachBtnHTML(op); }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
       $('#btn-hint').addEventListener('click', () => this.toggleHint());
-      $('#btn-teach').addEventListener('click', () => this.setTeacher(!this.hintOn)); // 対局中に、麻雀先生(ヒント)の あり / なし を切り替える
+      $('#btn-teach').addEventListener('click', () => this.setTeacher(!this.hintOn));
+      $('#btn-pass').addEventListener('click', () => this.setAutoPass(!this.autoPass)); this.syncPassBtn();
+      /* Fキー(F1 メニュー / F2 先生 / F3 見送り / F4 解説 / F5 せってい)。 ブラウザの標準の働き(F1=ヘルプ、F5=再読み込み)は止める */
+      window.addEventListener('keydown', (e) => { const m = { F1: '#btn-quit', F2: '#btn-teach', F3: '#btn-pass', F4: '#btn-coach', F5: '#btn-tools' }[e.key]; if (!m || e.ctrlKey || e.altKey || e.metaKey || !this.game || $('#screen-game').classList.contains('hidden')) return; e.preventDefault(); const b = $(m); if (b && !b.disabled) b.click(); }, true); // 対局中に、麻雀先生(ヒント)の あり / なし を切り替える
       document.addEventListener('click', (e) => { if (e.target.closest('[data-hintoggle]')) this.toggleHint(); });
     },
 
@@ -155,7 +158,7 @@
     },
     syncHintBtn() {
       const t = $('#btn-teach');
-      if (t) { t.innerHTML = `麻雀先生<br>${this.hintOn ? 'あり' : 'なし'}`; t.classList.toggle('on', !!this.hintOn); }
+      if (t) { t.innerHTML = `<i class="fk">F2</i><span class="lb">先生</span><span class="st">${this.hintOn ? 'あり' : 'なし'}</span>`; t.classList.toggle('on', !!this.hintOn); }
       const b = $('#btn-hint');
       if (b) { b.textContent = `💡 ヒント: ${this.hintOn ? 'オン' : 'オフ'}`; b.classList.toggle('on', !!this.hintOn); }
     },
@@ -427,18 +430,19 @@
       body.classList.remove('desk');
       body.classList.add('land', 'tbl');
       body.classList.toggle('short', H <= 640);
-      const S = Math.min(H / 428, W / 832);
+      const SIDE = 144; // 右の列の設計幅(1920×1080 で 320px。盤面は 1600px)
+      const S = Math.min(H / 428, W / (720 + SIDE));
       this.S = S;
-      const ox = Math.round((W - 112 * S - 720 * S) / 2), oy = Math.round((H - 428 * S) / 2);
+      const ox = Math.round((W - SIDE * S - 720 * S) / 2), oy = Math.round((H - 428 * S) / 2);
       document.documentElement.style.setProperty('--S', S.toFixed(4)); document.documentElement.style.setProperty('--oy', oy + 'px'); // 解説の窓は、対局画面の設計座標に合わせる
       const key = [W, H].join('x');
       if (key === this.layoutKey) return;
       this.layoutKey = key;
       $('#sc').style.transform = `translate(${ox}px, ${oy}px) scale(${S})`;
       document.documentElement.style.setProperty('--ox', ox + 'px');
-      $('#side').style.width = Math.round(112 * S) + 'px';
+      $('#side').style.width = Math.round(SIDE * S) + 'px';
       $('#side-in').style.transform = `translateY(${oy}px) scale(${S})`;
-      this.setSizes(26, 48); // 手牌の幅(設計座標)。 14枚+ツモ牌の間が 720 に収まる上限。 これ以上は、右のボタン列に重なる
+      this.setSizes(26, 47); // 手牌の幅(設計座標)。 14枚+ツモ牌の間が 720 に収まる上限。 これ以上は、右のボタン列に重なる
     },
     setSizes(sw, hw) {
       this.sizes = { sw, hw };
@@ -1150,7 +1154,12 @@
         else fill();
       });
     },
+    /* 鳴きの自動見送り(F3): ロンできるときは、いつも確認を出す。ポン・チー・カンだけ、確認なしで見送る */
+    autoPass: (() => { try { return JSON.parse(localStorage.getItem('mj_autopass')) === true; } catch (e) { return false; } })(),
+    setAutoPass(v) { this.autoPass = !!v; try { localStorage.setItem('mj_autopass', JSON.stringify(this.autoPass)); } catch (e) { /* ignore */ } this.syncPassBtn(); this.toast(this.autoPass ? '鳴きを 自動で見送ります(ロンは確認します)' : '鳴きの確認を 出します'); },
+    syncPassBtn() { const b = $('#btn-pass'); if (b) { b.querySelector('.st').textContent = this.autoPass ? '自動ON' : '自動OFF'; b.classList.toggle('on', this.autoPass); } },
     askReact(game, q, o) {
+      if (this.autoPass && !o.ron && !q.riichi) return Promise.resolve({ act: 'pass' });
       return new Promise((res) => {
         this.sel = { type: 'react', p: q, o, res };
         this.reactAt = Date.now();
@@ -1522,7 +1531,7 @@
     _clearBubbles() { const host = $('#says'); if (host) host.querySelectorAll('.say').forEach((x) => x.remove()); this._vEnd = 0; },
     /* 牌を捨てる瞬間: その人の「考え中のセリフ」だけを消す。ほかのセリフは、読み終わるまで消さない */
     /* 「解説」ボタンの中身: 麻雀先生のイラスト + 解説(開いているときは「✕ 閉じる」) */
-    coachBtnHTML(on) { return on ? '✕ 閉じる' : '<img class="cb-ico" src="img/teacher/t12.webp" alt="" draggable="false"><span>解説</span>'; },
+    coachBtnHTML(on) { return `<i class="fk">F4</i><span class="lb">${on ? 'とじる' : '解説'}</span>`; },
     clearSays() {
       const host = $('#says'); if (host) { const hs = host.querySelectorAll('.say[data-hes]'); if (hs.length) { hs.forEach((x) => x.remove()); this._vEnd = 0; } }
       if (this._hesTeacher) { const t = this._hesTeacher; this._hesTeacher = null; setTimeout(() => { if (this.hintOn) this.teacherSay(t, 'warn', 4500); }, 450); } // 捨てたあとに、麻雀先生がひとこと(考え中のセリフと重ならない)

@@ -6,6 +6,7 @@
 <title>操作シンプル 本格麻雀</title>
 <link rel="stylesheet" href="style.css?v=325">
 <link rel="stylesheet" href="simple.css?v=325">
+<link rel="stylesheet" href="dlayout.css?v=1">
 <link rel="preload" as="image" href="img/title_art.webp">
 <link rel="preload" as="image" href="img/btn_start.webp">
 <link rel="preload" as="image" href="img/menu_bg.webp">
@@ -101,13 +102,14 @@
     <div id="sc"><div id="table"></div><div id="mine"></div><div id="says"></div></div>
     <!-- 右端の縦ボタン列(112×428 の設計座標) -->
     <div id="side"><div id="side-in">
-      <button class="btn sb sm-menu" id="btn-quit">☰ MENU</button>
+      <button class="btn sb sm-menu dk dk-blue" id="btn-quit" type="button"><i class="fk">F1</i><span class="lb">メニュー</span></button>
       <button class="btn sb sm-vol" id="btn-vol" type="button" aria-label="音量">🔊</button>
       <div id="sd-info" class="sd-info"></div>
       <div id="sd-act" class="sd-act"></div>
-      <button class="btn sb sm-sub" id="btn-coach"><img class="cb-ico" src="img/teacher/t12.webp" alt="" draggable="false"><span>解説</span></button>
-      <button class="btn sb sm-sub" id="btn-tools">🧰 ツール</button>
-      <button class="btn sb sm-sub" id="btn-teach" type="button">麻雀先生</button>
+      <button class="btn sb sm-sub dk dk-green" id="btn-teach" type="button"><i class="fk">F2</i><span class="lb">先生</span><span class="st">なし</span></button>
+      <button class="btn sb sm-sub dk dk-orange" id="btn-pass" type="button"><i class="fk">F3</i><span class="lb">見送り</span><span class="st">自動OFF</span></button>
+      <button class="btn sb sm-sub dk dk-purple" id="btn-coach" type="button"><i class="fk">F4</i><span class="lb">解説</span></button>
+      <button class="btn sb sm-sub dk dk-gray" id="btn-tools" type="button"><i class="fk">F5</i><span class="lb">せってい</span></button>
       <div id="sd-tools" class="sd-tools hidden">
         <span class="gt" id="g-title"></span>
         <button class="btn sm" id="btn-hint">💡 ヒント</button>
@@ -179,5 +181,6 @@
 <script src="js/pad.js?v=325"></script>
 <script src="js/fx.js?v=325"></script>
 <script src="js/main.js?v=325"></script>
+<script src="js/quick.js?v=1"></script>
 </body>
 </html>
