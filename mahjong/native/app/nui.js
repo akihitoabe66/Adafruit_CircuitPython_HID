@@ -1257,7 +1257,7 @@
   }
   function mapPlay(M) { const d = M.from; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } S.rankScr = null; S.mode = 'menu'; startGame(null, { town: d }); } // 地図から、その街で 対局(いまの段位の街=ふつう / 下の街=修行)
   function mapClose(M) { // 対局前の地図を とじる: 巻物が右へ閉じ、海が溶けて、雀卓があらわれる(対局は 閉じはじめに 始める)。 ほかの地図は すぐ消す
-    if (M.hdone) return; M.hdone = true; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ }
+    if (M.hdone) return; M.hdone = true; try { NSND.stopSpeak(); if (!M.here) NSND.mapOff(); } catch (e) { /* ignore */ } // 対局前の地図は、地図の曲を そのまま サイコロの画面まで流して、雀卓が出たとき(handStart)に 対局の曲へ つなぐ
     if (M.here) { M.closing = { t0: __now() }; M.then(); } else { S.map = null; M.then(); } dirty();
   }
   function mapKey(k) { const M = S.map; if (!M) return; if (M.closing) return; /* 閉じている間は ボタンを うけつけない */ const t = __now() - M.t0, arrived = t >= M.endT;

@@ -310,17 +310,20 @@ static void bgms_push(AVFrame *fr) {
 }
 static void bgms_hook(void *u, Uint8 *st, int len);
 static int bgms_thread(void *u) {
+  double ts0 = nowms();
   setpriority(PRIO_PROCESS, (id_t)syscall(SYS_gettid), 3); /* 絵を描く本体よりは、少し優先(音の準備は、先に済ませる) */
   { /* 曲を開く(読み込みの待ちは、ここ=別スレッドで。画面の動きを止めない) */
-    if (avformat_open_input(&B.fc, B.path, NULL, NULL) < 0) { B.fc = NULL; B.failed = 1; return 0; }
+    AVDictionary *po = NULL; av_dict_set(&po, "probesize", "65536", 0); av_dict_set(&po, "analyzeduration", "0", 0); /* mp3の中身の調べを 短く(はじめの数フレームだけ): 曲の頭が鳴るまでの待ちを へらす */
+    if (avformat_open_input(&B.fc, B.path, NULL, &po) < 0) { av_dict_free(&po); B.fc = NULL; B.failed = 1; return 0; } av_dict_free(&po);
     if (avformat_find_stream_info(B.fc, NULL) < 0) { B.failed = 1; return 0; }
+    { double tp = nowms() - ts0; if (tp >= 500) bgm_log("bgm-probe", tp, B.path); }
     B.si = av_find_best_stream(B.fc, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0); if (B.si < 0) { B.failed = 1; return 0; }
     const AVCodec *dec = avcodec_find_decoder(B.fc->streams[B.si]->codecpar->codec_id); if (!dec) { B.failed = 1; return 0; }
     B.ac = avcodec_alloc_context3(dec); avcodec_parameters_to_context(B.ac, B.fc->streams[B.si]->codecpar); if (avcodec_open2(B.ac, dec, NULL) < 0) { B.failed = 1; return 0; } }
   double st0 = nowms(); int armed = 0;
   AVPacket *pk = av_packet_alloc(); AVFrame *fr = av_frame_alloc();
   while (!B.stop) {
-    if (!armed) { SDL_LockMutex(B.mu); int nn = B.n; SDL_UnlockMutex(B.mu); if (nn >= B.rate || nowms() - st0 > 600) { armed = 1; B.on = 1; Mix_HookMusic(bgms_hook, NULL); } } /* 最初の1秒ぶんがたまったら、鳴らしはじめる */
+    if (!armed) { SDL_LockMutex(B.mu); int nn = B.n; SDL_UnlockMutex(B.mu); if (nn >= B.rate / 3 || nowms() - st0 > 300) { armed = 1; B.on = 1; Mix_HookMusic(bgms_hook, NULL); { double ta = nowms() - ts0; if (ta >= 800) bgm_log("bgm-armed", ta, B.path); } } } /* 最初の1秒ぶんがたまったら、鳴らしはじめる */
     SDL_LockMutex(B.mu); int space = B.cap - B.n; SDL_UnlockMutex(B.mu);
     if (space < 16384) { SDL_Delay(20); continue; } /* いっぱいに近いあいだは、待つ */
     int r = av_read_frame(B.fc, pk);

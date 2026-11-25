@@ -469,7 +469,7 @@ static void stall_log(const char *kind, double ms){
 }
 static void bgm_log(const char *what, double ms, const char *path){ /* 記録: 専用機では、あとで不具合を調べられるよう「大事な出来事」だけを mjdata/events.log に(1日に数行。 64KBを こえたら 古い方を .old に)。 開発のとき MJ_LOG=1 なら、ぜんぶ stall.log に */
   int dev = getenv("MJ_LOG") != NULL;
-  int key = !strcmp(what, "health") || !strcmp(what, "audio-reopen") || !strcmp(what, "bgm-stream-fail") || !strcmp(what, "bgm-stopped") || !strcmp(what, "mem-free");
+  int key = !strcmp(what, "health") || !strcmp(what, "audio-reopen") || !strcmp(what, "bgm-stream-fail") || !strcmp(what, "bgm-stopped") || !strcmp(what, "mem-free") || !strcmp(what, "bgm-probe") || !strcmp(what, "bgm-armed");
   if (!dev && !key) return;
   char p[1500]; snprintf(p, sizeof p, "%s/%s", datadir, dev ? "stall.log" : "events.log");
   if (!dev) { struct stat sb; if (stat(p, &sb) == 0 && sb.st_size > 65536) { char q[1520]; snprintf(q, sizeof q, "%s.old", p); rename(p, q); } }
