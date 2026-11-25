@@ -44,7 +44,11 @@
   }
   const kyokuText = (sn) => ['東', '南', '西', '北'][Math.min(3, Math.floor(sn.kyoku / 4))] + ['一', '二', '三', '四'][sn.kyoku % 4] + '局' + (sn.honba ? ' ' + sn.honba + '本場' : '') + (sn.mid ? '・途中から' : '');
   const teacherOn = () => { try { return localStorage.getItem('mj_teacher') === '1'; } catch (e) { return false; } };
-  const askTeach = (snap) => { if (teacherOn()) { S.teachQ = { idx: 1, snap }; return; } S.hint = null; S.waitKey = ''; startGame(snap); }; // 麻雀先生が「なし」のときは、確認を出さずに そのまま はじめる
+  const beginGame = (snap) => { // 新しく はじめるときだけ、対局の前に 地図で「いまここ」を見せる(つづきから・練習・観戦・デバッグでは 出さない)
+    if (snap) { startGame(snap); return; }
+    try { const dn = MJ.Rank.get().dan || 0; startMap({ from: dn, to: dn, here: true }, () => startGame(null)); } catch (e) { startGame(null); }
+  };
+  const askTeach = (snap) => { if (teacherOn()) { S.teachQ = { idx: 1, snap }; return; } S.hint = null; S.waitKey = ''; beginGame(snap); }; // 麻雀先生が「なし」のときは、確認を出さずに そのまま はじめる
   const teacherLabel = () => '麻雀先生: ' + (teacherOn() ? 'あり' : 'なし');
   const dmarkOn = () => { try { return localStorage.getItem('mj_dmark') !== '0'; } catch (e) { return true; } }; // 麻雀先生の「安全牌の印」(現物・スジ…)。ふだんは、あり
   const DTAG = (tag) => (/^現物/.test(tag) ? '現物' : /^全見え/.test(tag) ? '全見え' : /^字牌/.test(tag) ? '字牌' : /^スジ/.test(tag) ? 'スジ' : /^半スジ/.test(tag) ? '半スジ' : /^カベ/.test(tag) ? 'カベ' : /^ワンチャンス/.test(tag) ? 'ワンC' : '無スジ');
@@ -1145,7 +1149,8 @@
       const G = Math.max(MAP_T.slide + 1800, Math.round(NSND.klen('m:肥後国') * 1000) + 700), vl = Math.max(3800, Math.round(NSND.klen('v:tenka') * 1000)); // 二つめの一言が はじまる時刻 / 声の長さ
       intro = { path: { pts, seg, len }, G, end: G + vl + 1000, v: false }; tt = intro.end;
     }
-    S.map = { intro, ms, L, vd: rk.intro ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: intro ? intro.end : steps.length ? tt : base, base, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
+    S.map = { here: !!rk.here, intro, ms, L, vd: rk.intro || rk.here ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: intro ? intro.end : steps.length ? tt : base, base, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
+    if (rk.here) { const mm = S.map; setTimeout(() => { if (S.map === mm && !mm.hdone) { mm.hdone = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } mm.then(); dirty(); } }, MAP_T.slide + MAP_T.hold + 4200); } // 対局の前の「いまここ」は、約4秒で 自動で進む(決定ボタンなら すぐ)
   }
   function mapAlong(st, u) { const dist = st.len * u; let i = 1; while (i < st.pts.length - 1 && st.seg[i] < dist) i++; const a = st.pts[i - 1], b = st.pts[i], sl = st.seg[i] - st.seg[i - 1] || 1, v = Math.max(0, Math.min(1, (dist - st.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v, b[0] - a[0]]; }
   function drawWater(t) { // 水面: 横長の帯を、少しずつ ずらして 波うたせる(2枚 重ねて、きらめき)
@@ -1210,6 +1215,7 @@
     gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]);
     const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
     let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < (M.base || MAP_T.slide + MAP_T.hold)) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? (M.capSay ? '修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。' : '他の街に戻って、修行し直すのだ！') : walkMsg(M.view && M.go != null ? M.go : M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
+    if (M.here) { try { const f = MJ.Rank.info(), tn = townName(M.from); msg = 'いまは ' + f.name + '、' + tn + 'に いるのだ。' + (f.next ? 'つぎの ' + f.next + 'まで あと ' + f.left + '点なのだ' : f.tenka ? '天下分け目に 勝てば 永世名人なのだ' : '') + (M.from === 0 && !f.next ? '' : ''); } catch (e) { /* ignore */ } } // 対局の前の「いまここ」: いまの段位・場所・つぎの段までの点
     if (M.intro && t >= M.intro.G) { msg = '江戸で 名人を倒し、天下統一するのだ!'; if (!M.intro.v) { M.intro.v = true; try { NSND.speak(['v:tenka']); } catch (e) { /* ignore */ } } } // 旅のはじまり: 二つめの一言(声つき)
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && M.go == null && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) { const wt = Math.max(0, (M.vUntil || 0) - __now()) + 150, tk = M; setTimeout(() => { if (S.map === tk && !tk.go) { const dd = NSND.speak([pk]) || 0; tk.vUntil = __now() + dd * 1000; } }, wt); } } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
@@ -1256,7 +1262,7 @@
       if (k === 'ok') { if (M.sel !== M.from) mapGo(M, M.sel); else { M.ask = { idx: 0 }; NSND.sfx('select', 0.5); } dirty(); return; }
       if (k === 'back') { S.map = null; try { NSND.mapOff(); NSND.home(); } catch (e) { /* ignore */ } M.then(); } // 成績の画面から 見ていた地図を とじる: ホームの曲にもどす
       dirty(); return;
-    } if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
+    } if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; M.hdone = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
   /* ---------- 昇段の演出テスト(隠しコマンドで開く): 認定証 → 地図 → 新しい雀士 を、いつでも見られる ---------- */
   function drawPromo() {
     const P = S.promo; gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
@@ -2524,7 +2530,7 @@
       const q = S.teachQ;
       if (k === 'left') q.idx = wrap(q.idx - 1, 3); else if (k === 'right' || k === 'up' || k === 'down') q.idx = wrap(q.idx + 1, 3);
       else if (k === 'back') S.teachQ = null;
-      else if (k === 'ok') { if (q.idx === 2) { S.teachQ = null; return; } later(() => { S.teachQ = null; try { localStorage.setItem('mj_teacher', q.idx === 1 ? '1' : '0'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; startGame(q.snap); }); }
+      else if (k === 'ok') { if (q.idx === 2) { S.teachQ = null; return; } later(() => { S.teachQ = null; try { localStorage.setItem('mj_teacher', q.idx === 1 ? '1' : '0'); } catch (e) { /* ignore */ } S.hint = null; S.waitKey = ''; beginGame(q.snap); }); }
       return;
     }
     if (S.playQ) { // 麻雀をはじめる: つづきから / はじめから
