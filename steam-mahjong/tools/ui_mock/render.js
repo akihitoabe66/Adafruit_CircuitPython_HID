@@ -2,6 +2,6 @@
 const { chromium } = require('playwright');
 (async () => {
   const out = process.argv[2] || '.'; const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
-  for (const v of ['a', 'b']) { await p.goto(`http://localhost:8127/tools/ui_mock/mock.html?v=${v}`); await p.waitForTimeout(900); await p.screenshot({ path: `${out}/ui_mock_${v}.png` }); }
+  for (const v of ['a', 'b', 'c']) { await p.goto(`http://localhost:8127/tools/ui_mock/mock.html?v=${v}`); await p.waitForTimeout(900); await p.screenshot({ path: `${out}/ui_mock_${v}.png` }); }
   await b.close();
 })();
