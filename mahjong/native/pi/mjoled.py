@@ -366,7 +366,7 @@ def zpwr(h):
 ZST = {'scene': None, 't': 0}
 def boot_screen(scr, tick, X, up):
     """起動中: ずんだもんが「もうすぐ はじまるよ！」と パタパタ(口を あけしめ・左右に ゆれる・見出しが 白黒反転・ことばが 流れる)"""
-    t2 = tick // 3   # 2コマの動きは ゆっくり(1秒ごと)
+    t2 = tick // 2   # 2コマの動きは ゆっくり(0.67秒ごと)
     scr.zface('laugh' if t2 % 2 == 0 else 'smile', 2 if t2 % 2 else 0, 3)
     scr.text16('起動中', X, 0, inv=(t2 % 2 == 0))
     scr.marquee('もうすぐ はじまるよ！ ちょっと まってね', X, 17, 60, tick); scr.text('WAIT %dS' % int(up), X, 39)
@@ -645,7 +645,7 @@ def compose(scr, d, age, tick, ever_alive=False):
     return scr
 def saving_screen(scr, tick):
     """終了のあと、SDカードへ 書きこんでいる最中(まだ 抜かないで): ずんだもんが 目を閉じて まっている。 「終了中」が 反転でゆっくり点滅、下に 英語の注意"""
-    t2 = tick // 3
+    t2 = tick // 2
     scr.zface('content' if t2 % 2 == 0 else 'worry', 0, 3)
     scr.text16('終了中', 66, 0, inv=(t2 % 2 == 0))
     scr.text('SAVING' + '.' * (t2 % 4), 66, 20)
@@ -655,7 +655,7 @@ def saving_screen(scr, tick):
 def exit_plug(scr, tick):
     """終了の画面(これだけを出す): 電源プラグが コンセントから 抜き差しされる絵。 コンセントは 白い板に 黒い窓と2つの穴。
     刺さっているとき: にこ顔 / 抜けているとき: ウインク(+ 文字が 白黒反転、矢印)。 2コマの動きは ゆっくり(0.67秒ごと)"""
-    t2 = tick // 3
+    t2 = tick // 2
     pulled = t2 % 2 == 1
     scr.zface('tongue' if pulled else 'smile', 0, 19 - (t2 % 2) * 2, 1)   # ずんだもん(小さく): 抜けたとき ウインク(oled_zunda の 'tongue' は ウインクの顔)
     scr.text16('電源を抜いて!', 0, 0, inv=pulled)   # 1行 全体を 白黒反転でパタパタ
