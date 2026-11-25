@@ -52,6 +52,11 @@ class Holder:
     """一瞬だけ読めた押しを、ゲームが 受けとれる長さ(HOLD)まで のばす。 のばすのは 押した瞬間(立ち上がり)の 1回だけ: 指を はなしたあとに 次の押しが 来ても、はなした すきまは そのまま 残る(連打が 押しっぱなしに ならない)。 反対の方向(左↔右、上↔下)が 押されたら、すぐに そちらへ ゆずる"""
     def __init__(self, hold=HOLD): self.hold = hold; self.until = {}; self.on = {}; self.rel = {}
     def apply(self, b, now):
+        if self.hold <= 0:   # 有線: のばさない。 これまでと まったく同じ動き(実機で 確認ずみ)
+            eff = dict(b)
+            for a, c in (('left', 'right'), ('up', 'down')):
+                if b[a] and b[c]: eff[c] = False   # 同時に読めたら 左・上を 優先(読みまちがい)
+            return eff
         for k, v in b.items():
             if v and not self.on.get(k):   # 立ち上がりだけ のばす
                 if self.until.get(k, 0) > now: self.rel[k] = now + 0.02   # まだ のばし中に 押しなおした: 20msだけ 離した事にして 「別の1回」に する
