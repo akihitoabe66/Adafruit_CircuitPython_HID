@@ -1150,7 +1150,7 @@
       intro = { path: { pts, seg, len }, G, end: G + vl + 1000, v: false }; tt = intro.end;
     }
     S.map = { here: !!rk.here, intro, ms, L, vd: rk.intro || rk.here ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: intro ? intro.end : steps.length ? tt : base, base, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
-    if (rk.here) { const mm = S.map; const chk = () => { if (S.map !== mm || mm.hdone) return; const nw = __now(); if (nw - mm.t0 >= MAP_T.slide + MAP_T.hold + 4500 && nw >= (mm.vUntil || 0) + 1500) { mm.hdone = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } mm.then(); dirty(); } else setTimeout(chk, 250); }; setTimeout(chk, 1000); } // 対局の前の「いまここ」: 声が終わって少したってから 自動で進む(決定ボタンなら すぐ)
+    if (rk.here) { const mm = S.map; mm.vUntil = Math.max(0, (S.hjU || 0) + 900); /* 「この麻雀をはじめるのだ」が終わって、少し間をあけてから 地名の声 */ const chk = () => { if (S.map !== mm || mm.hdone) return; const nw = __now(); if (nw - mm.t0 >= MAP_T.slide + MAP_T.hold + 5500 && nw >= (mm.vUntil || 0) + 2400) { mm.hdone = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } mm.then(); dirty(); } else setTimeout(chk, 250); }; setTimeout(chk, 1000); } // 対局の前の「いまここ」: 声が終わって少したってから 自動で進む(決定ボタンなら すぐ)
   }
   function mapAlong(st, u) { const dist = st.len * u; let i = 1; while (i < st.pts.length - 1 && st.seg[i] < dist) i++; const a = st.pts[i - 1], b = st.pts[i], sl = st.seg[i] - st.seg[i - 1] || 1, v = Math.max(0, Math.min(1, (dist - st.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v, b[0] - a[0]]; }
   function drawWater(t) { // 水面: 横長の帯を、少しずつ ずらして 波うたせる(2枚 重ねて、きらめき)
@@ -2660,7 +2660,7 @@
       else if (k === 'back') { /* ホームでBボタンは、何もしない */ }
       else if (k === 'ok') {
         const it = items[S.menuIdx]; if (!it || it.off) return;
-        if (it.act === 'play') { try { if (NSND.has('v:hajimeru')) NSND.speak(['v:hajimeru']); } catch (e) { /* ignore */ } } // 「麻雀をはじめる」を押したとき、「この麻雀をはじめるのだ」の声
+        if (it.act === 'play') { try { if (NSND.has('v:hajimeru')) S.hjU = __now() + (NSND.speak(['v:hajimeru']) || 0) * 1000; } catch (e) { /* ignore */ } } // 「麻雀をはじめる」を押したとき、「この麻雀をはじめるのだ」の声
         if (it.act === 'play') later(() => { tl('play-pressed'); const l = slotRead(); tl('slots-read'); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else askTeach(null); });
         else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => qlGens(RCATS), n: 5, rank: true }));
         else if (it.act === 'study') later(() => startStudy());
