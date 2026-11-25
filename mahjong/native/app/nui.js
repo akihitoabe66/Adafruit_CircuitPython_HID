@@ -1150,13 +1150,13 @@
       intro = { path: { pts, seg, len }, G, end: G + vl + 1000, v: false }; tt = intro.end;
     }
     S.map = { here: !!rk.here, intro, ms, L, vd: rk.intro || rk.here ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: intro ? intro.end : steps.length ? tt : base, base, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
-    if (rk.here) { const mm = S.map; mm.vUntil = Math.max(0, (S.hjU || 0) + 900); /* 「この麻雀をはじめるのだ」が終わって、少し間をあけてから 地名の声 */ const chk = () => { if (S.map !== mm || mm.hdone) return; const nw = __now(); if (nw - mm.t0 >= MAP_T.slide + MAP_T.hold + 5500 && nw >= (mm.vUntil || 0) + 2400) { mm.hdone = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } mm.then(); dirty(); } else setTimeout(chk, 250); }; setTimeout(chk, 1000); } // 対局の前の「いまここ」: 声が終わって少したってから 自動で進む(決定ボタンなら すぐ)
+    if (rk.here) { const mm = S.map; mm.vUntil = Math.max(0, (S.hjU || 0) + 900); /* 「この麻雀をはじめるのだ」が終わって、少し間をあけてから 地名の声 */ const chk = () => { if (S.map !== mm || mm.hdone) return; const nw = __now(); if (nw - mm.t0 >= MAP_T.slide + MAP_T.hold + 5500 && nw >= (mm.vUntil || 0) + 2400) mapClose(mm); else setTimeout(chk, 250); }; setTimeout(chk, 1000); } // 対局の前の「いまここ」: 声が終わって少したってから 自動で進む(決定ボタンなら すぐ)
   }
   function mapAlong(st, u) { const dist = st.len * u; let i = 1; while (i < st.pts.length - 1 && st.seg[i] < dist) i++; const a = st.pts[i - 1], b = st.pts[i], sl = st.seg[i] - st.seg[i - 1] || 1, v = Math.max(0, Math.min(1, (dist - st.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v, b[0] - a[0]]; }
-  function drawWater(t) { // 水面: 横長の帯を、少しずつ ずらして 波うたせる(2枚 重ねて、きらめき)
-    gfx.clear(20, 40, 56);
-    for (let i = 0; i < 14; i++) { const y = Math.round(i * 33.4), x = -64 + Math.round(Math.sin(t / 1000 + i * 0.55) * 20 + Math.sin(t / 1700 + i * 1.3) * 10); gfx.image('img/map/wa' + i + '.webp', x, y, 960, 36, 255); }
-    for (let i = 0; i < 14; i++) { const y = Math.round(i * 33.4) + 5, x = -64 + Math.round(Math.sin(t / 820 + i * 0.9 + 2) * 18 + Math.sin(t / 1300 + i * 0.4) * 12); gfx.image('img/map/wa' + ((i + 5) % 14) + '.webp', x, y, 960, 36, 70); }
+  function drawWater(t, a0) { // 水面: 横長の帯を、少しずつ ずらして 波うたせる(2枚 重ねて、きらめき)
+    const A = a0 == null ? 255 : a0; if (A <= 0) return; if (A >= 255) gfx.clear(20, 40, 56); // 巻物が閉じていくときは、海を 透明にして 下の絵(雀卓)を すかす
+    for (let i = 0; i < 14; i++) { const y = Math.round(i * 33.4), x = -64 + Math.round(Math.sin(t / 1000 + i * 0.55) * 20 + Math.sin(t / 1700 + i * 1.3) * 10); gfx.image('img/map/wa' + i + '.webp', x, y, 960, 36, A); }
+    for (let i = 0; i < 14; i++) { const y = Math.round(i * 33.4) + 5, x = -64 + Math.round(Math.sin(t / 820 + i * 0.9 + 2) * 18 + Math.sin(t / 1300 + i * 0.4) * 12); gfx.image('img/map/wa' + ((i + 5) % 14) + '.webp', x, y, 960, 36, Math.round(70 * A / 255)); }
   }
   function mapGuide(M) { // 「◀ ▶ えらぶ  (A) そこへ あるく  (B) もどる」(あるいている間は「(A) スキップ」)。 ◀ ▶ は、動かせない側を うすくする
     const Y = 382, Hh = 26, F = -16, gap = 8, W1 = (str) => gfx.measure(str, F);
@@ -1173,8 +1173,10 @@
   }
   function drawMap() {
     const M = S.map; { const nw = __now(); if (!M.n) { M.n = 1; M.t0 = nw; M.f0 = nw; } else if (M.n === 1) { M.n = 2; if (nw - M.f0 > 400) M.t0 = nw - 150; } } /* 時計は、最初に描いたときから数える(最初の1コマが重くて止まっても、歩きだしてしまわないように) */
-    mapTick(M); const t = __now() - M.t0, arrived = t >= M.endT, ease = Math.min(1, t / MAP_T.slide), eo = 1 - Math.pow(1 - ease, 3), ox = Math.round((1 - eo) * (SW - MAP_V.x0 + 40)); // 巻物は 右から入ってくる
-    drawWater(__now());
+    mapTick(M); const t = __now() - M.t0, arrived = t >= M.endT, ease = Math.min(1, t / MAP_T.slide), eo = 1 - Math.pow(1 - ease, 3), CL = M.closing ? __now() - M.closing.t0 : -1, ox = CL >= 0 ? Math.round(Math.pow(Math.max(0, Math.min(1, (CL - 300) / 1400)), 3) * (SW - MAP_V.x0 + 40)) : Math.round((1 - eo) * (SW - MAP_V.x0 + 40)); // 巻物は 右から入ってくる(対局前の地図が終わるときは 右へ閉じる: 0.3秒後から 1.4秒、海は 0.9秒後から 1.3秒かけて 透明に)
+    if (CL >= 2200) { S.map = null; dirty(); return; }
+    const uiOn = CL < 0;
+    drawWater(__now(), CL < 0 ? 255 : Math.round(255 * (1 - Math.max(0, Math.min(1, (CL - 900) / 1300)))));
     gfx.image('img/map/scroll2.webp', MAP_V.x0 + ox, MAP_V.y0, Math.round(MAP_V.w), Math.round(MAP_V.h), 255);
     const shift = (q) => [q[0] + ox, q[1]];
     // いまの位置(歩いている途中か、段位に着いたあと)
@@ -1211,19 +1213,19 @@
       fill(px - 2, py + 1, sw + 4, 38, [0, 0, 0], 70); fill(px, py, sw, 36, [120, 84, 40]); fill(px + 2, py + 2, sw - 4, 32, [246, 235, 205]); fill(px + 4, py + 4, sw - 8, 28, [196, 40, 28]); text(dl, px + sw / 2, py + 7, -20, WHITE, 1); } /* 朱印: 段位(白い太字) */
     if (M.congrats || (M.tenka && arrived)) { if (!M.vsaid) { M.vsaid = true; NSND.speak(['v:eisei']); } /* 永世名人の声 */ const tt2 = M.congrats ? t : t - M.endT, k = 1 + Math.sin(tt2 / 220) * 0.03, w = Math.round(600 * k), h = Math.round(w * 0.1404), cy = 190; fill(0, cy - 66, SW, 146, [10, 8, 14], 150); gfx.image('img/map/congrats.webp', Math.round(SW / 2 - w / 2), Math.round(cy - h / 2) - 18, w, h, 255); text('天下統一!', SW / 2, cy + 34, 32, [255, 224, 90], 1); for (let i = 0; i < 14; i++) { const a = tt2 / 600 + i * 1.7, qx = Math.round(SW / 2 + Math.cos(a * 1.3 + i) * 290), qy = Math.round(cy + Math.sin(a * 2.1 + i * 2) * 52), sz = 3 + (i % 3); if (Math.sin(tt2 / 130 + i * 2.3) > -0.2) { fill(qx - sz, qy, sz * 2 + 1, 1, [255, 240, 150], 230); fill(qx, qy - sz, 1, sz * 2 + 1, [255, 240, 150], 230); } } }
     // 下の 帯: ずんだもんの ひとこと(1段ずつ)
-    panel(24, 408, 784, 54, 12, [252, 246, 228], [120, 84, 40], 3, 245);
-    gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]);
+    if (uiOn) panel(24, 408, 784, 54, 12, [252, 246, 228], [120, 84, 40], 3, 245);
+    if (uiOn) { gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]); }
     const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
     let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < (M.base || MAP_T.slide + MAP_T.hold)) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? (M.capSay ? '修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。' : '他の街に戻って、修行し直すのだ！') : walkMsg(M.view && M.go != null ? M.go : M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
     if (M.here) { try { const f = MJ.Rank.info(), tn = townName(M.from); msg = 'いまは ' + f.name + '、' + tn + 'に いるのだ。'; if (M.from === 0 && !(f.s && f.s.games > 0)) msg = 'ここから 旅が はじまるのだ。熊本から 江戸を めざすのだ!';
-      if (f.next || f.tenka) { const w0 = 300, h0 = 78, x0 = SW - w0 - 16, y0 = 326; panel(x0, y0, w0, h0, 12, [14, 44, 30], [255, 214, 70], 3, 242); // 下の ひとこと枠(y=418〜)には かぶせない
+      if (uiOn && (f.next || f.tenka)) { const w0 = 300, h0 = 78, x0 = SW - w0 - 16, y0 = 326; panel(x0, y0, w0, h0, 12, [14, 44, 30], [255, 214, 70], 3, 242); // 下の ひとこと枠(y=418〜)には かぶせない
         if (f.next) { text('つぎの 街まで', x0 + 14, y0 + 6, 15, [255, 236, 170]); text(townName(M.from + 1) + '(' + f.next + ')', x0 + w0 - 14, y0 + 6, 15, WHITE, 2); text('あと', x0 + 14, y0 + 32, 20, WHITE); text(String(f.left), x0 + 136, y0 + 18, 42, [255, 214, 70], 1); text('点', x0 + 196, y0 + 32, 22, WHITE); rrect(x0 + 14, y0 + 66, w0 - 28, 6, 3, [10, 28, 20]); rrect(x0 + 14, y0 + 66, Math.max(6, Math.round((w0 - 28) * f.prog)), 6, 3, [255, 214, 70]); }
         else { text('天下分け目に 勝てば', x0 + w0 / 2, y0 + 8, 20, WHITE, 1); text('永世名人!', x0 + w0 / 2, y0 + 34, 34, [255, 214, 70], 1); } } } catch (e) { /* ignore */ } } // 対局の前の「いまここ」: 場所と、つぎの街までの点(大きく)
     if (M.intro && t >= M.intro.G) { msg = '江戸で 名人を倒し、天下統一するのだ!'; if (!M.intro.v) { M.intro.v = true; try { NSND.speak(['v:tenka']); } catch (e) { /* ignore */ } } } // 旅のはじまり: 二つめの一言(声つき)
-    text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
+    if (uiOn) text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && M.go == null && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) { const wt = Math.max(0, (M.vUntil || 0) - __now()) + 150, tk = M; setTimeout(() => { if (S.map === tk && !tk.go) { const dd = NSND.speak([pk]) || 0; tk.vUntil = __now() + dd * 1000; } }, wt); } } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
     if (M.view) { mapGuide(M); /* 操作の案内: 地図の下・画面の中央に、ボタンの絵つきで */ if (M.cur > 0 && !M.ask) { rrect(156, 1, 520, 21, 4, [10, 30, 22], 205); text('前の街に もどって、修行が できます(ポイントは 半分)', 416, 3, -14, [255, 236, 154], 1); } /* 地図の意味の説明: 上の帯(前の街があるときだけ) */ }
-    else if (M.here) contPill(SW / 2, 6, 'Aボタンで スキップ'); // 対局の前の地図: 自動で進む。 Aで すぐ進める
+    else if (M.here) { if (uiOn) contPill(SW / 2, 6, 'Aボタンで スキップ'); } // 対局の前の地図: 自動で進む。 Aで すぐ進める
     else if (arrived && t - M.endT > 600) contPill(SW / 2, 6); // 説明を読んだあと、決定ボタンで進む(自動では進まない)
     if (M.ask) { const d = M.from, tr = d < M.cur, nm = MAP_SETS[M.ms].place[d], ai = M.ask.idx; fill(0, 0, SW, SH, [0, 0, 0], 110); panel(196, 96, 440, 232, 14, [252, 246, 228], [120, 84, 40], 4, 250); text(MAP_DAN[d] + '  ' + nm, 416, 106, fitSz(MAP_DAN[d] + '  ' + nm, 26, 400, 16), [150, 30, 20], 1); text(tr ? 'そのころの 相手と 戦います。' : 'いまの 段位の 相手と 戦います。', 416, 150, 20, [60, 40, 20], 1); text(tr ? 'ポイントは 半分。4位でも へりません。' : 'ポイントは ふつうに もらえます。', 416, 182, 18, [90, 66, 40], 1); if (tr) text('昇段は、いまの段位の街で。', 416, 208, 18, [90, 66, 40], 1); ['この街で ' + (tr ? '修行する' : '対戦する'), 'やめる'].forEach((l, i) => { const w = i ? 170 : 230, x2 = i ? 452 : 206, sel = ai === i; panel(x2, 252, w, 50, 10, sel ? YEL : [235, 235, 225], sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2, 255); text(l, x2 + w / 2, 264, 22, BLACK, 1); }); }
     if (arrived && !M.fin) { M.fin = true; if (!M.view && !M.intro) NSND.sfx('start', 0.7); }
@@ -1254,7 +1256,11 @@
     } dirty();
   }
   function mapPlay(M) { const d = M.from; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } S.rankScr = null; S.mode = 'menu'; startGame(null, { town: d }); } // 地図から、その街で 対局(いまの段位の街=ふつう / 下の街=修行)
-  function mapKey(k) { const M = S.map; if (!M) return; const t = __now() - M.t0, arrived = t >= M.endT;
+  function mapClose(M) { // 対局前の地図を とじる: 巻物が右へ閉じ、海が溶けて、雀卓があらわれる(対局は 閉じはじめに 始める)。 ほかの地図は すぐ消す
+    if (M.hdone) return; M.hdone = true; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ }
+    if (M.here) { M.closing = { t0: __now() }; M.then(); } else { S.map = null; M.then(); } dirty();
+  }
+  function mapKey(k) { const M = S.map; if (!M) return; if (M.closing) return; /* 閉じている間は ボタンを うけつけない */ const t = __now() - M.t0, arrived = t >= M.endT;
     if (M.view) { // 地図を見る(成績の画面から): ▼を 左右で動かして、決定で そこへ 歩く
       if (M.ask) { if (k === 'left' || k === 'right' || k === 'up' || k === 'down') { M.ask.idx = 1 - M.ask.idx; NSND.sfx('select', 0.5); } else if (k === 'back') M.ask = null; else if (k === 'ok') { if (M.ask.idx === 1) M.ask = null; else { mapPlay(M); return; } } dirty(); return; }
       if (M.go != null) {
@@ -1266,7 +1272,8 @@
       if (k === 'ok') { if (M.sel !== M.from) mapGo(M, M.sel); else { M.ask = { idx: 0 }; NSND.sfx('select', 0.5); } dirty(); return; }
       if (k === 'back') { S.map = null; try { NSND.mapOff(); NSND.home(); } catch (e) { /* ignore */ } M.then(); } // 成績の画面から 見ていた地図を とじる: ホームの曲にもどす
       dirty(); return;
-    } if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; M.hdone = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
+    } if (M.here) { if (k === 'ok' || k === 'back') mapClose(M); return; } /* 対局前の地図: どのボタンでも すぐ閉じる */
+    if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; M.hdone = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
   /* ---------- 昇段の演出テスト(隠しコマンドで開く): 認定証 → 地図 → 新しい雀士 を、いつでも見られる ---------- */
   function drawPromo() {
     const P = S.promo; gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
@@ -3030,7 +3037,7 @@
     if (__auto && globalThis.__shotDir && (S.react || (S.self && S.self.btns.length)) && S.shotR < 6) { gfx.shot(__shotDir + '/act' + (++S.shotR) + '.bmp'); }
     if (S.end) { drawEnd(S.end); if (__auto && globalThis.__shotDir) gfx.shot(__shotDir + '/end.bmp'); }
     if (S.coach && __auto && globalThis.__shotDir && coachShots < 6 && S.coach.cards && S.coach.cards.length) { gfx.view(0, 0); gfx.shot(__shotDir + '/coach' + (++coachShots) + '.bmp'); }
-    if (S.map) { gfx.view(0, 0); drawMap(); return true; }
+    if (S.map) { gfx.view(0, 0); if (S.map.closing) { S.vx = 0; S.vy = 0; if (S.game) stageC(); } drawMap(); return true; } // 対局前の地図が閉じていく間は、下に 雀卓の背景(緑の卓)を描いて、上に 海と巻物を重ねる(顔や名札は 閉じおわってから 出る)
     if (S.cert) { gfx.view(0, 0); drawCert(); return true; }
     if (S.reveal) { gfx.view(0, 0); drawReveal(); return true; }
     if (S.rankScr) { drawRankScreen(); gfx.view(0, 0); return true; }
