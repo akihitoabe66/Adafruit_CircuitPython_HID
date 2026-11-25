@@ -642,10 +642,10 @@ def compose(scr, d, age, tick, ever_alive=False):
     if '--nodecor' not in sys.argv and os.environ.get('MJOLED_DECOR', '1') != '0': decor(scr, tick * SUB, bg_kind(d, age))
     return scr
 def exit_plug(scr, tick):
-    """終了の画面(2秒ごとに 顔の画面と かわりばんこ): 電源プラグが コンセントから 抜けたり 刺さったりする絵 + 「抜いて!」(パタパタ)"""
+    """終了の画面(これだけを出す): 電源プラグが コンセントから 抜けたり 刺さったりする絵 + 「抜いて!」(パタパタ)"""
     pulled = tick % 2 == 1
     scr.zface('laugh' if tick % 2 == 0 else 'smile', 0, 19 - (tick % 2) * 2, 1)   # ずんだもん(小さく): コードを持って「抜いて!」と ぴょんぴょん
-    scr.text16('抜いて!', 38, 0, inv=(tick % 2 == 0))
+    scr.text16('電源を抜いて!', 0, 0, inv=(tick % 2 == 0))   # 1行 全体を 白黒反転で パタパタ
     # コンセント(右): 白い四角に、プラグの刃を うけるみぞ
     scr.box(98, 22, 30, 24, 1)
     for yy in (28, 38): scr.box(98, yy, 8, 3, 0)
@@ -666,7 +666,7 @@ def exit_plug(scr, tick):
 def compose0(scr, d, age, tick, ever_alive=False):
     """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
     起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてね」を出す"""
-    if d is not None and d.get('scene') == 'EXIT' and (tick // 6) % 2 == 1: scr.clear(); return exit_plug(scr, tick)   # 終了: 2秒ごとに、プラグが抜き差しされる絵
+    if d is not None and d.get('scene') == 'EXIT': scr.clear(); return exit_plug(scr, tick)   # 終了: プラグが抜き差しされる絵だけを出す
     if ZU and not sensei_now(d, age): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだ(麻雀先生がオンなら)と 勉強の階層は 先生。 ほかは ずんだもんのペット
     h = health()
     if h['level'] >= 2: return compose_danger(scr, h, tick)
