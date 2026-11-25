@@ -675,7 +675,7 @@
         if (on) rrect(X - 4, Y - 4, W2 + 8, H2 + 8, R + 4, pr ? [255, 240, 170] : [255, 252, 235]);
         rrect(X, Y, W2, H2, R, GOLD); rrect(X + 2, Y + 2, W2 - 4, H2 - 4, Math.max(2, R - 2), base);
         rrect(X + 6, Y + 6, W2 - 12, H2 - 12, Math.max(2, R - 5), GOLD); rrect(X + 7, Y + 7, W2 - 14, H2 - 14, Math.max(2, R - 6), base); // 内がわの細い金の線
-        const fs = Math.round(sz * k), tw = gfx.measure(label, fs), ty = Y + Math.round((H2 - fs) / 2) - 1;
+        const fs = Math.round(sz * (i === f ? 1.06 : 1)) /* 文字の大きさは、押す動きでは かえない(ボタンの枠だけ ちぢむ)。 大きさが 増えるたびに、はじめての大きさで 1秒以上 止まっていた */, tw = gfx.measure(label, fs), ty = Y + Math.round((H2 - fs) / 2) - 1;
         if (badge) { const r = Math.round(fs * 0.62), bx = X + Math.round((W2 - tw) / 2) - r * 2 - 8; rrect(bx, ty + Math.round((fs - 2 * r) / 2) + 1, r * 2, r * 2, r, GOLD); text(badge, bx + r, ty + Math.round((fs - 2 * r) / 2) + 1 + Math.round((r * 2 - fs * 0.8) / 2) - 1, Math.round(fs * 0.8), [22, 38, 82], 1); text(label, X + Math.round(W2 / 2) + r + 4, ty, fs, [252, 244, 220], 1); } else text(label, X + Math.round(W2 / 2), ty, fs, [252, 244, 220], 1);
       };
       wb(0, (SW - 250) / 2, SH - 132, 250, 62, 'はじめる', 34, 'A');
@@ -3233,9 +3233,7 @@
     ['東', '南', '西', '北'].forEach((w) => { add(w, 28, W); add(w, 18, W); });
     for (let n = 0; n <= 70; n++) add(String(n), 34, Y); // 山の残り枚数
     { // タイトルの ボタンの文字: 選ぶ・押すたびに 大きさが 少しずつ かわる(34×0.98〜1.06 など)。 はじめて出る大きさは 1.5秒ほど止まるので、 使いそうな大きさを 先に作っておく
-      for (let z = 24; z <= 31; z++) add('A', z, [22, 38, 82]);
-      for (let z = 32; z <= 37; z++) add('はじめる', z, [252, 244, 220]);
-      for (let z = 20; z <= 24; z++) add('ゲーム終了', z, [252, 244, 220]);
+      [27, 29].forEach((z) => add('A', z, [22, 38, 82])); [34, 36].forEach((z) => add('はじめる', z, [252, 244, 220])); [22, 23].forEach((z) => add('ゲーム終了', z, [252, 244, 220])); // 選んでいる/いない の 2通りだけ
     }
     for (let n = 1; n <= 12; n++) add(String(n), CD_SZ, CD_COL); // 親決めのカウントダウン(サイコロの合計 2〜12)
     add('あなた', 21, W); add('あなた', 21, [35, 26, 0]); add('あなた', 20, W); add('あなた', 20, [27, 27, 18]);
