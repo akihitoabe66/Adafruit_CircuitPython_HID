@@ -49,12 +49,15 @@ HOLD = float(os.environ.get('MJPAD_HOLD', '100')) / 1000.0   # 押したのを �
 
 
 class Holder:
-    """一瞬だけ読めた押しを、ゲームが 受けとれる長さ(HOLD)まで のばす。 反対の方向(左↔右、上↔下)が 押されたら、すぐに そちらへ ゆずる"""
-    def __init__(self, hold=HOLD): self.hold = hold; self.until = {}
+    """一瞬だけ読めた押しを、ゲームが 受けとれる長さ(HOLD)まで のばす。 のばすのは 押した瞬間(立ち上がり)の 1回だけ: 指を はなしたあとに 次の押しが 来ても、はなした すきまは そのまま 残る(連打が 押しっぱなしに ならない)。 反対の方向(左↔右、上↔下)が 押されたら、すぐに そちらへ ゆずる"""
+    def __init__(self, hold=HOLD): self.hold = hold; self.until = {}; self.on = {}; self.rel = {}
     def apply(self, b, now):
         for k, v in b.items():
-            if v: self.until[k] = now + self.hold
-        eff = {k: (v or self.until.get(k, 0) > now) for k, v in b.items()}
+            if v and not self.on.get(k):   # 立ち上がりだけ のばす
+                if self.until.get(k, 0) > now: self.rel[k] = now + 0.02   # まだ のばし中に 押しなおした: 20msだけ 離した事にして 「別の1回」に する
+                self.until[k] = self.rel.get(k, now) + self.hold if self.rel.get(k, 0) > now else now + self.hold
+            self.on[k] = v
+        eff = {k: ((v or self.until.get(k, 0) > now) and not self.rel.get(k, 0) > now) for k, v in b.items()}
         for a, c in (('left', 'right'), ('up', 'down')):
             if b[a] and not b[c]: eff[c] = False; self.until[c] = 0
             elif b[c] and not b[a]: eff[a] = False; self.until[a] = 0
