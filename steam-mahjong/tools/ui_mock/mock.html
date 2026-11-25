@@ -32,7 +32,8 @@ body { width: 1920px; height: 1080px; overflow: hidden; font-family: "Noto Sans 
 <div id="st"></div>
 <script>
 const V = new URLSearchParams(location.search).get('v') || 'a';
-const B = V === 'b', C = V === 'c', D = V === 'd';   // D = Bの配置(右の列は画面の高さいっぱい)+Cの色・文字・Fキーの札
+const EV = V === 'e', RS = V === 'r';          // e=ロン・ポンなどの席ごとの呼び出し(?v=e&seat=right&w=ロン) r=局の結果(席ごとの札)
+const B = V === 'b', C = V === 'c', D = V === 'd' || EV || RS;   // D = Bの配置(右の列は画面の高さいっぱい)+Cの色・文字・Fキーの札
 const W = B ? 1620 : (C || D) ? 1600 : 1920;      // 盤面の幅(Bは右に300pxの列。Cは右に320pxの列(手牌の高さまで)で、手牌は画面いっぱい)
 const CX = W / 2;
 const st = document.getElementById('st');
@@ -69,13 +70,13 @@ hand.forEach((id, i) => tile(id, x0 + i * (HW + GAP), HY, HW, null, 0, id === 13
 tile(22, x0 + 13 * (HW + GAP) + 26, HY - 12, HW, null, 0, false);
 el('corner', { left: (x0 + 13 * (HW + GAP) + 26 + HW / 2 - 24) + 'px', top: (HY - 62) + 'px', fontSize: '48px', color: '#ffd23f' }, '★');
 // 先生のひとこと
-el('help', { left: '30px', top: ((B || C || D) ? 24 : 196) + 'px', width: '430px', lineHeight: '1.3' }, '🎓 先生<br><span style="font-weight:600"><b>5索</b> を切ると、<br>テンパイに近づきます</span>');
+if (!EV && !RS) el('help', { left: '30px', top: ((B || C || D) ? 24 : 196) + 'px', width: '430px', lineHeight: '1.3' }, '🎓 先生<br><span style="font-weight:600"><b>5索</b> を切ると、<br>テンパイに近づきます</span>');
 
 /* --- 鳴きの確認(大きなボタン) --- */
-const cb1 = el('callb', { left: (CX - 440) + 'px', top: '745px', width: '460px', height: '120px', background: 'linear-gradient(180deg,#ffd45c,#e69a10)', color: '#2a1c0e' }, 'ポン');
-cb1.innerHTML = '<span style="margin-right:190px">ポン</span>';
-tile(27, 250, 20, 56, cb1); tile(27, 308, 20, 56, cb1); tile(27, 366, 20, 56, cb1);
-const cb2 = el('callb', { left: (CX + 60) + 'px', top: '745px', width: '280px', height: '120px', background: 'linear-gradient(180deg,#7fb2ff,#3c78d8)', color: '#fff' }, '見送る');
+const cb1 = (EV || RS) ? null : el('callb', { left: (CX - 440) + 'px', top: '745px', width: '460px', height: '120px', background: 'linear-gradient(180deg,#ffd45c,#e69a10)', color: '#2a1c0e' }, 'ポン');
+if (cb1) { cb1.innerHTML = '<span style="margin-right:190px">ポン</span>';
+tile(27, 250, 20, 56, cb1); tile(27, 308, 20, 56, cb1); tile(27, 366, 20, 56, cb1); }
+const cb2 = (EV || RS) ? null : el('callb', { left: (CX + 60) + 'px', top: '745px', width: '280px', height: '120px', background: 'linear-gradient(180deg,#7fb2ff,#3c78d8)', color: '#fff' }, '見送る');
 
 if (!B && !C && !D) {
   // 案A: 右の列なし。隅にだけ、大きめのボタン
@@ -103,6 +104,48 @@ if (C || D) {
     el('abs', { left: '1726px', top: y + 'px', width: '176px', height: RH + 'px', color: '#fff', fontWeight: '900', fontSize: '42px', lineHeight: '1.12', display: 'flex', flexDirection: 'column', justifyContent: 'center', textShadow: '0 3px 0 #0008' }, r[1] + (r[2] ? `<span style="margin-top:6px;align-self:flex-start;background:#fff;color:#111;border-radius:12px;padding:0 14px;font-size:30px;text-shadow:none">${r[2]}</span>` : ''));
   });
   if (D) el('corner', { left: '1624px', top: '910px', width: '280px', fontSize: '24px', lineHeight: '1.45', fontWeight: 700, color: '#d8ccf0', textShadow: 'none' }, 'キーボードの F1〜F5 でも押せます。<br>画面のボタンをクリックしてもOK。');
+}
+
+/* ---- ロン・ポンなどの呼び出し: その席のキャラクターを大きく出し、言葉を中央に向けて出す ---- */
+const Q = new URLSearchParams(location.search);
+const WORD = Q.get('w') || 'ロン', SEAT = Q.get('seat') || 'right';
+const WCOL = { 'ロン': ['#ff4b3a', '#7a0d05'], 'ツモ': ['#ff4b3a', '#7a0d05'], 'ポン': ['#ffb21a', '#6b3b00'], 'チー': ['#3aa0ff', '#0a3a7a'], 'リーチ': ['#ff5fa0', '#7a0a3c'] }[WORD] || ['#ffb21a', '#6b3b00'];
+if (EV) {
+  el('abs', { left: '0', top: '0', width: W + 'px', height: '1080px', background: '#000a' });
+  const A = { top: { f: [CX + 270, 30], w: [CX - 250, 40], who: ['ナオミ', 28] }, left: { f: [50, 300], w: [330, 250], who: ['ショウ', 34] }, right: { f: [W - 330, 300], w: [W - 830, 250], who: ['源造', 18] }, you: { f: [50, 560], w: [330, 520], who: ['あなた', 0] } }[SEAT];
+  // 大きな顔(席の位置に)
+  const fb = el('abs', { left: A.f[0] + 'px', top: A.f[1] + 'px', width: '280px', height: '280px', borderRadius: '30px', border: '8px solid var(--gold)', boxShadow: '0 0 0 6px var(--purple), 0 0 50px 12px ' + WCOL[0] + 'aa', background: A.who[1] ? face(A.who[1]) + ' center/cover' : '#4a3a6a' });
+  if (!A.who[1]) fb.innerHTML = '<div style="color:#fff;font-size:44px;font-weight:900;text-align:center;line-height:280px">あなた</div>';
+  el('plate', { position: 'absolute', left: (A.f[0] + 20) + 'px', top: (A.f[1] + 292) + 'px', minWidth: '240px' }, `<b style="font-size:38px">${A.who[0]}</b>`);
+  // 大きな言葉(ふち取り)
+  el('abs', { left: A.w[0] + 'px', top: A.w[1] + 'px', fontSize: '180px', fontWeight: '900', lineHeight: '1', color: WCOL[0], letterSpacing: '.04em', WebkitTextStroke: '9px #fff', paintOrder: 'stroke fill', textShadow: '0 8px 0 ' + WCOL[1] + ', 0 14px 22px #000' }, WORD + '!');
+  if (WORD === 'ロン') {
+    // あたり牌を光らせ、矢印でつなぐ
+    el('abs', { left: (CX + 100) + 'px', top: '640px', width: '74px', height: '94px', border: '6px solid #ffd23f', borderRadius: '12px', boxShadow: '0 0 30px 10px #ffd23f' });
+    el('abs', { left: (CX + 190) + 'px', top: '660px', fontSize: '34px', fontWeight: '900', color: '#ffe066', textShadow: '0 3px 6px #000' }, '← このあたり牌');
+  }
+  el('abs', { left: (CX - 260) + 'px', top: '840px', width: '520px', textAlign: 'center', fontSize: '34px', color: '#fff', fontWeight: 800, textShadow: '0 3px 6px #000' }, 'クリック か Enter で つぎへ');
+}
+/* ---- 局の結果: 4人の札を、それぞれの席の位置に ---- */
+if (RS) {
+  el('abs', { left: '0', top: '0', width: W + 'px', height: '1080px', background: '#000a' });
+  const P = [
+    { pos: [CX - 250, 18], rank: 2, name: 'ショウ', n: 34, d: ['±0'], tot: '25,000' },
+    { pos: [24, 330], rank: 3, name: 'ナオミ', n: 28, d: ['±0'], tot: '25,000' },
+    { pos: [W - 524, 330], rank: 1, name: '源造', n: 18, d: ['+3,900'], tot: '28,900', win: 'ロン 2飜30符' },
+    { pos: [CX - 250, 600], rank: 4, name: 'あなた', n: 0, d: ['−3,900'], tot: '21,100' },
+  ];
+  const ch = (par, style, html) => { const d = document.createElement('div'); d.style.position = 'absolute'; Object.assign(d.style, style); d.innerHTML = html || ''; par.appendChild(d); return d; };
+  P.forEach((q) => {
+    const c = el('abs', { left: q.pos[0] + 'px', top: q.pos[1] + 'px', width: '500px', height: '230px', background: 'linear-gradient(180deg,#3a1d60,#1e0f36)', border: q.win ? '6px solid #ffd23f' : '5px solid #b57a0b', borderRadius: '22px', boxShadow: q.win ? '0 0 40px 8px #ffd23f88' : '0 8px 18px #000a', color: '#fff' });
+    ch(c, { left: '18px', top: '6px', fontSize: '60px', fontWeight: '900', color: q.rank === 1 ? '#ffd23f' : '#fff' }, q.rank + '<span style="font-size:36px">位</span>');
+    ch(c, { left: '150px', top: '16px', fontSize: '46px', fontWeight: '900' }, q.name);
+    const f = ch(c, { left: '18px', top: '78px', width: '134px', height: '134px', borderRadius: '16px', border: '5px solid #ffd23f', background: q.n ? face(q.n) + ' center/cover' : '#4a3a6a' }); if (!q.n) f.innerHTML = '<div style="font-size:30px;font-weight:900;text-align:center;line-height:124px">あなた</div>';
+    ch(c, { right: '24px', top: '66px', textAlign: 'right', fontSize: '52px', fontWeight: '900', color: q.d[0][0] === '+' ? '#ffd23f' : q.d[0][0] === '−' ? '#ff9a90' : '#ddd' }, q.d[0]);
+    ch(c, { right: '24px', top: '128px', textAlign: 'right', fontSize: '70px', fontWeight: '900' }, q.tot);
+    if (q.win) ch(c, { left: '262px', top: '20px', fontSize: '30px', fontWeight: '900', color: '#111', background: '#ffd23f', borderRadius: '12px', padding: '2px 14px' }, q.win);
+  });
+  el('btn', { left: (CX - 250) + 'px', top: '850px', width: '500px', height: '96px', fontSize: '46px', background: 'linear-gradient(180deg,#ffd45c,#e69a10)' }, 'つぎの きょくへ');
 }
 </script>
 </body></html>
