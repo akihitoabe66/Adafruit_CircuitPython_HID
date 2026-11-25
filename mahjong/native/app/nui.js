@@ -1150,7 +1150,7 @@
       intro = { path: { pts, seg, len }, G, end: G + vl + 1000, v: false }; tt = intro.end;
     }
     S.map = { here: !!rk.here, intro, ms, L, vd: rk.intro || rk.here ? -1 : from, congrats: !!rk.congrats, tenka: to === 11 && from < 11, rk, from, to, steps, tl, endT: intro ? intro.end : steps.length ? tt : base, base, t0: __now(), then, fin: false, tapT: 0, lastStep: -1 }; dirty();
-    if (rk.here) { const mm = S.map; setTimeout(() => { if (S.map === mm && !mm.hdone) { mm.hdone = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } mm.then(); dirty(); } }, MAP_T.slide + MAP_T.hold + 4200); } // 対局の前の「いまここ」は、約4秒で 自動で進む(決定ボタンなら すぐ)
+    if (rk.here) { const mm = S.map; const chk = () => { if (S.map !== mm || mm.hdone) return; const nw = __now(); if (nw - mm.t0 >= MAP_T.slide + MAP_T.hold + 4500 && nw >= (mm.vUntil || 0) + 1500) { mm.hdone = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } mm.then(); dirty(); } else setTimeout(chk, 250); }; setTimeout(chk, 1000); } // 対局の前の「いまここ」: 声が終わって少したってから 自動で進む(決定ボタンなら すぐ)
   }
   function mapAlong(st, u) { const dist = st.len * u; let i = 1; while (i < st.pts.length - 1 && st.seg[i] < dist) i++; const a = st.pts[i - 1], b = st.pts[i], sl = st.seg[i] - st.seg[i - 1] || 1, v = Math.max(0, Math.min(1, (dist - st.seg[i - 1]) / sl)); return [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v, b[0] - a[0]]; }
   function drawWater(t) { // 水面: 横長の帯を、少しずつ ずらして 波うたせる(2枚 重ねて、きらめき)
@@ -1215,11 +1215,15 @@
     gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]);
     const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
     let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < (M.base || MAP_T.slide + MAP_T.hold)) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? (M.capSay ? '修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。' : '他の街に戻って、修行し直すのだ！') : walkMsg(M.view && M.go != null ? M.go : M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
-    if (M.here) { try { const f = MJ.Rank.info(), tn = townName(M.from); msg = 'いまは ' + f.name + '、' + tn + 'に いるのだ。' + (f.next ? 'つぎの ' + f.next + 'まで あと ' + f.left + '点なのだ' : f.tenka ? '天下分け目に 勝てば 永世名人なのだ' : '') ; if (M.from === 0 && !(f.s && f.s.games > 0)) msg = 'ここから 旅が はじまるのだ。熊本から 江戸を めざすのだ!'; } catch (e) { /* ignore */ } } // はじめて遊ぶ人(熊本・まだ1局も終えていない): 旅のはじまり // 対局の前の「いまここ」: いまの段位・場所・つぎの段までの点
+    if (M.here) { try { const f = MJ.Rank.info(), tn = townName(M.from); msg = 'いまは ' + f.name + '、' + tn + 'に いるのだ。'; if (M.from === 0 && !(f.s && f.s.games > 0)) msg = 'ここから 旅が はじまるのだ。熊本から 江戸を めざすのだ!';
+      if (f.next || f.tenka) { const x0 = 470, y0 = 322, w0 = 346, h0 = 92; panel(x0, y0, w0, h0, 14, [14, 44, 30], [255, 214, 70], 4, 242);
+        if (f.next) { text('つぎの 街まで', x0 + 18, y0 + 8, 18, [255, 236, 170]); text(townName(M.from + 1) + '(' + f.next + ')', x0 + w0 - 16, y0 + 8, 18, WHITE, 2); text('あと', x0 + 18, y0 + 40, 22, WHITE); text(String(f.left), x0 + 150, y0 + 22, 54, [255, 214, 70], 1); text('点', x0 + 214, y0 + 40, 26, WHITE); rrect(x0 + 18, y0 + 76, w0 - 36, 8, 4, [10, 28, 20]); rrect(x0 + 18, y0 + 76, Math.max(8, Math.round((w0 - 36) * f.prog)), 8, 4, [255, 214, 70]); }
+        else { text('天下分け目に 勝てば', x0 + w0 / 2, y0 + 14, 24, WHITE, 1); text('永世名人!', x0 + w0 / 2, y0 + 44, 36, [255, 214, 70], 1); } } } catch (e) { /* ignore */ } } // 対局の前の「いまここ」: 場所と、つぎの街までの点(大きく)
     if (M.intro && t >= M.intro.G) { msg = '江戸で 名人を倒し、天下統一するのだ!'; if (!M.intro.v) { M.intro.v = true; try { NSND.speak(['v:tenka']); } catch (e) { /* ignore */ } } } // 旅のはじまり: 二つめの一言(声つき)
     text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && M.go == null && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) { const wt = Math.max(0, (M.vUntil || 0) - __now()) + 150, tk = M; setTimeout(() => { if (S.map === tk && !tk.go) { const dd = NSND.speak([pk]) || 0; tk.vUntil = __now() + dd * 1000; } }, wt); } } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
     if (M.view) { mapGuide(M); /* 操作の案内: 地図の下・画面の中央に、ボタンの絵つきで */ if (M.cur > 0 && !M.ask) { rrect(156, 1, 520, 21, 4, [10, 30, 22], 205); text('前の街に もどって、修行が できます(ポイントは 半分)', 416, 3, -14, [255, 236, 154], 1); } /* 地図の意味の説明: 上の帯(前の街があるときだけ) */ }
+    else if (M.here) contPill(SW / 2, 6, 'Aボタンで スキップ'); // 対局の前の地図: 自動で進む。 Aで すぐ進める
     else if (arrived && t - M.endT > 600) contPill(SW / 2, 6); // 説明を読んだあと、決定ボタンで進む(自動では進まない)
     if (M.ask) { const d = M.from, tr = d < M.cur, nm = MAP_SETS[M.ms].place[d], ai = M.ask.idx; fill(0, 0, SW, SH, [0, 0, 0], 110); panel(196, 96, 440, 232, 14, [252, 246, 228], [120, 84, 40], 4, 250); text(MAP_DAN[d] + '  ' + nm, 416, 106, fitSz(MAP_DAN[d] + '  ' + nm, 26, 400, 16), [150, 30, 20], 1); text(tr ? 'そのころの 相手と 戦います。' : 'いまの 段位の 相手と 戦います。', 416, 150, 20, [60, 40, 20], 1); text(tr ? 'ポイントは 半分。4位でも へりません。' : 'ポイントは ふつうに もらえます。', 416, 182, 18, [90, 66, 40], 1); if (tr) text('昇段は、いまの段位の街で。', 416, 208, 18, [90, 66, 40], 1); ['この街で ' + (tr ? '修行する' : '対戦する'), 'やめる'].forEach((l, i) => { const w = i ? 170 : 230, x2 = i ? 452 : 206, sel = ai === i; panel(x2, 252, w, 50, 10, sel ? YEL : [235, 235, 225], sel ? [160, 110, 0] : [110, 110, 110], sel ? 4 : 2, 255); text(l, x2 + w / 2, 264, 22, BLACK, 1); }); }
     if (arrived && !M.fin) { M.fin = true; if (!M.view && !M.intro) NSND.sfx('start', 0.7); }
@@ -1231,8 +1235,8 @@
     startMap({ from: d, to: d }, () => { dirty(); });
     const M = S.map; M.view = true; M.vd = -1; M.maxd = mx; M.cur = cur; M.sel = d; M.go = null; M.ask = null; dirty();
   }
-  function contPill(cx, y) { // 「Aボタン(決定)で つづける」: 金色の札に、赤い丸の「A」(目立つように)
-    const w = 336, h = 36, x = Math.round(cx - w / 2), d = h - 8, lab = '決定ボタンで つづける', lw = gfx.measure(lab, -22), lx = x + d + 8 + Math.round((w - d - 8 - lw) / 2);
+  function contPill(cx, y, lab0) { // 「Aボタン(決定)で つづける」: 金色の札に、赤い丸の「A」(目立つように)
+    const w = 336, h = 36, x = Math.round(cx - w / 2), d = h - 8, lab = lab0 || '決定ボタンで つづける', lw = gfx.measure(lab, -22), lx = x + d + 8 + Math.round((w - d - 8 - lw) / 2);
     rrect(x - 3, y - 3, w + 6, h + 6, h / 2 + 3, [255, 255, 255]); rrect(x, y, w, h, h / 2, [230, 184, 48]);
     rrect(x + 4, y + 4, d, d, d / 2, [255, 255, 255]); rrect(x + 6, y + 6, d - 4, d - 4, (d - 4) / 2, [214, 70, 56]); text('A', x + 4 + d / 2, y + 7, -20, WHITE, 1);
     text(lab, lx, y + 7, -22, [42, 26, 0], 0);
