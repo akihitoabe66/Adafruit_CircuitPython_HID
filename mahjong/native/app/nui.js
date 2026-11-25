@@ -1641,7 +1641,7 @@
     S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd, rank: !!opts.rank }); if (opts.rank && !opts.direct) { S.quiz.phase = 'intro'; dirty(); return; } quizNext(); dirty();
   }
   const qEndVoice = () => { try { if (NSND.has('v:otsukare')) NSND.speak(['v:otsukare']); } catch (e) { /* ignore */ } }; // クイズが終わって「おつかれさまでした」の画面になるとき、その声
-  const byeQuit = () => { try { if (NSND.has('v:shutdown')) { NSND.speak(['v:shutdown']); S.locked = true; setTimeout(() => __quit(), 2300); return; } } catch (e) { /* ignore */ } __quit(); }; // 終了を選んだら「ゲームを終了します」と言ってから終わる
+  const byeQuit = () => { S.bye = { t0: __now() }; dirty(); /* 画面に「ゲーム終了中」の帯を出す(終わるまで、そのまま画面に のこる) */ try { if (NSND.has('v:shutdown')) { NSND.speak(['v:shutdown']); S.locked = true; setTimeout(() => __quit(), 2300); return; } } catch (e) { /* ignore */ } __quit(); }; // 終了を選んだら「ゲームを終了します」と言ってから終わる
   function quizNext() {
     const q = S.quiz; if (!q) return;
     if (q.n >= q.total) { if (q.rank && q.lvq && q.lvq.length) { q.phase = 'lvup'; q.lvi = 0; NSND.sfx('slam'); } else { q.phase = 'end'; qEndVoice(); } dirty(); return; }
@@ -3180,6 +3180,11 @@
       S.memFreed = (S.memFreed || 0) + 1; tl('mem-free avail=' + Math.round(av) + ' 層' + k); dirty();
     } catch (e) { /* ignore */ }
   }, 2000);
+  function drawBye() { // ゲームを終了しているあいだ(声のあと・画面を閉じるまで): 画面の中央に 太い帯。 最後の1コマが 画面に のこるので、閉じおわるまで 見えている
+    if (!S.bye) return; gfx.view(0, 0); const y = Math.round(SH / 2 - 56);
+    fill(0, y - 4, SW, 120, [0, 0, 0], 120); fill(0, y, SW, 112, [150, 30, 20], 240); fill(0, y, SW, 4, [255, 214, 120], 255); fill(0, y + 108, SW, 4, [255, 214, 120], 255);
+    text('ゲーム終了中', SW / 2, y + 12, 46, WHITE, 1); text('保存しています。 まだ 電源を 抜かないでください', SW / 2, y + 70, 24, [255, 236, 190], 1);
+  }
   function drawHealth() {
     const h = S.hl; if (!h || h.lv < 1) return; gfx.view(0, 0);
     const volt = h.why === 2, deg = h.temp + '度', ex = h.volt ? '  ' + h.volt.toFixed(1) + 'V ' + h.amp.toFixed(2) + 'A' : '';
@@ -3198,7 +3203,7 @@
   }
   window.__draw = function () {
     S.drawSeq = (S.drawSeq || 0) + 1;
-    const t0 = __now(); const r = drawBody(); try { drawHealth(); } catch (e) { /* ignore */ } const dt = __now() - t0; perf.n++; perf.ms += dt; if (dt > (perf.mx || 0)) perf.mx = dt;
+    const t0 = __now(); const r = drawBody(); try { drawHealth(); } catch (e) { /* ignore */ } try { drawBye(); } catch (e) { /* ignore */ } const dt = __now() - t0; perf.n++; perf.ms += dt; if (dt > (perf.mx || 0)) perf.mx = dt;
     if (dt >= 300) tl('slow-draw ' + Math.round(dt) + 'ms ' + perfCtx()); // 0.3秒以上かかった描きは、出来事の記録(mj_tl)にも残す
     if (dt >= 80) { (perf.slow = perf.slow || []).unshift(Math.round(dt) + 'ms  ' + perfCtx()); perf.slow.length = Math.min(perf.slow.length, 4); }
     if (t0 - perf.t0 >= 1000) { if (perf.n > 0) { const av = perf.ms / perf.n; perf.o = { spd: Math.round(1000 / Math.max(1, av + 4)), draw: Math.round(av), max: Math.round(perf.mx || 0), key: perf.o ? perf.o.key : '' }; } else if (!perf.o) perf.o = {}; /* 描いた回数は、画面が動かないと減るので、「描ける速さ」(1コマの時間から出す)を出す。 描かなかった秒は、前の値のまま */ perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; try { const kl = typeof gfx.keyLat === 'function' ? gfx.keyLat() : null; if (kl && kl[2]) perf.key = '押してから画面 平均' + Math.round(kl[0]) + 'ms 最大' + Math.round(kl[1]) + 'ms(' + kl[2] + '回)'; if (kl && kl[2] && perf.o) perf.o.key = Math.round(kl[0]); } catch (e) { /* ignore */ } }
