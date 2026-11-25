@@ -587,6 +587,7 @@ int main(int argc, char **argv){
   { /* 終わったことを、OLED(mjoled)に知らせる。 まず「保存中(まだ抜かないで)」、 SDカードへの書きこみ(sync)が終わってから「抜いてよい」。 自動起動(kiosk.sh)のときは、そのあとの書きこみ禁止(boot の remount)まで 済んでから kiosk.sh が「抜いてよい」を出す */
     const char *fp = getenv("MJ_OLED_FILE") ? getenv("MJ_OLED_FILE") : "/dev/shm/mj_oled.txt";
     { FILE *f = fopen(fp, "w"); if (f) { fprintf(f, quit_dev ? "scene=MAINT\npose=think\nmsg=MAINTENANCE\n" : "scene=SAVING\npose=think\nmsg=SAVING\n"); fclose(f); } }
+    bgms_close(); Mix_HookMusic(NULL, NULL); Mix_CloseAudio(); SDL_Quit(); /* 画面・音を 先に ぜんぶ 閉じる(これに 数秒 かかる: 閉じおわるまでは「終了中」のまま) */
     if (!quit_dev) { sync(); if (!getenv("MJ_KIOSK")) { FILE *f = fopen(fp, "w"); if (f) { fprintf(f, "scene=EXIT\npose=calm\nmsg=UNPLUG OK\n"); fclose(f); } } } }
   return quit_dev ? 10 : 0;
 }
