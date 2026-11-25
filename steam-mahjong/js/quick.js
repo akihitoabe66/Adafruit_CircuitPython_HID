@@ -2,7 +2,7 @@
    ?quick=1&seed=名前,名前,名前 で、相手を指定できる(例: ?quick=1&seed=源造,ナオミ,ショウ) */
 (function (G) {
   const q = new URLSearchParams(G.location.search);
-  if (!q.has('quick')) return;
+  if (!q.has('quick') && G.location.hash !== '#quick') return; // ?quick=1 か #quick
   G.addEventListener('load', () => setTimeout(() => {
     try {
       const MJ = G.MJ, names = (q.get('seed') || '').split(',').filter(Boolean);
