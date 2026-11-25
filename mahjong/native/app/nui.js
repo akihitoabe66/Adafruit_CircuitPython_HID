@@ -2920,16 +2920,17 @@
   function pickChars(town, easy) { // 3人: 新顔1(まだ出会っていない人を優先)+おなじみ2(昔の人)。前の対局と同じ顔ぶれが続きにくい
     let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (town != null ? MJ.unlockDan(c.id) <= town : (!ok || !ok.length || ok.includes(c.id)))); const out = [], real = easy ? MJ.CHARS.filter((c) => c.id !== 0 && (!ok || !ok.length || ok.includes(c.id))) : pool; // easy: 新顔は ほんらいの段位の人から、のこり2人だけ やさしく
     let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ } if (town != null) dn = -1; // 修行の街: その時代までの人だけ
-    let wantTenka = false; // 名人のあと: 徳川家康と水戸黄門が そろう「天下分け目」は、経験値を ためるほど 出やすく(はじめは出ない)。 ふだんは、どちらか1人が 出やすい(はじめは 7割)
+    const hbDan = town != null ? town : dn, hb = (c) => (hbDan >= 0 && MJ.unlockDan(c.id) === hbDan ? 1.6 : 1); // その街(段位)で はじめて登場する人は、少し 出やすく(1.6倍)
+    let wantTenka = false; // 名人のあと: 徳川家康と水戸黄門が そろう「天下分け目」は、経験値を ためるほど 出やすく(はじめは出ない)。 ふだんは、どちらか1人が 出やすい(江戸では 5割)
     if (dn === 10) { const a = pool.find((c) => c.id === 7), b = pool.find((c) => c.id === 1); if (a && b) { let ex = 0; try { ex = (MJ.Rank.get().pt || 0) - 1845; } catch (e) { ex = 0; } let mt = []; try { mt = metLoad(); } catch (e) { mt = []; }
       const pT = ex < 80 ? 0 : Math.min(0.3, 0.05 + (ex - 80) / 2000), both = mt.includes(1) && mt.includes(7), r = Math.random();
       if (r < pT) { wantTenka = true; out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); }
-      else if (r < pT + (1 - pT) * (both ? 0.3 : 0.7)) { const un = [a, b].filter((c) => !mt.includes(c.id)), cand = un.length ? un : [a, b], c = cand[Math.floor(Math.random() * cand.length)]; out.push(c); pool.splice(pool.indexOf(c), 1); } } }
+      else if (r < pT + (1 - pT) * 0.5) { const un = [a, b].filter((c) => !mt.includes(c.id)), cand = un.length ? un : [a, b], c = cand[Math.floor(Math.random() * cand.length)]; out.push(c); pool.splice(pool.indexOf(c), 1); } } }
     let met = []; try { met = metLoad(); } catch (e) { /* ignore */ } const last = S.lastOpp || [], tier = (c) => MJ.unlockDan(c.id), mx = pool.reduce((m, c) => Math.max(m, tier(c)), 0);
     const wpick = (list, wf) => { // 重みつき抽選(同じ時代が重ならないように、前の対局に出た人は出にくく)
       const w = list.map((c) => Math.max(0.01, wf(c) * (last.includes(c.id) ? 0.3 : 1) * (out.some((o) => MJ.eraOf(o.id) === MJ.eraOf(c.id)) ? 0.25 : 1))); let r = Math.random() * w.reduce((a, b) => a + b, 0), i = 0; while (i < list.length - 1 && (r -= w[i]) > 0) i++; const c = list[i]; { const k = pool.indexOf(c); if (k >= 0) pool.splice(k, 1); } out.push(c); };
-    if (out.length < 3 && real.length) { const mxr = real.reduce((m, c) => Math.max(m, tier(c)), 0), un = real.filter((c) => !met.includes(c.id)); const nw = un.length ? un : real.filter((c) => tier(c) >= mxr - 1); wpick(nw.length ? nw : real, (c) => 1 + tier(c)); } // 新顔枠
-    while (out.length < 3 && pool.length) { const old = pool.filter((c) => tier(c) < mx - 1); wpick(old.length ? old : pool, () => 1); } // おなじみ枠
+    if (out.length < 3 && real.length) { const mxr = real.reduce((m, c) => Math.max(m, tier(c)), 0), un = real.filter((c) => !met.includes(c.id)); const nw = un.length ? un : real.filter((c) => tier(c) >= mxr - 1); wpick(nw.length ? nw : real, (c) => (1 + tier(c)) * hb(c)); } // 新顔枠
+    while (out.length < 3 && pool.length) { const old = pool.filter((c) => tier(c) < mx - 1); wpick(old.length ? old : pool, hb); } // おなじみ枠
     if (dn === 10 && !wantTenka && out.some((c) => c.id === 1) && out.some((c) => c.id === 7)) { // たまたま 2人そろってしまったときは、天下分け目に ならないよう 1人を ほかの人に かえる
       const keepId = Math.random() < 0.5 ? 1 : 7, alt = MJ.CHARS.filter((c) => c.id !== 0 && c.id !== 1 && c.id !== 7 && !out.includes(c) && (!ok || !ok.length || ok.includes(c.id))); if (alt.length) out[out.findIndex((c) => c.id === (keepId === 1 ? 7 : 1))] = alt[Math.floor(Math.random() * alt.length)]; }
     S.lastOpp = out.map((c) => c.id);
