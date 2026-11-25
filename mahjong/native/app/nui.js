@@ -3231,7 +3231,11 @@
     fill(bx - 3, 293, 366, 26, [196, 160, 84]); fill(bx, 296, 360, 20, [6, 20, 14]); fill(bx, 296, Math.round(360 * (0.7 + 0.3 * (S.bootP || 0))), 20, [222, 184, 96]); // 棒の溝: 金色のふち + 暗い地(C側の起動画面と同じ)
   }
   function bootRun() { /* 最初の対局で要る準備を、起動の画面(進み具合の棒)のあいだに すべて済ませる */
-    const jobs = warmTextJobs().concat(homeWarmJobs()), total = jobs.length || 1, t0 = __now(); let done = 0;
+    const titleWarm = () => { // タイトルの最初の1コマ(背景の絵・ボタンの絵・光る縁)の準備を、起動の棒のあいだに済ませる(タイトルが出た直後に 数秒 止まらないように)
+      if (typeof gfx.layerBegin !== 'function') return;
+      try { S.mode = 'title'; lay(28, 'tbg', () => { gfx.clear(32, 74, 60); gfx.image(skin('img/title_art.webp'), 0, 0, SW, SH, 255); }); gfx.layerBegin(26); try { drawTitle(); } finally { gfx.layerEnd(); } S.lay[26] = null; } catch (e) { /* ignore */ } S.mode = 'boot';
+    };
+    const jobs = warmTextJobs().concat([titleWarm], homeWarmJobs()), total = jobs.length || 1, t0 = __now(); let done = 0;
     S.mode = 'boot'; S.bootP = 0; tl('boot-start ' + total); dirty();
     const run = () => {
       const t1 = __now(); while (jobs.length && __now() - t1 < 80) { jobs.shift()(); done++; }
