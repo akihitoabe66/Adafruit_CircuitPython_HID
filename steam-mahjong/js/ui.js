@@ -438,7 +438,7 @@
       document.documentElement.style.setProperty('--ox', ox + 'px');
       $('#side').style.width = Math.round(112 * S) + 'px';
       $('#side-in').style.transform = `translateY(${oy}px) scale(${S})`;
-      this.setSizes(26, 44);
+      this.setSizes(26, 48); // 手牌の幅(設計座標)。 14枚+ツモ牌の間が 720 に収まる上限。 これ以上は、右のボタン列に重なる
     },
     setSizes(sw, hw) {
       this.sizes = { sw, hw };
