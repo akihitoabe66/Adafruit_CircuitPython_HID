@@ -372,10 +372,9 @@ def main():
                 wl, hz, dn, hd = profile_for(bus.ident); deb = Debounce(dn); hold = Holder(hd); t_loop = time.time()
                 bus.prefer = None if wl else (0x00, 6, 0.008)   # 有線の互換品: 番地0・6バイト・返事を8ms待つ が 実機で いちばん 安定した
                 print('mjpad: controller ready id=%s profile=%s hz=%d debounce=%d hold=%.0fms' % (bus.ident.hex(), 'wireless' if wl else 'wired', hz, dn, hd * 1000), flush=True); bad = 0; ok_once = True
-                if was_down:   # つながっていなかったのが、つながった: ブザー(mjbuzz)に 知らせて「ピッピッ」と 鳴らす
-                    pad_seq += 1
-                    try: open('/dev/shm/mj_pad.txt', 'w').write('seq=%d\nid=%s\n' % (pad_seq, bus.ident.hex()))
-                    except OSError: pass
+                if was_down: pad_seq += 1   # つながっていなかったのが、つながった: ブザー(mjbuzz)に 知らせて「ピッピッ」と 鳴らす(seq が かわったら 鳴る)
+                try: open('/dev/shm/mj_pad.txt', 'w').write('seq=%d\nid=%s\nkind=%s\n' % (pad_seq, bus.ident.hex(), 'wireless' if wl else 'wired'))   # kind: ゲームの「遊び方」で 有線/無線の絵を えらぶのに 使う
+                except OSError: pass
                 was_down = False
             try: w = bus.read()
             except OSError: w = None   # 1回の読みそこないでは つなぎなおさない(受信機は ときどき 返事を 落とす。 つなぎなおすと 約1秒 止まる)

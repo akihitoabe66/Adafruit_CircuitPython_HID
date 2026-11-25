@@ -2434,7 +2434,11 @@
     { t: '麻雀先生に 聞く', img: 'img/help/p4.webp', c: ['① 右の「解説」で、くわしい 説明が 見られます', '② 麻雀先生「あり」だと、おすすめの牌に ★ が つきます'] },
     { t: '勉強・クイズ・ビデオ', img: 'img/help/p5.webp', c: ['① 点数計算  ② 用語じてん  ③ ビデオ', '▲ ▼ で えらんで 決定ボタン'] },
   ];
-  function startHow() { try { petBump('vw'); } catch (e) { /* ignore */ } S.how = { pg: 0 }; S.mode = 'howto'; dirty(); }
+  function padKind() { // つないでいるコントローラー: I2Cの有線パッド(mjpad が kind=wired と書く)なら 'wired'。 無線・USB・Bluetooth・わからないときは 'wireless'(4つボタンの絵)
+    try { if (globalThis.__padKind) return globalThis.__padKind; const t = __readtext('/dev/shm/mj_pad.txt'); if (t && /kind=wired/.test(t)) return 'wired'; } catch (e) { /* ignore */ }
+    return 'wireless';
+  }
+  function startHow() { try { petBump('vw'); } catch (e) { /* ignore */ } S.how = { pg: 0, kind: padKind() }; S.mode = 'howto'; dirty(); }
   function howKey(k) {
     const H = S.how; dirty();
     if (k === 'back') { S.mode = 'settings'; S.how = null; } else if (k === 'up') S.bbf = true; else if (k === 'left') H.pg = Math.max(0, H.pg - 1); else if (k === 'right' || k === 'ok') { if (H.pg < HOWP.length - 1) H.pg++; else if (k === 'ok') { S.mode = 'settings'; S.how = null; } }
@@ -2450,15 +2454,18 @@
     const H = S.how, pg = H.pg, P = HOWP[pg]; quizFrame('遊び方', '', (pg + 1) + ' / ' + HOWP.length, '');
     text(P.t, SW / 2, 54, 28, [255, 233, 160], 1); fill(30, 90, SW - 60, 3, [140, 190, 130]);
     if (pg === 0) { // コントローラーの写真(イラスト)に、使うボタンの印: 有線(左)・無線(右)。 ゲームで使うのは 十字キーと A・B だけ
-      const PW = 350, PH = 158;
-      text('ケーブルつきの コントローラー', 195, 95, 18, [255, 233, 160], 1); text('ワイヤレスの コントローラー', 637, 95, 18, [255, 233, 160], 1);
-      gfx.image('img/help/pad_wired.webp', 20, 114, PW, PH, 255); gfx.image('img/help/pad_wireless.webp', 462, 114, PW, PH, 255);
+      const PW = 350, PH = 158, K = H.kind, wd = K === 'wired';
       const CA = [255, 150, 125], CB = [140, 195, 255], CD = [255, 226, 110], DK = [28, 22, 22];
       const mark = (sx, by, bx, bw, t, c, ext = 0) => { fill(sx - 3, by - 28 - ext, 6, 30 + ext, c); text('▲', sx, by - 46 - ext, 30, c, 1); rrect(bx, by, bw, 44, 8, c); text(t, bx + bw / 2, by + 6, 30, DK, 1); };   // 矢印(▲+線) と 大きな名札
-      mark(85, 296, 20, 130, '方向キー', CD, 14); mark(527, 296, 462, 130, '方向キー', CD, 14);   // 十字キー
-      mark(268, 296, 172, 100, '戻る', CB, 14); mark(313, 296, 280, 100, '決定', CA, 14);   // 有線: B(左)・A(右)
-      mark(738, 296, 650, 100, '戻る', CB); mark(773, 296, 754, 78, '決定', CA, 32);   // 無線: B(下)・A(右)
-      text('(TA・TB は 使いません)', 637, 346, 16, [190, 205, 190], 1);
+      const X0 = 241;   // つないでいる方の絵だけを、まんなかに
+      if (wd) {
+        text('ケーブルつきの コントローラー', SW / 2, 95, 18, [255, 233, 160], 1); gfx.image('img/help/pad_wired.webp', X0, 114, PW, PH, 255);
+        mark(X0 + 65, 296, X0, 130, '方向キー', CD, 14); mark(X0 + 248, 296, X0 + 152, 100, '戻る', CB, 14); mark(X0 + 293, 296, X0 + 260, 100, '決定', CA, 14);   // B(左)・A(右)
+      } else {
+        text('ワイヤレスの コントローラー', SW / 2, 95, 18, [255, 233, 160], 1); gfx.image('img/help/pad_wireless.webp', X0, 114, PW, PH, 255);
+        mark(X0 + 65, 296, X0, 130, '方向キー', CD, 14); mark(X0 + 276, 296, X0 + 188, 100, '戻る', CB); mark(X0 + 311, 296, X0 + 292, 78, '決定', CA, 32);   // B(下)・A(右)
+        text('(TA・TB は 使いません)', SW / 2, 346, 16, [190, 205, 190], 1);
+      }
       text('A 決定: 決める・牌を 捨てる', 24, 370, 22, WHITE); text('B 戻る: ひとつ 戻る・やめる', 24, 404, 22, WHITE);
       text('方向キー: 牌・項目を えらぶ', 440, 370, 22, WHITE); text('スタート+セレクト 長押し: メニュー', 440, 404, 20, WHITE);
       text('◀ ▶ でページを かえる    戻る: 設定へ', SW / 2, 455, 14, [210, 225, 205], 1);
