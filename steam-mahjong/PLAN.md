@@ -99,3 +99,7 @@
 - スタイルは `dlayout.css`(simple.css のあとに読み込む)。対局画面の他の部分(席の札・中央の枠など)は、まだ旧デザイン。
 - シミュレーター(ブラウザ): `steam-mahjong/` で `python3 -m http.server 8000` → `http://localhost:8000/?quick=1`(タイトルを飛ばして対局開始。`&seed=源造,ナオミ,ショウ` で相手を指定)。
 - まだ無い画像: タイトル・ロゴ・ボタン画像(`img/title_art.webp` など)、「あなた」の顔(`img/you/`)、先生の絵(`img/teacher/`)、ドラ表示の裏(`img/wall.webp`)。声(`audio/voice/`)は音声合成で代用。
+
+## 11. 席ごとのキャラ表示の範囲(2026-11 決定)
+- 席の位置に合わせて、その人の顔を大きく出すのは、**ロン・ポン・チー・カン・リーチ・ツモの呼び出しだけ**(見本: `tools/ui_mock/ui_mock_e_*.png`、`mock.html?v=e&seat=right&w=ロン`)。
+- **局の結果の表示は、Pi版と同じゲーム画面を使う**(`js/ui.js` の `showResult` など。いまの steam-mahjong に入っているもの)。見本 `ui_mock_r.png`(席ごとの札)は、採用しない。参考として残すだけ。
