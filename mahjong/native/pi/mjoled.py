@@ -634,9 +634,31 @@ def compose(scr, d, age, tick, ever_alive=False):
     scr = compose0(scr, d, age, tick, ever_alive)
     if '--nodecor' not in sys.argv and os.environ.get('MJOLED_DECOR', '1') != '0': decor(scr, tick * SUB, bg_kind(d, age))
     return scr
+def exit_plug(scr, tick):
+    """終了の画面(2秒ごとに 顔の画面と かわりばんこ): 電源プラグが コンセントから 抜けたり 刺さったりする絵 + 「抜いて!」(パタパタ)"""
+    pulled = tick % 2 == 1
+    scr.text16('抜いて!', 0, 0, inv=(tick % 2 == 0))
+    # コンセント(右): 白い四角に、プラグの刃を うけるみぞ
+    scr.box(98, 22, 30, 24, 1)
+    for yy in (28, 38): scr.box(98, yy, 8, 3, 0)
+    # プラグ: 本体と、2本の刃。 抜けているときは 16ドット はなれる
+    px = 52 if pulled else 66
+    scr.box(px, 26, 24, 16, 1); scr.box(px + 3, 29, 18, 10, 0); scr.box(px + 6, 32, 12, 4, 1)   # 本体(中は くりぬいた かざり)
+    for yy in (28, 38): scr.box(px + 24, yy, 14, 3, 1)   # 刃(さしこむとき みぞに入る)
+    # コード: 左から 本体まで。 すこし うねる
+    for x in range(0, px):
+        y = 33 + (1 if ((x // 4) + tick) % 2 else 0) - (0 if x > 6 else 0)
+        scr.box(x, y - 1, 1, 3, 1)
+    # 抜けているときは、「<」の形の矢印が 2つ(字の「<」は 小さい字に ないので 点で描く)
+    if pulled:
+        for ax in (px + 6, px + 16):
+            for k in range(4): scr._set(ax + 3 - k, 17 + k, 1); scr._set(ax + 3 - k, 23 - k, 1)
+    return scr
+
 def compose0(scr, d, age, tick, ever_alive=False):
     """状態 d(ゲームが書いたもの。 None ならゲームは動いていない)から、1コマぶんの画面を作る。
     起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてね」を出す"""
+    if d is not None and d.get('scene') == 'EXIT' and (tick // 6) % 2 == 1: scr.clear(); return exit_plug(scr, tick)   # 終了: 2秒ごとに、プラグが抜き差しされる絵
     if ZU and not sensei_now(d, age): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだ(麻雀先生がオンなら)と 勉強の階層は 先生。 ほかは ずんだもんのペット
     h = health()
     if h['level'] >= 2: return compose_danger(scr, h, tick)
