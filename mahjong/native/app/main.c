@@ -383,6 +383,8 @@ static void preload(void){
   { char fp[1400]; snprintf(fp, sizeof fp, "%s/fonts.txt", datadir); FILE *ff = fopen(fp, "r"); int sz, k = 0; double tf0 = nowms();
     if (ff) { while (k < 120 && fscanf(ff, "%d", &sz) == 1) { (void)getfont(sz); k++; SDL_PumpEvents(); } fclose(ff); }
     printf("fonts: %d opened, %.0fms\n", k, nowms() - tf0); font_rec = 1; } /* 前に使った大きさの字を、先に開いておく(はじめて使うとき、1秒近く止まるため) */
+  { /* タイトルで すぐ鳴らす曲(ホーム)を、先に 1回 読んでおく(SDカードから はじめて読むのに 0.5秒ほど かかるため。 読んだものは OS が おぼえておく) */
+    char fp[1400]; snprintf(fp, sizeof fp, "%s/audio/home.mp3", root); FILE *hf = fopen(fp, "rb"); if (hf) { static char hb[65536]; while (fread(hb, 1, sizeof hb, hf) == sizeof hb) { } fclose(hf); } }
   loading_screen(n, n); printf("preload: %d files, %.0fms\n", n, nowms() - t0); fflush(stdout);
   for (int i = 0; i < n; i++) free(list[i]);
 }
