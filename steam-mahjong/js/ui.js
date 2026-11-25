@@ -1806,6 +1806,40 @@
       return { show };
     },
 
+    /* 裏ドラを見せる(Pi版と同じ動き): ドラ表示牌が上へ出る → 下の牌が少し浮いて → トンッと置かれて表になる(左の列から順に)。 クリックか Enter でとばせる */
+    uraReveal(game) {
+      return new Promise((res) => {
+        const n = Math.min(5, (game.doraInd || []).length, (game.uraAll || []).length);
+        const sc = $('#sc');
+        if (!n || !sc) { res(); return; }
+        const W = 219, H = 88, X0 = 3.4, PX = 30.1, CW = 29.2, Y0 = 4.4, Y1 = 45.5, CH = 39.4; // 山の絵(img/wall.webp)の中の位置。 上段=ドラ表示牌、下段=裏ドラ表示牌
+        const cols = []; for (let k = 0; k < n; k++) cols.push(4 - k); cols.sort((a, b) => a - b); // 左の列から
+        const root = document.createElement('div');
+        root.className = 'urav';
+        root.innerHTML = '<div class="urap"><img class="wb" src="img/wall.webp" alt="" draggable="false"><div class="uratx">裏ドラ</div></div><div class="uraskip">クリックか Enter でとばす</div>';
+        const pane = root.querySelector('.urap');
+        const mk = (d, left, top, cls) => { const e = document.createElement('span'); e.className = 'wo ' + cls; e.style.cssText = `left:${(left / W * 100).toFixed(2)}%;top:${(top / H * 100).toFixed(2)}%;width:${(CW / W * 100).toFixed(2)}%;height:${(CH / H * 100).toFixed(2)}%`; e.innerHTML = MJ.tileSVG(d.t, d.red); pane.appendChild(e); return e; };
+        const items = cols.map((col) => { const k = 4 - col, left = X0 + col * PX, ura = mk(game.uraAll[k], left, Y1, 'ura'); ura.style.opacity = '0'; return { ind: mk(game.doraInd[k], left, Y0, 'ind'), ura }; });
+        sc.appendChild(root);
+        let done = false;
+        const timers = [];
+        const onKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); finish(); } };
+        const finish = () => { if (done) return; done = true; timers.forEach(clearTimeout); window.removeEventListener('keydown', onKey, true); root.remove(); res(); };
+        window.addEventListener('keydown', onKey, true);
+        root.addEventListener('click', finish);
+        const at = (ms, fn) => timers.push(setTimeout(() => { if (!done && !game.stopped) fn(); }, ms));
+        let t = 500;
+        items.forEach((it, i) => {
+          const lift = t + 280 + (i === 0 ? 600 : 500);
+          at(t, () => it.ind.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-70%)' }], { duration: 280, fill: 'forwards', easing: 'ease-out' }));
+          at(lift, () => { it.ura.style.opacity = '1'; it.ura.animate([{ transform: 'translateY(-26%) scale(1.1)' }], { duration: 120, fill: 'forwards' }); });
+          at(lift + 120, () => { it.ura.animate([{ transform: 'translateY(-26%) scale(1.1)' }, { transform: 'translateY(0) scale(1)' }], { duration: 110, fill: 'forwards', easing: 'ease-in' }); try { MJ.SFX.play('discard'); } catch (e) { /* ignore */ } });
+          t = lift + 120 + 110 + 450;
+        });
+        at(t + 1800, finish);
+      });
+    },
+
     showResult(game, res) {
       const pre = res.type === 'draw' && !game.fast ? this.drawFx(game, res) : Promise.resolve();
       return pre.then(() => this.yakuFx(game, res)).then(() => this.showResult2(game, res));

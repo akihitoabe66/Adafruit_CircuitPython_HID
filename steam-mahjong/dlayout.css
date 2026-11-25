@@ -42,3 +42,12 @@ body.pad-on #side-in .pf, #side-in .dk.pf { background-clip: border-box; outline
 
 /* 「せってい」の中身(旧ツール)は、列の左に開く */
 #side-in .sd-tools { left: -200px; top: 4px; }
+
+/* 裏ドラの確認(Pi版と同じ動き)。 山の絵の上に、ドラ表示牌(上段)と裏ドラ表示牌(下段)を重ねる */
+.urav { position: absolute; inset: 0; z-index: 60; background: #000b; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: pointer; }
+.urap { position: relative; width: 470px; aspect-ratio: 219 / 88; }
+.urap .wb { position: absolute; inset: 0; width: 100%; height: 100%; }
+.urap .wo { position: absolute; display: block; box-sizing: border-box; background: #f3ecd4; border: 1px solid #8a96a8; border-radius: 3px; overflow: hidden; box-shadow: 0 2px 4px #0008; }
+.urap .wo img { display: block; width: 100%; height: 100%; object-fit: fill; }
+.uratx { position: absolute; left: 0; right: 0; top: -96px; text-align: center; color: #ffd23f; font-size: 26px; font-weight: 900; text-shadow: 0 2px 4px #000; }
+.uraskip { color: #d8ccf0; font-size: 16px; font-weight: 700; }

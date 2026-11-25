@@ -16,9 +16,8 @@ def save(im, rel):
 def text_c(d, xy, s, sz, fill):
     f = font(sz); b = d.textbbox((0, 0), s, font=f); d.text((xy[0] - (b[2] - b[0]) / 2 - b[0], xy[1] - (b[3] - b[1]) / 2 - b[1]), s, font=f, fill=fill)
 n = 0
-# 牌の裏(ドラ表示の裏・伏せ牌)
-im = Image.new('RGBA', (104, 138), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
-d.rounded_rectangle((2, 2, 101, 135), 12, fill=(47, 77, 156), outline=(28, 47, 107), width=4); d.rounded_rectangle((12, 12, 91, 125), 8, outline=(120, 150, 230), width=3); n += save(im, 'wall.webp')
+# (牌の裏・山の絵 img/wall.webp は、Pi版の本物の絵を使う。 仮の絵は作らない)
+n = 0
 # あなたの顔(18枚。色ちがい)・先生の顔(18枚)
 for i in range(18):
     h = (i * 20) % 360; col = Image.new('HSV', (1, 1), (int(h / 360 * 255), 120, 200)).convert('RGB').getpixel((0, 0))
