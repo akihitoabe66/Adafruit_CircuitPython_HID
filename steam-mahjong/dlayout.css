@@ -51,3 +51,18 @@ body.pad-on #side-in .pf, #side-in .dk.pf { background-clip: border-box; outline
 .urap .wo img { display: block; width: 100%; height: 100%; object-fit: fill; }
 .uratx { position: absolute; left: 0; right: 0; top: -96px; text-align: center; color: #ffd23f; font-size: 26px; font-weight: 900; text-shadow: 0 2px 4px #000; }
 .uraskip { color: #d8ccf0; font-size: 16px; font-weight: 700; }
+
+/* 結果の画面(Pi版と同じ配置)。 箱は 752×444(--u=箱の1px)。 --u は、ページの文字の大きさ(1em=16px のとき 1px)で決まり、まとめて拡大・縮小する */
+@property --u { syntax: '<length>'; inherits: true; initial-value: 1px; }
+.nr { --u: 0.0625em; position: relative; width: calc(var(--u) * 752); height: calc(var(--u) * 444); margin: 0 auto; background: #0a261e; border-radius: calc(var(--u) * 8); color: #fff; line-height: 1; text-align: left; }
+.nr > div { position: absolute; }
+.nr .nt { display: block; flex: none; box-sizing: border-box; background: #f3ecd4; border-radius: calc(var(--u) * 2); overflow: hidden; }
+.nr .nt img { display: block; width: 100%; height: 100%; object-fit: fill; }
+.nr .nt.hl { box-shadow: 0 0 0 calc(var(--u) * 3) #ffdc28; }
+.nr .nr-face { display: block; flex: none; overflow: hidden; border-radius: calc(var(--u) * 6); }
+.nr .nr-face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.nr .nr-pill { display: flex; align-items: center; justify-content: center; border-radius: calc(var(--u) * 10); font-weight: 900; color: #fff; white-space: nowrap; border: calc(var(--u) * 2) solid #fff; box-sizing: border-box; }
+.nr b { font-weight: 900; }
+/* 結果の上の「この役で学ぶ」「他家の牌を見る」は、見出しの行の右に並べる(ドラ表示と重ならないように) */
+#overlay .pm-top .ln-open { position: static !important; margin: 0 0 0 10px !important; flex: none; }
+#overlay .pm-top #pm-learn { margin-left: auto !important; }

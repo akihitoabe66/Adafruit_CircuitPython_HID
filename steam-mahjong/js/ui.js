@@ -1665,6 +1665,50 @@
       const lines = MJ.Coach.explainScore(w, game);
       return `<div class="expl-h">📘 点数計算のしくみ(${w.winner.name}の和了)</div><ol class="expl-ol">${lines.map((l) => `<li>${l}</li>`).join('')}</ol>`.replace(/門前清自摸和/g, '門前清自摸和(メンゼンツモ)');
     },
+    /* 結果の画面(Pi版 nui.js の drawResult と同じ配置): 上がった人の顔・名前・ロン/ツモ・家 / ドラ表示 / 手牌(中央ぞろえ。あたり牌は黄色の枠。鳴きは右に小さく) / 役 / 点数の帯 / 4人の点数カード。
+       長さは、すべて --u(752×444 の箱の 1px)で組む。ページの文字の大きさが決まると、まとめて拡大・縮小する */
+    nrWinHTML(game, res, w, k, total) {
+      const e = (px) => `calc(var(--u) * ${px})`; // --u = 1px(native の 1px)。 ページの文字の大きさに合わせて、まとめて変わる(dlayout.css)
+      const r = w.res, win = w.winner, v = w.view;
+      const WB = ['#d64034', '#24965c', '#346ed2', '#8a5cce'], WIND = ['東', '南', '西', '北'];
+      const sw = game.seatWindOf(win), lab = WIND[sw] + '家' + (sw === 0 ? '(親)' : '');
+      const A = (st, html, cls = '') => `<div class="${cls}" style="${st}">${html}</div>`;
+      const tile = (h, tw, th, ex = '') => `<span class="nt ${ex}" style="width:${e(tw)};height:${e(th)}">${MJ.tileSVG(h.t, h.red)}</span>`;
+      const num = (n) => String(n);
+      // 見出し: 顔・名前・ロン/ツモ・家
+      const head = A(`left:${e(18)};top:${e(12)};display:flex;align-items:center;gap:${e(12)};height:${e(48)}`,
+        `<span class="nr-face" style="width:${e(48)};height:${e(48)}">${this.faceImg(win.char, '', win.seat) || '<span style="font-size:' + e(36) + '">🀄</span>'}</span>` +
+        `<b style="font-size:${e(30)}">${win.name}</b>` +
+        `<span class="nr-pill" style="width:${e(84)};height:${e(34)};background:${w.tsumo ? '#3c82c8' : '#d23c32'};font-size:${e(22)}">${w.tsumo ? 'ツモ' : 'ロン'}</span>` +
+        `<span class="nr-pill" style="padding:0 ${e(12)};height:${e(34)};background:${WB[sw]};font-size:${e(22)}">${lab}</span>`);
+      // ドラ表示(右上)。リーチして上がったときは、裏ドラ表示も
+      const di = (game.doraInd || []).slice(0, 5), ur = w.ura && w.ura.length && MJ.RULES.ura ? w.ura.slice(0, 5) : null;
+      const drow = (lb, arr, top) => A(`right:${e(14)};top:${e(top)};display:flex;align-items:center;gap:${e(6)}`, `<span style="font-size:${e(14)};color:#aabeaf">${lb}</span><span style="display:flex;gap:${e(2)}">${arr.map((h) => tile(h, 20, 27)).join('')}</span>`);
+      const dora = (di.length ? drow('ドラ表示', di, 2) : '') + (ur ? drow('裏ドラ表示', ur, 32) : '');
+      const limit = r.limit ? A(`right:${e(22)};top:${e(88)};font-size:${e(30)};font-weight:900;color:#ff785a`, r.limit) : '';
+      // 手牌(中央ぞろえ): 手の牌 → すきま → あたり牌(黄色の枠) → 鳴いた牌(小さく)
+      const conc = v.concealed.map((h) => tile(h, 36, 48)).join(`<span style="width:${e(1)};flex:none"></span>`);
+      const winT = w.winTile ? `<span style="width:${e(15)};flex:none"></span>${tile(w.winTile, 36, 48, 'hl')}` : '';
+      const mel = v.melds.map((m) => `<span style="display:flex;align-items:flex-end;gap:${e(2)};margin-left:${e(10)}">${m.tiles.map((h) => tile(h, 28, 38)).join('')}</span>`).join('');
+      const hand = A(`left:0;right:0;top:${e(66)};display:flex;justify-content:center;align-items:flex-end;height:${e(48)}`, conc + winT + (mel ? `<span style="width:${e(16)};flex:none"></span>` + mel : ''));
+      // 役
+      const ys = r.yaku.slice(0, 12), two = r.yaku.length > 6, cw = two ? 340 : 480, x0 = two ? 30 : 120;
+      const yaku = ys.map((yk, i) => A(`left:${e(x0 + Math.floor(i / 6) * (cw + 20))};top:${e(136 + (i % 6) * 32)};width:${e(cw)};height:${e(29)};border-bottom:${e(1)} solid #3c5a50;display:flex;justify-content:space-between;align-items:center;padding:0 ${e(6)};box-sizing:border-box;font-size:${e(22)}`, `<span>${yk.n}</span><span style="color:#ffdc28">${(yk.h || yk.han || '') + (r.yakuman ? '' : '飜')}</span>`)).join('');
+      // 点数の帯
+      const pay = w.pay, pts = pay.ron != null ? num(pay.ron) + '点' : (pay.each != null ? num(pay.each) + '点オール' : num(pay.fromOther) + ' / ' + num(pay.fromDealer) + '点');
+      const bar = A(`left:${e(30)};top:${e(324)};width:${e(692)};height:${e(48)};background:#1e4638;border-radius:${e(12)}`,
+        `<span style="position:absolute;left:${e(20)};top:0;line-height:${e(48)};font-size:${e(28)};color:#ffdc28">${r.yakuman ? '役満' : r.han + '飜 ' + r.fu + '符'}</span>` +
+        (total > 1 ? `<span style="position:absolute;left:${e(224)};top:0;line-height:${e(48)};font-size:${e(19)};color:#d2e8da">${k + 1} / ${total} 人目の上がり</span>` : '') +
+        `<span style="position:absolute;right:${e(20)};top:0;line-height:${e(48)};font-size:${e(32)}">${pts}</span>`);
+      // 4人の点数カード(前 → 後、増減)
+      const cards = game.players.map((p, i) => { const d = res.delta[i], dt = (d > 0 ? '+' : '') + d;
+        return A(`left:${e(22 + i * 178)};top:${e(384)};width:${e(168)};height:${e(54)};background:#18382e;border-radius:${e(10)}`,
+          `<span style="position:absolute;left:${e(10)};top:${e(2)};font-size:${e(20)};max-width:${e(92)};white-space:nowrap;overflow:hidden">${p.name}</span>` +
+          `<span style="position:absolute;left:${e(10)};top:${e(29)};font-size:${e(18)};color:#aabeaf;white-space:nowrap">${res.before[i]} → ${res.after[i]}</span>` +
+          `<span style="position:absolute;right:${e(10)};top:${e(4)};font-size:${e(18)};color:${d > 0 ? '#78e68c' : d < 0 ? '#eb463c' : '#aabeaf'}">${dt}</span>`); }).join('');
+      return `<div class="nr no-ruby gl-skip">${head}${dora}${limit}${hand}${yaku}${bar}${cards}</div>`;
+    },
+
     winHTML(game, w) {
       const r = w.res;
       const win = w.winner;
@@ -1758,7 +1802,7 @@
         if (pg._fit) { pg.style.fontSize = pg._fit.fs; pg.style.zoom = pg._fit.z; return; }
         pg.style.zoom = ''; pg.style.fontSize = '';
         const H = body.clientHeight;
-        const over = () => pg.scrollHeight * (parseFloat(pg.style.zoom) || 1) > H + 1;
+        const over = () => pg.scrollHeight * (parseFloat(pg.style.zoom) || 1) > H + 1 || pg.scrollWidth * (parseFloat(pg.style.zoom) || 1) > body.clientWidth + 1;
         const fs0 = parseFloat(getComputedStyle(pg).fontSize) || 16;
         if (over()) {
           let est = Math.max(9, fs0 * Math.sqrt(H / Math.max(1, pg.scrollHeight)) * 0.97), n = 0;
@@ -1890,11 +1934,8 @@
           // ダブロンなどは、スクロールしないように、1人ずつ別のページにする
           const nw = res.wins.length;
           // 読み上げも、そのページの1人ぶんだけ(ページを開いたときに読む)
-          res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `和了(${k + 1}人目)` : '和了', html: `<h2>${game.kyokuLabel()} 和了</h2>` + this.winHTML(game, w), onShow: nw > 1 ? () => this.announceWin(game, { wins: [w] }) : null }));
+          res.wins.forEach((w, k) => pages.push({ t: nw > 1 ? `和了(${k + 1}人目)` : '和了', html: this.nrWinHTML(game, res, w, k, nw) + (w.kyotaku ? `<div class="sc-note">${w.winner.name}の増減には、供託(場のリーチ棒)${w.kyotaku}本=${fmt(w.kyotaku * 1000)}点が入っています。</div>` : ''), onShow: nw > 1 ? () => this.announceWin(game, { wins: [w] }) : null }));
           res.wins.forEach((w, k) => calcPages.push({ t: nw > 1 ? `点数計算(${k + 1}人目)` : '点数計算', html: this.winExplHTML(game, w) })); // くわしい計算は、ボタンで見たい人だけ
-          const kw = res.wins && res.wins.find((x) => x.kyotaku > 0);
-          const kn = kw ? `<div class="sc-note">${kw.winner.name}の増減には、供託(場のリーチ棒)${kw.kyotaku}本=${fmt(kw.kyotaku * 1000)}点が入っています。</div>` : '';
-          pages.push({ t: '持ち点', html: `<h2>${game.kyokuLabel()} の結果</h2>${this.scoreTable(game, res)}${kn}` });
           const rv = res.loseReview ? MJ.Coach.loseReview(game, res) : res.review ? MJ.Coach.reviewText(res.review) : '';
           if (rv) this.splitReview(rv).forEach((h, i, a) => rvPages.push({ t: `振り返り`, html: h, rv: true }));
         } else {
