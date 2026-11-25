@@ -365,8 +365,9 @@ def zpwr(h):
 ZST = {'scene': None, 't': 0}
 def boot_screen(scr, tick, X, up):
     """起動中: ずんだもんが「もうすぐ はじまるよ！」と パタパタ(口を あけしめ・左右に ゆれる・見出しが 白黒反転・ことばが 流れる)"""
-    scr.zface('laugh' if tick % 2 == 0 else 'smile', 2 if tick % 2 else 0, 3)
-    scr.text16('起動中', X, 0, inv=(tick % 2 == 0))
+    t2 = tick // 2   # 2コマの動きは ゆっくり(0.67秒ごと)
+    scr.zface('laugh' if t2 % 2 == 0 else 'smile', 2 if t2 % 2 else 0, 3)
+    scr.text16('起動中', X, 0, inv=(t2 % 2 == 0))
     scr.marquee('もうすぐ はじまるよ！ ちょっと まってね', X, 17, 60, tick); scr.text('WAIT %dS' % int(up), X, 39)
     return scr
 
@@ -643,9 +644,10 @@ def compose(scr, d, age, tick, ever_alive=False):
     return scr
 def exit_plug(scr, tick):
     """終了の画面(これだけを出す): 電源プラグが コンセントから 抜けたり 刺さったりする絵 + 「抜いて!」(パタパタ)"""
-    pulled = tick % 2 == 1
-    scr.zface('laugh' if tick % 2 == 0 else 'smile', 0, 19 - (tick % 2) * 2, 1)   # ずんだもん(小さく): コードを持って「抜いて!」と ぴょんぴょん
-    scr.text16('電源を抜いて!', 0, 0, inv=(tick % 2 == 0))   # 1行 全体を 白黒反転で パタパタ
+    t2 = tick // 2   # 2コマの動きは ゆっくり(0.67秒ごと)
+    pulled = t2 % 2 == 1
+    scr.zface('laugh' if t2 % 2 == 0 else 'smile', 0, 19 - (t2 % 2) * 2, 1)   # ずんだもん(小さく): コードを持って「抜いて!」と ぴょんぴょん
+    scr.text16('電源を抜いて!', 0, 0, inv=(t2 % 2 == 0))   # 1行 全体を 白黒反転で パタパタ
     # コンセント(右): 白い四角に、プラグの刃を うけるみぞ
     scr.box(98, 22, 30, 24, 1)
     for yy in (28, 38): scr.box(98, yy, 8, 3, 0)
@@ -655,7 +657,7 @@ def exit_plug(scr, tick):
     for yy in (28, 38): scr.box(px + 24, yy, 14, 3, 1)   # 刃(さしこむとき みぞに入る)
     # コード: 左から 本体まで。 すこし うねる
     for x in range(32, px):
-        y = 33 + (1 if ((x // 4) + tick) % 2 else 0)
+        y = 33 + (1 if ((x // 4) + t2) % 2 else 0)
         scr.box(x, y - 1, 1, 3, 1)
     # 抜けているときは、「<」の形の矢印が 2つ(字の「<」は 小さい字に ないので 点で描く)
     if pulled:
