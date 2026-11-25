@@ -168,6 +168,7 @@
     launch(cfg, sv) {
       this.stopGame();
       const chars = MJ.Oni.apply(cfg.picks.map((id) => MJ.CHARS.find((c) => c.id === id))); // 雀鬼モード・覚醒: 強さと顔の色
+      if (MJ.resetFaceFlip) MJ.resetFaceFlip(); // 対面の顔の左右は、対局ごとに決め直す
       const game = new MJ.Game({ chars, mode: cfg.mode, length: cfg.length, ui: MJ.UI });
       this.game = game;
       if (sv && MJ.Rank) MJ.Rank.apply(game, sv); // つづきから: 点数・局・本場を戻す

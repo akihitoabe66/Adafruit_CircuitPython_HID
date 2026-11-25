@@ -89,7 +89,16 @@
   MJ.STYLE_JP = { attack: '攻め', defense: '守り', balanced: 'バランス' };
   MJ.styleLabel = (c) => { const k = c && CH.find((x) => x.id === c.id); return k ? k.tags.join('・') : (MJ.STYLE_JP[c && c.style] || ''); };
   MJ.isFemaleChar = (ch) => !!ch && CH.some((c) => c.id === ch.id && c.female);
-  MJ.faceFlipped = () => false; // 顔は正面向きなので、席ごとの左右反転はしない
+  /* 顔の向き: 元の絵は、全員、左向き。 席: 1=下家(右)・2=対面(上)・3=上家(左)。
+     下家は、元のまま(左=中央向き)。 上家は、左右反転(右=中央向き)。 対面は、対局ごとにランダムで反転する */
+  const flipMemo = {};
+  MJ.resetFaceFlip = () => { Object.keys(flipMemo).forEach((k) => { delete flipMemo[k]; }); };
+  MJ.faceFlipped = (ch, seat) => {
+    if (!ch || !(ch.id > 0)) return false;
+    if (seat === 3) return true;
+    if (seat === 2) { if (!(ch.id in flipMemo)) flipMemo[ch.id] = Math.random() < 0.5; return flipMemo[ch.id]; }
+    return false;
+  };
 
   /* 段位ごとの登場: [無段, 初段, 二段, …, 名人, 永世名人] の順 */
   MJ.UNLOCK = [[17, 4, 36, 22], [12, 16, 25, 34], [1, 3, 15], [19, 23, 29], [6, 7, 14], [26, 30, 35], [8, 11, 28], [31, 24, 33], [2, 9, 13], [20, 27, 32], [5, 21, 10, 18], []];

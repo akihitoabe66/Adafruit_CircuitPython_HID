@@ -120,3 +120,7 @@
 - 作り方の手順: ① index.html の `<head>`/`<body>` の枠と preload を外し、`<title>` を付ける → ② Artifact で `files`(上の一覧)を付けて公開。一覧は、js 全部・css 3つ・img(`_f.webp` を除く)・BGM 10曲。
 - URLに `#quick` を付けると、タイトルを飛ばして対局が始まる(`js/quick.js`)。
 - 縦持ちは、90°回して横長で出る。横持ちは、そのまま。
+
+## 15. 顔の向き(2026-11 決定)
+- 元の絵は、全員、左向き。下家(右の席)=元のまま(中央向き)。上家(左の席)=左右反転して右向き(中央向き)。対面(上の席)=対局ごとにランダムで反転。
+- `js/chars36.js` の `MJ.faceFlipped`。反転画像は `img/chars/face/NN_f.webp`(`tools/chars36/cut.py` が作る)。対面の左右は、対局の開始時(`js/main.js` の `launch`)に決め直す。
