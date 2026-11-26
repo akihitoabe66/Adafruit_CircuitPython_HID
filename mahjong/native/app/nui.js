@@ -1649,7 +1649,7 @@
     if (p.cat === 'learn') {
       if (/何飜\?$/.test(T) && p.tag !== 'han') return 'v:q_score_han'; // 「〇〇は、何飜?」は、点数計算の「何飜?」の声
       if (T === 'ドラは、どれ?') return 'v:q_learn_dora'; if (T === '手牌の ドラは 何枚?') return 'v:q_learn_dora_count';
-      if (T === '親の点数(ロン)は?') return 'v:q_learn_tensu_oya';
+      if (/^親の.*点数/.test(T)) return 'v:q_learn_tensu_oya'; // 親の点数(ロン・ツモ)
       if (T === '本場の 点数は?') return 'v:q_learn_honba';
       if (T === 'この飜数は、何?') return 'v:q_learn_hansu';
       if (T === '鳴くと どうなる?') return 'v:q_learn_kui';
