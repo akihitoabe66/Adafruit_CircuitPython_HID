@@ -1639,7 +1639,7 @@
     startQuiz({ title: weak.length ? '苦手をねらい撃ち' : '麻雀クイズ', gens: () => qlGens(tags, weak), n: 5, rank: true, direct: true });
   }
   function startQuiz(opts) { // opts: { title, gens, n, onEnd(ok, n) }
-    S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd, rank: !!opts.rank }); if (opts.rank && !opts.direct) { S.quiz.phase = 'intro'; dirty(); return; } quizNext(); dirty();
+    S.mode = 'quiz'; S.quiz = Object.assign({ n: 0, ok: 0, phase: 'gen', p: null, idx: 0, res: null, scroll: 0 }, { title: opts.title, gens: opts.gens, total: opts.n, onEnd: opts.onEnd, rank: !!opts.rank }); if (opts.rank && !opts.direct) { S.quiz.phase = 'intro'; try { if (NSND.has('v:q_title')) NSND.speak(['v:q_title']); } catch (e) { /* ignore */ } dirty(); return; } /* 「麻雀クイズ」のページ(級と分野の星の画面)に入ったとき、「麻雀クイズ」の声 */ quizNext(); dirty();
   }
   const qEndVoice = () => { try { if (NSND.has('v:otsukare')) NSND.speak(['v:otsukare']); } catch (e) { /* ignore */ } }; // クイズが終わって「おつかれさまでした」の画面になるとき、その声
   const byeQuit = () => { S.bye = { t0: __now() }; dirty(); /* 画面に「ゲーム終了中」の帯を出す(終わるまで、そのまま画面に のこる) */ try { if (NSND.has('v:shutdown')) { NSND.speak(['v:shutdown']); S.locked = true; setTimeout(() => __quit(), 2300); return; } } catch (e) { /* ignore */ } __quit(); }; // 終了を選んだら「ゲームを終了します」と言ってから終わる
