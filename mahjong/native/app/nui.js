@@ -428,6 +428,7 @@
     const isInd = {}; (g.doraInd || []).slice(0, 5).forEach((d, k) => { if (d) isInd[4 - k] = d; });
     for (let i = 0; i < 7; i++) uraTile(URA_X(i), URA_YL, 'down');
     for (let i = 0; i < 7; i++) uraTile(URA_X(i), URA_YU, isInd[i] ? 'up' : 'down', isInd[i]);
+    if (isInd[4] && !g.blank) { const lx = URA_X(4) + Math.round(URA_W / 2); rrect(lx - 27, URA_YU - 17, 54, 15, 4, [250, 214, 80]); text('ドラ表示', lx, URA_YU - 17, 12, [40, 28, 0], 1); fill(lx - 3, URA_YU - 2, 6, 2, [250, 214, 80]); }   // めくれた牌(ドラ表示牌)に、小さな札
   }
   /* ---------- 決めゼリフのカットイン(js/banter5.js の MJ.CutIn が、出すかどうかを決める) ---------- */
   const CI_T = 2800, CI_COL = { ron: { band: [90, 20, 16], edge: [255, 210, 58], tag: 'ロン' }, tsumo: { band: [14, 74, 88], edge: [127, 232, 255], tag: 'ツモ' } };
