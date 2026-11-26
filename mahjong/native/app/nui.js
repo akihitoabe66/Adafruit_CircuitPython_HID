@@ -831,7 +831,7 @@
     const R = MJ.Rank, st = R.get(), DANS = R.DAN, nx = DANS[st.dan + 1];
     DBG_ROWS.forEach((l, i) => { const y = 48 + i * 40, sel = (S.dbgIdx || 0) === i; panel(110, y, 612, 36, 10, sel ? YEL : WHITE, sel ? [160, 110, 0] : [110, 110, 110], sel ? 3 : 2); text(l, 130, y + 3, 24, BLACK);
       if (i === 0) { text('◀', 470, y + 5, 22, [90, 90, 80], 1); text(st.pt + '点', 560, y + 4, 26, BLACK, 1); text('▶', 664, y + 5, 22, [90, 90, 80], 1); } });
-    text('いまの段位: ' + MJ.DAN_NAME(st.dan) + (nx && nx[1] >= 99999 ? '    永世名人は 点ではなく、天下分け目で 1位' : nx ? '    つぎの段(' + nx[0] + ')まで あと ' + Math.max(0, nx[1] - st.pt) + '点' : ''), SW / 2, 374, 20, [255, 236, 170], 1);
+    text('いまの段位: ' + MJ.DAN_NAME(st.dan) + (nx && nx[1] >= 99999 ? '    永世名人へは 天下分け目で 1位' : nx ? '    つぎの段(' + nx[0] + ')まで あと ' + Math.max(0, nx[1] - st.pt) + '点' : ''), SW / 2, 374, 20, [255, 236, 170], 1);
     text('経験値: ◀ ▶ で 10点ずつ(長押しで はやく)。 対局は、そのまま はじまります', SW / 2, 400, 17, [205, 224, 212], 1);
     if (S.dbgMsg && __now() < S.dbgMsg.until) { rrect(116, 426, 600, 34, 10, [44, 138, 77]); text(S.dbgMsg.t, 416, 431, 20, WHITE, 1); dirty(); }
   }
@@ -952,7 +952,7 @@
     if (rt > 1500 && !d.v1) { d.v1 = 1; afterPresent(() => { NSND.sfx('slam'); try { const dur = NSND.readKyoku(g, () => { d.kyDone = true; }); d.T2 = Math.max(2900, 1500 + Math.round((dur || 0) * 1000) + 350); } catch (e) { /* ignore */ } }); } // 声は、文字が画面に出たあとに(描くのが遅い実機で、声だけ先に出ないように) // 「勝負!」は、局の読み上げが おわってから
     const T2 = d.T2 || 2900;
     if (rt > T2 && !d.v2 && (d.kyDone || rt > T2 + 3500)) { d.v2 = 1; d.T2 = rt; afterPresent(() => { NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }); }
-    if (d.v2 && rt > d.T2 + 1200 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); }
+    if (d.v2 && rt > d.T2 + 1200 && !d.fin && (!g.tenka || now - d.t00 > 11000)) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); }
     const step = counting ? Math.min(total, Math.floor((now - cStart) / cStep) + 1) : 0, hiSeat = counting ? (step - 1) % 4 : -1;
     if (counting && d._lastStep !== step) { d._lastStep = step; NSND.sfx('select', 0.5); }
     const winds = (sd) => (done ? ['東', '南', '西', '北'][(sd - d.target + 4) % 4] : '');
@@ -975,6 +975,15 @@
     else { const k = Math.min(1, (rt - T2) / 160), sz2 = k < 0.5 ? 110 : 90; fill(240, 192, 352, 104, [0, 0, 0], 200); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((dd) => text('勝負!', SW / 2 + dd[0], 244 - sz2 / 2 + dd[1], sz2, [255, 255, 255], 1)); text('勝負!', SW / 2, 244 - sz2 / 2, sz2, [225, 40, 30], 1); }
     if (globalThis.__nodice && globalThis.__shotDir && !d._snapped) { d._snapped = 1; gfx.snap(globalThis.__shotDir + '/dicefull.bmp'); } // 試験用
     if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
+    if (g.tenka) { // 天下分け目: 上に「1位で 永世名人」の帯。 家康と黄門が、あなたに向かって、決戦のひとこと(声は あれば 鳴らす)
+      const tt = now - d.t00; rrect(SW / 2 - 190, 3, 380, 25, 8, [190, 40, 40]); text('天下分け目  ―  1位で 永世名人!', SW / 2, 5, 18, WHITE, 1);
+      [{ id: 1, from: 2800, to: 6700, v: 'v:tk_koumon', l: ['いざ尋常に勝負じゃ!', '天下分け目の一戦、手加減は無用じゃぞ。'] }, { id: 7, from: 7000, to: 10900, v: 'v:tk_ieyasu', l: ['相手にとって不足なし!', '鳴くまで待とう、勝負の時を。'] }].forEach((k) => {
+        if (tt < k.from || tt >= k.to) return; const sd = P.findIndex((q) => q.char && q.char.id === k.id); if (sd < 0) return;
+        if (!d['tk' + k.id]) { d['tk' + k.id] = 1; try { if (NSND.has(k.v)) NSND.speak([k.v]); } catch (e) { /* ignore */ } }
+        const bw = 352, bh = 76, bx = sd === 3 ? 14 : sd === 1 ? SW - bw - 14 : 466, by = sd === 2 ? 36 : 46;
+        rrect(bx - 3, by - 3, bw + 6, bh + 6, 11, [96, 66, 30]); rrect(bx, by, bw, bh, 9, [252, 246, 228]); text(P[sd].name, bx + 12, by + 5, 14, [120, 84, 40]); k.l.forEach((t, i) => text(t, bx + 12, by + 24 + i * 24, 17, [40, 30, 20]));
+      });
+    }
     if (d.started || true) dirty();
   }
   /* ---------- 対戦成績の画面 ---------- */
@@ -1116,7 +1125,7 @@
   const MAP_SAY_BASE = [ // 段位ごとの、ずんだもんの ひとこと(その段位に 着いたとき)。 ★録音(audio/yk/m_*.mp3 など)の あるセリフは、録音と同じ文章。 かってに 変えない
     'ここは 肥後国、熊本。ぼくの 麻雀の旅が はじまるのだ!', '初段! 筑前国、福岡で 腕だめしなのだ。博多ラーメンが 食べたいのだ', '二段! 海を わたって 讃岐国へ。うどんが おいしそうなのだ', '三段! 安芸国、広島に とうちゃく。強い相手が ふえてきたのだ',
     '四段! 山城国、京の都なのだ。人が いっぱいなのだ', '五段! 摂津国、大阪に 来たのだ。やっと 一人前なのだ', '六段! 信濃国、長野の 山あいなのだ。空気が おいしいのだ', '七段! 北の 越後国、新潟まで 来たのだ。海が きれいなのだ',
-    '八段! 遠い 奥州まで 来たのだ。寒いけど 負けないのだ', '九段! 駿河国、静岡に とうちゃく。富士山が 目の前なのだ', '名人! ついに ゴールの 江戸、東京なのだ! 天下は もう目の前なのだ', '永世名人! ここ江戸で 天下統一なのだ!'];
+    '八段! 遠い 奥州まで 来たのだ。寒いけど 負けないのだ', '九段! 駿河国、静岡に とうちゃく。富士山が 目の前なのだ', '名人! 江戸に とうちゃく! 江戸の名人たちとの「天下分け目」で 1位なら 永世名人!', '永世名人! ここ江戸で 天下統一なのだ!'];
   const MAP_PLACE_BASE = ['肥後国(熊本)', '筑前国(福岡)', '讃岐国(香川)', '安芸国(広島)', '山城国(京都)', '摂津国(大阪)', '信濃国(長野)', '越後国(新潟)', '奥州', '駿河国(静岡)', '江戸(東京)', '江戸(東京)'];
   const MAP_SETS = [ // 道すじは 2通り(ふだんは 1=おすすめ)(隠しコマンドの演出テストで 切りかえて 見られる)。 0=赤い線どおり 1=おすすめ(伊勢あり)
     { say: MAP_SAY_BASE, place: MAP_PLACE_BASE },
@@ -1218,10 +1227,10 @@
     if (uiOn) { gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]); }
     const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
     let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < (M.base || MAP_T.slide + MAP_T.hold)) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? (M.capSay ? '修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。' : '他の街に戻って、修行し直すのだ！') : walkMsg(M.view && M.go != null ? M.go : M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
-    if (M.here) { try { const f = MJ.Rank.info(), tn = townName(M.from); msg = 'いまは ' + f.name + '、' + tn + 'に いるのだ。'; if (M.from === 0 && !(f.s && f.s.games > 0)) msg = 'ここから 旅が はじまるのだ。熊本から 江戸を めざすのだ!';
+    if (M.here) { try { const f = MJ.Rank.info(), tn = townName(M.from); msg = f.tenka ? '名人、江戸に いるのだ。 江戸の名人たちとの「天下分け目」で 1位なら 永世名人なのだ!' : 'いまは ' + f.name + '、' + tn + 'に いるのだ。'; if (M.from === 0 && !(f.s && f.s.games > 0)) msg = 'ここから 旅が はじまるのだ。熊本から 江戸を めざすのだ!';
       if (uiOn && (f.next || f.tenka)) { const w0 = 300, h0 = 78, x0 = SW - w0 - 16, y0 = 326; panel(x0, y0, w0, h0, 12, [14, 44, 30], [255, 214, 70], 3, 242); // 下の ひとこと枠(y=418〜)には かぶせない
         if (f.next) { text('つぎの 街まで', x0 + 14, y0 + 6, 15, [255, 236, 170]); text(townName(M.from + 1) + '(' + f.next + ')', x0 + w0 - 14, y0 + 6, 15, WHITE, 2); text('あと', x0 + 14, y0 + 32, 20, WHITE); text(String(f.left), x0 + 136, y0 + 18, 42, [255, 214, 70], 1); text('点', x0 + 196, y0 + 32, 22, WHITE); rrect(x0 + 14, y0 + 66, w0 - 28, 6, 3, [10, 28, 20]); rrect(x0 + 14, y0 + 66, Math.max(6, Math.round((w0 - 28) * f.prog)), 6, 3, [255, 214, 70]); }
-        else { text('天下分け目に 勝てば', x0 + w0 / 2, y0 + 8, 20, WHITE, 1); text('永世名人!', x0 + w0 / 2, y0 + 34, 34, [255, 214, 70], 1); } } } catch (e) { /* ignore */ } } // 対局の前の「いまここ」: 場所と、つぎの街までの点(大きく)
+        else { text('天下分け目で 1位なら', x0 + w0 / 2, y0 + 8, 20, WHITE, 1); text('永世名人!', x0 + w0 / 2, y0 + 34, 34, [255, 214, 70], 1); } } } catch (e) { /* ignore */ } } // 対局の前の「いまここ」: 場所と、つぎの街までの点(大きく)
     if (M.intro && t >= M.intro.G) { msg = '江戸で 名人を倒し、天下統一するのだ!'; if (!M.intro.v) { M.intro.v = true; try { NSND.speak(['v:tenka']); } catch (e) { /* ignore */ } } } // 旅のはじまり: 二つめの一言(声つき)
     if (uiOn) text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && M.go == null && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) { const wt = Math.max(0, (M.vUntil || 0) - __now()) + 150, tk = M; setTimeout(() => { if (S.map === tk && !tk.go) { const dd = NSND.speak([pk]) || 0; tk.vUntil = __now() + dd * 1000; } }, wt); } } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
@@ -2083,6 +2092,9 @@
     const order = ps.slice(); order.sort((a, b) => b.score - a.score); const me = order.splice(order.findIndex((x) => x.isHuman), 1)[0]; order.splice(rank - 1, 0, me); order.forEach((p, i) => { p.score = [37200, 33400, 15000, 14400][i]; });
     const f = { results: order.map((p, i) => ({ p, rank: i + 1, score: p.score })), yaki: null }; const rk = { delta: delta == null ? 8 : delta, name: '名人', next: null, tenka: true, left: 0, avg: 9, mult: 1, msg: null, capped: false };
     S.mode = 'menu'; S.end = Object.assign({}, f, { rk, tenka: !!tk, done: () => { S.end = null; dirty(); } }); dirty(); return true; };
+  window.__tenkaDice = () => { // 試験用: 天下分け目のサイコロ画面を、すぐ出す
+    const C = (id) => MJ.CHARS.find((c) => c.id === id), ids = [0, 1, 7, 4]; const ps = ids.map((id, i) => ({ seat: i, name: i === 0 ? 'あなた' : C(id).short, char: C(id), isHuman: i === 0, score: 25000, level: 0 }));
+    const g = { tenka: true, players: ps, fast: false, kyokuLabel: () => '東一局 東風戦', dealer: 0, practice: false }; S.game = g; S.mode = 'menu'; S.dice = { id: 99, a: 3, b: 4, target: 2, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done: () => { S.dice = null; } }; dirty(); return true; };
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   /* ---------- リセット(デバッグ用): ゲームを はじめから。 音量・ルール・麻雀先生などの「設定」は残し、成績・段位・雀士・ビデオ・勉強・途中のセーブを消す ---------- */
   const KEEP_PREF = ['mj_vol_', 'mj_teacher', 'mj_dmark', 'mj_swapab', 'mj_cpuspeed', 'mj_rules', 'mj_padid', 'mj_orient', 'mj_perf', 'mj_winfx', 'mj_you', 'mj_think', 'mj_danger_', 'mj_banter'];
@@ -2453,6 +2465,7 @@
   /* ---------- 遊び方(ヘルプ): 設定の中。ボタンの使い方 / 麻雀の遊び方 / 勉強・クイズ・ビデオ ---------- */
   const HOWP = [ // 実際の画面(img/help/pN.webp)に、矢印と番号を重ねた絵と、2行の説明
     { t: 'ボタンの使い方' },
+    { t: 'ゲームの めあて', custom: 'goal' },
     { t: '牌を えらんで 捨てる', img: 'img/help/p1.webp', c: ['① ◀ ▶ で、捨てる牌を えらびます', '② 決定ボタンで、えらんだ牌を 捨てます'] },
     { t: 'ポン・チー・ロン', img: 'img/help/p2.webp', c: ['① 他の人の牌で できるときは、「ポン」などが 出ます', '② ◀ ▶ で えらんで 決定(しないときは「見送る」)'] },
     { t: 'リーチ・ツモ', img: 'img/help/p3.webp', c: ['① 「リーチ」: あと1枚で あがれる ときに えらびます', '② 「ツモ」: あがる形に なったら えらびます'] },
@@ -2495,6 +2508,14 @@
       text('方向キー: 牌・項目を えらぶ', 440, 370, 22, WHITE); text('スタート+セレクト 長押し: メニュー', 440, 404, 20, WHITE);
       text('◀ ▶ でページを かえる    戻る: 設定へ', SW / 2, 455, 14, [210, 225, 205], 1);
       return;
+    }
+    if (P.custom === 'goal') { // ゲームの めあて: 天下を とる / 江戸で 名人を たおして 永世名人に / 天下分け目(家康+黄門)の説明
+      [[7, 40], [1, 170]].forEach((a) => { rrect(a[1] - 4, 126, 120, 120, 8, [255, 255, 255]); gfx.image('img/sil/' + ('0' + a[0]).slice(-2) + '.webp', a[1], 130, 112, 112, 255); text('？？？', a[1] + 56, 252, 20, WHITE, 1); }); /* 名人の2人は、会うまで 顔も名前も ひみつ(ネタバレしない) */
+      text('天下分け目', 150, 290, 26, [255, 214, 90], 1); text('= 強い 名人2人との 決戦', 150, 326, 17, WHITE, 1);
+      rrect(40, 356, 232, 34, 8, [190, 40, 40]); text('1位で 永世名人!', 156, 361, 22, WHITE, 1);
+      const items = ['めあては、天下を とること。', '江戸で 名人を たおして、永世名人に なろう!', '名人に なると、強い 名人が 2人 あらわれます。', 'この2人と 同じ卓で 戦うのが「天下分け目」。', '天下分け目で 1位に なると、永世名人です。']; let yy = 100;
+      items.forEach((t, i) => { const ls = wrapText(t, 22, 440); text(['①', '②', '③', '④', '⑤'][i], 316, yy, 22, [255, 214, 90]); ls.forEach((l, k) => { text(l, 346, yy + k * 28, 22, i === 4 ? [255, 214, 90] : WHITE); }); yy += ls.length * 28 + 12; });
+      text('◀ ▶ ページ    戻る: 設定へ', SW / 2, 446, 15, [210, 225, 205], 1); return;
     }
     rrect(164, 94, 504, 287, 6, [150, 190, 140]); gfx.image(P.img, 168, 98, 496, 279, 255); // 実際の画面(矢印つき)
     P.c.forEach((l, i) => text(l, SW / 2, 382 + i * 30, 23, i ? [255, 233, 160] : WHITE, 1));
