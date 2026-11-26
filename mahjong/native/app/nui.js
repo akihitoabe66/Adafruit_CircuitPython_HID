@@ -1655,7 +1655,7 @@
       if (!p && dup) p = dup; /* 問題が足りないときだけ、重なってもよい */
       if (!p) { q.phase = 'fail'; dirty(); return; }
       q.p = p; q.n++; q.phase = 'ask'; q.idx = 0;
-      try { const vk = 'v:q_' + (p.cat === 'score' ? 'score_' + ({ '何飜?': 'han', '何符?': 'fu', '点数はいくつ?': 'points' }[p.title] || '') : p.cat === 'learn' ? 'learn_' + (p.tag || '') : p.cat); if (p.cat && NSND.has(vk)) NSND.speak([vk]); } catch (e) { /* ignore */ } // 出題の声(分野ごと。声のファイルがある分野だけ)
+      try { const vk = 'v:q_' + (p.cat === 'score' ? 'score_' + ({ '何飜?': 'han', '何符?': 'fu', '点数はいくつ?': 'points' }[p.title] || '') : p.cat === 'learn' ? (p.tag === 'ly_han' ? 'score_han' : 'learn_' + (p.tag || '')) : p.cat); if (p.cat && NSND.has(vk)) NSND.speak([vk]); } catch (e) { /* ignore */ } // 出題の声(分野ごと。声のファイルがある分野だけ)
       q.disp = (p.hand || []).slice().sort((a, b) => a.t - b.t);
       q.rv = qRiverInfo(p); { const hs = mark(p.sit || '') + (p.sit ? '\n' : '') + mark(String(p.prompt || '').replace(/<span class="cc-s">[\s\S]*?<\/span>/g, '').replace(/(<br\s*\/?>\s*)+$/, '')), f = q.rv ? (q.rv.cp ? fitRich(hs, [20, 18, 16], 770, 64) : fitRich(hs, [26, 24, 22, 20, 18], 770, 110)) : fitRich(hs, [30, 28, 26, 24, 22, 20, 18], 770, p.kind === 'choice' ? 140 : 262); q.hsz = f.sz; q.head = f.lines; q.hh = f.h; }
       q.opts = (p.options || []).slice(0, 4).map((o) => { const f = fitRich(mark(o.html), [28, 26, 24, 22, 20, 18], 290, 50); return { id: o.id, lines: f.lines, sz: f.sz, h: f.h }; });
