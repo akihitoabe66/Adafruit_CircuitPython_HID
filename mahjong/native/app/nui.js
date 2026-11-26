@@ -1509,7 +1509,7 @@
       rrect(60, yb, 600, 92, 8, tkLose ? [64, 34, 30] : [10, 58, 38]);
       const d = rk.delta, col = tkLose ? [170, 180, 170] : d > 0 ? [140, 240, 150] : d < 0 ? [255, 130, 120] : WHITE;
       text('段位ポイント', 80, yb + 8, tkLose ? 20 : 24, tkLose ? [190, 200, 190] : WHITE); text((d > 0 ? '+' : '') + d + ' 点', 290, yb + (tkLose ? 7 : 5), tkLose ? 26 : 32, col);
-      { const rt = rk.tkBeat && rk.tkBeat.length && !f.tenka ? tkBeatMsg(rk) : rk.msg ? rk.msg.replace('🎉 ', '') : tkLose ? 'おしい! 天下分け目は 1位だけが 永世名人です' : rk.next ? rk.name + '   あと ' + rk.left + ' 点で ' + rk.next : rk.tenka ? 'いま 名人。 永世名人へは 天下分け目で 1位' : rk.name; text(rt, 80, yb + 38, fitSz(rt, 21, 570, 13), tkLose ? [255, 200, 150] : YEL); }
+      { const rt = rk.tkBeat && rk.tkBeat.length && !f.tenka ? tkBeatMsg(rk) : rk.msg ? rk.msg.replace('🎉 ', '') : tkLose ? '天下分け目の決戦で、1位だけが 永世名人に なれます。' : rk.next ? rk.name + '   あと ' + rk.left + ' 点で ' + rk.next : rk.tenka ? 'いま 名人。 永世名人へは 天下分け目で 1位' : rk.name; text(rt, 80, yb + 38, fitSz(rt, 21, 570, 13), tkLose ? [255, 200, 150] : YEL); }
       if (rk.capped) { text('修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。', 80, yb + 64, 16, YEL); } else
       if (rk.avg != null) text('相手の強さ ★' + rk.avg.toFixed(1) + (Math.abs(rk.mult - 1) >= 0.05 ? '  →  ポイント ×' + rk.mult.toFixed(2) + (rk.mult > 1 ? '(強い相手ボーナス)' : '(弱い相手)') : '(ふつう)'), 80, yb + 66, 16, [200, 225, 205]);
     }
