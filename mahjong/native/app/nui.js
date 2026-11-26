@@ -1652,6 +1652,7 @@
       if (T === '親の点数(ロン)は?') return 'v:q_learn_tensu_oya';
       if (T === '本場の 点数は?') return 'v:q_learn_honba';
       if (T === 'この飜数は、何?') return 'v:q_learn_hansu';
+      if (T === '鳴くと どうなる?') return 'v:q_learn_kui';
       if (p.tag === 'tbl' && /点数|30符/.test(T)) return 'v:q_learn_tensu'; // 子の点数、30符の目安 は「この点数は?」の声(親・本場は、専用の声)
       return 'v:q_learn_' + (p.tag || 'none');
     }
