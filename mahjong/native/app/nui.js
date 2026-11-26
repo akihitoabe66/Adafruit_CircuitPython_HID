@@ -127,7 +127,7 @@
   /* 顔の向き: 右向きの人は下家(右の席)で、左向きの人は上家(左の席)で、左右反転する(正面向きと対面は、そのまま)。番号はキャラクターの番号 */
   const FACE_R = new Set([1, 2, 3, 10, 11, 23, 25, 26, 27, 29, 30]), FACE_L = new Set([4, 5, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 24, 28, 31, 32]); // 6・19は正面向き
   const faceFlip = (ch, seat) => !!ch && ((seat === 1 && FACE_R.has(ch.id)) || (seat === 3 && FACE_L.has(ch.id)));
-  const overlayOn = () => !!(S.menuP || S.soundP || S.teachQ || S.playQ || S.confirmQ || S.resetQ || S.saveP || S.side || S.coach); // 窓・メニューが開いている間は、顔(必ず手前に出る描き方)を、窓の下に描く
+  const overlayOn = () => !!((S.cutin && S.dice) || S.menuP || S.soundP || S.teachQ || S.playQ || S.confirmQ || S.resetQ || S.saveP || S.side || S.coach); // 窓・メニューが開いている間は、顔(必ず手前に出る描き方)を、窓の下に描く
   function face(p, x, y, w, h, low) {
     low = low || overlayOn(); const ch = p.char; const src = skin(p.isHuman ? youSrc() : (MJ.faceSrc ? MJ.faceSrc(ch, faceFlip(ch, p.seat)) : ch.face));
     if (w >= 48 && !low) { fill(x, y, w, h, [90, 110, 100]); gfx.imageTop(src, x, y, w, h); return; } // 大きな顔は、窓の解像度でくっきり描く(縦横の比は、切り取って合わせる)
@@ -959,7 +959,7 @@
     const seatsStatic = () => { stage(); [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, sd === hiSeat, winds(sd), done && sd === d.target ? now - d.revealT : null, 'static')); };
     if (done) seatsStatic(); else cached(2, 'd' + (d.id || 0) + ':' + hiSeat, seatsStatic); // 動かない部分は、1枚の絵にして貼る(サイコロのアニメを、カクつかせないため)
     if (counting && now >= tLast) { const sd = hiSeat, x = DPOS[sd][0], y = DPOS[sd][1], pu = 0.5 + 0.5 * Math.sin((now - tLast) / 80); rrect(x - 14, y - 14, 108, 108, 12, [255, 190, 30], Math.round(50 + 120 * pu)); } /* 最後の席で止まっている間: 光が脈打つ(アニメ案どおり) */
-    if (!S.cutin) [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, false, '', done && sd === d.target ? now - d.revealT : null, 'face')); // 決戦のカットインのあいだは、ほかの顔(必ず手前に出る描き方)を 出さない
+    [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, false, '', done && sd === d.target ? now - d.revealT : null, 'face')); // 決戦のカットインのあいだは、顔を 手前に出さない描き方(overlayOn)で 描く: カットインの下に、うっすら 見える
     if (!d.pat) d.pat = DICEPAT[Math.floor(Math.random() * DICEPAT.length)]; // 転がり方は、数種類から ランダムに
     if (d.started && d.rolling && (d.vt - d.rt0) * 24 / 1000 >= d.pat.n + 2) { d.rolling = false; d.settled = true; d.t1 = now; }
     const big = rt > 1500; // 「東一局」「勝負!」のあいだは、サイコロと案内の帯を消して、そのまま中央に大きく出す(画面は切り替えない)
@@ -976,7 +976,7 @@
     if (globalThis.__nodice && globalThis.__shotDir && !d._snapped) { d._snapped = 1; gfx.snap(globalThis.__shotDir + '/dicefull.bmp'); } // 試験用
     if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
     if (g.tenka) { // 天下分け目: 上に「1位で 永世名人」の帯。 家康と黄門が、あなたに向かって、決戦のひとこと(声は あれば 鳴らす)
-      rrect(SW / 2 - 190, 3, 380, 25, 8, [190, 40, 40]); text('天下分け目  ―  1位で 永世名人!', SW / 2, 5, 18, WHITE, 1);
+      rrect(8, 6, 252, 24, 8, [190, 40, 40]); text('天下分け目 ― 1位で 永世名人!', 134, 8, 16, WHITE, 1); // 左上(上の席の顔と 光の枠に かぶらない場所)
     }
     if (d.started || true) dirty();
   }
@@ -2096,9 +2096,9 @@
     const order = ps.slice(); order.sort((a, b) => b.score - a.score); const me = order.splice(order.findIndex((x) => x.isHuman), 1)[0]; order.splice(rank - 1, 0, me); order.forEach((p, i) => { p.score = [37200, 33400, 15000, 14400][i]; });
     const f = { results: order.map((p, i) => ({ p, rank: i + 1, score: p.score })), yaki: null }; const rk = { delta: delta == null ? 8 : delta, name: '名人', next: null, tenka: true, left: 0, avg: 9, mult: 1, msg: null, capped: false, tkBeat: beat || [], tk: beat ? (beat.length > 1 ? { 1: 1, 7: 1 } : { [beat[0]]: 1 }) : {} };
     S.mode = 'menu'; S.end = Object.assign({}, f, { rk, tenka: !!tk, done: () => { S.end = null; dirty(); } }); dirty(); return true; };
-  window.__tenkaDice = () => { // 試験用: 天下分け目の「決戦のカットイン → サイコロ」を、すぐ出す
+  window.__tenkaDice = (a, b) => { // 試験用: 天下分け目の「決戦のカットイン → サイコロ」を、すぐ出す
     const C = (id) => MJ.CHARS.find((c) => c.id === id), ids = [0, 1, 7, 4]; const ps = ids.map((id, i) => ({ seat: i, name: i === 0 ? 'あなた' : C(id).short, char: C(id), isHuman: i === 0, score: 25000, level: 0 }));
-    const g = { tenka: true, players: ps, fast: false, kyokuLabel: () => '東一局 東風戦', dealer: 0, practice: false, stopped: false }; S.game = g; S.mode = 'menu'; ui.dice(g, true).then(() => { S.dice = null; dirty(); }); return true; };
+    const g = { tenka: true, players: ps, fast: false, kyokuLabel: () => '東一局 東風戦', dealer: 0, practice: false, stopped: false }; S.game = g; S.mode = 'menu'; ui.dice(g, true).then(() => { S.dice = null; dirty(); }); if (a && S.dice) { S.dice.a = a; S.dice.b = b; S.dice.target = (a + b - 1) % 4; } return true; };
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   /* ---------- リセット(デバッグ用): ゲームを はじめから。 音量・ルール・麻雀先生などの「設定」は残し、成績・段位・雀士・ビデオ・勉強・途中のセーブを消す ---------- */
   const KEEP_PREF = ['mj_vol_', 'mj_teacher', 'mj_dmark', 'mj_swapab', 'mj_cpuspeed', 'mj_rules', 'mj_padid', 'mj_orient', 'mj_perf', 'mj_winfx', 'mj_you', 'mj_think', 'mj_danger_', 'mj_banter'];
