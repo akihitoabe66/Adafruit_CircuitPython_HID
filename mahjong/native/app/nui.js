@@ -437,8 +437,8 @@
   function cutinEnd() { const C = S.cutin; if (!C) return; S.cutin = null; dirty(); try { C.res(); } catch (e) { /* ignore */ } }
   function drawCutin() {
     const C = S.cutin; { const nw = __now(); if (!C.n) { C.n = 1; C.t0 = nw; C.f0 = nw; } else if (C.n === 1) { C.n = 2; if (nw - C.f0 > 400) C.t0 = nw - 120; } /* 時計は、最初に描いたときから数える */ } /* 最初の1コマが重くて止まったときは、そのぶんの時間を使わない(カットインが、見えないまま 終わらないように) */
-    const t = __now() - C.t0; if (t >= CI_T) { cutinEnd(); return; }
-    const K = CI_COL[C.ci.tsumo ? 'tsumo' : 'ron'], inn = ciEase(t / 340), out = t > 2400 ? ciEase((t - 2400) / 400) : 0, dimA = Math.round(140 * Math.min(1, t / 250) * (1 - out));
+    const DUR = C.ci.dur || CI_T, t = __now() - C.t0; if (t >= DUR) { cutinEnd(); return; }
+    const K = CI_COL[C.ci.tsumo ? 'tsumo' : 'ron'], inn = ciEase(t / 340), out = t > DUR - 400 ? ciEase((t - (DUR - 400)) / 400) : 0, dimA = Math.round(140 * Math.min(1, t / 250) * (1 - out));
     gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], dimA); gfx.image('img/cutin_' + (C.ci.tsumo ? 'tsumo' : 'ron') + '.webp', 0, 0, SW, SH, Math.round(220 * Math.min(1, t / 250) * (1 - out)));
     const bx = Math.round(-SW * (1 - inn) - SW * out), by = 170;
     fill(bx, by, SW, 128, K.band); fill(bx, by + 4, SW, 20, [20, 12, 6], 150); fill(bx, by + 104, SW, 20, [20, 12, 6], 150); fill(bx, by, SW, 4, K.edge); fill(bx, by + 124, SW, 4, K.edge);
@@ -2867,7 +2867,7 @@
       if (hold) (async () => { /* 天下分け目: サイコロの画面(4人の顔)を出したまま、「天下分け目の決戦なのだ!」の声 → 黄門と家康が あなたに向かって 決戦のひとこと(カットイン) → そのあと サイコロを振る */
         const d0 = S.dice; try { if (NSND.has('v:tenkawake')) NSND.speak(['v:tenkawake']); } catch (e) { /* ignore */ } await sleep(Math.max(1500, Math.round((NSND.klen('v:tenkawake') || 0) * 1000) + 300));
         for (const k of [{ id: 1, v: 'v:tk_koumon', lines: ['いざ尋常に勝負じゃ!', '天下分け目の一戦、手加減は無用じゃぞ。'] }, { id: 7, v: 'v:tk_ieyasu', lines: ['相手にとって不足なし!', '鳴くまで待とう、勝負の時を。'] }]) {
-          if (g.stopped || S.dice !== d0) break; const p = g.players.find((q) => q.char && q.char.id === k.id); if (!p) continue; try { if (NSND.has(k.v)) NSND.speak([k.v]); } catch (e) { /* ignore */ } await cutinShow(g, { p, text: k.lines.join(' '), lines: k.lines, tsumo: false, big: true, gyaku: true }); }
+          if (g.stopped || S.dice !== d0) break; const p = g.players.find((q) => q.char && q.char.id === k.id); if (!p) continue; try { if (NSND.has(k.v)) NSND.speak([k.v]); } catch (e) { /* ignore */ } await cutinShow(g, { p, text: k.lines.join(' '), lines: k.lines, tsumo: false, big: true, gyaku: true, dur: Math.max(3200, Math.round((NSND.klen(k.v) || 0) * 1000) + 700) }); }
         if (S.dice === d0) { d0.hold = false; d0.t00 = 0; dirty(); } })(); }); },
     askSelf(g, p, opts, st) {
       (S.thT || []).forEach(clearTimeout); S.thT = []; // 悩んでいるとき: 30秒・60秒・120秒、それ以降は3分ごとに、CPUがひとこと(Edge版と同じ)
