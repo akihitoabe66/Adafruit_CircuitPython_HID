@@ -944,7 +944,7 @@
     const d = S.dice, g = S.game, now = __now();
     const dtf = d._ln ? now - d._ln : 0; d._ln = now; { const cl = (d.vstr || 0) < 1200 ? Math.min(dtf, 50) : dtf; d.vstr = (d.vstr || 0) + (dtf - cl); d.vt = (d.vt || 0) + cl; } // 動きの時計: 1コマが重くても、50msぶんしか進めない(最初の数コマが飛んで、いきなり終わりに見えるのを防ぐ)
     if (!d.t00) d.t00 = now; if (d._ln2 !== undefined) d.calm = dtf < 80 ? (d.calm || 0) + 1 : 0; d._ln2 = 1; // 画面の描きが安定する(軽い コマが 続く)まで、転がしはじめを待つ(最長2.5秒)
-    if (!d.started && d.vt > 600 && ((d.calm || 0) >= 5 || now - d.t00 > 2500)) { d.started = true; d.rolling = true; d.t0 = now; d.rt0 = d.vt; NSND.sfx('deal4'); }
+    if (!d.started && !d.hold && d.vt > 600 && ((d.calm || 0) >= 5 || now - d.t00 > 2500)) { d.started = true; d.rolling = true; d.t0 = now; d.rt0 = d.vt; NSND.sfx('deal4'); }
     const total = d.a + d.b, cStart = d.t1 + 700, cStep = 380, tLast = cStart + (total - 1) * cStep, CD_HOLD = 900, revealAt = tLast + CD_HOLD; // 最後の席(数字は「1」)に光が着いたら、CD_HOLD(0.9秒)そこで止まって脈打ち、そのあと親が大きく出る
     const P = g.players, counting = d.settled && now >= cStart && now < revealAt, done = d.settled && now >= revealAt;
     if (done && !d.revealT) { d.revealT = now; NSND.sfx('start', 0.8); NSND.sfx('slam', 0.8); }
@@ -965,12 +965,12 @@
     const big = rt > 1500; // 「東一局」「勝負!」のあいだは、サイコロと案内の帯を消して、そのまま中央に大きく出す(画面は切り替えない)
     if (!big && d.settled && !done) { const left = counting ? total - step + 1 : total; text(String(left), 595, 150, CD_SZ, CD_COL, 1); } /* 親決めのカウントダウン: 出た目の合計を、サイコロの右横に うすく出し、光が1つ進むごとに 1ずつ減らす(1になった席が親)。 15%の濃さ(背景と白を混ぜた色) */
     if (!big) {
-      gfx.fillTop(190, 262, 452, 32, 0, 0, 0, 190); const T2 = (str, y, sz2, c) => gfx.textTop(str, SW / 2, y, sz2, c[0], c[1], c[2], 1);
-      if (!d.started) T2('サイコロを振ります  (Aボタンで スキップ)', 267, 20, YEL);
+      if (!d.hold) gfx.fillTop(190, 262, 452, 32, 0, 0, 0, 190); const T2 = (str, y, sz2, c) => gfx.textTop(str, SW / 2, y, sz2, c[0], c[1], c[2], 1);
+      if (d.hold) { /* カットインのあいだは 帯を出さない */ } else if (!d.started) T2('サイコロを振ります  (Aボタンで スキップ)', 267, 20, YEL);
       else if (d.rolling) T2('…', 267, 22, WHITE);
       else if (!done) T2('合計 ' + total + ' …  あなたから 左回りに 数えます', 268, 19, WHITE);
       else T2(P[d.target].name + ' が 親です', 265, 24, YEL);
-      if (!globalThis.__nodice) drawDice2(d, now); // サイコロは、黒い帯より上を通る(最後に描く) // サイコロは、黒い帯より上を通る(最後に描く)
+      if (!globalThis.__nodice && !d.hold) drawDice2(d, now); // サイコロは、黒い帯より上を通る(最後に描く) // サイコロは、黒い帯より上を通る(最後に描く)
     } else if (!d.v2) { const k = Math.min(1, (rt - 1500) / 160), sz2 = k < 0.5 ? 96 : 78; fill(240, 192, 352, 104, [0, 0, 0], 200); text(g.kyokuLabel().split(' ')[0], SW / 2, 244 - sz2 / 2, sz2, YEL, 1); }
     else { const k = Math.min(1, (rt - T2) / 160), sz2 = k < 0.5 ? 110 : 90; fill(240, 192, 352, 104, [0, 0, 0], 200); [[-3, 0], [3, 0], [0, -3], [0, 3]].forEach((dd) => text('勝負!', SW / 2 + dd[0], 244 - sz2 / 2 + dd[1], sz2, [255, 255, 255], 1)); text('勝負!', SW / 2, 244 - sz2 / 2, sz2, [225, 40, 30], 1); }
     if (globalThis.__nodice && globalThis.__shotDir && !d._snapped) { d._snapped = 1; gfx.snap(globalThis.__shotDir + '/dicefull.bmp'); } // 試験用
@@ -2580,6 +2580,7 @@
     if (S.intro) { if (k === 'ok' && !__auto) S.intro.t0 -= 3000; return; }
     if (S.dice) {
       const d = S.dice;
+      if (d.hold) return; // 決戦のカットインのあいだは、サイコロの画面を 見せるだけ(キーは 受けない)
       if (k === 'ok') { const now = __now(), total = d.a + d.b; if (!d.revealT) { d.started = true; d.rolling = false; d.settled = true; d.t1 = now - 700 - (total - 1) * 380 - 1; } else if (now - d.revealT > 700 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); } } // Aボタン: サイコロを飛ばして、親が決まった画面へ。そこでもう一度で、先へ
       return;
     }
@@ -2851,11 +2852,13 @@
       return sleep(bms + DEAL_END + 80);
     },
     padHand() {},
-    dice(g, first) { if (g.fast) return Promise.resolve(null); tl('dice-start'); let pre = Promise.resolve(); if (g.tenka && first) { /* 天下分け目: 「天下分け目の決戦なのだ!」の声のあと、黄門と家康が あなたに向かって 決戦のひとこと(カットイン)。 そのあと サイコロ */
-      pre = (async () => { try { if (NSND.has('v:tenkawake')) NSND.speak(['v:tenkawake']); } catch (e) { /* ignore */ } await sleep(Math.max(1500, Math.round((NSND.klen('v:tenkawake') || 0) * 1000) + 300));
+    dice(g, first) { if (g.fast) return Promise.resolve(null); tl('dice-start'); return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6), hold = !!(g.tenka && first);
+      S.dice = { id: (S.diceSeq = (S.diceSeq || 0) + 1), a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, hold, done: (tg) => { g.dealer = tg; S.skipBanner = true; S.skipKyokuVoice = true; done(tg); } }; dirty();
+      if (hold) (async () => { /* 天下分け目: サイコロの画面(4人の顔)を出したまま、「天下分け目の決戦なのだ!」の声 → 黄門と家康が あなたに向かって 決戦のひとこと(カットイン) → そのあと サイコロを振る */
+        const d0 = S.dice; try { if (NSND.has('v:tenkawake')) NSND.speak(['v:tenkawake']); } catch (e) { /* ignore */ } await sleep(Math.max(1500, Math.round((NSND.klen('v:tenkawake') || 0) * 1000) + 300));
         for (const k of [{ id: 1, v: 'v:tk_koumon', lines: ['いざ尋常に勝負じゃ!', '天下分け目の一戦、手加減は無用じゃぞ。'] }, { id: 7, v: 'v:tk_ieyasu', lines: ['相手にとって不足なし!', '鳴くまで待とう、勝負の時を。'] }]) {
-          if (g.stopped) return; const p = g.players.find((q) => q.char && q.char.id === k.id); if (!p) continue; try { if (NSND.has(k.v)) NSND.speak([k.v]); } catch (e) { /* ignore */ } await cutinShow(g, { p, text: k.lines.join(' '), lines: k.lines, tsumo: false, big: true, gyaku: true }); } })(); }
-    return pre.then(() => new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { id: (S.diceSeq = (S.diceSeq || 0) + 1), a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done: (tg) => { g.dealer = tg; S.skipBanner = true; S.skipKyokuVoice = true; done(tg); } }; dirty(); })); },
+          if (g.stopped || S.dice !== d0) break; const p = g.players.find((q) => q.char && q.char.id === k.id); if (!p) continue; try { if (NSND.has(k.v)) NSND.speak([k.v]); } catch (e) { /* ignore */ } await cutinShow(g, { p, text: k.lines.join(' '), lines: k.lines, tsumo: false, big: true, gyaku: true }); }
+        if (S.dice === d0) { d0.hold = false; d0.t00 = 0; dirty(); } })(); }); },
     askSelf(g, p, opts, st) {
       (S.thT || []).forEach(clearTimeout); S.thT = []; // 悩んでいるとき: 30秒・60秒・120秒、それ以降は3分ごとに、CPUがひとこと(Edge版と同じ)
       if (!p.riichi && !g.fast && MJ.Banter) { const say = (i) => { if (S.self && S.self.p === p && S.game === g) { try { MJ.Banter.think(g, i); } catch (e) { /* ignore */ } } }; S.thT = [30, 60, 120].map((sec, i) => setTimeout(() => say(i), sec * 1000)); const loop = () => { say(3); S.thT.push(setTimeout(loop, 180000)); }; S.thT.push(setTimeout(loop, 180000)); }
@@ -3099,7 +3102,7 @@
     if (S.reveal) { gfx.view(0, 0); drawReveal(); return true; }
     if (S.rankScr) { drawRankScreen(); gfx.view(0, 0); return true; }
     if (S.intro && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawIntro(); return true; }
-    if (S.dice && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawDice(); return true; }
+    if (S.dice && S.game) { S.vx = 0; S.vy = 0; gfx.view(0, 0); drawDice(); if (S.cutin) drawCutin(); /* 天下分け目: サイコロの画面の上に 決戦のカットイン */ return true; }
     S.vx = 56; S.vy = 20; gfx.view(56, 20); // 以降の板(メニューなど)は、画面の中央に
     if (S.saveNote && S.saveNote.until > __now() && !S.saveP) { // 自動セーブの知らせ: 画面の左下に、小さく
       gfx.view(0, 0); const w = 170, x = 8, y = SH - 26; rrect(x, y, w, 22, 5, [0, 0, 0], 170); text(S.saveNote.text, x + w / 2, y + 1, 16, S.saveNote.text === 'セーブしました' ? [190, 235, 200] : [255, 160, 140], 1); gfx.view(S.vx, S.vy);
