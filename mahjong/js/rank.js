@@ -19,7 +19,7 @@
   MJ.effFloor = (dan) => MJ.EFF_FLOOR[Math.max(0, Math.min(11, dan | 0))];
   MJ.effLevel = (lv, dan) => Math.max(lv, MJ.effFloor(dan));
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
-  const base = () => ({ hist: [], pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '', dan: 0, maxdan: 0, v: 2, qc: 0, qday: '', qpt: 0, st: {}, ease: 0 });
+  const base = () => ({ hist: [], pt: 0, games: 0, ranks: [0, 0, 0, 0], opp: {}, day: '', dan: 0, maxdan: 0, v: 2, qc: 0, qday: '', qpt: 0, st: {}, ease: 0, tk: {} });
   /* 不調の目安(この段位での直近5局。修行はのぞく): 順位の合計が17以上=2(2段ぶん)、19以上=4(4段ぶん)。 4位が4連続でも4。 5局たまるまでは0 */
   const easeTarget = (s) => {
     const h = (s.hist || []).filter((x) => x.d === s.dan && !x.t), l5 = h.slice(-5), l4 = h.slice(-4);
@@ -57,7 +57,7 @@
     /* DEBUG-END */
     info() {
       const s = R.get(), i = s.dan, nxt0 = DAN[i + 1], tenka = !!nxt0 && nxt0[1] >= 99999, nxt = tenka ? null : nxt0; // 名人の先の「永世名人」は、点では なれない(天下分け目で 1位)ので、点の目標は 出さない
-      return { tenka, s, i, base: DAN[i][1], next_pt: nxt ? nxt[1] : 0, name: DAN[i][0], next: nxt ? nxt[0] : null, left: nxt ? Math.max(0, nxt[1] - s.pt) : 0, prog: nxt ? Math.max(0, Math.min(1, (s.pt - DAN[i][1]) / (nxt[1] - DAN[i][1]))) : 1 };
+      return { tenka, tk: s.tk || {}, s, i, base: DAN[i][1], next_pt: nxt ? nxt[1] : 0, name: DAN[i][0], next: nxt ? nxt[0] : null, left: nxt ? Math.max(0, nxt[1] - s.pt) : 0, prog: nxt ? Math.max(0, Math.min(1, (s.pt - DAN[i][1]) / (nxt[1] - DAN[i][1]))) : 1 };
     },
     label() { return R.info().name; },
     /* 対局が最後まで終わったとき。東風戦・東南戦だけを数える。結果(もらった点・段位の変わり方)を返す。数えない対局は null */
@@ -74,6 +74,12 @@
       if (tr) { const want = delta > 0 ? Math.max(1, Math.round(delta / 2)) : 0, nx = DAN[s.dan + 1], room = nx ? Math.max(0, nx[1] - 1 - s.pt) : want; delta = Math.min(want, room); capped = !!nx && (room === 0 || delta < want); /* 上限にいる(これ以上 増えない) */ note = capped ? '' : '修行の対局(ポイント半分)'; }
       s.hist = (s.hist || []).concat({ p: delta, r: me.rank, o: avg == null ? null : Math.round(avg * 10) / 10, d: s.dan, t: tr ? 1 : 0 }).slice(-30); // d=その対局のときの段位 t=修行
       const ch = addPt(s, delta); s.games++;
+      /* 名人のあいだ: 徳川家康(7)・水戸黄門(1)に「その人より上の順位」で勝ったら、その人を倒した記録(2人とも倒すと、天下分け目が出るようになる。解放のあとの最初の1回は、かならず天下分け目) */
+      const tkBeat = []; s.tk = s.tk || {};
+      if (ch.before === DAN.length - 2 && !tr) {
+        final.results.forEach((r) => { const id = r.p.char && r.p.char.id; if ((id === 1 || id === 7) && me.rank < r.rank && !s.tk[id]) { s.tk[id] = 1; tkBeat.push(id); } });
+        if (tkBeat.length && s.tk[1] && s.tk[7]) s.tk.fresh = 1; else if (game.tenka && s.tk.fresh) delete s.tk.fresh;
+      }
       if (!tr) { const tg = easeTarget(s), cu = s.ease || 0; s.ease = ch.after !== ch.before ? 0 : tg >= cu ? tg : Math.max(tg, cu - 1); } // やさしさ: 上がるのは すぐ、戻るのは 1局ごとに 1段ずつ(階段)。 昇段・降段で リセット s.ranks[me.rank - 1]++;
       if (game.tenka && me.rank === 1 && ch.after === DAN.length - 2) { s.dan = DAN.length - 1; s.maxdan = DAN.length - 1; ch.after = DAN.length - 1; } // 天下分け目(名人+徳川家康+水戸黄門)で 1位 → 永世名人
       final.results.forEach((r) => {
@@ -83,7 +89,7 @@
       });
       save(RK, s);
       const f = R.info();
-      return { delta, avg, mult, pt: s.pt, name: f.name, next: f.next, tenka: f.tenka, left: f.left, from: ch.before, to: ch.after, promoted: ch.after > ch.before, demoted: ch.after < ch.before, msg: tr ? note : msgOf(ch), train: tr, capped, dan: ch.after > ch.before ? DAN[ch.after][0] : null };
+      return { delta, avg, mult, pt: s.pt, name: f.name, next: f.next, tenka: f.tenka, left: f.left, from: ch.before, to: ch.after, promoted: ch.after > ch.before, demoted: ch.after < ch.before, msg: tr ? note : msgOf(ch), train: tr, capped, dan: ch.after > ch.before ? DAN[ch.after][0] : null, tkBeat, tk: Object.assign({}, s.tk) };
     },
     /* 次の対局の「やさしさ」: 何段ぶん下の相手にするか(0=ふつう 〜4)。 record() が、不調ならすぐ上げ、よくなったら 1局ごとに 1段ずつ下げる */
     ease() { return Math.max(0, Math.min(4, R.get().ease || 0)); },

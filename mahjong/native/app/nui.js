@@ -1119,7 +1119,7 @@
   const MAP_SAY_BASE = [ // 段位ごとの、ずんだもんの ひとこと(その段位に 着いたとき)。 ★録音(audio/yk/m_*.mp3 など)の あるセリフは、録音と同じ文章。 かってに 変えない
     'ここは 肥後国、熊本。ぼくの 麻雀の旅が はじまるのだ!', '初段! 筑前国、福岡で 腕だめしなのだ。博多ラーメンが 食べたいのだ', '二段! 海を わたって 讃岐国へ。うどんが おいしそうなのだ', '三段! 安芸国、広島に とうちゃく。強い相手が ふえてきたのだ',
     '四段! 山城国、京の都なのだ。人が いっぱいなのだ', '五段! 摂津国、大阪に 来たのだ。やっと 一人前なのだ', '六段! 信濃国、長野の 山あいなのだ。空気が おいしいのだ', '七段! 北の 越後国、新潟まで 来たのだ。海が きれいなのだ',
-    '八段! 遠い 奥州まで 来たのだ。寒いけど 負けないのだ', '九段! 駿河国、静岡に とうちゃく。富士山が 目の前なのだ', '名人! 江戸に とうちゃく! 江戸の名人たちとの「天下分け目」で 1位なら 永世名人!', '永世名人! ここ江戸で 天下統一なのだ!'];
+    '八段! 遠い 奥州まで 来たのだ。寒いけど 負けないのだ', '九段! 駿河国、静岡に とうちゃく。富士山が 目の前なのだ', '名人! 江戸に とうちゃく! 江戸の名人 2人を 倒して、永世名人を めざすのだ!', '永世名人! ここ江戸で 天下統一なのだ!'];
   const MAP_PLACE_BASE = ['肥後国(熊本)', '筑前国(福岡)', '讃岐国(香川)', '安芸国(広島)', '山城国(京都)', '摂津国(大阪)', '信濃国(長野)', '越後国(新潟)', '奥州', '駿河国(静岡)', '江戸(東京)', '江戸(東京)'];
   const MAP_SETS = [ // 道すじは 2通り(ふだんは 1=おすすめ)(隠しコマンドの演出テストで 切りかえて 見られる)。 0=赤い線どおり 1=おすすめ(伊勢あり)
     { say: MAP_SAY_BASE, place: MAP_PLACE_BASE },
@@ -1221,10 +1221,10 @@
     if (uiOn) { gfx.image(skin('img/zunda/01.webp'), 32, 413, 44, 44, 255); frame(31, 412, 46, 46, [120, 84, 40], 2); text('ずんだもん', 100, 410, 14, [120, 84, 40]); }
     const walkMsg = (d) => d === 10 ? '天下統一を めざすため 江戸へ テクテク…' : MAP_SETS[M.ms].place[d] + 'を めざすため テクテク…'; // いま歩いている「行き先」の話(その土地の名前)
     let msg; if (M.congrats) msg = '天下統一なのだ! ぼくが 永世名人 なのだ!'; else if (t < (M.base || MAP_T.slide + MAP_T.hold)) msg = M.from === 0 || !M.steps.length ? MAP_SETS[M.ms].say[M.from] : walkMsg(M.steps[0].d); /* はじめは、前の段位のセリフを出さない(最初の一歩の ひとこと。 無段のときだけ、旅のはじまりのセリフ) */ else if (walking) msg = M.back ? (M.capSay ? '修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。' : '他の街に戻って、修行し直すのだ！') : walkMsg(M.view && M.go != null ? M.go : M.steps[stepIdx].d); /* 録音のある文章(下の街へ戻るとき) */ else msg = MAP_SETS[M.ms].say[M.view && M.go == null ? M.sel : curDan];
-    if (M.here) { try { const f = MJ.Rank.info(), tn = townName(M.from); msg = f.tenka ? '名人、江戸に いるのだ。 江戸の名人たちとの「天下分け目」で 1位なら 永世名人なのだ!' : 'いまは ' + f.name + '、' + tn + 'に いるのだ。'; if (M.from === 0 && !(f.s && f.s.games > 0)) msg = 'ここから 旅が はじまるのだ。熊本から 江戸を めざすのだ!';
+    if (M.here) { try { const f = MJ.Rank.info(), tn = townName(M.from); msg = f.tenka ? tkMapMsg(f.tk || {}) : 'いまは ' + f.name + '、' + tn + 'に いるのだ。'; if (M.from === 0 && !(f.s && f.s.games > 0)) msg = 'ここから 旅が はじまるのだ。熊本から 江戸を めざすのだ!';
       if (uiOn && (f.next || f.tenka)) { const w0 = 300, h0 = 78, x0 = SW - w0 - 16, y0 = 326; panel(x0, y0, w0, h0, 12, [14, 44, 30], [255, 214, 70], 3, 242); // 下の ひとこと枠(y=418〜)には かぶせない
         if (f.next) { text('つぎの 街まで', x0 + 14, y0 + 6, 15, [255, 236, 170]); text(townName(M.from + 1) + '(' + f.next + ')', x0 + w0 - 14, y0 + 6, 15, WHITE, 2); text('あと', x0 + 14, y0 + 32, 20, WHITE); text(String(f.left), x0 + 136, y0 + 18, 42, [255, 214, 70], 1); text('点', x0 + 196, y0 + 32, 22, WHITE); rrect(x0 + 14, y0 + 66, w0 - 28, 6, 3, [10, 28, 20]); rrect(x0 + 14, y0 + 66, Math.max(6, Math.round((w0 - 28) * f.prog)), 6, 3, [255, 214, 70]); }
-        else { text('天下分け目で 1位なら', x0 + w0 / 2, y0 + 8, 20, WHITE, 1); text('永世名人!', x0 + w0 / 2, y0 + 34, 34, [255, 214, 70], 1); } } } catch (e) { /* ignore */ } } // 対局の前の「いまここ」: 場所と、つぎの街までの点(大きく)
+        else { const tk = f.tk || {}; if (tk[1] && tk[7]) { text('天下分け目で 1位なら', x0 + w0 / 2, y0 + 8, 20, WHITE, 1); text('永世名人!', x0 + w0 / 2, y0 + 34, 34, [255, 214, 70], 1); } else { text('名人の 2人を 倒そう', x0 + w0 / 2, y0 + 6, 19, WHITE, 1); [[7, -52], [1, 12]].forEach((a) => { const bx = x0 + w0 / 2 + a[1], by = y0 + 28; rrect(bx - 1, by - 1, 42, 44, 5, tk[a[0]] ? [255, 214, 70] : [110, 120, 110]); gfx.image(tk[a[0]] ? skin((MJ.CHARS.find((c) => c.id === a[0]) || {}).face) : 'img/sil/' + ('0' + a[0]).slice(-2) + '.webp', bx + 1, by + 1, 38, 40, 255); if (tk[a[0]]) text('済', bx + 38, by + 26, 16, [255, 214, 70], 1); }); } } } } catch (e) { /* ignore */ } } // 対局の前の「いまここ」: 場所と、つぎの街までの点(大きく)
     if (M.intro && t >= M.intro.G) { msg = '江戸で 名人を倒し、天下統一するのだ!'; if (!M.intro.v) { M.intro.v = true; try { NSND.speak(['v:tenka']); } catch (e) { /* ignore */ } } } // 旅のはじまり: 二つめの一言(声つき)
     if (uiOn) text(msg, 100, 430, fitSz(msg, 24, 690, 15), [60, 40, 20]);
     if (!walking && M.go == null && !M.congrats && curDan < 11 && M.vd !== curDan) { M.vd = curDan; const pk = 'm:' + MAP_SETS[M.ms].place[curDan].split('(')[0]; if (NSND.has(pk)) { const wt = Math.max(0, (M.vUntil || 0) - __now()) + 150, tk = M; setTimeout(() => { if (S.map === tk && !tk.go) { const dd = NSND.speak([pk]) || 0; tk.vUntil = __now() + dd * 1000; } }, wt); } } // その土地に着いたとき、ずんだもんの声(録音がある土地だけ)
@@ -1475,6 +1475,16 @@
       { const bt = r.before[i] + ' → ' + r.after[i]; text(bt, x + 10, y0 + 29, fitSz(bt, 20, 150, 13), GREY); } text(dt, x + 158, y0 + 4, 18, d > 0 ? [120, 230, 140] : d < 0 ? RED : GREY, 2);
     });
   }
+  const tkName = (id) => { const c = MJ.CHARS.find((x) => x.id === id); return c ? c.short : ''; };
+  function tkBeatMsg(rk) { // 名人の2人を倒した知らせ(ずんだもん口調)
+    const tk = rk.tk || {}; if (tk[1] && tk[7]) return '2人を 倒したのだ! つぎは 天下分け目! 1位で 永世名人なのだ!';
+    const b = rk.tkBeat[0], o = b === 7 ? 1 : 7; return '名人の' + tkName(b) + 'を 倒したのだ! つぎは 名人の' + tkName(o) + 'なのだ!';
+  }
+  function tkMapMsg(tk) { // 名人の地図(江戸)のひとこと: 2人を倒していく道すじ
+    if (tk[1] && tk[7]) return '2人を 倒したのだ! つぎは 2人そろう「天下分け目」で 1位なのだ!';
+    if (tk[1] || tk[7]) { const b = tk[7] ? 7 : 1, o = b === 7 ? 1 : 7; return '名人の' + tkName(b) + 'を 倒したのだ! つぎは 名人の' + tkName(o) + 'なのだ!'; }
+    return '名人、江戸に いるのだ。 江戸の名人 2人を 倒して、永世名人を めざすのだ!';
+  }
   function drawEnd(f) {
     gfx.clear(32, 74, 60); fill(0, 0, 720, 428, [36, 80, 64], 255); fill(0, 0, 720, 58, [10, 58, 38]); fill(0, 58, 720, 3, [230, 190, 70]);
     text('対局終了', 360, 8, 40, YEL, 1);
@@ -1498,7 +1508,7 @@
       rrect(60, yb, 600, 92, 8, tkLose ? [64, 34, 30] : [10, 58, 38]);
       const d = rk.delta, col = tkLose ? [170, 180, 170] : d > 0 ? [140, 240, 150] : d < 0 ? [255, 130, 120] : WHITE;
       text('段位ポイント', 80, yb + 8, tkLose ? 20 : 24, tkLose ? [190, 200, 190] : WHITE); text((d > 0 ? '+' : '') + d + ' 点', 290, yb + (tkLose ? 7 : 5), tkLose ? 26 : 32, col);
-      { const rt = rk.msg ? rk.msg.replace('🎉 ', '') : tkLose ? 'おしい! 天下分け目は 1位だけが 永世名人です' : rk.next ? rk.name + '   あと ' + rk.left + ' 点で ' + rk.next : rk.tenka ? 'いま 名人。 永世名人へは 天下分け目で 1位' : rk.name; text(rt, 80, yb + 38, fitSz(rt, 21, 570, 13), tkLose ? [255, 200, 150] : YEL); }
+      { const rt = rk.tkBeat && rk.tkBeat.length ? tkBeatMsg(rk) : rk.msg ? rk.msg.replace('🎉 ', '') : tkLose ? 'おしい! 天下分け目は 1位だけが 永世名人です' : rk.next ? rk.name + '   あと ' + rk.left + ' 点で ' + rk.next : rk.tenka ? 'いま 名人。 永世名人へは 天下分け目で 1位' : rk.name; text(rt, 80, yb + 38, fitSz(rt, 21, 570, 13), tkLose ? [255, 200, 150] : YEL); }
       if (rk.capped) { text('修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。', 80, yb + 64, 16, YEL); } else
       if (rk.avg != null) text('相手の強さ ★' + rk.avg.toFixed(1) + (Math.abs(rk.mult - 1) >= 0.05 ? '  →  ポイント ×' + rk.mult.toFixed(2) + (rk.mult > 1 ? '(強い相手ボーナス)' : '(弱い相手)') : '(ふつう)'), 80, yb + 66, 16, [200, 225, 205]);
     }
@@ -2081,10 +2091,10 @@
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, dice: !!S.dice, ros: S.ros ? [S.ros.sel, (S.ros.pick || []).length, S.ros.menu ? S.ros.menu.idx : -1] : null, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
   window.__winRvDemo = (sd) => { const g = S.game; if (!g) return false; const p = g.players[sd == null ? 2 : sd], tl = p.hand.slice().sort((a, b) => a.t - b.t); S.bub = {}; S.winRv = { ws: [{ winner: p, view: { concealed: tl.slice(0, 13) }, winTile: tl[13] || tl[0] }], t0: __now(), res() {} }; NSND.sfx('hand_open'); dirty(); return true; }; // 試験用: CPUの手牌を倒して見せる
   window.__riichiDemo = () => { const g = S.game; if (!g) return false; [1, 2, 3].forEach((i) => { g.players[i].riichi = true; }); dirty(); return true; }; // 試験用: 3人ともリーチの見えかた
-  window.__endDemo = (rank, tk, delta) => { // 試験用: 対局終了の画面を、すぐ出す(rank=あなたの順位 tk=天下分け目 delta=段位ポイント)
+  window.__endDemo = (rank, tk, delta, beat) => { // 試験用: 対局終了の画面を、すぐ出す(rank=あなたの順位 tk=天下分け目 delta=段位ポイント)
     const C = (id) => MJ.CHARS.find((c) => c.id === id), ids = [0, 1, 7, 4], sc = [25000, 32000, 28000, 15000]; const ps = ids.map((id, i) => ({ seat: i, name: i === 0 ? 'あなた' : C(id).short, char: C(id), isHuman: i === 0, score: sc[i], level: 0 }));
     const order = ps.slice(); order.sort((a, b) => b.score - a.score); const me = order.splice(order.findIndex((x) => x.isHuman), 1)[0]; order.splice(rank - 1, 0, me); order.forEach((p, i) => { p.score = [37200, 33400, 15000, 14400][i]; });
-    const f = { results: order.map((p, i) => ({ p, rank: i + 1, score: p.score })), yaki: null }; const rk = { delta: delta == null ? 8 : delta, name: '名人', next: null, tenka: true, left: 0, avg: 9, mult: 1, msg: null, capped: false };
+    const f = { results: order.map((p, i) => ({ p, rank: i + 1, score: p.score })), yaki: null }; const rk = { delta: delta == null ? 8 : delta, name: '名人', next: null, tenka: true, left: 0, avg: 9, mult: 1, msg: null, capped: false, tkBeat: beat || [], tk: beat ? (beat.length > 1 ? { 1: 1, 7: 1 } : { [beat[0]]: 1 }) : {} };
     S.mode = 'menu'; S.end = Object.assign({}, f, { rk, tenka: !!tk, done: () => { S.end = null; dirty(); } }); dirty(); return true; };
   window.__tenkaDice = () => { // 試験用: 天下分け目の「決戦のカットイン → サイコロ」を、すぐ出す
     const C = (id) => MJ.CHARS.find((c) => c.id === id), ids = [0, 1, 7, 4]; const ps = ids.map((id, i) => ({ seat: i, name: i === 0 ? 'あなた' : C(id).short, char: C(id), isHuman: i === 0, score: 25000, level: 0 }));
@@ -2988,11 +2998,11 @@
     let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (town != null ? MJ.unlockDan(c.id) <= town : (!ok || !ok.length || ok.includes(c.id)))); const out = [], real = easy ? MJ.CHARS.filter((c) => c.id !== 0 && (!ok || !ok.length || ok.includes(c.id))) : pool; // easy: 新顔は ほんらいの段位の人から、のこり2人だけ やさしく
     let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ } if (town != null) dn = -1; // 修行の街: その時代までの人だけ
     const hbDan = town != null ? town : dn, hb = (c) => (hbDan >= 0 && MJ.unlockDan(c.id) === hbDan ? 1.6 : 1); // その街(段位)で はじめて登場する人は、少し 出やすく(1.6倍)
-    let wantTenka = false; // 名人のあと: 徳川家康と水戸黄門が そろう「天下分け目」は、経験値を ためるほど 出やすく(はじめは出ない)。 ふだんは、どちらか1人が 出やすい(江戸では 5割)
-    if (dn === 10) { const a = pool.find((c) => c.id === 7), b = pool.find((c) => c.id === 1); if (a && b) { let ex = 0; try { ex = (MJ.Rank.get().pt || 0) - 1845; } catch (e) { ex = 0; } let mt = []; try { mt = metLoad(); } catch (e) { mt = []; }
-      const pT = ex < 80 ? 0 : Math.min(0.3, 0.05 + (ex - 80) / 2000), both = mt.includes(1) && mt.includes(7), r = Math.random();
-      if (r < pT) { wantTenka = true; out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); }
-      else if (r < pT + (1 - pT) * 0.5) { const un = [a, b].filter((c) => !mt.includes(c.id)), cand = un.length ? un : [a, b], c = cand[Math.floor(Math.random() * cand.length)]; out.push(c); pool.splice(pool.indexOf(c), 1); } } }
+    let wantTenka = false; // 名人のあと: 徳川家康・水戸黄門は、まず 1人ずつ(5割)。 2人とも倒すと「天下分け目」(2人そろう)が出る(解放のあとの最初の1回は かならず。 そのあとは 4割)
+    if (dn === 10) { const a = pool.find((c) => c.id === 7), b = pool.find((c) => c.id === 1); if (a && b) { let tk = {}; try { tk = MJ.Rank.get().tk || {}; } catch (e) { tk = {}; }
+      const both = !!(tk[1] && tk[7]), r = Math.random();
+      if (both && (tk.fresh || r < 0.4)) { wantTenka = true; out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); }
+      else if (Math.random() < 0.5) { const un = [a, b].filter((c) => !tk[c.id]), cand = un.length ? un : [a, b], c = cand[Math.floor(Math.random() * cand.length)]; out.push(c); pool.splice(pool.indexOf(c), 1); } } }
     let met = []; try { met = metLoad(); } catch (e) { /* ignore */ } const last = S.lastOpp || [], tier = (c) => MJ.unlockDan(c.id), mx = pool.reduce((m, c) => Math.max(m, tier(c)), 0);
     const wpick = (list, wf) => { // 重みつき抽選(同じ時代が重ならないように、前の対局に出た人は出にくく)
       const w = list.map((c) => Math.max(0.01, wf(c) * (last.includes(c.id) ? 0.3 : 1) * (out.some((o) => MJ.eraOf(o.id) === MJ.eraOf(c.id)) ? 0.25 : 1))); let r = Math.random() * w.reduce((a, b) => a + b, 0), i = 0; while (i < list.length - 1 && (r -= w[i]) > 0) i++; const c = list[i]; { const k = pool.indexOf(c); if (k >= 0) pool.splice(k, 1); } out.push(c); };
