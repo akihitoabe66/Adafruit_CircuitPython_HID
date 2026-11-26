@@ -1643,6 +1643,17 @@
   }
   const qEndVoice = () => { try { if (NSND.has('v:otsukare')) NSND.speak(['v:otsukare']); } catch (e) { /* ignore */ } }; // クイズが終わって「おつかれさまでした」の画面になるとき、その声
   const byeQuit = () => { S.bye = { t0: __now() }; dirty(); /* 画面に「ゲーム終了中」の帯を出す(終わるまで、そのまま画面に のこる) */ try { if (NSND.has('v:shutdown')) { NSND.speak(['v:shutdown']); S.locked = true; setTimeout(() => __quit(), 2300); return; } } catch (e) { /* ignore */ } __quit(); }; // 終了を選んだら「ゲームを終了します」と言ってから終わる
+  const qVoiceKey = (p) => { // 問題 → 出題の声の名前(audio/yk/q_*.mp3 の v:q_*)。 声がない種類は、鳴らさない
+    const T = String(p.title || '');
+    if (p.cat === 'score') return 'v:q_score_' + ({ '何飜?': 'han', '何符?': 'fu', '点数はいくつ?': 'points' }[T] || 'none');
+    if (p.cat === 'learn') {
+      if (/何飜\?$/.test(T) && p.tag !== 'han') return 'v:q_score_han'; // 「〇〇は、何飜?」は、点数計算の「何飜?」の声
+      if (T === 'ドラは、どれ?') return 'v:q_learn_dora'; if (T === '手牌の ドラは 何枚?') return 'v:q_learn_dora_count';
+      if (p.tag === 'tbl' && /点数|30符/.test(T)) return 'v:q_learn_tensu'; // 子・親の点数、30符の目安、本場の点数 は「この点数は?」の声
+      return 'v:q_learn_' + (p.tag || 'none');
+    }
+    return p.cat ? 'v:q_' + p.cat : null;
+  };
   function quizNext() {
     const q = S.quiz; if (!q) return;
     if (q.n >= q.total) { if (q.rank && q.lvq && q.lvq.length) { q.phase = 'lvup'; q.lvi = 0; NSND.sfx('slam'); } else { q.phase = 'end'; qEndVoice(); } dirty(); return; }
@@ -1655,7 +1666,7 @@
       if (!p && dup) p = dup; /* 問題が足りないときだけ、重なってもよい */
       if (!p) { q.phase = 'fail'; dirty(); return; }
       q.p = p; q.n++; q.phase = 'ask'; q.idx = 0;
-      try { const vk = 'v:q_' + (p.cat === 'score' ? 'score_' + ({ '何飜?': 'han', '何符?': 'fu', '点数はいくつ?': 'points' }[p.title] || '') : p.cat === 'learn' ? (p.tag === 'ly_han' ? 'score_han' : p.tag === 'dora' ? (p.title === 'ドラは、どれ?' ? 'learn_dora' : p.title === '手牌の ドラは 何枚?' ? 'learn_dora_count' : 'none') : 'learn_' + (p.tag || '')) : p.cat); if (p.cat && NSND.has(vk)) NSND.speak([vk]); } catch (e) { /* ignore */ } // 出題の声(分野ごと。声のファイルがある分野だけ)
+      try { const vk = qVoiceKey(p); if (vk && NSND.has(vk)) NSND.speak([vk]); } catch (e) { /* ignore */ } // 出題の声(分野・問題の種類ごと。声のファイルがある種類だけ)
       q.disp = (p.hand || []).slice().sort((a, b) => a.t - b.t);
       q.rv = qRiverInfo(p); { const hs = mark(p.sit || '') + (p.sit ? '\n' : '') + mark(String(p.prompt || '').replace(/<span class="cc-s">[\s\S]*?<\/span>/g, '').replace(/(<br\s*\/?>\s*)+$/, '')), f = q.rv ? (q.rv.cp ? fitRich(hs, [20, 18, 16], 770, 64) : fitRich(hs, [26, 24, 22, 20, 18], 770, 110)) : fitRich(hs, [30, 28, 26, 24, 22, 20, 18], 770, p.kind === 'choice' ? 140 : 262); q.hsz = f.sz; q.head = f.lines; q.hh = f.h; }
       q.opts = (p.options || []).slice(0, 4).map((o) => { const f = fitRich(mark(o.html), [28, 26, 24, 22, 20, 18], 290, 50); return { id: o.id, lines: f.lines, sz: f.sz, h: f.h }; });
