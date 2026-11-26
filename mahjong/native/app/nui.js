@@ -2701,7 +2701,7 @@
         if (it.act === 'play') { try { if (NSND.has('v:hajimeru')) S.hjU = __now() + (NSND.speak(['v:hajimeru']) || 0) * 1000; } catch (e) { /* ignore */ } } // 「麻雀をはじめる」を押したとき、「この麻雀をはじめるのだ」の声
         if (it.act === 'play') later(() => { tl('play-pressed'); const l = slotRead(); tl('slots-read'); if (l.length) S.playQ = { idx: 0, snap: l[0].v.snap }; else askTeach(null); });
         else if (it.act === 'quiz') later(() => startQuiz({ title: '麻雀クイズ', gens: () => qlGens(RCATS), n: 5, rank: true }));
-        else if (it.act === 'study') later(() => startStudy());
+        else if (it.act === 'study') later(() => { startStudy(); try { if (NSND.has('v:q_study')) NSND.speak(['v:q_study']); } catch (e) { /* ignore */ } }); /* ホームから「麻雀の勉強」に入ったとき、「麻雀の勉強」の声(中のページから もどったときは 鳴らさない) */
         else if (it.act === 'settings') later(() => { S.mode = 'settings'; S.setIdx = 0; });
       }
       return;
