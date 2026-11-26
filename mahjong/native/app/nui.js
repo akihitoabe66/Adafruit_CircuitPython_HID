@@ -626,7 +626,7 @@
       else if (o.hl) rrect(x - 3, y - 3, HW + 6, HH + 6, 4, YEL);
       if (o.rot === 90) tileR(h.t, x + (HW - HH) / 2, y + (HH - HW) / 2, HW, HH, h.red, false, 90);
       else if (o.rot === 180 || o.flip) tileR(h.t, x, y, HW, HH, h.red, false, 180); else tile(h.t, x, y, HW, HH, h.red, o.dim && !o.hl); // 配られている間は、ときどき逆さの牌がまじる(並べかえると、そろう)
-      if (!o.rot && !o.flip && g.doraInd && g.doraInd.some((d) => MJ.doraOf(d.t) === h.t)) { const bx = x + HW - 32, by = y + HH - 19; rrect(bx + 1, by + 1, 29, 15, 3, [255, 214, 50]); text('ドラ', bx + 15, by + 1, 13, [30, 20, 0], 1); } // ドラの牌: 右下に、黄色と黒の小さな「ドラ」
+      if (!o.rot && !o.flip && g.doraInd && g.doraInd.some((d) => MJ.doraOf(d.t) === h.t)) { const bx = x + HW - 30, by = y + HH - 16; rrect(bx, by, 30, 16, 4, [255, 214, 50]); text('ドラ', bx + 15, by, 13, [30, 20, 0], 1); } // ドラの牌: 右下に、黄色と黒の小さな「ドラ」
       if (teacherOn() && S.hint && S.hint.tile && S.hint.tile.t === h.t && s && s.row === 0) text('★', x + 22, y + HH + 2, 16, YEL, 1); /* 星は牌の下(上は 安全牌の印や「あなた」の帯と重なって見えない) */
       if (DM && DM[h.t] && !o.rot && !o.flip) { const m = DM[h.t], c = DCOL[m.cls] || DCOL.warn, w = Math.max(30, gfx.measure(m.tag, 13) + 10); const cx = x + Math.round((HW - w) / 2); rrect(cx - 1, y - 14, w, 17, 6, [255, 255, 255]); rrect(cx, y - 13, w - 2, 15, 5, c[0]); text(m.tag, cx + (w - 2) / 2, y - 13, 13, c[1], 1); } // 麻雀先生の印: 牌の左上に
     };
