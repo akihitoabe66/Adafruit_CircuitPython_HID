@@ -1491,14 +1491,15 @@
     });
     const rk = f.rk, yb = Y0 + 4 * (RH + GAP) + 2;
     if (rk) {
-      rrect(60, yb, 600, rk.capped ? 92 : 64, 8, [10, 58, 38]);
-      const d = rk.delta, col = d > 0 ? [140, 240, 150] : d < 0 ? [255, 130, 120] : WHITE;
-      text('段位ポイント', 80, yb + 8, 24, WHITE); text((d > 0 ? '+' : '') + d + ' 点', 290, yb + 5, 32, col);
-      { const rt = rk.msg ? rk.msg.replace('🎉 ', '') : (rk.name + (rk.next ? '   あと ' + rk.left + ' 点で ' + rk.next : rk.tenka ? '   天下分け目で 永世名人' : '')); text(rt, 640, yb + 10, fitSz(rt, 22, 330, 12), YEL, 2); }
-      if (rk.capped) { text('修行でこれ以上は成長しないのだ。', 80, yb + 38, 19, YEL); text('段位を上げたいなら上位と対戦するのだ。', 80, yb + 64, 19, YEL); } else // 修行の上限(次の段位の1点手前)
-      if (rk.avg != null) text('相手の強さ ★' + rk.avg.toFixed(1) + (Math.abs(rk.mult - 1) >= 0.05 ? '  →  ポイント ×' + rk.mult.toFixed(2) + (rk.mult > 1 ? '(強い相手ボーナス)' : '(弱い相手)') : '(ふつう)'), 80, yb + 41, 16, [200, 225, 205]);
+      const mineR = (f.results.find((x) => x.p.isHuman) || {}).rank, tkLose = !!f.tenka && rk.tenka && mineR !== 1; // 天下分け目で 1位に なれなかった(名人のまま)
+      rrect(60, yb, 600, 92, 8, tkLose ? [64, 34, 30] : [10, 58, 38]);
+      const d = rk.delta, col = tkLose ? [170, 180, 170] : d > 0 ? [140, 240, 150] : d < 0 ? [255, 130, 120] : WHITE;
+      text('段位ポイント', 80, yb + 8, tkLose ? 20 : 24, tkLose ? [190, 200, 190] : WHITE); text((d > 0 ? '+' : '') + d + ' 点', 290, yb + (tkLose ? 7 : 5), tkLose ? 26 : 32, col);
+      { const rt = rk.msg ? rk.msg.replace('🎉 ', '') : tkLose ? 'おしい! 天下分け目は 1位だけが 永世名人です' : rk.next ? rk.name + '   あと ' + rk.left + ' 点で ' + rk.next : rk.tenka ? 'いま 名人。 永世名人へは 天下分け目で 1位' : rk.name; text(rt, 80, yb + 38, fitSz(rt, 21, 570, 13), tkLose ? [255, 200, 150] : YEL); }
+      if (rk.capped) { text('修行でこれ以上は成長しないのだ。段位を上げたいなら上位と対戦するのだ。', 80, yb + 64, 16, YEL); } else
+      if (rk.avg != null) text('相手の強さ ★' + rk.avg.toFixed(1) + (Math.abs(rk.mult - 1) >= 0.05 ? '  →  ポイント ×' + rk.mult.toFixed(2) + (rk.mult > 1 ? '(強い相手ボーナス)' : '(弱い相手)') : '(ふつう)'), 80, yb + 66, 16, [200, 225, 205]);
     }
-    text('決定ボタンで ホームへ', 360, rk && rk.capped ? 424 : 398, 24, WHITE, 1);
+    text('決定ボタンで ホームへ', 360, 424, 24, WHITE, 1);
   }
 
 
@@ -2077,6 +2078,11 @@
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, dice: !!S.dice, ros: S.ros ? [S.ros.sel, (S.ros.pick || []).length, S.ros.menu ? S.ros.menu.idx : -1] : null, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
   window.__winRvDemo = (sd) => { const g = S.game; if (!g) return false; const p = g.players[sd == null ? 2 : sd], tl = p.hand.slice().sort((a, b) => a.t - b.t); S.bub = {}; S.winRv = { ws: [{ winner: p, view: { concealed: tl.slice(0, 13) }, winTile: tl[13] || tl[0] }], t0: __now(), res() {} }; NSND.sfx('hand_open'); dirty(); return true; }; // 試験用: CPUの手牌を倒して見せる
   window.__riichiDemo = () => { const g = S.game; if (!g) return false; [1, 2, 3].forEach((i) => { g.players[i].riichi = true; }); dirty(); return true; }; // 試験用: 3人ともリーチの見えかた
+  window.__endDemo = (rank, tk, delta) => { // 試験用: 対局終了の画面を、すぐ出す(rank=あなたの順位 tk=天下分け目 delta=段位ポイント)
+    const C = (id) => MJ.CHARS.find((c) => c.id === id), ids = [0, 1, 7, 4], sc = [25000, 32000, 28000, 15000]; const ps = ids.map((id, i) => ({ seat: i, name: i === 0 ? 'あなた' : C(id).short, char: C(id), isHuman: i === 0, score: sc[i], level: 0 }));
+    const order = ps.slice(); order.sort((a, b) => b.score - a.score); const me = order.splice(order.findIndex((x) => x.isHuman), 1)[0]; order.splice(rank - 1, 0, me); order.forEach((p, i) => { p.score = [37200, 33400, 15000, 14400][i]; });
+    const f = { results: order.map((p, i) => ({ p, rank: i + 1, score: p.score })), yaki: null }; const rk = { delta: delta == null ? 8 : delta, name: '名人', next: null, tenka: true, left: 0, avg: 9, mult: 1, msg: null, capped: false };
+    S.mode = 'menu'; S.end = Object.assign({}, f, { rk, tenka: !!tk, done: () => { S.end = null; dirty(); } }); dirty(); return true; };
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   /* ---------- リセット(デバッグ用): ゲームを はじめから。 音量・ルール・麻雀先生などの「設定」は残し、成績・段位・雀士・ビデオ・勉強・途中のセーブを消す ---------- */
   const KEEP_PREF = ['mj_vol_', 'mj_teacher', 'mj_dmark', 'mj_swapab', 'mj_cpuspeed', 'mj_rules', 'mj_padid', 'mj_orient', 'mj_perf', 'mj_winfx', 'mj_you', 'mj_think', 'mj_danger_', 'mj_banter'];
@@ -2935,8 +2941,8 @@
       return Promise.resolve();
     },
     gameEnd(g, f) { if (g.practice) { NSND.sfx('end'); return new Promise((done) => { S.end = Object.assign({}, f, { rk: null, done }); }); } // 練習対局: 記録・順位・認定証なし
- try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { if (g.length !== 'single' && (g.handCount || 0) >= 4) metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } /* 列伝に出るのは、4局以上 最後まで対局した相手だけ */ try { const mine0 = f.results.find((x) => x.p.isHuman); if (mine0) { const ks = mine0.rank === 1 ? ['v:end_win1', '.', 'v:end_win2'] : (mine0.rank === 3 && S.prevRank === 4) ? ['v:end_close1', '.', 'v:end_close2'] : mine0.rank === 4 ? ['v:end_lose1', '.', 'v:end_lose2'] : null; if (ks && ks.every((k) => k === '.' || NSND.has(k))) setTimeout(() => { try { NSND.speak(ks); } catch (e) { /* ignore */ } }, 900); } } catch (e) { /* ignore */ } /* 対局終了の声: 1位=勝った!やったね! / 4位から3位に逆転=ふぅ、あぶない / 4位=負けた、ざんねん */ NSND.sfx('end'); try { const mk = f.results.find((x) => x.p.isHuman); const rk0 = mk ? mk.rank : 2; setTimeout(() => { try { NSND.endBgm(rk0); } catch (e) { /* ignore */ } }, 700); } catch (e) { /* ignore */ } /* 順位の画面の曲(最後の局で 曲が切りかわっていなければ ここで切りかえる) */ // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
- try { const mine = f.results.find((x) => x.p.isHuman); setMood(({ 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, done: () => { const go0 = () => { try { NSND.home(); } catch (e) { /* ignore */ } S.rankScr = { rk, done }; dirty(); }; /* はじめて 対局を 最後まで終えたら(無段のあいだ)、一度だけ、旅のはじまり(熊本の地図)を出す */ const go = (g.length !== 'single' && !introSeen() && (!rk || (rk.from || 0) === 0) && !(rk && rk.promoted && (introMark() || true))) ? () => { introMark(); S.mode = 'menu'; try { startMap({ from: 0, to: 0, intro: true }, go0); } catch (e) { go0(); } } : go0; /* 結果の曲のまま あなたの段位の画面に来ない(ホームの曲に) */ if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
+ try { __slotlist().forEach((q) => __slotdel(q)); } catch (e) { /* ignore */ } try { if (g.length !== 'single' && (g.handCount || 0) >= 4) metMark(g.players.map((p) => p.char && p.char.id)); } catch (e) { /* ignore */ } /* 列伝に出るのは、4局以上 最後まで対局した相手だけ */ try { const mine0 = f.results.find((x) => x.p.isHuman); if (mine0) { const ks = mine0.rank === 1 ? ['v:end_win1', '.', 'v:end_win2'] : (mine0.rank === 3 && S.prevRank === 4) ? ['v:end_close1', '.', 'v:end_close2'] : mine0.rank === 4 ? ['v:end_lose1', '.', 'v:end_lose2'] : null; if (ks && ks.every((k) => k === '.' || NSND.has(k))) setTimeout(() => { try { NSND.speak(ks); } catch (e) { /* ignore */ } }, 900); } } catch (e) { /* ignore */ } /* 対局終了の声: 1位=勝った!やったね! / 4位から3位に逆転=ふぅ、あぶない / 4位=負けた、ざんねん */ NSND.sfx('end'); try { const mk = f.results.find((x) => x.p.isHuman); const rk0 = mk ? mk.rank : 2; setTimeout(() => { try { NSND.endBgm(g.tenka && rk0 !== 1 ? 4 : rk0); } catch (e) { /* ignore */ } }, 700); } catch (e) { /* ignore */ } /* 順位の画面の曲(最後の局で 曲が切りかわっていなければ ここで切りかえる) */ // 対局が終わったら、自動セーブは消す(終わった対局が「つづきから」に出ないように)
+ try { const mine = f.results.find((x) => x.p.isHuman); setMood((g.tenka ? { 1: 'win', 2: 'grumpy', 3: 'lose', 4: 'lose' } : { 1: 'win', 2: 'laugh', 3: 'relief', 4: 'lose' })[mine ? mine.rank : 2] || 'normal'); /* 天下分け目は 1位だけが 永世名人: 2位以下は、笑顔にしない */ } catch (e) { /* ignore */ } let rk = null; try { rk = MJ.Rank.record(g, f); } catch (e) { print('rank err ' + e); } return new Promise((done) => { S.end = Object.assign({}, f, { rk, tenka: !!g.tenka, done: () => { const go0 = () => { try { NSND.home(); } catch (e) { /* ignore */ } S.rankScr = { rk, done }; dirty(); }; /* はじめて 対局を 最後まで終えたら(無段のあいだ)、一度だけ、旅のはじまり(熊本の地図)を出す */ const go = (g.length !== 'single' && !introSeen() && (!rk || (rk.from || 0) === 0) && !(rk && rk.promoted && (introMark() || true))) ? () => { introMark(); S.mode = 'menu'; try { startMap({ from: 0, to: 0, intro: true }, go0); } catch (e) { go0(); } } : go0; /* 結果の曲のまま あなたの段位の画面に来ない(ホームの曲に) */ if (rk && rk.promoted) startCert(rk, go); else go(); } }); }); },
   };
 
   const AI_T = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]; // js/chars.js の mk() と同じ

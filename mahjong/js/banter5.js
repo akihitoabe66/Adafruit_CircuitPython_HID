@@ -166,7 +166,7 @@
   };
   const GYAKU_ME = ['逆転勝利、決まったのだ!', '最後に大逆転なのだ!'];
   const MAX_TOTAL = 3;
-  const ENABLED = [1]; // カットインを出すキャラ(1=水戸黄門だけ)。 全員に戻すときは null にする(32人ぶんのセリフは、このまま残してある)
+  const ENABLED = [1, 7]; // カットインを出すキャラ(1=水戸黄門 7=徳川家康。 天下分け目の2人)。 全員に戻すときは null にする(32人ぶんのセリフは、このまま残してある)
   MJ.CutIn = {
     lines: LINES,
     /* 上がったとき(CPUのみ)。 出すなら { p, text, tsumo, big }、出さないなら null。 w: { winner, tsumo, res } */
