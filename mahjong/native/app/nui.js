@@ -444,8 +444,8 @@
     fill(bx, by, SW, 128, K.band); fill(bx, by + 4, SW, 20, [20, 12, 6], 150); fill(bx, by + 104, SW, 20, [20, 12, 6], 150); fill(bx, by, SW, 4, K.edge); fill(bx, by + 124, SW, 4, K.edge);
     const fx = Math.round(44 - 330 * (1 - ciEase((t - 100) / 300)) - 330 * out); // 顔: 左から入る
     rrect(fx - 8, 88, 206, 206, 6, [26, 18, 8]); rrect(fx - 5, 91, 200, 200, 5, K.edge); rrect(fx - 1, 95, 192, 192, 4, [255, 255, 255]); face(C.ci.p, fx + 1, 97, 188, 188, true);
-    const tx = Math.round(250 + 620 * (1 - ciEase((t - 170) / 330)) + 620 * out), sz = ciSize(C.ci.text);
-    text(C.ci.p.name, tx, by + 10, -19, K.edge, 0); [[-2, -2], [2, -2], [-2, 2], [3, 3]].forEach((d) => text(C.ci.text, tx + d[0], by + 40 + d[1], -sz, [0, 0, 0], 0)); text(C.ci.text, tx, by + 40, -sz, WHITE, 0);
+    const tx = Math.round(250 + 620 * (1 - ciEase((t - 170) / 330)) + 620 * out), LS = C.ci.lines || [C.ci.text], two = LS.length > 1, sz = two ? Math.min.apply(null, LS.map((l) => fitSz(l, 34, 540, 16))) : ciSize(C.ci.text); // lines: 2行のとき(決戦のひとこと)
+    text(C.ci.p.name, tx, by + 10, -19, K.edge, 0); LS.forEach((ln, li) => { const yy = by + (two ? 34 + li * 44 : 40); [[-2, -2], [2, -2], [-2, 2], [3, 3]].forEach((d) => text(ln, tx + d[0], yy + d[1], -sz, [0, 0, 0], 0)); text(ln, tx, yy, -sz, WHITE, 0); });
     if (t > 340 && out < 0.5 && !C.ci.gyaku) { const a = Math.min(255, Math.round((t - 340) * 2.5)); rrect(704, 18, 108, 44, 6, K.edge, a); rrect(707, 21, 102, 38, 5, K.band, a); text(K.tag, 758, 24, -26, WHITE, 1); } // 逆転のカットインは、札(ロン/ツモ)を出さない(カットインそのものが目立つので)
     dirty();
   }
@@ -952,7 +952,7 @@
     if (rt > 1500 && !d.v1) { d.v1 = 1; afterPresent(() => { NSND.sfx('slam'); try { const dur = NSND.readKyoku(g, () => { d.kyDone = true; }); d.T2 = Math.max(2900, 1500 + Math.round((dur || 0) * 1000) + 350); } catch (e) { /* ignore */ } }); } // 声は、文字が画面に出たあとに(描くのが遅い実機で、声だけ先に出ないように) // 「勝負!」は、局の読み上げが おわってから
     const T2 = d.T2 || 2900;
     if (rt > T2 && !d.v2 && (d.kyDone || rt > T2 + 3500)) { d.v2 = 1; d.T2 = rt; afterPresent(() => { NSND.sfx('slam'); try { snd.play('audio/voice/intro_w2.mp3', 0.9); } catch (e) { /* ignore */ } }); }
-    if (d.v2 && rt > d.T2 + 1200 && !d.fin && (!g.tenka || now - d.t00 > 11000)) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); }
+    if (d.v2 && rt > d.T2 + 1200 && !d.fin) { d.fin = true; const r = S.dice; S.dice = null; r.done(d.target); }
     const step = counting ? Math.min(total, Math.floor((now - cStart) / cStep) + 1) : 0, hiSeat = counting ? (step - 1) % 4 : -1;
     if (counting && d._lastStep !== step) { d._lastStep = step; NSND.sfx('select', 0.5); }
     const winds = (sd) => (done ? ['東', '南', '西', '北'][(sd - d.target + 4) % 4] : '');
@@ -976,13 +976,7 @@
     if (globalThis.__nodice && globalThis.__shotDir && !d._snapped) { d._snapped = 1; gfx.snap(globalThis.__shotDir + '/dicefull.bmp'); } // 試験用
     if (d.settled && __now() - d.t1 > 100) shotOnce('dice2'); if (d.rolling && now - d.t0 > 400) shotOnce('dice1');
     if (g.tenka) { // 天下分け目: 上に「1位で 永世名人」の帯。 家康と黄門が、あなたに向かって、決戦のひとこと(声は あれば 鳴らす)
-      const tt = now - d.t00; rrect(SW / 2 - 190, 3, 380, 25, 8, [190, 40, 40]); text('天下分け目  ―  1位で 永世名人!', SW / 2, 5, 18, WHITE, 1);
-      [{ id: 1, from: 2800, to: 6700, v: 'v:tk_koumon', l: ['いざ尋常に勝負じゃ!', '天下分け目の一戦、手加減は無用じゃぞ。'] }, { id: 7, from: 7000, to: 10900, v: 'v:tk_ieyasu', l: ['相手にとって不足なし!', '鳴くまで待とう、勝負の時を。'] }].forEach((k) => {
-        if (tt < k.from || tt >= k.to) return; const sd = P.findIndex((q) => q.char && q.char.id === k.id); if (sd < 0) return;
-        if (!d['tk' + k.id]) { d['tk' + k.id] = 1; try { if (NSND.has(k.v)) NSND.speak([k.v]); } catch (e) { /* ignore */ } }
-        const bw = 352, bh = 76, bx = sd === 3 ? 14 : sd === 1 ? SW - bw - 14 : 466, by = sd === 2 ? 36 : 46;
-        rrect(bx - 3, by - 3, bw + 6, bh + 6, 11, [96, 66, 30]); rrect(bx, by, bw, bh, 9, [252, 246, 228]); text(P[sd].name, bx + 12, by + 5, 14, [120, 84, 40]); k.l.forEach((t, i) => text(t, bx + 12, by + 24 + i * 24, 17, [40, 30, 20]));
-      });
+      rrect(SW / 2 - 190, 3, 380, 25, 8, [190, 40, 40]); text('天下分け目  ―  1位で 永世名人!', SW / 2, 5, 18, WHITE, 1);
     }
     if (d.started || true) dirty();
   }
@@ -2092,9 +2086,9 @@
     const order = ps.slice(); order.sort((a, b) => b.score - a.score); const me = order.splice(order.findIndex((x) => x.isHuman), 1)[0]; order.splice(rank - 1, 0, me); order.forEach((p, i) => { p.score = [37200, 33400, 15000, 14400][i]; });
     const f = { results: order.map((p, i) => ({ p, rank: i + 1, score: p.score })), yaki: null }; const rk = { delta: delta == null ? 8 : delta, name: '名人', next: null, tenka: true, left: 0, avg: 9, mult: 1, msg: null, capped: false };
     S.mode = 'menu'; S.end = Object.assign({}, f, { rk, tenka: !!tk, done: () => { S.end = null; dirty(); } }); dirty(); return true; };
-  window.__tenkaDice = () => { // 試験用: 天下分け目のサイコロ画面を、すぐ出す
+  window.__tenkaDice = () => { // 試験用: 天下分け目の「決戦のカットイン → サイコロ」を、すぐ出す
     const C = (id) => MJ.CHARS.find((c) => c.id === id), ids = [0, 1, 7, 4]; const ps = ids.map((id, i) => ({ seat: i, name: i === 0 ? 'あなた' : C(id).short, char: C(id), isHuman: i === 0, score: 25000, level: 0 }));
-    const g = { tenka: true, players: ps, fast: false, kyokuLabel: () => '東一局 東風戦', dealer: 0, practice: false }; S.game = g; S.mode = 'menu'; S.dice = { id: 99, a: 3, b: 4, target: 2, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done: () => { S.dice = null; } }; dirty(); return true; };
+    const g = { tenka: true, players: ps, fast: false, kyokuLabel: () => '東一局 東風戦', dealer: 0, practice: false, stopped: false }; S.game = g; S.mode = 'menu'; ui.dice(g, true).then(() => { S.dice = null; dirty(); }); return true; };
   window.__dbgBub = (seat, text) => { if (S.game) { S.bub[seat] = { name: S.game.players[seat].name, text, p: S.game.players[seat], until: __now() + 99999 }; dirty(); } }; // 試験用
   /* ---------- リセット(デバッグ用): ゲームを はじめから。 音量・ルール・麻雀先生などの「設定」は残し、成績・段位・雀士・ビデオ・勉強・途中のセーブを消す ---------- */
   const KEEP_PREF = ['mj_vol_', 'mj_teacher', 'mj_dmark', 'mj_swapab', 'mj_cpuspeed', 'mj_rules', 'mj_padid', 'mj_orient', 'mj_perf', 'mj_winfx', 'mj_you', 'mj_think', 'mj_danger_', 'mj_banter'];
@@ -2857,7 +2851,11 @@
       return sleep(bms + DEAL_END + 80);
     },
     padHand() {},
-    dice(g, first) { if (g.fast) return Promise.resolve(null); tl('dice-start'); if (g.tenka && first) setTimeout(() => { try { if (NSND.has('v:tenkawake')) NSND.speak(['v:tenkawake']); } catch (e) { /* ignore */ } }, 500); /* 天下分け目: サイコロの画面で「天下分け目の決戦なのだ!」 */ return new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { id: (S.diceSeq = (S.diceSeq || 0) + 1), a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done: (tg) => { g.dealer = tg; S.skipBanner = true; S.skipKyokuVoice = true; done(tg); } }; dirty(); }); },
+    dice(g, first) { if (g.fast) return Promise.resolve(null); tl('dice-start'); let pre = Promise.resolve(); if (g.tenka && first) { /* 天下分け目: 「天下分け目の決戦なのだ!」の声のあと、黄門と家康が あなたに向かって 決戦のひとこと(カットイン)。 そのあと サイコロ */
+      pre = (async () => { try { if (NSND.has('v:tenkawake')) NSND.speak(['v:tenkawake']); } catch (e) { /* ignore */ } await sleep(Math.max(1500, Math.round((NSND.klen('v:tenkawake') || 0) * 1000) + 300));
+        for (const k of [{ id: 1, v: 'v:tk_koumon', lines: ['いざ尋常に勝負じゃ!', '天下分け目の一戦、手加減は無用じゃぞ。'] }, { id: 7, v: 'v:tk_ieyasu', lines: ['相手にとって不足なし!', '鳴くまで待とう、勝負の時を。'] }]) {
+          if (g.stopped) return; const p = g.players.find((q) => q.char && q.char.id === k.id); if (!p) continue; try { if (NSND.has(k.v)) NSND.speak([k.v]); } catch (e) { /* ignore */ } await cutinShow(g, { p, text: k.lines.join(' '), lines: k.lines, tsumo: false, big: true, gyaku: true }); } })(); }
+    return pre.then(() => new Promise((done) => { const a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6); S.dice = { id: (S.diceSeq = (S.diceSeq || 0) + 1), a, b, target: (a + b - 1) % 4, started: false, rolling: false, settled: false, t0: __now(), t1: 0, done: (tg) => { g.dealer = tg; S.skipBanner = true; S.skipKyokuVoice = true; done(tg); } }; dirty(); })); },
     askSelf(g, p, opts, st) {
       (S.thT || []).forEach(clearTimeout); S.thT = []; // 悩んでいるとき: 30秒・60秒・120秒、それ以降は3分ごとに、CPUがひとこと(Edge版と同じ)
       if (!p.riichi && !g.fast && MJ.Banter) { const say = (i) => { if (S.self && S.self.p === p && S.game === g) { try { MJ.Banter.think(g, i); } catch (e) { /* ignore */ } } }; S.thT = [30, 60, 120].map((sec, i) => setTimeout(() => say(i), sec * 1000)); const loop = () => { say(3); S.thT.push(setTimeout(loop, 180000)); }; S.thT.push(setTimeout(loop, 180000)); }
