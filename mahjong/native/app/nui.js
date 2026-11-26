@@ -2842,6 +2842,7 @@
       ms = ms || Math.max(2800, Math.min(4800, 1300 + String(t).length * 110)); tl('say-queue ' + (p && p.name)); (S.sayQ || (S.sayQ = [])).push({ g, p, t, ms, t0: __now() }); pumpSay();
     },
     banner(g, p, t, opt) { tl('banner ' + t + ' ' + (p && p.name)); if (opt && opt.quiet) { if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 350); } S.banner = { text: t, t0: __now(), p, call: true }; if (p && p.isHuman) setMood({ 'リーチ': 'fight', 'ポン': 'call', 'チー': 'call', 'カン': 'call', 'ロン': 'point', 'ツモ': 'happy' }[t] || 'normal', 4000); dirty(); if (!g.fast && !S.result) { NSND.call(p, t); NSND.sfx({ 'リーチ': 'riichi', 'ポン': 'call', 'チー': 'call', 'カン': 'kan', 'ロン': 'ron', 'ツモ': 'tsumo' }[t]); } return sleep(g.fast ? 0 : 1150).then(() => { S.banner = null; dirty(); }); },
+    dealAnim(g) { return new Promise((res) => { const t0 = __now(); const poll = () => { if (!S.deal || g.stopped || S.game !== g || __now() - t0 > 6000) { setTimeout(res, 80); return; } setTimeout(poll, 40); }; poll(); }); }, // 配牌と「牌をそろえる」アニメが終わるまで、最初の番の重い計算(麻雀先生・危険度など)を はじめない(実機で、そろえる最中に 計算が 重なって 引っかかっていた)
     resumeBgm(g) { try { S.game = g; NSND.game(g); } catch (e) { /* ignore */ } }, // 局の途中から つづきから 再開したとき: 保存した曲(なければ 新しく えらんだ曲)を 流す
     handStart(g) {
       tl('handStart');
