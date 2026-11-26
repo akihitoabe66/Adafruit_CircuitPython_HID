@@ -42,7 +42,9 @@ def profile_for(ident):
 def decode(word):
     """16bitのボタンの語 → {名前: 押している?}。 読みまちがい(上下どちらかの1バイトが 0)のときは None"""
     if (word & 0xFF) == 0 or (word & 0xFF00) == 0: return None
-    return {k: ((word >> b) & 1) == 0 for k, b in BIT.items()}
+    d = {k: ((word >> b) & 1) == 0 for k, b in BIT.items()}
+    if sum(d.values()) >= 5: return None   # ボタンが 5個以上 同時に 押されることは ない(読みちがい。 有線の互換品が 02 02 のような 値を 返すことが ある)
+    return d
 
 
 HOLD = float(os.environ.get('MJPAD_HOLD', '100')) / 1000.0   # 押したのを 最低 この秒数(100ms)は 押したままに する(無線の受信機は、押しても 20〜100ms しか 値が出ないことがある)
@@ -178,6 +180,17 @@ class Bus:
                 except OSError: self.last_cfg = self.cfg; self.cfg = None   # 2回つづけて だめ: 探しなおす
         last = None
         order = ([getattr(self, 'prefer', None)] if getattr(self, 'prefer', None) else []) + [c for c in self.CFGS if c != getattr(self, 'prefer', None)]   # 有線は、いつも うまくいく読みかたを 先に 試す
+        pf = getattr(self, 'prefer', None)
+        if pf:   # 有線: 実機で いちばん 安定した読みかたを、すぐに あきらめず 何回か 試す(はやい読みかたに 乗りかえると、読みまちがいが ふえる)
+            for _ in range(4):
+                try:
+                    w = self._try(*pf)
+                    if decode(w) is not None:
+                        self.cfg = pf
+                        if pf != getattr(self, 'last_cfg', None): print('mjpad: read ok ptr=0x%02x n=%d wait=%.0fms' % (pf[0], pf[1], pf[2] * 1000), flush=True)
+                        self.last_cfg = pf; return w
+                except OSError as e: last = e
+                time.sleep(0.005)
         for c in order:
             try:
                 w = self._try(*c)
@@ -202,6 +215,8 @@ def selftest():
     assert to_state(decode(press('left', 'up'))) == (-1, 0, [0] * 8)   # 斜めは 横だけ
     assert to_state(decode(press('right', 'down'))) == (1, 0, [0] * 8)
     assert to_state(decode(press('select', 'start'))) == (0, 0, [0, 0, 0, 0, 0, 0, 1, 1])
+    assert decode(0x0202) is None   # 読みちがい(ほぼ全部のボタンが 押された形)
+    assert decode(press('a', 'b', 'start')) is not None   # 3個までは ふつうに あり得る
     assert to_state(decode(press('left', 'right'))) is None and to_state(decode(press('up', 'down'))) is None
     assert to_state(decode(press('left', 'up')))[:2] == (-1, 0)                       # 斜め(どちらも新しい)・様子見をしない → 横
     assert to_state(decode(press('left', 'up')), None, True) is None                  # 様子を見る間は 決めない
