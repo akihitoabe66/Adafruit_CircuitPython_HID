@@ -324,6 +324,7 @@
       const mid = this.resumeMid; this.resumeMid = null;
       if (mid) { // 局の途中から、つづける: 山・手牌・河などを、もとにもどす(配牌や、局のはじまりの演出は、とばす)
         this.restoreMid(mid); cur = mid.cur; drawMode = mid.drawMode; this.resumed = false; this.turn = cur; this.sync();
+        if (this.ui && this.ui.resumeBgm) this.ui.resumeBgm(this); // 局の途中からの再開は handStart を通らないので、対局の曲を、ここで流す
         if (this.ui && this.ui.padHand) this.ui.padHand();
       } else {
       this.setupHand();
