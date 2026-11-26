@@ -1650,7 +1650,8 @@
       if (/何飜\?$/.test(T) && p.tag !== 'han') return 'v:q_score_han'; // 「〇〇は、何飜?」は、点数計算の「何飜?」の声
       if (T === 'ドラは、どれ?') return 'v:q_learn_dora'; if (T === '手牌の ドラは 何枚?') return 'v:q_learn_dora_count';
       if (T === '親の点数(ロン)は?') return 'v:q_learn_tensu_oya';
-      if (p.tag === 'tbl' && /点数|30符/.test(T)) return 'v:q_learn_tensu'; // 子の点数、30符の目安、本場の点数 は「この点数は?」の声(親は、専用の声)
+      if (T === '本場の 点数は?') return 'v:q_learn_honba';
+      if (p.tag === 'tbl' && /点数|30符/.test(T)) return 'v:q_learn_tensu'; // 子の点数、30符の目安 は「この点数は?」の声(親・本場は、専用の声)
       return 'v:q_learn_' + (p.tag || 'none');
     }
     return p.cat ? 'v:q_' + p.cat : null;
