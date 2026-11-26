@@ -74,11 +74,10 @@
       if (tr) { const want = delta > 0 ? Math.max(1, Math.round(delta / 2)) : 0, nx = DAN[s.dan + 1], room = nx ? Math.max(0, nx[1] - 1 - s.pt) : want; delta = Math.min(want, room); capped = !!nx && (room === 0 || delta < want); /* 上限にいる(これ以上 増えない) */ note = capped ? '' : '修行の対局(ポイント半分)'; }
       s.hist = (s.hist || []).concat({ p: delta, r: me.rank, o: avg == null ? null : Math.round(avg * 10) / 10, d: s.dan, t: tr ? 1 : 0 }).slice(-30); // d=その対局のときの段位 t=修行
       const ch = addPt(s, delta); s.games++;
-      /* 名人のあいだ: 徳川家康(7)・水戸黄門(1)に「その人より上の順位」で勝ったら、その人を倒した記録(2人とも倒すと、天下分け目が出るようになる。解放のあとの最初の1回は、かならず天下分け目) */
+      /* 名人のあいだ: 徳川家康(7)・水戸黄門(1)に「その人より上の順位」で勝ったら、その人を倒した記録(2人とも倒すと、天下分け目が出るようになる) */
       const tkBeat = []; s.tk = s.tk || {};
       if (ch.before === DAN.length - 2 && !tr) {
         final.results.forEach((r) => { const id = r.p.char && r.p.char.id; if ((id === 1 || id === 7) && me.rank < r.rank && !s.tk[id]) { s.tk[id] = 1; tkBeat.push(id); } });
-        if (tkBeat.length && s.tk[1] && s.tk[7]) s.tk.fresh = 1; else if (game.tenka && s.tk.fresh) delete s.tk.fresh;
       }
       if (!tr) { const tg = easeTarget(s), cu = s.ease || 0; s.ease = ch.after !== ch.before ? 0 : tg >= cu ? tg : Math.max(tg, cu - 1); } // やさしさ: 上がるのは すぐ、戻るのは 1局ごとに 1段ずつ(階段)。 昇段・降段で リセット s.ranks[me.rank - 1]++;
       if (game.tenka && me.rank === 1 && ch.after === DAN.length - 2) { s.dan = DAN.length - 1; s.maxdan = DAN.length - 1; ch.after = DAN.length - 1; } // 天下分け目(名人+徳川家康+水戸黄門)で 1位 → 永世名人

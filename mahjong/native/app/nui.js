@@ -443,7 +443,7 @@
     const bx = Math.round(-SW * (1 - inn) - SW * out), by = 170;
     fill(bx, by, SW, 128, K.band); fill(bx, by + 4, SW, 20, [20, 12, 6], 150); fill(bx, by + 104, SW, 20, [20, 12, 6], 150); fill(bx, by, SW, 4, K.edge); fill(bx, by + 124, SW, 4, K.edge);
     const fx = Math.round(44 - 330 * (1 - ciEase((t - 100) / 300)) - 330 * out); // 顔: 左から入る
-    rrect(fx - 8, 88, 206, 206, 6, [26, 18, 8]); rrect(fx - 5, 91, 200, 200, 5, K.edge); rrect(fx - 1, 95, 192, 192, 4, [255, 255, 255]); face(C.ci.p, fx + 1, 97, 188, 188, true);
+    rrect(fx - 8, 88, 206, 206, 6, [26, 18, 8]); rrect(fx - 5, 91, 200, 200, 5, K.edge); rrect(fx - 1, 95, 192, 192, 4, [255, 255, 255]); face(Object.assign({}, C.ci.p, { seat: 3 }), fx + 1, 97, 188, 188, true); /* カットインの顔は 左から入る: 上家(左の席)用の向きの絵 */
     const tx = Math.round(250 + 620 * (1 - ciEase((t - 170) / 330)) + 620 * out), LS = C.ci.lines || [C.ci.text], two = LS.length > 1, sz = two ? Math.min.apply(null, LS.map((l) => fitSz(l, 34, 540, 16))) : ciSize(C.ci.text); // lines: 2行のとき(決戦のひとこと)
     text(C.ci.p.name, tx, by + 10, -19, K.edge, 0); LS.forEach((ln, li) => { const yy = by + (two ? 34 + li * 44 : 40); [[-2, -2], [2, -2], [-2, 2], [3, 3]].forEach((d) => text(ln, tx + d[0], yy + d[1], -sz, [0, 0, 0], 0)); text(ln, tx, yy, -sz, WHITE, 0); });
     if (t > 340 && out < 0.5 && !C.ci.gyaku) { const a = Math.min(255, Math.round((t - 340) * 2.5)); rrect(704, 18, 108, 44, 6, K.edge, a); rrect(707, 21, 102, 38, 5, K.band, a); text(K.tag, 758, 24, -26, WHITE, 1); } // 逆転のカットインは、札(ロン/ツモ)を出さない(カットインそのものが目立つので)
@@ -824,7 +824,7 @@
     }
   }
   /* DEBUG-BEGIN(デバッグ用の画面: 設定の「デバッグ」。 あとで、このブロックと、設定の項目 dbg と、rank.js の debugSetPt を消す) */
-  const DBG_ROWS = ['経験値', '昇段の1点前にする', '東風戦 東四局から はじめる', '南風戦 南四局から はじめる', '名人にして 天下分け目を はじめる', '東四局: 自分が逆転できる(1位と1100点差)', '東四局: CPUが逆転する(自分が1位)', 'もどる'];
+  const DBG_ROWS = ['経験値', '昇段の1点前にする', '東風戦 東四局から はじめる', '南風戦 南四局から はじめる', '名人にして 天下分け目を 東四局から はじめる', '東四局: 自分が逆転できる(1位と1100点差)', '東四局: CPUが逆転する(自分が1位)', 'もどる'];
   function drawDbg() {
     gfx.clear(32, 74, 60); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
     text('デバッグ(あとで消します)', SW / 2, 8, 28, YEL, 1);
@@ -843,7 +843,7 @@
     if (k !== 'ok') return;
     if (i === 1) { const st = R.get(), nx = R.DAN[st.dan + 1]; if (nx && nx[1] >= 99999) { if (st.pt > 3000) R.debugSetPt(R.DAN[10][1]); S.dbgMsg = { t: '永世名人は 点では なれません(下の「天下分け目」で 1位)', until: __now() + 2600 }; } else if (nx) { R.debugSetPt(nx[1] - 1); S.dbgMsg = { t: '昇段の1点前(' + R.get().pt + '点)に しました', until: __now() + 1600 }; } }
     else if (i === 2 || i === 3) { const south = i === 3, K = south ? 7 : 3; S.mode = 'menu'; S.rankScr = null; startGame({ length: south ? 'south' : 'east', chars: pickChars(null, false).map((c) => c.id), dealer: (Math.floor(Math.random() * 4) + K) % 4, kyoku: K, honba: 0, kyotaku: 0, roundWind: south ? 1 : 0, handCount: K, scores: [25000, 25000, 25000, 25000] }, {}); } // 東四局(親は4番めの席)・南四局から。 点は みんな 25000
-    else if (i === 4) { R.debugSetPt(R.DAN[10][1]); const ids = [1, 7].concat(pickChars(null, false).map((c) => c.id).filter((id) => id !== 1 && id !== 7)).slice(0, 3); S.mode = 'menu'; S.rankScr = null; startGame({ length: 'east', chars: ids, dealer: Math.floor(Math.random() * 4), kyoku: 0, honba: 0, kyotaku: 0, roundWind: 0, handCount: 0, scores: [25000, 25000, 25000, 25000] }, { dice: true }); } // 名人(1845点)+徳川家康+水戸黄門。 東風戦で 1位 → 永世名人
+    else if (i === 4) { R.debugSetPt(R.DAN[10][1]); const ids = [1, 7].concat(pickChars(null, false).map((c) => c.id).filter((id) => id !== 1 && id !== 7)).slice(0, 3); S.mode = 'menu'; S.rankScr = null; startGame({ length: 'east', chars: ids, dealer: Math.floor(Math.random() * 4), kyoku: 3, honba: 0, kyotaku: 0, roundWind: 0, handCount: 3, scores: [25000, 26100, 24450, 24450] }, { dice: true }); } // 名人(1845点)。 天下分け目は 東四局から(サイコロと決戦のカットインは 出す)+徳川家康+水戸黄門。 東風戦で 1位 → 永世名人
     else if (i === 5 || i === 6) { const me = i === 5; S.mode = 'menu'; S.rankScr = null; startGame({ length: 'east', chars: pickChars(null, false).map((c) => c.id), dealer: (Math.floor(Math.random() * 4) + 3) % 4, kyoku: 3, honba: 0, kyotaku: 0, roundWind: 0, handCount: 3, scores: me ? [25000, 26100, 24450, 24450] : [26000, 25200, 24400, 24400] }, {}); } // 東四局。 点の並びは、ひとつ上げれば 1位が入れ替わる(自分が逆転 / CPUが逆転)
     else if (i === 7) S.mode = 'settings';
   }
@@ -959,7 +959,7 @@
     const seatsStatic = () => { stage(); [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, sd === hiSeat, winds(sd), done && sd === d.target ? now - d.revealT : null, 'static')); };
     if (done) seatsStatic(); else cached(2, 'd' + (d.id || 0) + ':' + hiSeat, seatsStatic); // 動かない部分は、1枚の絵にして貼る(サイコロのアニメを、カクつかせないため)
     if (counting && now >= tLast) { const sd = hiSeat, x = DPOS[sd][0], y = DPOS[sd][1], pu = 0.5 + 0.5 * Math.sin((now - tLast) / 80); rrect(x - 14, y - 14, 108, 108, 12, [255, 190, 30], Math.round(50 + 120 * pu)); } /* 最後の席で止まっている間: 光が脈打つ(アニメ案どおり) */
-    [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, false, '', done && sd === d.target ? now - d.revealT : null, 'face'));
+    if (!S.cutin) [2, 3, 1, 0].forEach((sd) => diceSeat(P[sd], sd, false, '', done && sd === d.target ? now - d.revealT : null, 'face')); // 決戦のカットインのあいだは、ほかの顔(必ず手前に出る描き方)を 出さない
     if (!d.pat) d.pat = DICEPAT[Math.floor(Math.random() * DICEPAT.length)]; // 転がり方は、数種類から ランダムに
     if (d.started && d.rolling && (d.vt - d.rt0) * 24 / 1000 >= d.pat.n + 2) { d.rolling = false; d.settled = true; d.t1 = now; }
     const big = rt > 1500; // 「東一局」「勝負!」のあいだは、サイコロと案内の帯を消して、そのまま中央に大きく出す(画面は切り替えない)
@@ -2998,10 +2998,10 @@
     let ok = null; try { ok = MJ.Rank.unlockedIds(); } catch (e) { /* ignore */ } const pool = MJ.CHARS.filter((c) => c.id !== 0 && (town != null ? MJ.unlockDan(c.id) <= town : (!ok || !ok.length || ok.includes(c.id)))); const out = [], real = easy ? MJ.CHARS.filter((c) => c.id !== 0 && (!ok || !ok.length || ok.includes(c.id))) : pool; // easy: 新顔は ほんらいの段位の人から、のこり2人だけ やさしく
     let dn = 0; try { dn = MJ.Rank.get().dan || 0; } catch (e) { /* ignore */ } if (town != null) dn = -1; // 修行の街: その時代までの人だけ
     const hbDan = town != null ? town : dn, hb = (c) => (hbDan >= 0 && MJ.unlockDan(c.id) === hbDan ? 1.6 : 1); // その街(段位)で はじめて登場する人は、少し 出やすく(1.6倍)
-    let wantTenka = false; // 名人のあと: 徳川家康・水戸黄門は、まず 1人ずつ(5割)。 2人とも倒すと「天下分け目」(2人そろう)が出る(解放のあとの最初の1回は かならず。 そのあとは 4割)
+    let wantTenka = false; // 名人のあと: 徳川家康・水戸黄門は、まず 1人ずつ(5割)。 2人とも倒すと「天下分け目」(2人そろう)が 4割で出る(ポイントの条件は なし)
     if (dn === 10) { const a = pool.find((c) => c.id === 7), b = pool.find((c) => c.id === 1); if (a && b) { let tk = {}; try { tk = MJ.Rank.get().tk || {}; } catch (e) { tk = {}; }
       const both = !!(tk[1] && tk[7]), r = Math.random();
-      if (both && (tk.fresh || r < 0.4)) { wantTenka = true; out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); }
+      if (both && r < 0.4) { wantTenka = true; out.push(a, b); pool.splice(pool.indexOf(a), 1); pool.splice(pool.indexOf(b), 1); }
       else if (Math.random() < 0.5) { const un = [a, b].filter((c) => !tk[c.id]), cand = un.length ? un : [a, b], c = cand[Math.floor(Math.random() * cand.length)]; out.push(c); pool.splice(pool.indexOf(c), 1); } } }
     let met = []; try { met = metLoad(); } catch (e) { /* ignore */ } const last = S.lastOpp || [], tier = (c) => MJ.unlockDan(c.id), mx = pool.reduce((m, c) => Math.max(m, tier(c)), 0);
     const wpick = (list, wf) => { // 重みつき抽選(同じ時代が重ならないように、前の対局に出た人は出にくく)
