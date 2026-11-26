@@ -1,6 +1,6 @@
 # 自宅の実機(Raspberry Pi Zero W)でやること(出先ではできないので、メモ)
 - [x] 無線パッド: 下/上を連打すると押しっぱなしになる件 → Holder を修正(連打の間に すきまを つくる)。 実機で 直ったことを確認済み
-- [ ] クイズの出題の声: 問題が出たとき、その分野の声(audio/yk/q_<分野>.mp3, v:q_<分野>)が鳴る。 いまは「数牌と役牌、どっちを切る」(keep)だけ。 ほかの分野の声は、台本をもらってから足す(tools/quiz_src/pending_*.wav は 台本がわからず、まだ未登録)。 tools/add_quiz_voice.py で追加
+- [ ] クイズの出題の声: 問題が出たとき、その分野の声(audio/yk/q_<分野>.mp3, v:q_<分野>)が鳴る。 8分野すべて入れ済み(点数計算・勉強の確認クイズは未)。 tools/add_quiz_voice.py で追加
 - [ ] ブザー: コントローラーを抜いたとき「ピロ↘」(低くなる音)。 2秒たっても抜けたままのときだけ鳴る。 sh native/pi/install_pad.sh と install_buzz.sh の両方をやりなおす
 - [ ] フォントを入れる(宣言の太字を、きれいな本物の太字にするため): `sudo apt update && sudo apt install -y fonts-noto-cjk` → ゲームを起動して、文字の見た目(字の太さ・大きさ)を確認する。変えるかどうかは、確認してから決める。
 - [ ] `git pull origin claude/vibrant-gates-hmjh7h` → `cd mahjong/native/app && sh build.sh`(FFmpeg の開発ファイルが要る。`sudo apt update` のあとに `sudo apt install -y libavcodec-dev libavformat-dev libswscale-dev libswresample-dev libavutil-dev`)
