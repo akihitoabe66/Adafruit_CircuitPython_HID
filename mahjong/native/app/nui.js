@@ -2689,7 +2689,7 @@
         else if (k === 'down') { if (bi < 2) S.homeBotIdx = 2; else { S.homeBot = false; S.menuIdx = firstOn(items, 0, 1); } } // 下: 診断へ。いちばん下から下: 「麻雀をはじめる」へ
         else if (k === 'up') { if (bi === 2) S.homeBotIdx = 0; else { S.homeBot = false; S.menuIdx = firstOn(items, 0, 1); } }
         else if (k === 'back') { /* ホームでBボタンは、何もしない(まちがって 終了しないように) */ }
-        else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; later(() => { if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else if (b === 'diag') startDiag(); else toggleTeacher(); }); }
+        else if (k === 'ok') { const b = HOME_BOTTOM[S.homeBotIdx].k; later(() => { if (b === 'exit') S.confirmQ = { idx: 0 }; else if (b === 'rank') S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; else if (b === 'stats') { S.mode = 'stats'; S.statsPg = 0; } else if (b === 'diag') { startDiag(); try { if (NSND.has('v:q_diag')) NSND.speak(['v:q_diag']); } catch (e) { /* ignore */ } /* ホームから「あなたの診断」に入ったとき、その声 */ } else toggleTeacher(); }); }
         return;
       }
       if (k === 'up') { const j = firstOn(items, S.menuIdx - 1, -1); S.menuIdx = j < S.menuIdx ? j : firstOn(items, items.length - 1, -1); } // いちばん上から上: いちばん下(設定)へ
