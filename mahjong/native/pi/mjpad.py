@@ -149,9 +149,13 @@ class Bus:
         """はじめの合図。 互換品(レプリカ)でも動くよう、ゆるく: どれかの合図が通れば よい。 ID は 記録するだけ(ちがっていても 使う)"""
         self.ident = b''
         self.w(0xF0, 0x55); self.w(0xFB, 0x00)   # 暗号なし(ふつうの Wii クラシックの合図)
-        try: self.w(0xFE, 0x03)   # データの形式 3(6バイト。 ボタンは 4・5バイトめ)。 無線の受信機(クラシックコントローラーPro)は 形式 1 だと ボタンが 6・7バイトめに 移ってしまう。 互換品が 受けつけなくても 気にしない
-        except OSError: pass
-        os.write(self.fd, b'\xFA'); time.sleep(0.005); self.ident = os.read(self.fd, 6)   # 機器の ID(記録用)
+        os.write(self.fd, b'\xFA'); time.sleep(0.005)
+        try: self.ident = os.read(self.fd, 6)   # 機器の ID。 先に 読んで、無線の受信機(ID の先頭が 01)のときだけ データの形式を 変える
+        except OSError: self.ident = b''
+        if len(self.ident) != 6 or self.ident[0] == 0x01:   # 無線の受信機(クラシックコントローラーPro)は 形式 1 だと ボタンが 6・7バイトめに 出て 読みにくいので、形式 3(ボタンは 4・5バイトめ)にする。 有線の互換品は 何も 変えない(11/22 より前の 動き)
+            try: self.w(0xFE, 0x03)
+            except OSError: pass
+            os.write(self.fd, b'\xFA'); time.sleep(0.005); self.ident = os.read(self.fd, 6)
         return len(self.ident) == 6
 
     def init_old(self):
