@@ -337,7 +337,7 @@
   const SGROUPS = [
     ['sound', '🔊 音・ひとこと', ['st-audio', 'st-think']],
     ['play', '🀄 対局のしかた', ['st-spd', 'st-save', 'open-rules']],
-    ['view', '✨ 表示・演出', ['st-fx', 'st-fxl', 'st-res', 'st-simple']],
+    ['view', '✨ 表示・演出', ['st-look', 'st-fx', 'st-fxl', 'st-res', 'st-simple']],
     ['info', '📚 しらべる', ['st-roster', 'st-notes', 'open-yaku', 'open-gloss', 'open-credits']],
     ['data', '🧰 データ・診断', ['st-perf', 'st-rec', 'st-reset']],
   ];
@@ -355,6 +355,7 @@
       <button class="btn big" id="st-audio"${sh('st-audio')}>🔊 音の大きさ</button>
       <button class="btn big" id="st-think"${sh('st-think')}></button>
       <button class="btn big" id="st-spd"${sh('st-spd')}></button>
+      <button class="btn big" id="st-look"${sh('st-look')}></button>
       <button class="btn big" id="st-fx"${sh('st-fx')}></button>
       <button class="btn big" id="st-fxl"${sh('st-fxl')}></button>
       <button class="btn big" id="st-res"${sh('st-res')}></button>
@@ -394,6 +395,7 @@
     const fxLB = o.querySelector('#st-fxl'); const fxLS = () => { fxLB.textContent = '✨ 演出: ' + MJ.FX.JP[MJ.FX.level()] + (MJ.FX.isAuto() ? '(自動)' : ''); }; fxLS(); fxLB.addEventListener('click', () => { MJ.FX.cycle(); fxLS(); });
     const rsB = o.querySelector('#st-res'); const rsS = () => { rsB.textContent = '🖥 画質: ' + MJ.Res.JP[MJ.Res.level()]; }; rsS(); rsB.addEventListener('click', () => { MJ.Res.cycle(); rsS(); });
     o.querySelector('#st-pad').addEventListener('click', () => showPadSetup());
+    { const lb = o.querySelector('#st-look'); const ls = () => { lb.textContent = '🎨 見た目: ' + (MJ.Look.on() ? '新しい(顔つき)' : 'いまの'); }; ls(); lb.addEventListener('click', () => { MJ.Look.set(!MJ.Look.on()); ls(); }); }
     const smB = o.querySelector('#st-simple'); const smS = () => { smB.textContent = '🧩 シンプルゲームモード: ' + (MJ.simpleUI() ? 'オン' : 'オフ'); }; smS(); smB.addEventListener('click', () => { MJ.setSimpleUI(!MJ.simpleUI()); smS(); });
     /* 通しの記録: 遊んだ分の、場面ごとのコマ数・止まりを、画質×演出ごとに見る(写真に撮って送れるよう、1画面にまとめる) */
     const showRec = (gi, armed, view) => {

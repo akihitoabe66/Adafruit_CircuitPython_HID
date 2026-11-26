@@ -1418,6 +1418,7 @@
       const multi = all.length > 1;
       const word = (multi ? (all.length >= 3 ? 'トリプルロン' : 'ダブロン') : text) + '!';
       const tg = this.winTarget(game, p, text);
+      if (MJ.Look && MJ.Look.on()) return MJ.Look.winCut(this, game, p, text, opt, tg); // 新しい見た目: 上がった人だけの全画面カットイン
       const bolt = (w, dx, k) => { // ぎざぎざの雷の線(上から当たり牌まで)
         let x = tg.x + dx, pts = [`${x.toFixed(0)},0`];
         const n = 7;
@@ -1706,7 +1707,8 @@
           `<span style="position:absolute;left:${e(10)};top:${e(2)};font-size:${e(20)};max-width:${e(92)};white-space:nowrap;overflow:hidden">${p.name}</span>` +
           `<span style="position:absolute;left:${e(10)};top:${e(29)};font-size:${e(18)};color:#aabeaf;white-space:nowrap">${res.before[i]} → ${res.after[i]}</span>` +
           `<span style="position:absolute;right:${e(10)};top:${e(4)};font-size:${e(18)};color:${d > 0 ? '#78e68c' : d < 0 ? '#eb463c' : '#aabeaf'}">${dt}</span>`); }).join('');
-      return `<div class="nr no-ruby gl-skip">${head}${dora}${limit}${hand}${yaku}${bar}${cards}</div>`;
+      const big = MJ.Look && MJ.Look.on() ? `<div class="nr-big">${this.faceImg(win.char, '', win.seat)}</div>` : ''; // 新しい見た目: 上がった人を大きく
+      return `<div class="nr no-ruby gl-skip">${big}${head}${dora}${limit}${hand}${yaku}${bar}${cards}</div>`;
     },
 
     winHTML(game, w) {

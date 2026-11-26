@@ -77,3 +77,49 @@ body.pad-on #side-in .pf, #side-in .dk.pf { background-clip: border-box; outline
 .stpi .res-foot { background: none !important; border: 0 !important; box-shadow: none !important; position: static !important; margin-top: 8px; display: flex; justify-content: center; }
 .stpi .res-foot .btn { width: 200px; padding: 3px 0 !important; font-size: 22px !important; font-weight: 800; color: #fff; background: #285a46; border: 3px solid #d2e1d4; border-radius: 18px; }
 .stpi .res-foot .btn.pf, .stpi .res-foot .btn:hover { background: #3c8264; border-color: #ffdc28; }
+
+/* ===== 新しい見た目(js/look.js)。 body.look-new のときだけ。 設定の「見た目」で「いまの」に戻せる ===== */
+#lk { position: absolute; inset: 0; pointer-events: none; z-index: 30; }
+#lk .lk-face { position: absolute; width: 40px; height: 40px; border-radius: 10px; overflow: hidden; background: #20324a; border: 3px solid #fff; box-shadow: 0 2px 0 #0008; opacity: .85; }
+#lk .lk-face.act { opacity: 1; border-color: #ffd23f; box-shadow: 0 0 0 3px #ffd23f, 0 0 12px #ffd23f; }
+#lk .lk-face.rch { border-color: #ff5b8a; }
+#lk .lk-face img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; filter: none; }
+#lk .lk-sh { position: absolute; left: 6px; bottom: 60px; font-size: 20px; font-weight: 900; color: #fff; background: linear-gradient(90deg, #1d4ea8, #2f7fe0); padding: 2px 12px 2px 10px; border-radius: 4px 14px 14px 4px; border: 2px solid #fff; box-shadow: 0 2px 0 #0008; white-space: nowrap; transform: skewX(-8deg); }
+#lk .lk-sh:empty { display: none; }
+#lk .lk-sh b { font-size: 30px; color: #ffe14a; margin-left: 4px; }
+#lk .lk-sh.ok { background: linear-gradient(90deg, #c25a00, #ff9d1a); }
+#lk .lk-wait { pointer-events: auto; position: absolute; left: 620px; bottom: 106px; font-size: 15px; font-weight: 900; color: #fff; background: #2a1d6e; border: 2px solid #fff; border-radius: 14px; padding: 3px 10px; cursor: pointer; }
+#lk .lk-wp { pointer-events: auto; position: absolute; left: 560px; bottom: 134px; width: 150px; }
+#lk .lk-wp.hidden { display: none; }
+/* 当たり牌のキラキラ(卓の上) */
+.lk-spk { position: absolute; width: 0; height: 0; z-index: 50; pointer-events: none; }
+.lk-spk i { position: absolute; left: 0; top: 0; font-style: normal; font-size: 26px; color: #fff6b0; text-shadow: 0 0 8px #ffd23f, 0 0 16px #ffb000; transform: rotate(var(--a)) translateY(-8px) scale(0); animation: lkSpk 1.1s ease-out var(--d) infinite; }
+@keyframes lkSpk { 0% { transform: rotate(var(--a)) translateY(-6px) scale(0); opacity: 1; } 40% { opacity: 1; } 100% { transform: rotate(var(--a)) translateY(-44px) scale(1.2); opacity: 0; } }
+/* 全画面カットイン */
+.lk-cut { position: fixed; inset: 0; z-index: 90; overflow: hidden; cursor: pointer; animation: lcIn .25s ease-out both; }
+.lk-cut .lc-bg { position: absolute; inset: 0; background: radial-gradient(circle at 50% 55%, #7a35d6 0%, #3a1478 55%, #150633 100%); }
+.lk-cut .lc-rays { position: absolute; left: 50%; top: 55%; width: 200vmax; height: 200vmax; margin: -100vmax 0 0 -100vmax; background: repeating-conic-gradient(rgba(255,255,255,.14) 0 6deg, transparent 6deg 18deg); animation: lcSpin 9s linear infinite; }
+.lk-cut .lc-who { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); height: 88vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; animation: lcDance .55s ease-in-out .25s infinite alternate; transform-origin: 50% 100%; }
+.lk-cut.multi .lc-who.w0 { left: 28%; } .lk-cut.multi .lc-who.w1 { left: 72%; }
+.lk-cut .lc-who img.lc-face { height: 78vh; width: auto; max-width: 60vw; object-fit: contain; border: 0; border-radius: 0; filter: drop-shadow(0 0 3px #fff) drop-shadow(0 10px 18px #000a); }
+.lk-cut.multi .lc-who img.lc-face { height: 62vh; max-width: 40vw; }
+.lk-cut .lc-name { margin-top: -2vh; font-size: 5vh; font-weight: 900; color: #fff; background: #0009; padding: .2em 1em; border-radius: 1em; border: .3vh solid #fff; }
+.lk-cut .lc-q { position: absolute; left: 100%; top: 30%; margin-left: 2vw; width: 24vw; font-size: 4.2vh; font-weight: 900; color: #fff; background: #0009; border: .3vh solid #fff; border-radius: 1.5vh; padding: .5em .8em; text-align: left; }
+.lk-cut .lc-word { position: absolute; left: 4vw; top: 8vh; font-size: 22vh; font-weight: 900; font-style: italic; color: #fff; -webkit-text-stroke: 1.2vh #d4007a; paint-order: stroke fill; text-shadow: 1vh 1.4vh 0 #0009, 0 0 5vh #ffdc28; transform: rotate(-6deg); animation: lcWord .5s cubic-bezier(.2, 1.6, .4, 1) .1s both; letter-spacing: .02em; white-space: nowrap; }
+.lk-cut .lc-s { position: absolute; left: var(--x); top: var(--y); font-style: normal; font-size: 7vh; color: #fff8b8; text-shadow: 0 0 1.5vh #ffd23f; animation: lcTw 1s ease-in-out var(--d) infinite; }
+@keyframes lcIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lcSpin { to { transform: rotate(360deg); } }
+@keyframes lcDance { from { transform: translateX(-50%) translateY(0) rotate(-3deg); } to { transform: translateX(-50%) translateY(-3vh) rotate(3deg); } }
+.lk-cut.multi .lc-who.w0 { animation-name: lcDanceL; } .lk-cut.multi .lc-who.w1 { animation-name: lcDanceL; animation-delay: .4s; }
+@keyframes lcDanceL { from { transform: translateX(-50%) translateY(0) rotate(-3deg); } to { transform: translateX(-50%) translateY(-3vh) rotate(3deg); } }
+@keyframes lcWord { from { transform: rotate(-6deg) scale(2.6); opacity: 0; } to { transform: rotate(-6deg) scale(1); opacity: 1; } }
+@keyframes lcTw { 0%, 100% { transform: scale(.3); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } }
+#lk .lk-wp .wait { width: 150px; box-sizing: border-box; background: #0b2a1c; border: 2px solid #fff; border-radius: 8px; padding: 4px 6px 6px; color: #fff; text-align: center; font-weight: 800; }
+#lk .lk-wp .wait h5 { margin: 0 0 3px; font-size: 14px; color: #ffe14a; }
+#lk .lk-wp .wt { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; }
+#lk .lk-wp .wt > div { font-size: 10px; width: 32px; }
+#lk .lk-wp .wt .tile { width: 28px !important; height: 38px !important; }
+#lk .lk-wp .wt-hint { font-size: 14px; line-height: 1.3; }
+/* 結果画面の大きなキャラ(新しい見た目): 右下に大きく、手牌・役の後ろ */
+.nr .nr-big { position: absolute; right: calc(var(--u) * 6); bottom: calc(var(--u) * 62); width: calc(var(--u) * 250); height: calc(var(--u) * 300); pointer-events: none; opacity: .6; overflow: hidden; -webkit-mask-image: linear-gradient(to right, transparent, #000 55%); mask-image: linear-gradient(to right, transparent, #000 55%); }
+.nr .nr-big img { position: absolute; right: 0; bottom: 0; height: 100%; width: auto; max-width: none; filter: none; }
