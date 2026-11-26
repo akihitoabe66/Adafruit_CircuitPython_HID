@@ -123,3 +123,16 @@ body.pad-on #side-in .pf, #side-in .dk.pf { background-clip: border-box; outline
 /* 結果画面の大きなキャラ(新しい見た目): 右下に大きく、手牌・役の後ろ */
 .nr .nr-big { position: absolute; right: calc(var(--u) * 6); bottom: calc(var(--u) * 62); width: calc(var(--u) * 250); height: calc(var(--u) * 300); pointer-events: none; opacity: .6; overflow: hidden; -webkit-mask-image: linear-gradient(to right, transparent, #000 55%); mask-image: linear-gradient(to right, transparent, #000 55%); }
 .nr .nr-big img { position: absolute; right: 0; bottom: 0; height: 100%; width: auto; max-width: none; filter: none; }
+
+/* サイコロ: 角のすきまから、黒く見えていたのを直す(角を小さく丸め、縁は灰色・白っぽく。面ごとに明るさを変えて立体感は残す) */
+.dc-f { border: calc(var(--u) * 2) solid #d9d4c2 !important; border-radius: calc(var(--u) * 4) !important; background: linear-gradient(135deg, #ffffff, #ece6cf) !important; box-sizing: border-box; }
+.dc-f1, .dc-f6 { filter: brightness(.97); } .dc-f3, .dc-f4 { filter: brightness(.88); } .dc-f5 { filter: brightness(.82); }
+.dc-cube { background: none; }
+/* 待ち牌表示ボタンは、自分の名札(あなた)に重ならないよう、上へ */
+#lk .lk-wait { bottom: 112px !important; left: 640px !important; }
+#lk .lk-wp { bottom: 142px !important; }
+#lk .lk-wait { white-space: nowrap; bottom: 118px !important; left: 616px !important; font-size: 14px; }
+#lk .lk-wp { bottom: 150px !important; left: 566px !important; }
+#lk .lk-wait { bottom: 142px !important; }
+#lk .lk-wp { bottom: 174px !important; }
+body.calling #lk .lf0 { display: none; }
