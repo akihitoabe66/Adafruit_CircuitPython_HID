@@ -60,7 +60,10 @@ class Holder:
                 if b[a] and b[c]: eff[c] = False   # 同時に読めたら 左・上を 優先(読みまちがい)
             return eff
         for k, v in b.items():
-            if v and not self.on.get(k):   # 立ち上がりだけ のばす
+            if k not in ('left', 'right', 'up', 'down'):   # 決定(A)・戻る(B)・スタート・セレクト: 押しが とぎれても すぐ 押しなおしたら ひとつづきの 1回 として あつかう(受信機が 1回の押しを 「押す・はなれる・押す」と 読んでも、2回 押した事にならない)
+                if v: self.until[k] = now + self.hold
+                self.on[k] = v; continue
+            if v and not self.on.get(k):   # 十字キーだけ: 立ち上がりだけ のばす
                 if self.until.get(k, 0) > now: self.rel[k] = now + 0.02   # まだ のばし中に 押しなおした: 20msだけ 離した事にして 「別の1回」に する
                 self.until[k] = self.rel.get(k, now) + self.hold if self.rel.get(k, 0) > now else now + self.hold
             self.on[k] = v
