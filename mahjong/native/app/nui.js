@@ -2312,13 +2312,14 @@
       else if (k === 'ok') { if (!(D.ab || 0)) { D.sub = true; D.dc = 0; } else { S.diag = null; startPractice(); return; } } }
     else if (D.pg === 0 && (k === 'up' || k === 'down') && !(k === 'up' && D.fi === 0)) { // 「強さ」の画面: ▲ で、左の項目(総合・攻撃力…)へ。そこに合わせると、右に説明が出る / ▼ で、下の札へもどる
       const fi = D.fi == null ? -1 : D.fi; D.fi = k === 'up' ? (fi < 0 ? 6 : fi - 1) : (fi >= 6 ? -1 : fi < 0 ? -1 : fi + 1); }
-    else if (k === 'up') { if (D.pg !== 0) D.fi = -1; S.bbf = true; } else if (k === 'left') { D.pg = Math.max(0, D.pg - 1); D.fi = -1; } else if (k === 'right') { D.pg = Math.min(3, D.pg + 1); D.fi = -1; } // 一番上の項目から ▲ で「もどる」へ: どの項目だったかは、おぼえておく(▼ で、そこへ もどる)
+    else if (k === 'up') { if (D.pg !== 0) D.fi = -1; S.bbf = true; } else if (k === 'left') { D.pg = DIAG_ORDER[Math.max(0, DIAG_ORDER.indexOf(D.pg) - 1)]; D.fi = -1; } else if (k === 'right') { D.pg = DIAG_ORDER[Math.min(3, DIAG_ORDER.indexOf(D.pg) + 1)]; D.fi = -1; } // 一番上の項目から ▲ で「もどる」へ: どの項目だったかは、おぼえておく(▼ で、そこへ もどる)
     else if (k === 'ok' && D.pg >= 2) { S.diag = null; startPractice(); }
     dirty();
   }
+  const DIAG_ORDER = [0, 2, 1, 3]; // 下の札の並び: 強さ / アドバイス / ポイント / 学習の記録(中の番号は、0=強さ 1=ポイント 2=アドバイス 3=学習の記録 のまま)
   function diagTabs(pg, hint) { // 下の、ページの札
     const foc = !S.bbf && S.diag && diagFi(S.diag) < 0 && S.diag.fz !== 'btn'; // 下の札に カーソルがあるとき(上の項目や「もどる」に あるときは、いまのページを 目立たせない)
-    ['強さ', 'ポイント', 'アドバイス', '学習の記録'].forEach((t, i) => { const x = 14 + i * 130, on = i === pg; panel(x, 428, 122, 32, 9, on ? (foc ? [60, 130, 60] : [40, 84, 54]) : [50, 70, 60], on ? (foc ? [255, 222, 96] : [112, 150, 112]) : [74, 97, 84], on && foc ? 4 : 2, 255); text(t, x + 61, 428 + Math.round((32 - 18) / 2) - 1, 18, on ? WHITE : [185, 201, 189], 1); });
+    ['強さ', 'アドバイス', 'ポイント', '学習の記録'].forEach((t, i) => { const x = 14 + i * 130, on = DIAG_ORDER[i] === pg; panel(x, 428, 122, 32, 9, on ? (foc ? [60, 130, 60] : [40, 84, 54]) : [50, 70, 60], on ? (foc ? [255, 222, 96] : [112, 150, 112]) : [74, 97, 84], on && foc ? 4 : 2, 255); text(t, x + 61, 428 + Math.round((32 - 18) / 2) - 1, 18, on ? WHITE : [185, 201, 189], 1); });
     text(hint, 806, 428 + 8, 16, [210, 225, 205], 2);
   }
   const diagFi = (D) => (S.bbf ? -1 : D.fi == null ? -1 : D.fi); // 「もどる」に合わせているときは、項目の枠を出さない
