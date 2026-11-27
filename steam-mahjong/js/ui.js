@@ -1934,7 +1934,7 @@
         for (let i = 0; i < cards.length; i++) {
           if (tok !== this._drTok) return;
           cards.forEach((c) => c.classList.remove('now'));
-          const c = cards[i]; c.classList.add('now', 'shown');
+          const c = cards[i]; c.classList.add('now', 'shown'); const hr = document.querySelector(`#overlay .dr-hr[data-i="${i}"]`); if (hr) hr.classList.add('shown');
           await say(res.tenpai[i] ? 'テンパイ' : 'ノーテン', { gap: 0, lead: 10 }); await sl(30);
         }
         if (tok !== this._drTok) return;
@@ -1960,9 +1960,16 @@
             const p = game.players[i], ch = p.char || {};
             const face = this.faceImg(ch, 'dr-face') || '<div class="dr-face dr-me">🀄</div>';
             const d = res.delta[i];
-            return `<div class="dr-p${t ? ' tp' : ''}">${face}<div class="dr-n">${p.name}</div><div class="dr-s ${t ? 'tp' : 'no'}">${t ? 'テンパイ' : 'ノーテン'}</div><div class="dr-d ${d > 0 ? 'up' : d < 0 ? 'dn' : ''}">${d ? (d > 0 ? '+' : '') + d.toLocaleString() : '±0'}</div><div class="dr-t">${fmt(res.after[i])}点</div>${t ? `<div class="dr-h">${res.hands[i].concealed.map((h) => MJ.tileHTML(h.t, 't-s')).join('')}</div>` : ''}</div>`;
+            return `<div class="dr-p${t ? ' tp' : ''}">${face}<div class="dr-n">${p.name}</div><div class="dr-s ${t ? 'tp' : 'no'}">${t ? 'テンパイ' : 'ノーテン'}</div><div class="dr-d ${d > 0 ? 'up' : d < 0 ? 'dn' : ''}">${d ? (d > 0 ? '+' : '') + d.toLocaleString() : '±0'}</div><div class="dr-t">${fmt(res.after[i])}点</div></div>`;
           }).join('');
-          pages.push({ t: '流局', onShow: () => this.readDraw(game, res), html: `<div class="dr-big">流局</div><div class="dr-sub">${game.kyokuLabel()} ／ 山の牌がなくなりました(荒牌平局)</div><div class="dr-row">${cards}</div><p class="dr-note">テンパイの人がノーテンの人から合計3000点を受け取ります。</p><div class="dr-tbl">${this.scoreTable(game, res)}</div>` });
+          // テンパイの人: 手牌と待ちを、カードの下に1人1行で見せる(Pi版と同じ)。読み上げで「テンパイ」と言ったあとに出る
+          const hands = res.tenpai.map((t, i) => {
+            if (!t) return '';
+            const v = res.hands[i], p = game.players[i];
+            let ws = []; try { ws = MJ.waits(MJ.toCounts(v.concealed), (v.melds || []).length); } catch (e) { /* ignore */ }
+            return `<div class="dr-hr" data-i="${i}"><b>${p.name}</b><span class="hs">${v.concealed.map((h) => MJ.tileHTML(h.t, 't-s', '', h.red)).join('')}${(v.melds || []).map((m) => `<span class="ms">${m.tiles.map((h) => MJ.tileHTML(h.t, 't-s', '', h.red)).join('')}</span>`).join('')}</span>${ws.length ? `<span class="wt2"><em>待ち</em>${ws.slice(0, 8).map((t2) => MJ.tileHTML(t2, 't-s')).join('')}</span>` : ''}</div>`;
+          }).join('');
+          pages.push({ t: '流局', onShow: () => this.readDraw(game, res), html: `<div class="dr-big">流局</div><div class="dr-sub">${game.kyokuLabel()} ／ 山の牌がなくなりました(荒牌平局)</div><div class="dr-row">${cards}</div><div class="dr-hands">${hands}</div><p class="dr-note">テンパイの人がノーテンの人から合計3000点を受け取ります。</p><div class="dr-tbl">${this.scoreTable(game, res)}</div>` });
           if (res.drawReview) this.splitReview(MJ.Coach.drawReview(game, res)).forEach((h) => rvPages.push({ t: '流局の振り返り', html: h, rv: true }));
         }
         if (res.type === 'win') MJ.SFX.play(res.wins.some((w) => w.winner.isHuman) ? 'win' : res.delta[0] < 0 ? 'lose' : 'drawgame'); // 自分以外の和了(自分が払わないとき)は、にぎやかな音にしない
