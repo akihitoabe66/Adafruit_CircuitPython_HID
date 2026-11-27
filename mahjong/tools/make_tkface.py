@@ -10,6 +10,8 @@ HERE = os.path.dirname(os.path.abspath(__file__)); R = os.path.join(HERE, '..', 
 W, H = 38, 40
 # 元の顔の絵(img/uk/chars/face/NN.webp, 176x176)が、ご用意の絵(tkface_src)の どこに あたるか(位置合わせで 調べた値。 倍率, 左右のずれ, 上下のずれ)
 REG = {'07': (1.80, -33, -13), '01': (1.78, -34, -24)}
+# シルエットの 微調整: (倍率 1より小さい=影を 小さく, 左右のずれ, 上下のずれ(元の絵の ドット))。 家康=輪郭が いちばん 合う値 / 黄門=それより さらに 3% 小さく
+SIL_ADJ = {'07': (0.97, -0.5, 2.0), '01': (0.98 * 0.97, 2.5, 2.5)}
 TOP = 0.25   # 上下を切るとき、上を 切る割合(のこりは 下: 肩のほうを 多めに 切る)
 def crop_box(size):
     w, h = size; th = round(w * H / W)
@@ -24,5 +26,7 @@ for n in ('01', '07'):
     U = Image.open(os.path.join(HERE, 'tkface_src', 'tk%s_src.jpg' % n)).convert('RGB'); cb = crop_box(U.size)
     shrink(U, os.path.join(R, 'map', 'tkface_%s.webp' % n), cb)
     # シルエットも、顔と 同じ範囲(人物の大きさ・位置が そろう)を 切りとって 縮める
-    k, ox, oy = REG[n]; fb = tuple(float(v) for v in ((cb[0] - ox) / k, (cb[1] - oy) / k, (cb[2] - ox) / k, (cb[3] - oy) / k))
+    k, ox, oy = REG[n]; fb = [(cb[0] - ox) / k, (cb[1] - oy) / k, (cb[2] - ox) / k, (cb[3] - oy) / k]
+    sc, ex, ey = SIL_ADJ[n]; cx, cy = (fb[0] + fb[2]) / 2 + ex, (fb[1] + fb[3]) / 2 + ey; bw, bh = (fb[2] - fb[0]) / sc, (fb[3] - fb[1]) / sc   # 影の大きさ・位置の微調整(目で 見て えらんだ)
+    fb = (cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2)
     shrink(Image.open(os.path.join(R, 'sil', n + '.webp')), os.path.join(R, 'map', 'tksil_%s.webp' % n), fb)
