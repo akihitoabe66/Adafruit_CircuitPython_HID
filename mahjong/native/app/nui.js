@@ -1484,13 +1484,13 @@
   }
   function tkPanel(x0, y0, w0, tk) { // 名人(江戸)の右下の枠: 家康・黄門を倒したか(顔と赤い「済」)。 2人とも倒したら、天下分け目の案内
     const stamp = (bx, by) => { rrect(bx + 24, by + 28, 20, 19, 4, [255, 255, 255]); rrect(bx + 25, by + 29, 18, 17, 3, [210, 30, 30]); text('済', bx + 34, by + 31, 14, [255, 255, 255], 1); };
-    const faceOf = (id) => skin((MJ.CHARS.find((c) => c.id === id) || {}).face);
+    const faceOf = (id) => 'img/map/tkface_' + ('0' + id).slice(-2) + '.webp'; // この枠 専用に、38x40へ きれいに縮めた絵(tools/make_tkface.py)
     if (tk[1] && tk[7]) {
       [[7, 0], [1, 1]].forEach((a2) => { const bx = x0 + 14 + a2[1] * 52, by = y0 + 17; rrect(bx - 1, by - 1, 42, 44, 5, [255, 214, 70]); gfx.image(faceOf(a2[0]), bx + 1, by + 1, 38, 40, 255); stamp(bx, by); });
       text('天下分け目で 1位なら', x0 + 196, y0 + 10, 17, WHITE, 1); text('永世名人!', x0 + 196, y0 + 34, 32, [255, 214, 70], 1);
     } else {
       text('名人の 2人を 倒そう', x0 + w0 / 2, y0 + 6, 19, WHITE, 1);
-      [[7, -52], [1, 12]].forEach((a2) => { const bx = x0 + w0 / 2 + a2[1], by = y0 + 28; rrect(bx - 1, by - 1, 42, 44, 5, tk[a2[0]] ? [255, 214, 70] : [110, 120, 110]); gfx.image(tk[a2[0]] ? faceOf(a2[0]) : 'img/sil/' + ('0' + a2[0]).slice(-2) + '.webp', bx + 1, by + 1, 38, 40, 255); if (tk[a2[0]]) stamp(bx, by); });
+      [[7, -52], [1, 12]].forEach((a2) => { const bx = x0 + w0 / 2 + a2[1], by = y0 + 28; rrect(bx - 1, by - 1, 42, 44, 5, tk[a2[0]] ? [255, 214, 70] : [110, 120, 110]); gfx.image(tk[a2[0]] ? faceOf(a2[0]) : 'img/map/tksil_' + ('0' + a2[0]).slice(-2) + '.webp', bx + 1, by + 1, 38, 40, 255); if (tk[a2[0]]) stamp(bx, by); });
     }
   }
   function tkMapMsg(tk) { // 名人の地図(江戸)のひとこと: 2人を倒していく道すじ
