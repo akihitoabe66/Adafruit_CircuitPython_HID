@@ -343,6 +343,11 @@ def compose_danger(scr, h, tick):
     if tick % 2 == 1: scr.invert()
     return scr
 
+def pad_sleeping():   # mjpad が 書く: 無線コントローラーが 5分 押されていない(ゲームが 動いていなくても 出す)
+    try:
+        with open('/dev/shm/mj_padsleep.txt') as f: return f.read().strip() == '1'
+    except OSError: return False
+
 def pad_screen(scr, tick):
     """無線コントローラーが 切れたとき: 2つの文字が かわりばんこ(約1.3秒ごと)。 ずんだもんは 困り顔"""
     t2 = tick // 4 % 2
@@ -695,7 +700,7 @@ def compose0(scr, d, age, tick, ever_alive=False):
     起動してすぐ(まだゲームが始まっていない間)は「ゲーム起動中」、ゲームが終わったあとは「抜いてね」を出す"""
     if d is not None and d.get('scene') == 'SAVING': scr.clear(); return saving_screen(scr, tick)   # 保存中: まだ 抜かない
     if d is not None and d.get('scene') == 'EXIT': scr.clear(); return exit_plug(scr, tick)   # 終了: プラグが抜き差しされる絵だけを出す
-    if d is not None and age < 4.0 and d.get('padguide') == '1': scr.clear(); return pad_screen(scr, tick)   # 無線コントローラーが 切れた案内(ゲームの画面と 同じタイミング)
+    if (d is not None and age < 4.0 and d.get('padguide') == '1') or pad_sleeping(): scr.clear(); return pad_screen(scr, tick)   # 無線コントローラーが 切れた案内(ゲームの画面と 同じタイミング)
     if ZU and not sensei_now(d, age): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだ(麻雀先生がオンなら)と 勉強の階層は 先生。 ほかは ずんだもんのペット
     h = health()
     if h['level'] >= 2: return compose_danger(scr, h, tick)

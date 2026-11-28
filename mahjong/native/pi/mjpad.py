@@ -106,6 +106,12 @@ def to_state(btn, prev=None, wait_diag=False):
     return x, y, ks
 
 
+SLEEP_S = float(os.environ.get('MJPAD_SLEEP_S', '300'))   # 無線コントローラーが 自動で ねむるまで(5分)
+def set_sleep(on):   # OLED(mjoled)が 読む: 1 = 無線が 切れたかもしれない。 ゲームが 動いていなくても 出せる
+    try: open('/dev/shm/mj_padsleep.txt', 'w').write('1\n' if on else '0\n')
+    except OSError: pass
+
+
 class Pad:
     """uinput の仮想ゲームパッド"""
     def __init__(self, dry=False):
@@ -391,6 +397,7 @@ def main():
     try: os.nice(-5)   # ゲームより 少し 優先(ゲームが CPU を使っていても、読む間隔が くずれないように)
     except OSError: pass
     bus = None; bad = 0; bad_t0 = 0.0; ok_once = False; was_down = False; pad_seq = 0; dseq = 0; cur_id = ''; cur_kind = 'wired'; deb = Debounce(1); diag_n = 0; hold = Holder(); t_loop = time.time(); hz = HZ
+    last_in = time.time(); sleeping = False; set_sleep(False)
     while True:
         try:
             if bus is None:
@@ -403,7 +410,8 @@ def main():
                 cur_id = bus.ident.hex(); cur_kind = 'wireless' if wl else 'wired'
                 try: open('/dev/shm/mj_pad.txt', 'w').write('seq=%d\ndseq=%d\nstate=up\nid=%s\nkind=%s\n' % (pad_seq, dseq, cur_id, cur_kind))   # kind: ゲームの「遊び方」で 有線/無線の絵を えらぶのに 使う。 seq: つながった合図 / dseq: ぬけた合図(mjbuzz が 鳴らす)
                 except OSError: pass
-                was_down = False
+                was_down = False; last_in = time.time()
+                if sleeping: sleeping = False; set_sleep(False)
             try: w = bus.read()
             except OSError: w = None   # 1回の読みそこないでは つなぎなおさない(受信機は ときどき 返事を 落とす。 つなぎなおすと 約1秒 止まる)
             b = decode(w) if w is not None else None
@@ -415,6 +423,11 @@ def main():
                 bad = 0; b = hold.apply(b, time.time()); dg = b['left'] != b['right'] and b['up'] != b['down']   # 斜め
                 diag_n = diag_n + 1 if dg else 0
                 st = to_state(b, pad.last, wait_diag=diag_n <= DIAG_MS * hz / 1000.0)   # 斜めが 約0.12秒つづいたら、横を優先して 決める(時間で 数える)
+                nw = time.time()
+                if any(b.values()):
+                    last_in = nw
+                    if sleeping: sleeping = False; set_sleep(False)   # ボタンが 押された(スタートで ふっきした)
+                elif cur_kind == 'wireless' and not sleeping and nw - last_in >= SLEEP_S: sleeping = True; set_sleep(True)   # 無線は 5分 押さないと ねむる(Zero には わからないので、時間で 知らせる)
                 if st is not None:
                     out = deb.feed(st)
                     if out is not None: pad.send(out)
@@ -425,6 +438,7 @@ def main():
                 try: open('/dev/shm/mj_pad.txt', 'w').write('seq=%d\ndseq=%d\nstate=down\nid=%s\nkind=%s\n' % (pad_seq, dseq, cur_id, cur_kind))
                 except OSError: pass
             ok_once = False; was_down = True
+            if sleeping: sleeping = False; set_sleep(False)
             if bus is not None:
                 try: os.close(bus.fd)
                 except OSError: pass
