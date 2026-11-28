@@ -1262,7 +1262,7 @@
   }
   function mapPlay(M) { const d = M.from; S.map = null; try { NSND.mapOff(); } catch (e) { /* ignore */ } S.rankScr = null; S.mode = 'menu'; startGame(null, { town: d }); } // 地図から、その街で 対局(いまの段位の街=ふつう / 下の街=修行)
   function mapClose(M) { // 対局前の地図を とじる: 巻物が右へ閉じ、海が溶けて、雀卓があらわれる(対局は 閉じはじめに 始める)。 ほかの地図は すぐ消す
-    if (M.hdone) return; M.hdone = true; try { NSND.stopSpeak(); if (!M.here) NSND.mapOff(); } catch (e) { /* ignore */ } // 対局前の地図は、地図の曲を そのまま サイコロの画面まで流して、雀卓が出たとき(handStart)に 対局の曲へ つなぐ
+    if (M.hdone) return; M.hdone = true; try { NSND.stopSpeak(true); if (!M.here) NSND.mapOff(); } catch (e) { /* ignore */ } // 対局前の地図は、地図の曲を そのまま サイコロの画面まで流して、雀卓が出たとき(handStart)に 対局の曲へ つなぐ
     if (M.here) { M.closing = { t0: __now() }; M.then(); } else { S.map = null; M.then(); } dirty();
   }
   function mapKey(k) { const M = S.map; if (!M) return; if (M.closing) return; /* 閉じている間は ボタンを うけつけない */ const t = __now() - M.t0, arrived = t >= M.endT;
@@ -1278,7 +1278,7 @@
       if (k === 'back') { S.map = null; try { NSND.mapOff(); NSND.home(); } catch (e) { /* ignore */ } M.then(); } // 成績の画面から 見ていた地図を とじる: ホームの曲にもどす
       dirty(); return;
     } if (M.here) { if (k === 'ok' || k === 'back') mapClose(M); return; } /* 対局前の地図: どのボタンでも すぐ閉じる */
-    if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; M.hdone = true; S.map = null; try { NSND.stopSpeak(); NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
+    if (k === 'ok' || k === 'back') { if (!arrived) { M.t0 = __now() - M.endT - 1; dirty(); return; } if (t < M.endT + 600) return; M.hdone = true; S.map = null; try { NSND.stopSpeak(true); NSND.mapOff(); } catch (e) { /* ignore */ } M.then(); } dirty(); }
   /* ---------- 昇段の演出テスト(隠しコマンドで開く): 認定証 → 地図 → 新しい雀士 を、いつでも見られる ---------- */
   function drawPromo() {
     const P = S.promo; gfx.clear(14, 40, 30); gfx.image('img/menu_bg.webp', 0, 0, SW, SH, 255); fill(0, 0, SW, SH, [0, 0, 0], 150);
