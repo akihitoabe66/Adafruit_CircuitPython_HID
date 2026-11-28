@@ -359,6 +359,13 @@ static void loading_screen(int done, int total){
   SDL_SetRenderDrawColor(ren, 6, 20, 14, 255); SDL_Rect bar = { (W - 360) / 2, 296, 360, 20 }; SDL_RenderFillRect(ren, &bar);
   SDL_SetRenderDrawColor(ren, 222, 184, 96, 255); SDL_Rect fg = { (W - 360) / 2, 296, total ? 360 * 70 * done / total / 100 : 0, 20 } /* 画像・音の読み込みは 棒の前の70%。 残り30%は JS 側の準備 */; SDL_RenderFillRect(ren, &fg);
   SDL_RenderPresent(ren); }
+/* 起動の読み込みが 止まったときの見はり: 1つのファイルに 20秒以上かかったら、どのファイルかを crash.log に書いて、自分で落ちる(→ kiosk.sh が 自動で やりなおす)。 実機で 60% あたりで 固まったことがあり、原因の記録が なかったため */
+extern const char *crash_dir;
+static volatile int g_pre_on = 0; static volatile double g_pre_t = 0; static char g_pre_cur[256];
+static int pre_watch_thread(void *u){ (void)u; while (g_pre_on) { SDL_Delay(1000); if (g_pre_on && nowms() - g_pre_t > 20000) {
+    char p[1500]; snprintf(p, sizeof p, "%s/crash.log", crash_dir ? crash_dir : "/tmp"); int fd = open(p, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd >= 0) { char m[400]; int n = snprintf(m, sizeof m, "boot-stuck 20s+ at: %s\n", g_pre_cur); (void)!write(fd, m, n); fsync(fd); close(fd); }
+    abort(); } } return 0; }
 static void preload(void){
   static char *list[1200]; int n = 0;
   n = listdir("img", ".webp", list, 1200, n); n = listdir("img/tiles", ".webp", list, 1200, n); n = listdir("img/dice", ".webp", list, 1200, n); n = listdir("img/map", ".webp", list, 1200, n); n = listdir("img/certface", ".webp", list, 1200, n); n = listdir("img/t44", ".webp", list, 1200, n); n = listdir("img/t26", ".webp", list, 1200, n); n = listdir("img/chars", ".webp", list, 1200, n); n = listdir("img/chars/face", ".webp", list, 1200, n);
@@ -367,7 +374,9 @@ static void preload(void){
   int nimgs = n; n = listdir("audio/sfx", ".wav", list, 1200, n);
   qsort(list, n, sizeof(char *), cmpstr);
   double t0 = nowms(); int last = -1;
+  g_pre_t = t0; g_pre_on = 1; { SDL_Thread *wt = SDL_CreateThread(pre_watch_thread, "prewatch", NULL); if (wt) SDL_DetachThread(wt); }
   for (int i = 0; i < n; i++) {
+    g_pre_t = nowms(); snprintf(g_pre_cur, sizeof g_pre_cur, "%s", list[i]);
     if (strstr(list[i], "/certface/") || strstr(list[i], "/tenbo_")) continue;
     if (!getenv("MJ_EAGER")) { /* 使う場面が決まっている大きな絵は、起動のときに読まない(メモリを節約)。 場面に入る前に、JS側が 少しずつ先に読む(nui.js の 先読みの管理) */
       const char *q = list[i]; int old = (getenv("MJ_STYLE") && !strcmp(getenv("MJ_STYLE"), "old")); int youold = (getenv("MJ_YOU") && !strcmp(getenv("MJ_YOU"), "old"));
@@ -381,10 +390,11 @@ static void preload(void){
   }
   (void)nimgs;
   { char fp[1400]; snprintf(fp, sizeof fp, "%s/fonts.txt", datadir); FILE *ff = fopen(fp, "r"); int sz, k = 0; double tf0 = nowms();
-    if (ff) { while (k < 120 && fscanf(ff, "%d", &sz) == 1) { (void)getfont(sz); k++; SDL_PumpEvents(); } fclose(ff); }
+    if (ff) { while (k < 120 && fscanf(ff, "%d", &sz) == 1) { g_pre_t = nowms(); snprintf(g_pre_cur, sizeof g_pre_cur, "font %d", sz); (void)getfont(sz); k++; SDL_PumpEvents(); } fclose(ff); }
     printf("fonts: %d opened, %.0fms\n", k, nowms() - tf0); font_rec = 1; } /* 前に使った大きさの字を、先に開いておく(はじめて使うとき、1秒近く止まるため) */
   { /* タイトルで すぐ鳴らす曲(ホーム)を、先に 1回 読んでおく(SDカードから はじめて読むのに 0.5秒ほど かかるため。 読んだものは OS が おぼえておく) */
     char fp[1400]; snprintf(fp, sizeof fp, "%s/audio/home.mp3", root); FILE *hf = fopen(fp, "rb"); if (hf) { static char hb[65536]; while (fread(hb, 1, sizeof hb, hf) == sizeof hb) { } fclose(hf); } }
+  g_pre_on = 0;
   loading_screen(n, n); printf("preload: %d files, %.0fms\n", n, nowms() - t0); fflush(stdout);
   for (int i = 0; i < n; i++) free(list[i]);
 }
