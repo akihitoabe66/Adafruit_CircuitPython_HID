@@ -2567,7 +2567,6 @@
   const padWaiting = () => { // 人の ボタンを 待っている場面か(動画・サイコロ・演出のあいだは 出さない)
     if (S.mode === 'boot' || S.mode === 'video' && S.vid && S.vid.view === 'play') return false;
     if (S.dice || S.intro || S.cutin || S.ura || S.winRv || S.deal || S.ryu || S.map) return false;
-    if (S.game && S.mode === 'game' && !(S.self || S.react || S.result || S.end)) return false;
     return true;
   };
   function padGuideTick() {
@@ -2575,19 +2574,17 @@
     const nw = __now(); if (!S.lastInT) S.lastInT = nw;
     if (nw - S.lastInT >= PADGUIDE_MS && padWaiting() && padWireless()) { S.padGuide = true; dirty(); }
   }
-  function drawPadGuide() {
-    gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], 175);
-    panel(56, 18, SW - 112, 428, 14, [252, 246, 228], [120, 84, 40], 4, 255);
-    text('コントローラーが 切れて いませんか?', SW / 2, 32, 32, [170, 40, 30], 1);
-    text('しばらく ボタンを 押さないと、ワイヤレスコントローラーは 自動で ねむります。', SW / 2, 76, 18, [70, 50, 30], 1);
-    gfx.image('img/help/pad_wireless.webp', 166, 112, 500, 228, 255);
-    // スタートボタン(絵の中の位置 268,158)を 赤い わくと 矢印で 示す
-    const bx = 166 + 268, by = 112 + 158, pu = 0.5 + 0.5 * Math.sin(__now() / 260);
-    rrect(bx - 36, by - 15, 72, 30, 15, [255, 214, 70], Math.round(120 + 120 * pu)); frame(bx - 34, by - 13, 68, 26, [214, 40, 30], 4);
-    gPoly([[bx, by + 20], [bx - 18, by + 46], [bx + 18, by + 46]], [214, 40, 30], 255); fill(bx - 6, by + 44, 12, 14, [214, 40, 30]);
-    rrect(bx - 150, 346, 300, 38, 12, [214, 40, 30]); text('スタートボタンを 押す', bx, 351, 26, WHITE, 1);
-    text('そのあと、どれかボタンを 押すと この案内は 消えます。', SW / 2, 398, 18, [70, 50, 30], 1);
-    text('(受信機の ランプが 点滅して いたら、切れています)', SW / 2, 422, 15, [120, 90, 50], 1);
+  function drawPadGuide() { // 画面が 黒く 半透明に なり、中央に コントローラーの図と「スタートボタンを 押して 再開」。 手牌・顔など「手前に 出る 描き方」の ものも 暗くするため、ぜんぶ Top の 描き方で 重ねる
+    gfx.view(0, 0); const T = typeof gfx.fillTop === 'function', F = T ? (x, y, w, h, c, a) => gfx.fillTop(x, y, w, h, c[0], c[1], c[2], a == null ? 255 : a) : (x, y, w, h, c, a) => fill(x, y, w, h, c, a), X = T ? (t, x, y, sz, c) => gfx.textTop(t, x, y, sz, c[0], c[1], c[2], 1) : (t, x, y, sz, c) => text(t, x, y, sz, c, 1);
+    F(0, 0, SW, SH, [0, 0, 0], 165);
+    X('コントローラーの 無線が 切れました', SW / 2 - 40, 52, 38, WHITE);
+    const IX = 216, IY = 128, SX = IX + Math.round(268 * 0.8), SY = IY + Math.round(158 * 0.8); // 絵(400x182)と、スタートボタンの 位置
+    if (T && typeof gfx.imageTop === 'function') gfx.imageTop('img/help/pad_wireless_s.webp', IX, IY, 400, 182); else gfx.image('img/help/pad_wireless_s.webp', IX, IY, 400, 182, 255);
+    const pu = 0.5 + 0.5 * Math.sin(__now() / 260), R = [255, 70, 50];
+    F(SX - 30, SY - 12, 60, 24, [255, 214, 70], Math.round(90 + 120 * pu));   // スタートボタンを 赤いわく(点滅)と 矢印で 示す
+    F(SX - 30, SY - 12, 60, 3, R); F(SX - 30, SY + 9, 60, 3, R); F(SX - 30, SY - 12, 3, 24, R); F(SX + 27, SY - 12, 3, 24, R);
+    for (let i = 0; i < 24; i++) F(SX - Math.round(i * 0.7), SY + 18 + i, Math.round(i * 1.4) + 1, 1, R); F(SX - 6, SY + 40, 12, 12, R);
+    const lab = 'スタートボタンを 押して 再開', lw = gfx.measure(lab, 40) + 64; F(Math.round(SW / 2 - lw / 2), 338, lw, 72, [214, 40, 30]); X(lab, SW / 2, 351, 40, WHITE);   // 赤い帯は 文字の 幅に あわせる
     dirty();
   }
   /* ---------- 入力 ---------- */
@@ -3242,7 +3239,7 @@
     let petStr = ''; try { petStr = petStep(); } catch (e) { petStr = ''; }
     let pet = ''; try { const rs = MJ.Rank.get(), rk = rs.ranks || [0, 0, 0, 0]; pet = 'plays=' + (rs.games || 0) + '\nwins=' + (rk[0] || 0) + '\nboots=' + bootN + '\nqc=' + (rs.qc || 0) + '\npt=' + (rs.pt || 0) + '\ndan=' + (rs.dan || 0) + '\nteacher=' + (teacherOn() ? 1 : 0) + '\nbuzz=' + buzzLv() + '\ncos=' + oledCos() + '\n' + petStr + 'idle=' + Math.floor((__now() - Math.max(S.lastKeyT || 0, S.readyT || 0)) / 1000) + '\n'; } catch (e) { /* ignore */ } // ペット用: 遊んだ回数・1位の数・電源を入れた回数・クイズの数・経験値・段位
     const o = perf.o || {}, jp = (k) => (k ? (OLED_JP[k] || k) : '');
-    return 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\n' + pet;
+    return (S.padGuide ? 'padguide=1\n' : '') + 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\n' + pet;
   }
   let oledT = 0; setInterval(() => { try { if (typeof gfx.status === 'function') { gfx.status(oledState()); } } catch (e) { /* ignore */ } }, 400);
   const perfCtx = () => { // いま どの画面で なにをしていたか(遅れの記録に添える)
