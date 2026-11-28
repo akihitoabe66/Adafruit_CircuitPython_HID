@@ -349,15 +349,13 @@ def pad_sleeping():   # mjpad が 書く: 無線コントローラーが 5分 �
     except OSError: return False
 
 def pad_screen(scr, tick):
-    """無線コントローラーが 切れたとき: 3つの文を 3回ずつ 点滅 → つぎの文、を くりかえす。
-    1回目の スタートは 無線を 起こすだけなので「そのあと どれかボタン」も 出す。 点滅 = 画面ぜんたいの 白黒が かわる(1回 約1.3秒)。 tick は 1秒に 3回"""
-    k = tick % 36                      # 12コマ(約4秒)で 3回点滅 → つぎの文
+    """無線コントローラーが 切れたとき: 「無線コントローラーが 切れた」で 3回点滅 → 「スタートボタンを 2回 押してね」で 3回点滅、を くりかえす。
+    (1回目の スタートは 無線を 起こすだけなので 2回。) 点滅 = 画面ぜんたいの 白黒が かわる(1回 約1.3秒)。 tick は 1秒に 3回"""
+    k = tick % 24                      # 12コマ(約4秒)で 3回点滅 → つぎの文
     if k < 12:
         scr.text16('無線', 0, 0); scr.text16('コントローラーが', 0, 16); scr.text16('切れた', 0, 32)
-    elif k < 24:
-        scr.text16('スタートボタンを', 0, 0); scr.text16('押してね', 0, 16)
     else:
-        scr.text16('そのあと', 0, 0); scr.text16('どれかボタンを', 0, 16); scr.text16('押してね', 0, 32)
+        scr.text16('スタートボタンを', 0, 0); scr.text16('2回押してね', 0, 16)
     if k % 4 >= 2: scr.invert()
     return scr
 
@@ -706,7 +704,7 @@ def compose0(scr, d, age, tick, ever_alive=False):
     if d is not None and d.get('scene') == 'SAVING': scr.clear(); return saving_screen(scr, tick)   # 保存中: まだ 抜かない
     if d is not None and d.get('scene') == 'EXIT':   # 終了のあと(コンソール): 無線が 切れているときは「抜いてね」と 無線の案内を 4秒ずつ かわりばんこ
         scr.clear()
-        if pad_sleeping() and tick % 60 >= 24: return pad_screen(scr, tick % 60 - 24)   # 「電源を抜いて」約8秒 → 無線の案内(3つの文を 1回ずつ)約12秒
+        if pad_sleeping() and tick % 48 >= 24: return pad_screen(scr, tick % 48 - 24)   # 「電源を抜いて」約8秒 → 無線の案内(2つの文を 1回ずつ)約8秒
         return exit_plug(scr, tick)   # 終了: プラグが抜き差しされる絵だけを出す
     if (d is not None and age < 4.0 and d.get('padguide') == '1') or pad_sleeping(): scr.clear(); return pad_screen(scr, tick)   # 無線コントローラーが 切れた案内(ゲームの画面と 同じタイミング)
     if ZU and not sensei_now(d, age): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだ(麻雀先生がオンなら)と 勉強の階層は 先生。 ほかは ずんだもんのペット

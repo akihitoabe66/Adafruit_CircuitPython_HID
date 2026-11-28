@@ -2587,7 +2587,10 @@
     F(SX - 30, SY - 12, 60, 24, [255, 214, 70], Math.round(90 + 120 * pu));   // スタートボタンを 赤いわく(点滅)と 矢印で 示す
     F(SX - 30, SY - 12, 60, 3, R); F(SX - 30, SY + 9, 60, 3, R); F(SX - 30, SY - 12, 3, 24, R); F(SX + 27, SY - 12, 3, 24, R);
     for (let i = 0; i < 24; i++) F(SX - Math.round(i * 0.7), SY + 18 + i, Math.round(i * 1.4) + 1, 1, R); F(SX - 6, SY + 40, 12, 12, R);
-    const l1 = '① スタートボタンを 押す', l2 = '② そのあと どれかボタンを 押す', lw = Math.max(gfx.measure(l1, 34), gfx.measure(l2, 34)) + 64; F(Math.round(SW / 2 - lw / 2), 326, lw, 112, [214, 40, 30]); X(l1, SW / 2, 336, 34, WHITE); X(l2, SW / 2, 384, 34, WHITE);   // 1回目の スタートは 無線を 起こすだけで ゲームには とどかない。 そのあと もう1回 ボタンを 押してもらう。 赤い帯は 文字の 幅に あわせる
+    const a1 = 'スタートボタンを ', a2 = '2回', a3 = ' 押してね', w1 = gfx.measure(a1, 34), w2 = gfx.measure(a2, 58), w3 = gfx.measure(a3, 34), tw = w1 + w2 + w3, x0 = Math.round(SW / 2 - tw / 2), by = 330;   // 1回目の スタートは 無線を 起こすだけで ゲームには とどかない → 「2回」を 大きく 黄色で
+    F(x0 - 32, by, tw + 64, 96, [214, 40, 30]);
+    const TX = (t, x, y, sz, c) => (T ? gfx.textTop(t, x, y, sz, c[0], c[1], c[2], 0) : text(t, x, y, sz, c, 0));
+    TX(a1, x0, by + 28, 34, WHITE); TX(a2, x0 + w1, by + 10, 58, [255, 226, 70]); TX(a3, x0 + w1 + w2, by + 28, 34, WHITE);
     dirty();
   }
   /* ---------- 入力 ---------- */
