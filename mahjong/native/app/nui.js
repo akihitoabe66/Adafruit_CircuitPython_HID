@@ -3241,7 +3241,7 @@
     const o = perf.o || {}, jp = (k) => (k ? (OLED_JP[k] || k) : '');
     return (S.padGuide ? 'padguide=1\n' : '') + 'scene=' + jp(scene) + '\npose=' + pose + '\nmsg=' + jp(msg) + '\nspd=' + (o.spd == null ? '' : o.spd) + '\ndraw=' + (o.draw == null ? '' : o.draw) + '\nmax=' + (o.max == null ? '' : o.max) + '\nkey=' + (o.key == null ? '' : o.key) + '\naudio=' + audio + '\nrss=' + mm[0] + '\navail=' + mm[1] + '\nminav=' + mm[2] + '\nswap=' + mm[3] + '\nup=' + Math.floor(__now() / 1000) + '\n' + pet;
   }
-  let oledT = 0; setInterval(() => { try { if (typeof gfx.status === 'function') { gfx.status(oledState()); } } catch (e) { /* ignore */ } }, 400);
+  let oledT = 0; setInterval(() => { try { padGuideTick(); } catch (e) { /* ignore */ } try { if (typeof gfx.status === 'function') { gfx.status(oledState()); } } catch (e) { /* ignore */ } }, 400); /* 案内の判定は 画面を描かないときも 動かす(描きなおしは 案内が出る瞬間に dirty で) */
   const perfCtx = () => { // いま どの画面で なにをしていたか(遅れの記録に添える)
     let t = S.mode || '?'; const g = S.game;
     if (S.mode === 'game' && g) t += ' 番' + g.turn + (S.self ? ' 自分' : '') + (S.react ? ' 鳴き' : '') + (S.banner ? ' 演出' : '') + (S.result ? ' 結果' : '') + (S.intro ? ' 開始' : '') + (S.dice ? ' サイコロ' : '') + (S.deal ? ' 配牌' : '') + (S.coach ? ' 解説' : '');
