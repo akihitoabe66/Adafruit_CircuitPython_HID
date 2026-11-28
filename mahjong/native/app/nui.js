@@ -2569,6 +2569,7 @@
     if (S.dice || S.intro || S.cutin || S.ura || S.winRv || S.deal || S.ryu || S.map) return false;
     return true;
   };
+  window.__padWake = () => { S.lastInT = __now(); if (S.padGuide) { S.padGuide = false; dirty(); } }; // スタート・セレクトが 押された(ゲームの操作ではない): 案内を消し、5分を 数えなおす
   function padGuideTick() {
     if (S.padGuide) return;
     const nw = __now(); if (!S.lastInT) S.lastInT = nw;

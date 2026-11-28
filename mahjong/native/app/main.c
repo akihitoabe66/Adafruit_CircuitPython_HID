@@ -459,7 +459,7 @@ static void handle_event(SDL_Event *ep){
   else if (e.type == SDL_JOYHATMOTION) { if (e.jhat.value & SDL_HAT_LEFT) { callkey("left"); setheld(1); } else if (e.jhat.value & SDL_HAT_RIGHT) { callkey("right"); setheld(2); } else if (e.jhat.value & SDL_HAT_UP) { callkey("up"); setheld(3); } else if (e.jhat.value & SDL_HAT_DOWN) { callkey("down"); setheld(4); } else held = 0; }
   else if (e.type == SDL_JOYAXISMOTION) joyaxis(e.jaxis.axis, e.jaxis.value);
   else if (e.type == SDL_JOYBUTTONUP) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 0; }
-  else if (e.type == SDL_JOYBUTTONDOWN) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 1; { int b = e.jbutton.button; if (b >= 6 && b <= 9) return; /* スタート・セレクトは、長押しのメニュー専用 */ callkey((swapab ? (b == 0 || b == 2) : (b == 1 || b == 3)) ? "back" : "ok"); } }
+  else if (e.type == SDL_JOYBUTTONDOWN) { if (e.jbutton.button < 32) jb[e.jbutton.button] = 1; { int b = e.jbutton.button; if (b >= 6 && b <= 9) { JSValue g = JS_GetGlobalObject(ctx); JSValue f = JS_GetPropertyStr(ctx, g, "__padWake"); if (JS_IsFunction(ctx, f)) { JSValue r = JS_Call(ctx, f, g, 0, NULL); if (JS_IsException(r)) dump_err(ctx); JS_FreeValue(ctx, r); jobs(); } JS_FreeValue(ctx, f); JS_FreeValue(ctx, g); return; } /* スタート・セレクトは、ゲームの操作には 使わない。 無線切れの案内を 消すためだけ JSへ 知らせる */ callkey((swapab ? (b == 0 || b == 2) : (b == 1 || b == 3)) ? "back" : "ok"); } }
 }
 
 static double stall_ms = 0; /* これより長く止まった(JSの処理・絵を描く)ときは、~/mjdata/stall.log に、何をしていたかを書く(MJ_STALL=ミリ秒で変更。0で書かない) */
