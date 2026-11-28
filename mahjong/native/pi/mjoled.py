@@ -349,11 +349,11 @@ def pad_sleeping():   # mjpad が 書く: 無線コントローラーが 5分 �
     except OSError: return False
 
 def pad_screen(scr, tick):
-    """無線コントローラーが 切れたとき: 2つの文字が かわりばんこ(約1.3秒ごと)。 ずんだもんは 困り顔"""
-    t2 = tick // 4 % 2
-    scr.zface('tongue' if tick % 2 else 'smile', 0, 19, 1)
-    if t2 == 0: scr.text16('無線が', 0, 0, inv=True); scr.text16('切れたよ', TEXT_X, 24)
-    else: scr.text16('スタートを', 0, 0, inv=True); scr.text16('押してね', TEXT_X, 24)
+    """無線コントローラーが 切れたとき: 「無線コントローラーが 切れた」と「スタートを 押してね」が 約2秒ずつ かわりばんこ(ずっと くりかえす)。 画面いっぱいに 大きく出す"""
+    if tick // 6 % 2 == 0:
+        scr.text16('無線', 0, 0, inv=True); scr.text16('コントローラーが', 0, 16); scr.text16('切れた', 0, 32)
+    else:
+        scr.text16('スタートを', 0, 8, inv=True); scr.text16('押してね', 0, 28)
     return scr
 
 def uptime():

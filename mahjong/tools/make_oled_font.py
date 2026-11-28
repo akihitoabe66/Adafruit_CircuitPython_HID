@@ -6,7 +6,7 @@ import os, re
 from PIL import Image, ImageDraw, ImageFont
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT = os.environ.get('UNIFONT', '/usr/share/fonts/opentype/unifont/unifont_jp.otf')
-EXTRA = '麻雀先生ゲーム起動中電源を抜いてね保守停止待機危険熱すぎ切って高温電圧注意がたりない無線切れスタートを押してね'   # mjoled.py が自分で出す文字
+EXTRA = '麻雀先生ゲーム起動中電源を抜いてね保守停止待機危険熱すぎ切って高温電圧注意がたりない無線切れスタートを押してねコントローラー'   # mjoled.py が自分で出す文字
 src = open(os.path.join(R, 'native/app/nui.js'), encoding='utf-8').read()
 m = re.search(r'/\* OLED-JP-BEGIN \*/(.*?)/\* OLED-JP-END \*/', src, re.S)
 chars = sorted({c for c in (m.group(1) if m else '') + EXTRA if ord(c) > 127 and not c.isspace()})
