@@ -704,7 +704,7 @@ def compose0(scr, d, age, tick, ever_alive=False):
     if d is not None and d.get('scene') == 'SAVING': scr.clear(); return saving_screen(scr, tick)   # 保存中: まだ 抜かない
     if d is not None and d.get('scene') == 'EXIT':   # 終了のあと(コンソール): 無線が 切れているときは「抜いてね」と 無線の案内を 4秒ずつ かわりばんこ
         scr.clear()
-        if pad_sleeping() and tick // 12 % 2 == 1: return pad_screen(scr, tick)
+        if pad_sleeping() and tick % 48 >= 24: return pad_screen(scr, tick % 48 - 24)   # 「電源を抜いて」約8秒 → 無線の案内(2つの文を 1回ずつ)約8秒
         return exit_plug(scr, tick)   # 終了: プラグが抜き差しされる絵だけを出す
     if (d is not None and age < 4.0 and d.get('padguide') == '1') or pad_sleeping(): scr.clear(); return pad_screen(scr, tick)   # 無線コントローラーが 切れた案内(ゲームの画面と 同じタイミング)
     if ZU and not sensei_now(d, age): return compose_zunda(scr, d, age, tick, ever_alive)   # 対局のあいだ(麻雀先生がオンなら)と 勉強の階層は 先生。 ほかは ずんだもんのペット
