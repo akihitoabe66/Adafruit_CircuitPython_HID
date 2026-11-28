@@ -79,7 +79,8 @@
       if (ch.before === DAN.length - 2 && !tr) {
         final.results.forEach((r) => { const id = r.p.char && r.p.char.id; if ((id === 1 || id === 7) && me.rank < r.rank && !s.tk[id]) { s.tk[id] = 1; tkBeat.push(id); } });
       }
-      if (!tr) { const tg = easeTarget(s), cu = s.ease || 0; s.ease = ch.after !== ch.before ? 0 : tg >= cu ? tg : Math.max(tg, cu - 1); } // やさしさ: 上がるのは すぐ、戻るのは 1局ごとに 1段ずつ(階段)。 昇段・降段で リセット s.ranks[me.rank - 1]++;
+      if (!tr) { const tg = easeTarget(s), cu = s.ease || 0; s.ease = ch.after !== ch.before ? 0 : tg >= cu ? tg : Math.max(tg, cu - 1); } // やさしさ: 上がるのは すぐ、戻るのは 1局ごとに 1段ずつ(階段)。 昇段・降段で リセット
+      s.ranks[me.rank - 1]++; // 順位ごとの回数(対戦成績の 1位〜4位)
       if (game.tenka && me.rank === 1 && ch.after === DAN.length - 2) { s.dan = DAN.length - 1; s.maxdan = DAN.length - 1; ch.after = DAN.length - 1; } // 天下分け目(名人+徳川家康+水戸黄門)で 1位 → 永世名人
       final.results.forEach((r) => {
         if (r.p.seat === 0 || !r.p.char || !r.p.char.id) return;
