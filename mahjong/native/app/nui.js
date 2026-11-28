@@ -2100,6 +2100,7 @@
   window.__openPromo = () => { if (S.game) return false; S.promo = S.promo || { from: 0, to: 1, row: 0 }; S.mode = 'promo'; S.rankScr = null; dirty(); return true; }; // シミュレーターのボタンから、昇段の演出テストを開く
   window.__startDiag = () => startDiag(); // 試験用
   window.__mapView = (d) => startMapView(d); // 試験用
+  window.__padGuide = (on) => { S.padGuide = on !== false; dirty(); return true; }; // 試験用: 無線コントローラーの案内を すぐ出す
   window.__startMap = (a, b, c, ms) => { if (ms != null) S.mapSet = ms; S.mode = 'menu'; startMap({ from: a || 0, to: b || 3, congrats: !!c }, () => { S.mode = 'menu'; dirty(); }); }; window.__startDiag = () => startDiag(); window.__startVideo = () => startVideo(); window.__startStudy = () => startStudy(); window.__startDict = () => startDict(); window.__startLearn = () => startLearn(); window.__startHow = () => startHow(); window.__startStats = () => { S.statsPg = 0; S.mode = 'stats'; dirty(); }; window.__startQuiz = (k) => startQuiz({ title: '試験', gens: () => [MJ.Drill[k || 'genDef']], n: 3, onEnd: () => { S.mode = 'menu'; dirty(); } }); window.__stopGame = () => stopGame(); window.__resumeLatest = () => { const l = slotRead(); if (l.length) startGame(l[0].v.snap); return l.length ? l[0].v.snap : null; }; window.__startRoster = () => { S.statsPg = 0; S.mode = 'stats'; S.ros = { sel: 0 }; dirty(); }; window.__metMark = (a) => metMark(a); window.__startCert = (d0, d1) => { const rk = { dan: MJ.DAN_NAME(d1), from: d0, to: d1, promoted: true }; startCert(rk, () => { S.mode = 'menu'; dirty(); }); }; window.__learnOpen = (a, b) => { const L = S.learn; if (L) learnOpen(a, b); }; window.__startRank = () => { S.mode = 'menu'; S.rankScr = { rk: null, done: () => { S.mode = 'menu'; dirty(); } }; dirty(); }; window.__startSlots = () => { S.slots = []; S.slotIdx = 0; S.mode = 'slots'; dirty(); }; // 試験用
   window.__dbgBanner = (seat, text) => { if (S.game) { S.banner = { call: true, text, p: S.game.players[seat], t0: __now() - 1000 }; dirty(); } }; // 試験用
   globalThis.__ctx = () => { try { return JSON.stringify({ mode: S.mode, self: !!S.self, react: !!S.react, hint: !!S.hint, bub: Object.keys(S.bub || {}).join(','), banner: !!S.banner, full: !!S.full, coach: !!S.coach, fly: !!S.fly, deal: !!S.deal, dice: !!S.dice, ros: S.ros ? [S.ros.sel, (S.ros.pick || []).length, S.ros.menu ? S.ros.menu.idx : -1] : null, ryu: !!S.ryu, teacher: teacherOn(), cpu: MJ.cpuSpeed() }); } catch (e) { return 'ctx?'; } }; // 止まった(MJ_STALL)ときの、画面の状態の記録用
@@ -2560,10 +2561,40 @@
     text('↑↓ えらぶ   決定 ロード   もどる でタイトルへ', 360, 398, 20, WHITE, 1);
   }
 
+  /* ---------- ワイヤレスコントローラーが 切れたときの案内(5分 ボタンが 押されないと 出る。 受信機は 切れたことを Zero に 知らせないので、時間で 判断する) ---------- */
+  const PADGUIDE_MS = 300000; // 5分(ワイヤレスコントローラーが 自動で ねむるまでの 時間)
+  const padWireless = () => { const nw = __now(); if (S._pwT && nw - S._pwT < 3000) return S._pw; S._pwT = nw; try { const t = __readtext('/dev/shm/mj_pad.txt'); S._pw = !!(t && /kind=wireless/.test(t)); } catch (e) { S._pw = false; } return S._pw; }; // 無線のとき だけ(有線・キーボードでは 出さない)
+  const padWaiting = () => { // 人の ボタンを 待っている場面か(動画・サイコロ・演出のあいだは 出さない)
+    if (S.mode === 'boot' || S.mode === 'video' && S.vid && S.vid.view === 'play') return false;
+    if (S.dice || S.intro || S.cutin || S.ura || S.winRv || S.deal || S.ryu || S.map) return false;
+    if (S.game && S.mode === 'game' && !(S.self || S.react || S.result || S.end)) return false;
+    return true;
+  };
+  function padGuideTick() {
+    if (S.padGuide) return;
+    const nw = __now(); if (!S.lastInT) S.lastInT = nw;
+    if (nw - S.lastInT >= PADGUIDE_MS && padWaiting() && padWireless()) { S.padGuide = true; dirty(); }
+  }
+  function drawPadGuide() {
+    gfx.view(0, 0); fill(0, 0, SW, SH, [0, 0, 0], 175);
+    panel(56, 18, SW - 112, 428, 14, [252, 246, 228], [120, 84, 40], 4, 255);
+    text('コントローラーが 切れて いませんか?', SW / 2, 32, 32, [170, 40, 30], 1);
+    text('しばらく ボタンを 押さないと、ワイヤレスコントローラーは 自動で ねむります。', SW / 2, 76, 18, [70, 50, 30], 1);
+    gfx.image('img/help/pad_wireless.webp', 166, 112, 500, 228, 255);
+    // スタートボタン(絵の中の位置 268,158)を 赤い わくと 矢印で 示す
+    const bx = 166 + 268, by = 112 + 158, pu = 0.5 + 0.5 * Math.sin(__now() / 260);
+    rrect(bx - 36, by - 15, 72, 30, 15, [255, 214, 70], Math.round(120 + 120 * pu)); frame(bx - 34, by - 13, 68, 26, [214, 40, 30], 4);
+    gPoly([[bx, by + 20], [bx - 18, by + 46], [bx + 18, by + 46]], [214, 40, 30], 255); fill(bx - 6, by + 44, 12, 14, [214, 40, 30]);
+    rrect(bx - 150, 346, 300, 38, 12, [214, 40, 30]); text('スタートボタンを 押す', bx, 351, 26, WHITE, 1);
+    text('そのあと、どれかボタンを 押すと この案内は 消えます。', SW / 2, 398, 18, [70, 50, 30], 1);
+    text('(受信機の ランプが 点滅して いたら、切れています)', SW / 2, 422, 15, [120, 90, 50], 1);
+    dirty();
+  }
   /* ---------- 入力 ---------- */
   window.__key = function (k) {
     if (S.heatStop) { dirty(); return; } /* 熱すぎ・電源不足のあいだは、ボタンを受けつけない(危険の画面) */
     if (S.mode === 'boot') return; /* 準備のあいだは ボタンを受けつけない */
+    S.lastInT = __now(); if (S.padGuide) { S.padGuide = false; dirty(); return; } /* 「コントローラーが 切れて いませんか?」の案内が 出ているときは、最初の 1回の ボタンは 案内を 消すだけ(ゲームには 伝えない) */
     if (__now() - (S.tlKey || 0) > 700) { S.tlKey = __now(); tl('key ' + k); } S.lastKeyT = __now(); // 最後にボタンを押した時刻(先に絵を描いておく処理は、ボタンを押しているあいだは しない)
     if (S.cutin) { if ((k === 'ok' || k === 'back') && __now() - S.cutin.t0 > 500) cutinEnd(); dirty(); return; } // カットインの最中(決定で すぐ消せる)
     if (S.winRv) { if ((k === 'ok' || k === 'back') && __now() - S.winRv.t0 > 600) winRvDone(); dirty(); return; } // CPUの手牌を見せているあいだ(決定で すぐ 次へ)
@@ -3288,7 +3319,7 @@
   }
   window.__draw = function () {
     S.drawSeq = (S.drawSeq || 0) + 1;
-    const t0 = __now(); const r = drawBody(); try { drawHealth(); } catch (e) { /* ignore */ } try { drawBye(); } catch (e) { /* ignore */ } const dt = __now() - t0; perf.n++; perf.ms += dt; if (dt > (perf.mx || 0)) perf.mx = dt;
+    const t0 = __now(); const r = drawBody(); try { drawHealth(); } catch (e) { /* ignore */ } try { drawBye(); } catch (e) { /* ignore */ } try { padGuideTick(); if (S.padGuide) drawPadGuide(); } catch (e) { /* ignore */ }  /* 無線コントローラーが 切れたかもしれない ときの 案内(5分 ボタンなし)。 いちばん手前 */ const dt = __now() - t0; perf.n++; perf.ms += dt; if (dt > (perf.mx || 0)) perf.mx = dt;
     if (dt >= 300) tl('slow-draw ' + Math.round(dt) + 'ms ' + perfCtx()); // 0.3秒以上かかった描きは、出来事の記録(mj_tl)にも残す
     if (dt >= 80) { (perf.slow = perf.slow || []).unshift(Math.round(dt) + 'ms  ' + perfCtx()); perf.slow.length = Math.min(perf.slow.length, 4); }
     if (t0 - perf.t0 >= 1000) { if (perf.n > 0) { const av = perf.ms / perf.n; perf.o = { spd: Math.round(1000 / Math.max(1, av + 4)), draw: Math.round(av), max: Math.round(perf.mx || 0), key: perf.o ? perf.o.key : '' }; } else if (!perf.o) perf.o = {}; /* 描いた回数は、画面が動かないと減るので、「描ける速さ」(1コマの時間から出す)を出す。 描かなかった秒は、前の値のまま */ perf.shown = '描 ' + perf.n + '回/秒  平均' + (perf.ms / Math.max(1, perf.n)).toFixed(0) + 'ms  最大' + Math.round(perf.mx || 0) + 'ms'; perf.t0 = t0; perf.n = 0; perf.ms = 0; perf.mx = 0; try { const kl = typeof gfx.keyLat === 'function' ? gfx.keyLat() : null; if (kl && kl[2]) perf.key = '押してから画面 平均' + Math.round(kl[0]) + 'ms 最大' + Math.round(kl[1]) + 'ms(' + kl[2] + '回)'; if (kl && kl[2] && perf.o) perf.o.key = Math.round(kl[0]); } catch (e) { /* ignore */ } }
