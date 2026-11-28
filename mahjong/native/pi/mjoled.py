@@ -355,7 +355,7 @@ def pad_screen(scr, tick):
     if k < 12:
         scr.text16('無線', 0, 0); scr.text16('コントローラーが', 0, 16); scr.text16('切れた', 0, 32)
     else:
-        scr.text16('スタートボタンを', 0, 0); scr.text16('2回押してね', 0, 16)
+        scr.text16('スタートボタンを', 0, 0); scr.text16('２回押してね', 0, 16)
     if k % 4 >= 2: scr.invert()
     return scr
 
