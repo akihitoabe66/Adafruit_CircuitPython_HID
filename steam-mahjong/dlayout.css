@@ -150,3 +150,6 @@ body.calling #lk .lf0 { display: none; }
 /* 強制横向きのとき: 全画面カットインも、画面と同じ向き(横)に回す。 大きさは、回したあとの画面(container)の割合で決める */
 .lk-cut { container-type: size; }
 body.rot .lk-cut { inset: auto; left: 0; top: 0; width: var(--vh); height: var(--vw); transform-origin: 0 0; transform: translate(var(--vw), 0) rotate(90deg); }
+/* 「テンパイまで」は、手牌にかぶらない高さへ。 鳴き(チー・ポン)の確認が出ている間は隠す */
+#lk .lk-sh { bottom: 74px !important; }
+body.calling #lk .lk-sh { display: none; }
