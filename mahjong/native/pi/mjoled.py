@@ -354,6 +354,7 @@ def pad_screen(scr, tick):
         scr.text16('無線', 0, 0, inv=True); scr.text16('コントローラーが', 0, 16); scr.text16('切れた', 0, 32)
     else:
         scr.text16('スタートを', 0, 8, inv=True); scr.text16('押してね', 0, 28)
+    if tick % 2 == 1: scr.invert()   # ちかちか 点滅(白黒が かわりばんこ)
     return scr
 
 def uptime():
