@@ -2573,7 +2573,9 @@
   function padGuideTick() {
     if (S.padGuide) return;
     const nw = __now(); if (!S.lastInT) S.lastInT = nw;
-    if (nw - S.lastInT >= PADGUIDE_MS && padWaiting() && padWireless()) { S.padGuide = true; dirty(); }
+    let fl = false; try { const t = __readtext('/dev/shm/mj_padsleep.txt'); fl = !!(t && /^1/.test(t)); } catch (e) { /* ignore */ } // mjpad(コントローラーを読むプログラム)が「無線が 切れたかも」と 知らせる印。 ゲームを 起動する前から 切れていた ときも わかる
+    const edge = fl && !S._psPrev; S._psPrev = fl; if (!fl) S._psSeen = false; if (edge) S._psSeen = true;
+    if ((nw - S.lastInT >= PADGUIDE_MS || (S._psSeen && fl)) && padWaiting() && padWireless()) { S.padGuide = true; S._psSeen = false; dirty(); }
   }
   function drawPadGuide() { // 画面が 黒く 半透明に なり、中央に コントローラーの図と「スタートボタンを 押して 再開」。 手牌・顔など「手前に 出る 描き方」の ものも 暗くするため、ぜんぶ Top の 描き方で 重ねる
     gfx.view(0, 0); const T = typeof gfx.fillTop === 'function', F = T ? (x, y, w, h, c, a) => gfx.fillTop(x, y, w, h, c[0], c[1], c[2], a == null ? 255 : a) : (x, y, w, h, c, a) => fill(x, y, w, h, c, a), X = T ? (t, x, y, sz, c) => gfx.textTop(t, x, y, sz, c[0], c[1], c[2], 1) : (t, x, y, sz, c) => text(t, x, y, sz, c, 1);
